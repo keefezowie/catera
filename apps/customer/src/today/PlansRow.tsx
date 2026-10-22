@@ -81,41 +81,44 @@ export function PlansRow({
         title={t(`${count} paket aktif`, `${count} active plans`)}
         action={{ label: t("Lihat semua", "See all"), onPress: () => router.push("/paket-saya" as never) }}
       />
-      {/* The rail runs to the screen's edges and starts at its margin. */}
-      <ScrollView
-        testID="plans-rail"
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginHorizontal: -margin }}
-        contentContainerStyle={{ paddingHorizontal: margin, gap: nativeLayout.groupGap }}
-      >
-        {active.map((s) => {
-          const id = `plan-card-${s.id}`;
-          const image = s.snapshot.offer.image;
-          return (
-            <PressableRow
-              key={s.id}
-              testID={id}
-              accessibilityRole="button"
-              accessibilityLabel={`${label(s)}, ${line(s)}`}
-              onPress={() => open(s)}
-              style={styles.card}
-            >
-              <View testID={`${id}-photo`} style={styles.photo}>
-                {image ? (
-                  <Image source={{ uri: photoUri(image, apiBase) }} contentFit="cover" style={styles.fill} accessible={false} />
-                ) : null}
-              </View>
-              <View style={styles.text}>
-                <Text variant="bodyStrong">{label(s)}</Text>
-                <Text variant="meta" numberOfLines={2}>
-                  {line(s)}
-                </Text>
-              </View>
-            </PressableRow>
-          );
-        })}
-      </ScrollView>
+      {/* The rail runs to the screen's edges and starts at its margin: the margin is taken off a plain wrapper (the
+          scroll view itself does not widen past its parent's padding on Android), and the scroll view inside pads its
+          content by the margin at both ends, so the next card peeks at the right edge. */}
+      <View testID="plans-rail-bleed" style={{ marginHorizontal: -margin }}>
+        <ScrollView
+          testID="plans-rail"
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: margin, gap: nativeLayout.groupGap }}
+        >
+          {active.map((s) => {
+            const id = `plan-card-${s.id}`;
+            const image = s.snapshot.offer.image;
+            return (
+              <PressableRow
+                key={s.id}
+                testID={id}
+                accessibilityRole="button"
+                accessibilityLabel={`${label(s)}, ${line(s)}`}
+                onPress={() => open(s)}
+                style={styles.card}
+              >
+                <View testID={`${id}-photo`} style={styles.photo}>
+                  {image ? (
+                    <Image source={{ uri: photoUri(image, apiBase) }} contentFit="cover" style={styles.fill} accessible={false} />
+                  ) : null}
+                </View>
+                <View style={styles.text}>
+                  <Text variant="bodyStrong">{label(s)}</Text>
+                  <Text variant="meta" numberOfLines={2}>
+                    {line(s)}
+                  </Text>
+                </View>
+              </PressableRow>
+            );
+          })}
+        </ScrollView>
+      </View>
     </View>
   );
 }

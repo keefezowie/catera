@@ -906,7 +906,9 @@ describe("Beranda mood", () => {
       borderRadius: 16,
       borderWidth: 1.5,
     });
-    expect(flat("plate-photo")).toMatchObject({ borderTopLeftRadius: 14.5, borderTopRightRadius: 14.5, margin: 1.5 });
+    // The 1.5 inset and the corners are on the layer round the photo; the photo itself carries only its ratio.
+    expect(flat("plate-photo-inset")).toMatchObject({ borderTopLeftRadius: 14.5, borderTopRightRadius: 14.5, margin: 1.5 });
+    expect(flat("plate-photo").margin).toBeUndefined();
   });
 
   it("fills the hero from the Malam palette and sets the plate heading in the hero ink (the hero is the card colour in both moods)", async () => {
@@ -960,7 +962,7 @@ describe("Beranda mood", () => {
     expect(screen.getByRole("button", { name: "Sudah sampai" }).props.accessibilityState.busy).toBe(false);
   });
 
-  it("keeps the photo 4:3 whatever the status says, and the text out of it", async () => {
+  it("keeps the photo 16:10 whatever the status says, and the text out of it", async () => {
     const state = bothMeals();
     state.deliveries[0].meals = [
       { meal: "lunch", status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` },
@@ -971,7 +973,7 @@ describe("Beranda mood", () => {
     const photo = within(screen.getByTestId("plate-photo"));
     expect(photo.queryByTestId("plate-overlay")).toBeNull();
     expect(photo.queryByTestId("plate-detail")).toBeNull();
-    expect(flat("plate-photo").aspectRatio).toBeCloseTo(4 / 3, 6);
+    expect(flat("plate-photo").aspectRatio).toBeCloseTo(16 / 10, 6);
     expect(flat("plate-photo").height).toBeUndefined();
     // The detail line is in the body, under the dish and the status line; there is no state sentence.
     expect(within(screen.getByTestId("plate-body")).getByTestId("plate-detail")).toBeTruthy();
@@ -1211,7 +1213,8 @@ describe("Beranda mood", () => {
       expect(within(h.getByTestId("rantang-track")).getByText("Dimasak 08.10")).toBeTruthy();
       expect(label()).toBe("Sedang dimasak");
       // Two different lines, and neither is said twice.
-      expect(h.getAllByText("Sedang dimasak")).toHaveLength(1);
+      expect(stop().getAllByText("Sedang dimasak")).toHaveLength(1);
+      expect(h.queryByText("Sedang dimasak")).toBeNull();
       expect(h.getAllByText("Dimasak 08.10")).toHaveLength(1);
       expect(h.queryByText("Terjadwal")).toBeNull();
     });
@@ -1332,7 +1335,7 @@ describe("Beranda mood", () => {
     it("shows no track for a reported plate and keeps its message", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "scheduled", issue: { status: "open" } } as unknown as Partial<DeliveryMeal>)));
       const h = await hero();
-      expect(h.getByText("Laporan terkirim")).toBeTruthy();
+      expect(stop().getByText("Laporan terkirim")).toBeTruthy();
       expect(screen.queryByTestId("rantang-track")).toBeNull();
     });
 
@@ -1439,7 +1442,7 @@ describe("Beranda mood", () => {
     const runtime = runtimeWith(async () => state);
     mount(runtime);
     const hero = within(await screen.findByTestId("plate-hero"));
-    expect(hero.getByText("Sudah sampai")).toBeTruthy();
+    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Sudah sampai")).toBeTruthy();
     fireEvent.press(hero.getByRole("button", { name: "Enak" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(

@@ -165,7 +165,7 @@ describe("StatusStops", () => {
       { scheme, now: mood === "siang" ? SIANG_NOW : MALAM_NOW },
     );
     const palette = nativeMood[scheme][mood];
-    const ink = nativeThemes[scheme].charcoal;
+    const ink = palette.headerText;
     const dot = flat("status-stop-lunch-dot");
     expect(dot.backgroundColor).toBe(ink);
     // stopActive belongs to the tracker's current stop alone.
@@ -189,8 +189,8 @@ describe("StatusStops", () => {
         dinner={{ window: null, state: "Sate ayam madura", status: "next" }}
       />,
     );
-    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderColor: nativeThemes.light.charcoal, borderWidth: 2 });
-    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeThemes.light.muted);
+    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderColor: nativeMood.light.siang.headerText, borderWidth: 2 });
+    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.headerMeta);
   });
 
   it("the shown meal's label is forest and 700, the other's ink and 600, so selection is not colour alone", async () => {
@@ -200,22 +200,18 @@ describe("StatusStops", () => {
       fontFamily: "Jakarta-Bold",
     });
     expect(flatOf(screen.getByText("Malam 17.00–19.00"))).toMatchObject({
-      color: nativeThemes.light.charcoal,
+      color: nativeMood.light.siang.headerText,
       fontFamily: "Jakarta-SemiBold",
     });
     fireEvent.press(screen.getByTestId("status-stop-dinner"));
     expect(flatOf(screen.getByText("Malam 17.00–19.00"))).toMatchObject({ color: nativeThemes.light.forest, fontFamily: "Jakarta-Bold" });
-    expect(flatOf(screen.getByText("Siang 11.00–13.00")).color).toBe(nativeThemes.light.charcoal);
+    expect(flatOf(screen.getByText("Siang 11.00–13.00")).color).toBe(nativeMood.light.siang.headerText);
   });
 
-  it("on the hero card the unshown label and state line read the hero inks, on the canvas the theme's", async () => {
-    const view = await settled(<Stops lunch={LUNCH} dinner={DINNER} onHero />);
-    expect(flatOf(screen.getByText("Malam 17.00–19.00")).color).toBe(nativeMood.light.siang.heroText);
-    expect(flatOf(screen.getByText("Sate ayam madura")).color).toBe(nativeMood.light.siang.heroMeta);
-    view.unmount();
+  it("sits on the band, so the unshown label and the state line read the band's inks, in both moods", async () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
-    expect(flatOf(screen.getByText("Malam 17.00–19.00")).color).toBe(nativeThemes.light.charcoal);
-    expect(flatOf(screen.getByText("Sate ayam madura")).color).toBe(nativeThemes.light.muted);
+    expect(flatOf(screen.getByText("Malam 17.00–19.00")).color).toBe(nativeMood.light.siang.headerText);
+    expect(flatOf(screen.getByText("Sate ayam madura")).color).toBe(nativeMood.light.siang.headerMeta);
   });
 });
 
@@ -353,7 +349,7 @@ describe("Beranda hero, band and status line", () => {
     expect(within(glyph).UNSAFE_getByProps({ name: "moon" })).toBeTruthy();
   });
 
-  it("the hero is a 16 radius card with the 1.5 edge and no frame padding, its photo 4:3 at full width", async () => {
+  it("the hero is a 16 radius card with the 1.5 edge and no frame padding, its photo 16:10 at the card's inner width", async () => {
     home(bothMeals());
     await screen.findByTestId("plate-hero");
     const frame = flat("plate-hero");
@@ -365,9 +361,25 @@ describe("Beranda hero, band and status line", () => {
       borderColor: nativeMood.light.siang.heroEdge,
       boxShadow: nativeMood.light.siang.heroShadow,
     });
-    expect(flat("plate-photo").aspectRatio).toBeCloseTo(4 / 3, 6);
+    expect(flat("plate-photo").aspectRatio).toBeCloseTo(16 / 10, 6);
     expect(flat("plate-photo").minHeight).toBeUndefined();
     expect(screen.queryByTestId("plate-overlay")).toBeNull();
+  });
+
+  it("the photo is as wide as the card's inner width: the 1.5 inset is on the layer round it, never on the photo that has the ratio", async () => {
+    // A node with both a margin and an aspect ratio lays itself out narrower than its slot on Android (the margin taken
+    // off twice: 4px in on the left, 14 to 17px short on the right), so the two live on different layers.
+    home(bothMeals());
+    await screen.findByTestId("plate-hero");
+    const photo = flat("plate-photo");
+    const inset = flat("plate-photo-inset");
+    expect(photo.aspectRatio).toBeCloseTo(16 / 10, 6);
+    for (const key of ["margin", "marginHorizontal", "marginLeft", "marginRight", "width", "padding"]) expect(photo[key]).toBeUndefined();
+    expect(inset).toMatchObject({ margin: 1.5, borderTopLeftRadius: 14.5, borderTopRightRadius: 14.5, overflow: "hidden" });
+    expect(inset.aspectRatio).toBeUndefined();
+    const node = screen.getByTestId("plate-photo");
+    expect(within(screen.getByTestId("plate-photo-inset")).getByTestId("plate-photo")).toBe(node);
+    expect(within(screen.getByTestId("plate-hero")).getByTestId("plate-photo-inset")).toBeTruthy();
   });
 
   it("sets the dish in heroTitle, the meal line in meta, in a body of 16 padding and 12 gap", async () => {
@@ -379,10 +391,18 @@ describe("Beranda hero, band and status line", () => {
     expect(flat("plate-body")).toMatchObject({ padding: 16, gap: 12 });
   });
 
-  it("puts the two-stop status line inside the hero body, and no other-meal row anywhere", async () => {
+  it("puts the two-stop status line on the band under the statement, not in the hero, and no other-meal row anywhere", async () => {
     home(bothMeals());
     await screen.findByTestId("plate-hero");
-    expect(within(screen.getByTestId("plate-hero")).getByTestId("status-stops")).toBeTruthy();
+    const band = within(screen.getByTestId("mood-header"));
+    expect(band.getByTestId("status-stops")).toBeTruthy();
+    expect(within(screen.getByTestId("plate-hero")).queryByTestId("status-stops")).toBeNull();
+    // Statement first, then the 40 row: the status line follows the title in the band's content.
+    const ids = screen
+      .getByTestId("mood-header-content")
+      .findAll((n) => typeof n.type === "string" && !!n.props.testID)
+      .map((n) => n.props.testID);
+    expect(ids.indexOf("status-stops")).toBeGreaterThan(ids.indexOf("home-title"));
     expect(screen.queryByTestId("other-meal-row")).toBeNull();
     expect(screen.queryByTestId("mood-arc")).toBeNull();
     expect(
@@ -434,7 +454,7 @@ describe("Beranda hero, band and status line", () => {
     expect(within(screen.getByTestId("status-stop-dinner")).getByText("Tidak ada")).toBeTruthy();
     // Today's lunch is done and one tap away: its dish is the stop's line, its dot the filled "done" one.
     expect(within(screen.getByTestId("status-stop-lunch")).getByText("Ayam bakar madu")).toBeTruthy();
-    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeThemes.light.muted);
+    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.headerMeta);
     // No hero rides up over the band, and the line reads the canvas inks.
     expect(flatOf(screen.getByTestId("mood-header")).paddingBottom).toBe(16);
     // The shown meal's label is forest, the other's ink.
@@ -442,7 +462,7 @@ describe("Beranda hero, band and status line", () => {
     expect(flatOf(within(screen.getByTestId("status-stop-lunch")).getByText("Siang 11.00–13.00")).color).toBe(nativeThemes.light.charcoal);
   });
 
-  it("two plates of the chosen meal keep the pager, with one status line under it", async () => {
+  it("two plates of the chosen meal keep the pager, with the one status line on the band above it", async () => {
     const second = offer({ id: "p-sehat", name: "Paket Sehat", windows: { lunch: "12.00–13.00", dinner: "17.00–19.00" } });
     const state = customerState(null);
     state.deliveries.unshift(
@@ -453,6 +473,9 @@ describe("Beranda hero, band and status line", () => {
     await screen.findAllByTestId("plate-hero");
     expect(screen.getAllByTestId("plate-hero")).toHaveLength(2);
     expect(screen.getAllByTestId("status-stops")).toHaveLength(1);
+    // On the band, so it is in the first viewport whatever the cards below take; never under the pager.
+    expect(within(screen.getByTestId("mood-header")).getByTestId("status-stops")).toBeTruthy();
+    expect(within(screen.getByTestId("hero-pager")).queryByTestId("status-stops")).toBeNull();
     expect(within(screen.getByTestId("status-stop-lunch")).getByText("2 pengantaran")).toBeTruthy();
     expect(title().props.children).toBe("Siang ini, 2 pengantaran.");
   });
@@ -569,8 +592,9 @@ describe("Beranda statement and stops", () => {
     expect(screen.queryByTestId("plate-sentence")).toBeNull();
     // The body keeps its second line: when the meal is due, as meta.
     expect(screen.getByTestId("plate-detail").props.children).toBe("tiba sekitar 11.00–13.00");
-    // The state label appears once on the screen outside the tracker.
-    expect(within(screen.getByTestId("plate-body")).getAllByText("Sedang diantar")).toHaveLength(1);
+    // The state label is on the band's stop once and is not repeated in the hero body (the tracker has its own words).
+    expect(within(screen.getByTestId("status-stops")).getAllByText("Sedang diantar")).toHaveLength(1);
+    expect(within(screen.getByTestId("plate-body")).queryByText("Sedang diantar")).toBeNull();
   });
 
   function bothTodayForState() {
@@ -597,10 +621,10 @@ describe("Beranda statement and stops", () => {
     home(state);
     await screen.findByTestId("plate-hero");
     // The live stop is a filled ink dot with its halo; stopActive stays the tracker's.
-    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.heroText);
+    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.headerText);
     expect(flat("status-stop-lunch-dot").backgroundColor).not.toBe(nativeMood.light.siang.stopActive);
     expect(screen.getByTestId("status-stop-lunch-halo")).toBeTruthy();
-    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderWidth: 2, borderColor: nativeMood.light.siang.heroText });
+    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderWidth: 2, borderColor: nativeMood.light.siang.headerText });
   });
 });
 
@@ -696,7 +720,7 @@ describe("every Plate state under the food-led hero", () => {
         </MobileProvider>,
       );
       await screen.findByTestId("plate-hero");
-      expect(flat("plate-photo").aspectRatio).toBeCloseTo(4 / 3, 6);
+      expect(flat("plate-photo").aspectRatio).toBeCloseTo(16 / 10, 6);
       // The band says the state, the stop its short label, the body only the detail (the second line), the title the dish.
       expect(screen.getByTestId("home-title").props.children).toBe(statement);
       expect(screen.getByTestId("home-title").props.children).not.toMatch(/ayam bakar madu/i);
@@ -707,9 +731,9 @@ describe("every Plate state under the food-led hero", () => {
       else expect(screen.queryByTestId("plate-detail")).toBeNull();
       expect(screen.getAllByText("Ayam bakar madu · Sayur asem")).toHaveLength(1);
       const dot = flat("status-stop-lunch-dot");
-      if (status === "now") expect(dot.backgroundColor).toBe(nativeMood.light.siang.heroText);
-      else if (status === "done") expect(dot.backgroundColor).toBe(nativeThemes.light.muted);
-      else expect(dot.borderColor).toBe(nativeMood.light.siang.heroText);
+      if (status === "now") expect(dot.backgroundColor).toBe(nativeMood.light.siang.headerText);
+      else if (status === "done") expect(dot.backgroundColor).toBe(nativeMood.light.siang.headerMeta);
+      else expect(dot.borderColor).toBe(nativeMood.light.siang.headerText);
       // The status line is the one in the hero's body, never a second one.
       expect(screen.getAllByTestId("status-stops")).toHaveLength(1);
     },
@@ -739,11 +763,11 @@ describe("every Plate state under the food-led hero", () => {
       </MobileProvider>,
     );
     await screen.findByTestId("plate-hero");
-    const ink = nativeMood.light.siang.heroText;
+    const ink = nativeMood.light.siang.headerText;
     expect(screen.queryByTestId("status-stop-lunch-halo")).toBeNull();
     expect(screen.getByTestId("status-stop-dinner-halo")).toBeTruthy();
     expect(flat("status-stop-dinner-dot").backgroundColor).toBe(ink);
-    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeThemes.light.muted);
+    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.headerMeta);
   });
 
   it("no delivery for the chosen meal: the status line alone under the band, both stops Tidak ada", async () => {
@@ -777,7 +801,7 @@ describe("every Plate state under the food-led hero", () => {
     expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
     expect(screen.queryByTestId("header-more")).toBeNull();
     expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
-    expect(within(screen.getByTestId("plate-hero")).getByTestId("status-stops")).toBeTruthy();
+    expect(within(screen.getByTestId("mood-header")).getByTestId("status-stops")).toBeTruthy();
     fireEvent.press(screen.getByTestId("status-stop-dinner"));
     expect(seen.mood).toBe("malam");
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValue(null);
@@ -813,7 +837,7 @@ describe("every Plate state under the food-led hero", () => {
       const malam = nativeMood[scheme].malam;
       expect(flat("mood-fill-malam")).toMatchObject({ backgroundColor: malam.header });
       expect(flat("plate-hero-fill-malam").backgroundColor).toBe(malam.hero);
-      expect(flat("status-stop-dinner-dot").backgroundColor).toBe(malam.heroText);
+      expect(flat("status-stop-dinner-dot").backgroundColor).toBe(malam.headerText);
       expect(flat("status-stop-dinner-dot").backgroundColor).not.toBe(malam.stopActive);
       expect(flatOf(screen.getByTestId("home-title")).color).toBe(malam.headerText);
     },
@@ -847,6 +871,13 @@ describe("HeroPager under the layout scale", () => {
     expect([before.side, after.side]).toEqual([20, 16]);
     // The card is the pager's width minus the margin, the 12 gap and the 32 peek: 64 at a 20 margin (as it always was), 60 at 16.
     expect(before.width - after.width).toBe(-4);
+  });
+
+  it("keeps each page at its own height, top-aligned, instead of stretching every card to the tallest", () => {
+    pager("v2");
+    const content = StyleSheet.flatten(screen.getByTestId("hero-pager-scroll").props.contentContainerStyle);
+    expect(content.alignItems).toBe("flex-start");
+    for (const page of screen.getAllByTestId("hero-page")) expect(StyleSheet.flatten(page.props.style).height).toBeUndefined();
   });
 });
 

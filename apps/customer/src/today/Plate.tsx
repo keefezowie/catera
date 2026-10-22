@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Linking, StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
@@ -9,7 +9,6 @@ import { useMobile, useTrack } from "@catera/mobile-core";
 import {
   Button,
   fontFor,
-  HERO_EDGE,
   MoodFill,
   Photo,
   PressableScale,
@@ -21,6 +20,7 @@ import {
   useMoodColors,
   useToast,
 } from "@catera/mobile-ui";
+import { HeroPhotoFrame } from "./HeroPhoto";
 import { dayHasActions } from "../schedule/dayActions";
 import { DayMore } from "../schedule/DayMore";
 import { photoUri } from "./photoUri";
@@ -237,22 +237,10 @@ export function statementFor(p: PlateData, t: Translate): string {
 export const HERO_RADIUS = nativeLayout.radius.card;
 
 /**
- * The hero's photo frame: 4:3 across the top of the card, inside its 1.5 edge so the edge runs unbroken round it, its
- * top corners one edge-width tighter than the card's. The loading skeleton draws the same frame.
- */
-export const heroPhotoFrame = {
-  aspectRatio: nativeLayout.ratio.hero,
-  margin: HERO_EDGE,
-  borderTopLeftRadius: HERO_RADIUS - HERO_EDGE,
-  borderTopRightRadius: HERO_RADIUS - HERO_EDGE,
-  borderCurve: "continuous",
-  overflow: "hidden",
-} as const;
-
-/**
- * Today's plate: the photo, the meal line, the dish, the status line and one action. As the `hero` it is the Beranda's
- * raised card: a `MoodFill` (Siang, and Malam fading over it) that Beranda places over the band, 16 radius with the
- * 1.5 `heroEdge` and the hero shadow, the photo at 4:3 across its top and a body of 16 padding and 12 gap. The frame
+ * Today's plate: the photo, the meal line, the dish and one action. As the `hero` it is the Beranda's raised card: a
+ * `MoodFill` (Siang, and Malam fading over it) that Beranda places over the band, 16 radius with the 1.5 `heroEdge` and
+ * the hero shadow, the photo at 16:10 across its top and a body of 16 padding and 12 gap (the status line sits on the
+ * band above, not in the card). The frame
  * stays mounted when the mood switches, so the fills cross-fade; only its content is keyed to the plate. A `card`
  * plate has no mood of its own and reads the theme.
  */
@@ -264,7 +252,6 @@ export function Plate({
   paged = false,
   counted = true,
   delivery,
-  status,
 }: {
   plate: PlateData;
   apiBase: string;
@@ -276,8 +263,6 @@ export function Plate({
   counted?: boolean;
   /** The day behind a hero plate, from a fresh read: its "…" opens the day's actions. Left out offline. */
   delivery?: Delivery;
-  /** The hero's two-stop status line, set in its body under the dish. */
-  status?: ReactNode;
 }) {
   const styles = useStyles();
   const content = (
@@ -289,7 +274,6 @@ export function Plate({
       variant={variant}
       counted={counted}
       delivery={delivery}
-      status={status}
     />
   );
   if (variant !== "hero") return <View style={styles.card}>{content}</View>;
@@ -316,7 +300,6 @@ function PlateContent({
   variant,
   counted,
   delivery,
-  status,
 }: {
   plate: PlateData;
   apiBase: string;
@@ -324,7 +307,6 @@ function PlateContent({
   variant: "card" | "hero";
   counted: boolean;
   delivery?: Delivery;
-  status?: ReactNode;
 }) {
   const { command, t, locale } = useMobile();
   const c = useColors();
@@ -403,27 +385,31 @@ function PlateContent({
     }
   }
 
+  const photoContent = (
+    <>
+      {/* Fades in over the dark failed-photo ground, which stays if the photo never comes: the frame's own ground, so no band. */}
+      {plate.image ? <Photo ground="photo" uri={photoUri(plate.image, apiBase)} style={StyleSheet.absoluteFill} /> : null}
+      {/* The day's other actions, at the photo's top corner on its own dark ground, so a light photo never hides it.
+          Only the hero has it, and only from a fresh read: a copy kept offline acts on nothing. */}
+      {more ? (
+        <View style={styles.more}>
+          <DayMore delivery={delivery} meal={plate.meal} tint={fixedInk.cream} ground={OVERLAY(nativePhoto.cornerButtonAlpha)} />
+        </View>
+      ) : null}
+    </>
+  );
+
   return (
     <>
-      <View
-        testID="plate-photo"
-        style={[
-          styles.photo,
-          hero
-            ? heroPhotoFrame
-            : { height: 268 },
-        ]}
-      >
-        {/* Fades in over the dark failed-photo ground, which stays if the photo never comes: the frame's own ground, so no band. */}
-        {plate.image ? <Photo ground="photo" uri={photoUri(plate.image, apiBase)} style={StyleSheet.absoluteFill} /> : null}
-        {/* The day's other actions, at the photo's top corner on its own dark ground, so a light photo never hides it.
-            Only the hero has it, and only from a fresh read: a copy kept offline acts on nothing. */}
-        {more ? (
-          <View style={styles.more}>
-            <DayMore delivery={delivery} meal={plate.meal} tint={fixedInk.cream} ground={OVERLAY(nativePhoto.cornerButtonAlpha)} />
-          </View>
-        ) : null}
-      </View>
+      {hero ? (
+        <HeroPhotoFrame ratio={nativeLayout.ratio.card} testID="plate-photo" style={styles.photo}>
+          {photoContent}
+        </HeroPhotoFrame>
+      ) : (
+        <View testID="plate-photo" style={[styles.photo, { height: 268 }]}>
+          {photoContent}
+        </View>
+      )}
       <View testID="plate-body" style={styles.body}>
         {/* The meal line and the dish are one group, 2 apart. */}
         <View style={{ gap: 2 }}>
@@ -446,7 +432,6 @@ function PlateContent({
             </Text>
           )}
         </View>
-        {hero ? status : null}
         {detail ? (
           <Text testID="plate-detail" variant="meta" style={{ color: quiet, fontVariant: ["tabular-nums"] }}>
             {detail}

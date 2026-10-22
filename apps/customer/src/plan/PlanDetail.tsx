@@ -41,7 +41,7 @@ import { goToTab } from "../nav";
 import { PlanSkeleton } from "../skeletons";
 import { ListCard, MediaRow, SectionHeader } from "../layout";
 import { HERO_RADIUS } from "../today/Plate";
-import { planPhotoFrame } from "./heroFrame";
+import { HeroPhotoFrame } from "../today/HeroPhoto";
 
 type LoadedPlan = { data: CustomerState; savedAt: string | null };
 
@@ -212,9 +212,9 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
       <MoodFill surface="hero" testID="plan-hero-fill" radius={HERO_RADIUS} heroShadow />
       {photo ? (
         // The soft ground of the photo inside, so the frame reads as one tile while the photo loads or if it never does.
-        <View testID="plan-photo-frame" style={[planPhotoFrame, { backgroundColor: c.sage }]}>
+        <HeroPhotoFrame ratio={nativeLayout.ratio.card} testID="plan-photo-frame" style={{ backgroundColor: c.sage }}>
           <Photo testID="plan-photo" uri={photoUri(photo, apiBase)} style={StyleSheet.absoluteFill} />
-        </View>
+        </HeroPhotoFrame>
       ) : null}
       <View testID="plan-hero-body" style={{ padding: nativeLayout.cardPadding, gap: nativeLayout.space.md }}>
         <View style={{ gap: 2 }}>

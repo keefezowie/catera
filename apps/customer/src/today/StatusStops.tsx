@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { fontFor, PressableScale, Text, useColors, useMood, useMoodColors } from "@catera/mobile-ui";
+import { fontFor, PressableScale, Skeleton, Text, useColors, useMood, useMoodColors } from "@catera/mobile-ui";
 import type { Mood } from "@catera/design-tokens";
 import type { StopStatus } from "./stopStatus";
 
@@ -39,22 +39,22 @@ export function withAlpha(hex: string, alpha: number): string {
 }
 
 /**
- * Beranda's two-stop status line: one 40 tall row, a stop at each end and the 2dp `heroEdge` track between them. A
+ * Beranda's two-stop status line, set on the mood band directly under the day statement: one 40 tall row, a stop at each end and the 2dp `heroEdge` track between them. A
  * stop is a dot beside a two-line block, the `bodyStrong` label ("Siang 11.00–13.00") over the `meta` state line, 8
  * apart, and a 44 tall target. It is the app-wide Siang/Malam switch, the same as the day arc it replaces: a `tablist`
  * of two `tab`s whose selected one is the chosen mood, and a press calls `useMood().setMood`. The shown meal's label is
  * forest and 700 (selection is not colour alone: it is also heavier, and the tab says selected); the other is ink and
  * 600. The dot says where the meal is: `now` a filled ink dot with a 4dp halo at 16% of the ink (the stop colour of the
  * tracker stays the tracker's own), `next` an ink ring, `none` a `controlRing` ring, `done` a filled muted dot.
- * `onHero` reads the hero card's inks (it sits in the hero's body); otherwise the theme's (on the canvas).
+ * It sits on the band, so it reads the band's inks (`headerText`, `headerMeta`).
  */
-export function StatusStops({ lunch, dinner, onHero = false }: { lunch: StopInfo; dinner: StopInfo; onHero?: boolean }) {
+export function StatusStops({ lunch, dinner }: { lunch: StopInfo; dinner: StopInfo }) {
   const { t } = useMobile();
   const { mood, setMood } = useMood();
   const c = useColors();
   const palette = useMoodColors();
-  const ink = onHero ? palette.heroText : c.charcoal;
-  const quiet = onHero ? palette.heroMeta : c.muted;
+  const ink = palette.headerText;
+  const quiet = palette.headerMeta;
   const info = { lunch, dinner };
   const names = {
     lunch: { title: t("Siang", "Lunch"), label: t("Makan siang", "Lunch") },
@@ -135,6 +135,38 @@ export function StatusStops({ lunch, dinner, onHero = false }: { lunch: StopInfo
         }}
       />
       {stop(STOPS[1].mood, STOPS[1].id)}
+    </View>
+  );
+}
+
+/**
+ * The status line while the first read is out, on the band: the same 40 row with two stops of a dot's halo box beside
+ * a label line over a state line, so the band keeps its height when the page lands. The blocks read the band's track
+ * (`onMood`).
+ */
+export function StatusStopsPlaceholder() {
+  const stop = (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.sm, width: "36%" }}>
+      <View style={{ width: STATUS_HALO, height: STATUS_HALO, alignItems: "center", justifyContent: "center" }}>
+        <Skeleton onMood width={DOT} height={DOT} radius={DOT / 2} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={{ height: STATUS_LABEL_LINE, justifyContent: "center" }}>
+          <Skeleton onMood width="86%" height={14} />
+        </View>
+        <View style={{ height: STATUS_META_LINE, justifyContent: "center" }}>
+          <Skeleton onMood width="60%" height={12} />
+        </View>
+      </View>
+    </View>
+  );
+  return (
+    <View
+      testID="status-stops-placeholder"
+      style={{ height: STATUS_ROW, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+    >
+      {stop}
+      {stop}
     </View>
   );
 }

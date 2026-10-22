@@ -33,7 +33,7 @@ import { EmptyHome, EmptyHomeBody, EmptyHomeHeader, type HomeCatalog } from "./E
 import { HERO_BAND_OVERLAP, HERO_BAND_RISE } from "./heroBand";
 import { Plate, stateLabel, statementFor } from "./Plate";
 import { stopStatuses } from "./stopStatus";
-import { StatusStops, type StopInfo } from "./StatusStops";
+import { StatusStops, StatusStopsPlaceholder, type StopInfo } from "./StatusStops";
 import { RecapCard } from "./RecapCard";
 import { StaleCopy } from "../staleCopy";
 import { LiveSlot } from "./LiveSlot";
@@ -113,14 +113,23 @@ function HomeMeta({ text, updating }: { text: string; updating: string | null })
   );
 }
 
-/** What the loaded band says: the meta row, the one-line statement and whether a hero rides over it. */
-type HomeHeading = { meta: string; statement: string; hero: boolean; updating: string | null };
+/** What the loaded band says: the meta row, the one-line statement, the status line and whether a hero rides over it. */
+type HomeHeading = {
+  meta: string;
+  statement: string;
+  /** The two stops of the status line under the statement. */
+  stops: { lunch: StopInfo; dinner: StopInfo };
+  hero: boolean;
+  updating: string | null;
+};
 
 /**
- * Beranda's mood band: the date line (`meta`, with the sun or the moon) over the day statement in `section`. While the
+ * Beranda's mood band: the date line (`meta`, with the sun or the moon), the day statement in `section` and, 12 under it,
+ * the two-stop status line (a 40 row). While the
  * first read is out (`loaded` absent) it is laid out as the loaded band, so it keeps its height when the page lands: the
  * date in the meta row (the phone knows it) and the meal's opening line with a skeleton line after it, one `section`
- * line high like the statement. It leaves the same 104 for the hero as the skeleton draws one. The line breathes with
+ * line high like the statement, and the status line by its placeholder row. It leaves the same 104 for the hero as the
+ * skeleton draws one. The line breathes with
  * the data area's group, which names the wait; the band is chrome, never a progress bar. One component for both, so the
  * band stays mounted across the swap.
  */
@@ -152,7 +161,18 @@ function HomeHeader({ loaded }: { loaded?: HomeHeading }) {
           </View>
         )
       }
-    />
+    >
+      {/* 12 under the statement (the band's own gap is 4): the two-stop status line, a 40 row. */}
+      <View style={{ marginTop: 8 }}>
+        {loaded ? (
+          <StatusStops lunch={loaded.stops.lunch} dinner={loaded.stops.dinner} />
+        ) : (
+          <SkeletonGroup>
+            <StatusStopsPlaceholder />
+          </SkeletonGroup>
+        )}
+      </View>
+    </MoodHeader>
   );
 }
 
@@ -291,9 +311,6 @@ function SignedInHome({ actorId }: { actorId: string }) {
     lunch: { ...stopFor(byMeal.lunch, meal === "lunch", t), status: dots.lunch },
     dinner: { ...stopFor(byMeal.dinner, meal === "dinner", t), status: dots.dinner },
   };
-  // The status line sits in the hero's body when one plate leads, under the pager when several do, and alone under the
-  // band when none does.
-  const statusLine = (onHero: boolean) => <StatusStops lunch={stops.lunch} dinner={stops.dinner} onHero={onHero} />;
   // Tomorrow's deliveries in the story's order: its block in Berikutnya opens the story at the part it shows.
   const story = tomorrowStory(state, now, locale);
   const tomorrow = story ? { date: story.date, parts: story.parts } : null;
@@ -313,7 +330,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
       refreshControl={pull}
       header={
         <HomeHeader
-          loaded={{ meta, statement, hero: heroPlates.length > 0, updating: updating ? updatingText : null }}
+          loaded={{ meta, statement, stops, hero: heroPlates.length > 0, updating: updating ? updatingText : null }}
         />
       }
     >
@@ -325,7 +342,6 @@ function SignedInHome({ actorId }: { actorId: string }) {
         swapKey={savedAt ? "kept" : "fresh"}
         style={[{ gap: 16 }, heroPlates.length ? { marginTop: HERO_BAND_RISE } : null]}
       >
-        {heroPlates.length ? null : statusLine(false)}
         {/* Nothing comes today and nothing is scheduled next: the resting mascot stands where a plate would, under the
             headline that says so. A day with a plate leads with its photo and never shows the mascot. Nothing else
             sits between the mascot and the Paket selesai recap here, so it stays out while the recap's food photo
@@ -373,10 +389,8 @@ function SignedInHome({ actorId }: { actorId: string }) {
             apiBase={runtime.apiBase}
             offline={!!savedAt}
             delivery={savedAt ? undefined : state.deliveries.find((d) => d.id === heroPlates[0].deliveryId)}
-            status={statusLine(true)}
           />
         ) : null}
-        {heroPlates.length > 1 ? statusLine(false) : null}
         {/* Mounted whatever the page shows: the banner reads the phone's connection itself and appears only offline,
             with the time of the copy on screen; when the phone is back it reads again. It follows the hero, which rides
             up over the header. */}

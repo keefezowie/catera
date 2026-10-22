@@ -224,6 +224,16 @@ describe("Plan detail states", () => {
     expect(flat(within(hero).getByTestId("plan-hero-fill-siang")).boxShadow).toBeTruthy();
     expect(flat(within(hero).getByTestId("plan-photo-frame"))).toMatchObject({ aspectRatio: 16 / 10 });
     expect(nativeLayout.ratio.card).toBe(16 / 10);
+    // The photo is the card's inner width: the 1.5 inset and the top corners are on the layer round it, never on the
+    // node that has the ratio (margin and aspect ratio together make a node narrower than its slot on Android).
+    const photo = flat(within(hero).getByTestId("plan-photo-frame"));
+    for (const key of ["margin", "marginHorizontal", "marginLeft", "marginRight", "width", "padding"]) expect(photo[key]).toBeUndefined();
+    expect(flat(within(hero).getByTestId("plan-photo-frame-inset"))).toMatchObject({
+      margin: 1.5,
+      borderTopLeftRadius: 14.5,
+      borderTopRightRadius: 14.5,
+      overflow: "hidden",
+    });
     // The body pads 16 under the photo.
     expect(flat(within(hero).getByTestId("plan-hero-body"))).toMatchObject({ padding: 16 });
   });

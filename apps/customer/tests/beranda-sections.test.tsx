@@ -295,7 +295,8 @@ describe("the other meal's stop", () => {
     expect(await screen.findByTestId("hero-pager")).toBeTruthy();
     expect(within(screen.getByTestId("status-stop-dinner")).getByText("Malam 17.00–19.00")).toBeTruthy();
     expect(within(screen.getByTestId("status-stop-dinner")).getByText("Sate ayam madura")).toBeTruthy();
-    // One status line serves the pager.
+    // One status line serves the pager, on the band.
+    expect(within(screen.getByTestId("mood-header")).getByTestId("status-stops")).toBeTruthy();
     expect(screen.getAllByTestId("status-stops")).toHaveLength(1);
     expect(within(screen.getByTestId("hero-pager")).queryByTestId("status-stops")).toBeNull();
   });
@@ -1063,7 +1064,10 @@ describe("Paket kamu", () => {
     expect(within(cards[6]).getByText("Makan Siang Kantor · 5–16 Okt")).toBeTruthy();
     // The rail runs to the screen's edges and starts at its margin, with 8 between cards.
     const rail = plans.getByTestId("plans-rail");
-    expect(StyleSheet.flatten(rail.props.style).marginHorizontal).toBe(-16);
+    // The margin is taken off a plain wrapper (a scroll view with a negative margin does not widen on Android); the
+    // scroll view inside is full width and pads its content by 16 at both ends, so the next card peeks at the edge.
+    expect(StyleSheet.flatten(plans.getByTestId("plans-rail-bleed").props.style).marginHorizontal).toBe(-16);
+    expect(StyleSheet.flatten(rail.props.style)?.marginHorizontal).toBeUndefined();
     expect(StyleSheet.flatten(rail.props.contentContainerStyle)).toMatchObject({ paddingHorizontal: 16, gap: 8 });
     expect(rail.props.horizontal).toBe(true);
     expect(rail.props.showsHorizontalScrollIndicator).toBe(false);

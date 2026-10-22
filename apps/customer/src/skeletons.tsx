@@ -21,13 +21,12 @@ import { DAY_CIRCLE, MonthFrame } from "./schedule/MonthGrid";
 import { ChipRowFrame } from "./discover/ChipRow";
 import { MealSegment } from "./discover/MealSegment";
 import { PackageGrid, useGridCell } from "./discover/PackageGrid";
-import { planPhotoFrame } from "./plan/heroFrame";
 import { HERO_BAND_RISE } from "./today/heroBand";
 import { TILE_MIN_HEIGHT } from "./account/AkunTiles";
 import { BREAKDOWN_PAD, BREAKDOWN_ROW, BREAKDOWN_SKELETON_ROWS, FIELDS_HEIGHT, SUMMARY_HEIGHT } from "./buy/metrics";
 import { SECTION_LEAD } from "./today/sectionGap";
-import { HERO_RADIUS as BERANDA_HERO_RADIUS, heroPhotoFrame } from "./today/Plate";
-import { STATUS_HALO, STATUS_LABEL_LINE, STATUS_META_LINE, STATUS_ROW } from "./today/StatusStops";
+import { HeroPhotoFrame } from "./today/HeroPhoto";
+import { HERO_RADIUS as BERANDA_HERO_RADIUS } from "./today/Plate";
 
 /**
  * One skeleton per screen (spec 2.1, 2.2): the data area's shape while its first read is out and nothing is kept on this
@@ -51,28 +50,9 @@ function BerandaHeroFrame({ children }: { children: ReactNode }) {
   );
 }
 
-/** One stop of the status line: the dot's halo box beside the label line over the state line, at the loaded heights. */
-function StopPlaceholder() {
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.sm, width: "36%" }}>
-      <View style={{ width: STATUS_HALO, height: STATUS_HALO, alignItems: "center", justifyContent: "center" }}>
-        <Skeleton onHero width={12} height={12} radius={6} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={{ height: STATUS_LABEL_LINE, justifyContent: "center" }}>
-          <Skeleton onHero width="86%" height={14} />
-        </View>
-        <View style={{ height: STATUS_META_LINE, justifyContent: "center" }}>
-          <Skeleton onHero width="60%" height={12} />
-        </View>
-      </View>
-    </View>
-  );
-}
-
 /**
- * Beranda's data area: the hero card (photo, meal line, dish line, the two-stop status line and the detail line) and two
- * Berikutnya rows. Like the loaded hero it rides up over the mood band by `HERO_BAND_RISE` (the band leaves its 104
+ * Beranda's data area: the hero card (the 16:10 photo, meal line, dish line and the detail line), the live slot and
+ * Berikutnya. The status line is on the band, and its placeholder is part of the band. Like the loaded hero it rides up over the mood band by `HERO_BAND_RISE` (the band leaves its 104
  * for it), so the skeleton hero sits exactly where the loaded one lands and the swap does not jump. The hero is the
  * loaded hero's card, fill and shadow included, so only its contents change when the page arrives.
  */
@@ -82,9 +62,9 @@ export function BerandaSkeleton() {
     <SkeletonGroup label={t("Memuat beranda", "Loading home")}>
       <View testID="beranda-skeleton" style={{ gap: 16, marginTop: HERO_BAND_RISE }}>
         <BerandaHeroFrame>
-          <View testID="beranda-skeleton-photo" style={heroPhotoFrame}>
-            <Skeleton onHero aspectRatio={nativeLayout.ratio.hero} radius={0} />
-          </View>
+          <HeroPhotoFrame ratio={nativeLayout.ratio.card} testID="beranda-skeleton-photo">
+            <Skeleton onHero aspectRatio={nativeLayout.ratio.card} radius={0} />
+          </HeroPhotoFrame>
           <View testID="beranda-skeleton-body" style={{ padding: nativeLayout.cardPadding, gap: nativeLayout.space.md }}>
             {/* The meal line and the dish are one group, 2 apart, as in the loaded hero. */}
             <View style={{ gap: 2 }}>
@@ -94,13 +74,6 @@ export function BerandaSkeleton() {
               <View style={{ height: 30, justifyContent: "center" }}>
                 <Skeleton onHero width="72%" height={22} />
               </View>
-            </View>
-            <View
-              testID="beranda-skeleton-stops"
-              style={{ height: STATUS_ROW, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
-            >
-              <StopPlaceholder />
-              <StopPlaceholder />
             </View>
             <View style={{ height: 18, justifyContent: "center" }}>
               <Skeleton onHero width="52%" height={12} />
@@ -308,9 +281,9 @@ export function PlanSkeleton() {
       <View testID="plan-skeleton" style={{ gap: nativeLayout.sectionGap }}>
         <View testID="plan-skeleton-hero" style={{ borderRadius: BERANDA_HERO_RADIUS, borderCurve: "continuous" }}>
           <MoodFill surface="hero" testID="plan-skeleton-hero-fill" radius={BERANDA_HERO_RADIUS} heroShadow />
-          <View testID="plan-skeleton-photo" style={planPhotoFrame}>
+          <HeroPhotoFrame ratio={nativeLayout.ratio.card} testID="plan-skeleton-photo">
             <Skeleton onHero aspectRatio={nativeLayout.ratio.card} radius={0} />
-          </View>
+          </HeroPhotoFrame>
           <View testID="plan-skeleton-body" style={{ padding: nativeLayout.cardPadding, gap: nativeLayout.space.xs }}>
             <View style={{ height: 18, justifyContent: "center" }}>
               <Skeleton onHero width="46%" height={12} />

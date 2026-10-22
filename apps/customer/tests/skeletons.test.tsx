@@ -302,7 +302,7 @@ describe("states", () => {
         expect(flat(within(hero).getByTestId("beranda-skeleton-hero-fill-siang")).backgroundColor).toBe(
           nativeMood[scheme].siang.hero,
         );
-        // The photo block has its height from the 4:3 ratio, not a number.
+        // The photo block has its height from the 16:10 ratio, not a number.
         expect(blocks.find((b) => b.aspectRatio !== undefined)?.backgroundColor).toBe(nativeMood[scheme][mood].arcTrack);
         expect(nativeMood[scheme][mood].arcTrack).not.toBe(nativeMood[scheme][mood].hero);
         expect(blocks.find((b) => b.height === 56)?.backgroundColor).toBe(nativeThemes[scheme].sage);
@@ -366,12 +366,15 @@ describe("states", () => {
     expect(blocks).toContain(40);
     expect(blocks).toContain(30);
     const skeletonPhoto = flat(screen.getByTestId("beranda-skeleton-photo"));
+    const skeletonInset = flat(screen.getByTestId("beranda-skeleton-photo-inset"));
     await act(async () => read.resolve(customerState({ status: "scheduled" }, { past: [] })));
-    // The loaded photo is the same 4:3 frame (ratio, inset and radii), so the page does not move when it lands.
+    // The loaded photo is the same 16:10 frame (ratio, inset and radii), so the page does not move when it lands.
     const photo = flat(await screen.findByTestId("plate-photo"));
-    expect(photo.aspectRatio).toBeCloseTo(4 / 3, 6);
-    for (const key of ["aspectRatio", "margin", "borderTopLeftRadius", "borderTopRightRadius"] as const)
-      expect(photo[key]).toBe(skeletonPhoto[key]);
+    const inset = flat(screen.getByTestId("plate-photo-inset"));
+    expect(photo.aspectRatio).toBeCloseTo(16 / 10, 6);
+    expect(photo.aspectRatio).toBe(skeletonPhoto.aspectRatio);
+    for (const key of ["margin", "borderTopLeftRadius", "borderTopRightRadius"] as const)
+      expect(inset[key]).toBe(skeletonInset[key]);
   });
 });
 
@@ -500,7 +503,10 @@ function headerHeight(header: ReturnType<typeof screen.getByTestId>) {
     // The opening line and the placeholder sit side by side, so the row is as tall as the taller of the two.
     title = Math.max(num(flat(first).lineHeight), num(flat(within(loading).getByTestId("home-title-placeholder")).height));
   }
-  const parts = [num(row.minHeight), title];
+  // The status line sits 12 under the statement (the band's 4 gap and an 8 margin): a 40 row, or its placeholder.
+  const status = within(header).queryByTestId("status-stops");
+  const statusRow = status ? num(flat(status).minHeight) : num(flat(within(header).getByTestId("status-stops-placeholder")).height);
+  const parts = [num(row.minHeight), title, 8 + statusRow];
   return {
     height:
       num(box.paddingTop) +
@@ -523,16 +529,18 @@ describe("finding 1: Beranda's band keeps its height when the page lands", () =>
       await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
       const before = headerHeight(screen.getByTestId("mood-header"));
       expect(screen.getByTestId("home-meta")).toBeTruthy();
-      // The status line is part of the hero card, so the band itself holds no switch while it loads.
+      // The band holds the status line's placeholder while it loads: the same 40 row the loaded line takes.
       expect(screen.queryByTestId("status-stops")).toBeNull();
+      expect(within(screen.getByTestId("mood-header")).getByTestId("status-stops-placeholder")).toBeTruthy();
 
       await act(async () => read.resolve(customerState({ status: "scheduled", meal })));
       await screen.findByTestId("plate-hero");
       const after = headerHeight(screen.getByTestId("mood-header"));
       expect(after.parts).toEqual(before.parts);
       expect(after.height).toBe(before.height);
-      // One statement line at the `section` 26, in both.
+      // One statement line at the `section` 26, then 12 and the 40 status row, in both.
       expect(before.parts[1]).toBe(26);
+      expect(before.parts[2]).toBe(8 + 40);
     });
 
   it("the skeleton hero is the loaded hero's frame: the same radius, photo ratio and body padding and gap", async () => {
@@ -542,16 +550,13 @@ describe("finding 1: Beranda's band keeps its height when the page lands", () =>
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const frame = flat(screen.getByTestId("beranda-skeleton-hero"));
     const body = flat(screen.getByTestId("beranda-skeleton-body"));
-    // The status line's placeholder is the loaded row's 40, and the meal line and dish are a 2-apart group in both.
-    const stopsHeight = flat(screen.getByTestId("beranda-skeleton-stops")).height;
-    expect(stopsHeight).toBe(40);
+    // The meal line and the dish are a 2-apart group in both.
     const group = screen.getByTestId("beranda-skeleton-body").children[0] as unknown as { props: { style: unknown } };
     expect(flat(group).gap).toBe(2);
     await act(async () => read.resolve(customerState({ status: "scheduled", meal: "lunch" })));
     await screen.findByTestId("plate-hero");
     expect(flat(screen.getByTestId("plate-hero")).borderRadius).toBe(frame.borderRadius);
     expect(flat(screen.getByTestId("plate-body"))).toMatchObject({ padding: body.padding, gap: body.gap });
-    expect(flat(screen.getByTestId("status-stops")).minHeight).toBe(stopsHeight);
     const loadedGroup = screen.getByTestId("plate-body").children[0] as unknown as { props: { style: unknown } };
     expect(flat(loadedGroup).gap).toBe(2);
     // A stop is 40 tall and its hit area makes it a 44 target.

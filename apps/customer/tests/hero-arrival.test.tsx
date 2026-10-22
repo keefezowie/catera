@@ -187,10 +187,10 @@ describe("the hero with a failed photo", () => {
     const hero = within(photo).UNSAFE_getAllByType(Image)[0];
     act(() => hero.props.onError());
     const ground = await within(photo).findByTestId("photo-ground");
-    // The dark photo ground of the theme: one even slab, never the page's pale neutral. The 4:3 frame keeps its size.
+    // The dark photo ground of the theme: one even slab, never the page's pale neutral. The 16:10 frame keeps its size.
     expect(StyleSheet.flatten(ground.props.style).backgroundColor).toBe(nativeThemes.light.photoGround);
     expect(StyleSheet.flatten(photo.props.style).backgroundColor).toBe(nativeThemes.light.photoGround);
-    expect(StyleSheet.flatten(photo.props.style).aspectRatio).toBeCloseTo(4 / 3, 6);
+    expect(StyleSheet.flatten(photo.props.style).aspectRatio).toBeCloseTo(16 / 10, 6);
     // The text sits in the card's body now, so the photo carries no scrim or overlay.
     expect(within(photo).queryByTestId("plate-scrim")).toBeNull();
     expect(within(photo).queryByTestId("plate-overlay")).toBeNull();

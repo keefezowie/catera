@@ -130,6 +130,8 @@ export function HeroPager({
           onMomentumScrollEnd={onScroll}
           style={{ marginTop: -TOP_ROOM, marginBottom: -SHADOW_ROOM }}
           contentContainerStyle={{
+            // Each page keeps its own height, top-aligned: a shorter card is not stretched to the tallest.
+            alignItems: "flex-start",
             paddingHorizontal: edge,
             paddingTop: TOP_ROOM,
             paddingBottom: SHADOW_ROOM,
