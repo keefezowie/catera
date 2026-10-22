@@ -421,9 +421,28 @@ describe("the day's actions", () => {
     expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
     expect(root()).toEqual(["(tabs)"]);
     expectSheet("hari/[id]", "day");
-    // It draws its own title row, so no stack header sits over it.
-    expect(screen.getByRole("header", { name: shortDate(addDays(TODAY, 2), "id") })).toBeTruthy();
+    // It has no title row and no stack header: the day's own line is the first text, a header for the screen reader.
+    expect(screen.getByRole("header", { name: new RegExp(`^${shortDate(addDays(TODAY, 2), "id")}`) })).toBeTruthy();
     expect(screenOf("hari/[id]").props.headerShown ?? false).toBe(false);
+    app.unmount();
+  });
+
+  it("Lihat menu and Pilih menu close the day sheet and open their page in the tab: the page is on top, the sheet is gone", async () => {
+    const d = open("d1", addDays(TODAY, 2));
+    answer("day:d1", stateWith([d]));
+    // The caterer picks and the menu is set: the package page.
+    let app = await mount("/hari/d1");
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Lihat menu" })));
+    expect(stack("(index)")).toEqual(["index", "paket/[id]"]);
+    expect(root()).toEqual(["(tabs)"]);
+    app.unmount();
+    // A pick-your-own package: the menu choice.
+    const picks = { ...d, offer: { ...d.offer, menuSelectionMode: "customer" } } as Delivery;
+    answer("day:d1", stateWith([picks]));
+    app = await mount("/hari/d1");
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Pilih menu" })));
+    expect(stack("(index)")).toEqual(["index", "pilih-menu/[id]"]);
+    expect(root()).toEqual(["(tabs)"]);
     app.unmount();
   });
 

@@ -662,13 +662,22 @@ describe("the day sheet's skeleton", () => {
   it("is the loaded sheet's own frame: a 16:10 photo, a 56 address well and 56 action circles, from the same constants", async () => {
     mockParams = { id: "d-today" };
     renderWith(runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) }), <DayScreen />);
-    // The sheet's title row is already there, holding its context line as a skeleton.
-    expect(await screen.findByRole("header", { name: "Hari" })).toBeTruthy();
+    // No title row: the sheet is the handle and the skeleton.
+    expect(await screen.findByTestId("day-skeleton")).toBeTruthy();
+    expect(screen.queryByRole("header")).toBeNull();
     const photo = StyleSheet.flatten(screen.getByTestId("day-skeleton-photo").props.style) as { height: number; borderRadius: number };
     // 360 wide, less the sheet's 24 on each side (Android): 312 / (16 / 10).
     expect(photo.height).toBe(Math.round((360 - 2 * 24) / 1.6));
     expect(photo.borderRadius).toBe(16);
     expect((StyleSheet.flatten(screen.getByTestId("day-skeleton-address").props.style) as { height: number }).height).toBe(56);
+    // The gaps are the loaded sheet's own (16 between blocks, 4 inside a meal, 8 circle to label, 12 row padding), and
+    // each line occupies the line box the loaded text does (meta 18, hero title 30).
+    const flatten = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style) as Record<string, number | string>;
+    expect(flatten("day-skeleton")).toMatchObject({ gap: 16 });
+    expect(flatten("day-skeleton-meal")).toMatchObject({ gap: 4 });
+    expect(flatten("day-skeleton-actions")).toMatchObject({ justifyContent: "space-between", paddingHorizontal: 12 });
+    const lines = screen.getByTestId("day-skeleton-meal").children as unknown as { props: { style: { height: number } } }[];
+    expect(lines.map((l) => StyleSheet.flatten(l.props.style).height)).toEqual([18, 30, 18]);
     // One progress bar names the wait.
     expect(screen.getAllByRole("progressbar", { name: "Memuat pengantaran" })).toHaveLength(1);
   });

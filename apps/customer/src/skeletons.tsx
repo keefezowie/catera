@@ -1,11 +1,22 @@
 import type { ReactNode } from "react";
-import { useWindowDimensions, View } from "react-native";
+import { useWindowDimensions, View, type DimensionValue } from "react-native";
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
 import { MoodFill, sheetSidePadding, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
-import { ACTION_CIRCLE } from "./schedule/DayActionRow";
-import { DAY_PHOTO_RADIUS, DAY_PHOTO_RATIO, DAY_WELL_MIN, DAY_WELL_RADIUS } from "./schedule/dayMetrics";
+import {
+  ACTION_CIRCLE,
+  DAY_ACTION_GAP,
+  DAY_ACTIONS_PAD,
+  DAY_GAP,
+  DAY_HERO_LINE,
+  DAY_MEAL_GAP,
+  DAY_META_LINE,
+  DAY_PHOTO_RADIUS,
+  DAY_PHOTO_RATIO,
+  DAY_WELL_MIN,
+  DAY_WELL_RADIUS,
+} from "./schedule/dayMetrics";
 import { DAY_CIRCLE, MonthFrame } from "./schedule/MonthGrid";
 import { MealSegment } from "./discover/MealSegment";
 import { PackageGrid, useGridCell } from "./discover/PackageGrid";
@@ -310,21 +321,27 @@ export function DaySkeleton() {
   const { t } = useMobile();
   const { width } = useWindowDimensions();
   const photo = Math.round((width - 2 * sheetSidePadding()) / DAY_PHOTO_RATIO);
+  /** A skeleton bar centred in the line box the loaded text occupies. */
+  const line = (box: number, bar: number, w: DimensionValue) => (
+    <View style={{ height: box, justifyContent: "center" }}>
+      <Skeleton width={w} height={bar} />
+    </View>
+  );
   return (
     <SkeletonGroup label={t("Memuat pengantaran", "Loading delivery")}>
-      <View testID="day-skeleton" style={{ gap: 16 }}>
+      <View testID="day-skeleton" style={{ gap: DAY_GAP }}>
         <Skeleton testID="day-skeleton-photo" height={photo} radius={DAY_PHOTO_RADIUS} />
-        <View style={{ gap: 8 }}>
-          <Skeleton width="44%" height={12} />
-          <Skeleton width="68%" height={24} />
-          <Skeleton width="62%" height={12} />
+        <View testID="day-skeleton-meal" style={{ gap: DAY_MEAL_GAP }}>
+          {line(DAY_META_LINE, 12, "62%")}
+          {line(DAY_HERO_LINE, 22, "68%")}
+          {line(DAY_META_LINE, 12, "74%")}
         </View>
         <Skeleton testID="day-skeleton-address" height={DAY_WELL_MIN} radius={DAY_WELL_RADIUS} />
-        <View style={{ flexDirection: "row", gap: 16 }}>
+        <View testID="day-skeleton-actions" style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: DAY_ACTIONS_PAD }}>
           {[0, 1, 2].map((i) => (
-            <View key={i} style={{ alignItems: "center", gap: 8 }}>
+            <View key={i} style={{ alignItems: "center", gap: DAY_ACTION_GAP }}>
               <Skeleton width={ACTION_CIRCLE} height={ACTION_CIRCLE} radius={ACTION_CIRCLE / 2} />
-              <Skeleton width={48} height={12} />
+              {line(DAY_META_LINE, 12, 56)}
             </View>
           ))}
         </View>

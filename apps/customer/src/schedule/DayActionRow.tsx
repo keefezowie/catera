@@ -1,15 +1,14 @@
 import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { PressableScale, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
+import { ACTION_CIRCLE, DAY_ACTION_GAP, DAY_ACTIONS_PAD } from "./dayMetrics";
 
 /** What a day offers, in the order the row shows it. */
 export type DayActionKey = "change" | "menu" | "report" | "chat" | "address";
 
 export type DayAction = { key: DayActionKey; label: string; onPress(): void };
 
-/** The visible circle of an action: 56, a tone of its own, the glyph in ink. */
-export const ACTION_CIRCLE = 56;
-/** The widest an action's column grows on one row, so a lone circle does not float in the middle of the sheet. */
+/** The widest an action's column grows on one row; a label wider than it wraps. */
 const ACTION_COLUMN_MAX = 96;
 /**
  * Under this effective width (`width / fontScale`, in dp) the row wraps to two lines. 380 keeps four 56 circles with
@@ -37,7 +36,11 @@ export function DayActions({ actions }: { actions: DayAction[] }) {
   if (!actions.length) return null;
   const columns = wraps ? Math.ceil(actions.length / 2) : actions.length;
   return (
-    <View testID="day-actions" style={[styles.row, { flexWrap: wraps ? "wrap" : "nowrap" }]}>
+    <View
+      testID="day-actions"
+      // One line: the circles spread across the sheet with 12 at each side. Wrapped: equal columns across the width.
+      style={[styles.row, wraps ? { flexWrap: "wrap" } : { flexWrap: "nowrap", justifyContent: "space-between", paddingHorizontal: DAY_ACTIONS_PAD }]}
+    >
       {actions.map((action) => (
         <PressableScale
           key={action.key}
@@ -49,7 +52,7 @@ export function DayActions({ actions }: { actions: DayAction[] }) {
             styles.item,
             wraps
               ? { width: columns === 1 ? ACTION_COLUMN_MAX : `${100 / columns}%` }
-              : { flex: 1, maxWidth: ACTION_COLUMN_MAX },
+              : { minWidth: ACTION_CIRCLE, maxWidth: ACTION_COLUMN_MAX, flexShrink: 1 },
           ]}
         >
           <View testID={`day-action-circle-${action.key}`} style={styles.circle}>
@@ -66,7 +69,7 @@ export function DayActions({ actions }: { actions: DayAction[] }) {
 
 const useStyles = themedStyles((c) => ({
   row: { flexDirection: "row", rowGap: 12 },
-  item: { alignItems: "center", gap: 4, minWidth: 0 },
+  item: { alignItems: "center", gap: DAY_ACTION_GAP },
   circle: {
     width: ACTION_CIRCLE,
     height: ACTION_CIRCLE,

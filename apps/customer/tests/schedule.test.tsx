@@ -13,6 +13,7 @@ import { Jadwal } from "../src/schedule/Jadwal";
 import { ChangeDaySheet } from "../src/schedule/ChangeDaySheet";
 import { DayScreen } from "../src/schedule/DayScreen";
 import { customerLink } from "../src/links";
+import { ACTION_CIRCLE, DAY_ACTION_GAP, DAY_ACTIONS_PAD, DAY_GAP, DAY_MEAL_GAP } from "../src/schedule/dayMetrics";
 import { delivery, offer, subscription } from "./fixtures";
 
 let mockParams: Record<string, string> = {};
@@ -1145,6 +1146,8 @@ const showDay = async (d: Delivery, wait: RegExp | string = "Ayam bakar madu", s
   mockParams = { id: d.id };
   const view = renderV2(runtimeWith(state), <DayScreen />);
   await screen.findByText(wait);
+  // Let the data and fade effects settle inside act.
+  await act(async () => {});
   return view;
 };
 const circleOf = (key: string) => screen.queryByTestId(`day-action-circle-${key}`);
@@ -1152,17 +1155,25 @@ const actionKeys = () =>
   ["change", "menu", "report", "chat", "address"].filter((key) => circleOf(key) !== null);
 
 describe("Hari", () => {
-  it("is a sheet body: the date under the handle, a 16:10 photo, the dish as hero title, the state line with its cut-off, the address well", async () => {
+  it("is a sheet body: the handle, a 16:10 photo, the day's line, the dish as hero title, the state line with its cut-off, the address well", async () => {
     const d = open("d-next", "2026-10-08", { catererPhone: "+6281200000001" } as Partial<Delivery>);
     await showDay(d);
-    // The sheet's own title row names the day; the package under it. The body does not repeat the date.
-    expect(screen.getByRole("header", { name: "Kamis 8 Okt" })).toBeTruthy();
-    expect(screen.getByText("Makan Siang Rumahan")).toBeTruthy();
+    // No title row and no package-name line: the sheet has the handle, then the photo and the day's own line.
+    expect(screen.getByTestId("sheet-handle", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.queryByTestId("sheet-context")).toBeNull();
+    expect(screen.queryByText("Makan Siang Rumahan")).toBeNull();
+    // The day's line is the screen reader's way in: a header named with the full day, the meal and the caterer.
+    expect(screen.getByRole("header", { name: "Besok, Kamis 8 Okt, Makan siang, Dapur Contoh" })).toBeTruthy();
+    // Order: the photo first, then the day's line, then the dish.
+    const order = JSON.stringify(screen.toJSON());
+    expect(order.indexOf("day-photo")).toBeGreaterThan(-1);
+    expect(order.indexOf("day-photo")).toBeLessThan(order.indexOf("Kamis 8 Okt · Makan siang · Dapur Contoh"));
+    expect(order.indexOf("Kamis 8 Okt · Makan siang · Dapur Contoh")).toBeLessThan(order.indexOf("Ayam bakar madu"));
     // Photo 16:10, radius 16.
     const photo = screen.getByTestId("day-photo");
     expect(flat(photo)).toMatchObject({ aspectRatio: 16 / 10, borderRadius: 16 });
     // Meal and caterer on the meta line; the dish in heroTitle (24/30); the sides under it.
-    expect(screen.getByText("Makan siang · Dapur Contoh")).toBeTruthy();
+    expect(screen.getByText("Kamis 8 Okt · Makan siang · Dapur Contoh")).toBeTruthy();
     expect(flat(screen.getByText("Ayam bakar madu"))).toMatchObject({ fontSize: 24, lineHeight: 30 });
     expect(screen.getByText("Sayur asem")).toBeTruthy();
     // The state line: the status, the window and until when the day can change (cut-off 17.00 today).
@@ -1171,6 +1182,18 @@ describe("Hari", () => {
     const well = screen.getByTestId("day-address");
     expect(flat(well)).toMatchObject({ minHeight: 56, borderRadius: 12, backgroundColor: nativeThemes.light.canvas });
     expect(within(well).getByText("Kantor · Jl. Contoh No. 1 · Tebet")).toBeTruthy();
+  });
+
+  it("spaces its blocks by 16 and a meal's own lines by 4, the constants the skeleton reads", async () => {
+    await showDay(open("d-next", "2026-10-08"));
+    expect(DAY_GAP).toBe(16);
+    expect(DAY_MEAL_GAP).toBe(4);
+    const body = screen.getByTestId("day-photo").parent!.parent!;
+    expect(flat(body as never)).toMatchObject({ gap: DAY_GAP });
+    // The meal's block is the nearest ancestor of its state line that spaces its lines by 4.
+    let meal = screen.getByTestId("day-state-dot-lunch").parent;
+    for (let i = 0; i < 8 && meal && flat(meal as never).gap !== DAY_MEAL_GAP; i += 1) meal = meal.parent;
+    expect(meal && flat(meal as never)).toMatchObject({ gap: DAY_MEAL_GAP });
   });
 
   it("has no per-meal ⋮, no pinned Ubah hari footer and no text link: the actions are circles in the body", async () => {
@@ -1223,7 +1246,11 @@ describe("Hari", () => {
       const d = delivery("d-gone", "2026-10-08", { status: "cancelled" }, { status: "cancelled" } as Partial<Delivery>);
       mockParams = { id: d.id };
       renderV2(runtimeWith(stateOf([d])), <DayScreen />);
+      // No meal is still on: the day is one block named by its package, in the state it is.
       await screen.findByText("Makan Siang Rumahan");
+      await act(async () => {});
+      expect(screen.getByTestId("day-state-day")).toHaveTextContent("Dibatalkan");
+      expect(screen.getByText("Kamis 8 Okt · Dapur Contoh")).toBeTruthy();
       expect(circleOf("change")).toBeNull();
       expect(circleOf("address")).toBeNull();
     });
@@ -1259,13 +1286,16 @@ describe("Hari", () => {
       expect(screen.getByRole("button", { name: "Pilih menu" })).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Lihat menu" })).toBeNull();
       fireEvent.press(screen.getByRole("button", { name: "Pilih menu" }));
-      expect(router.push).toHaveBeenLastCalledWith("/subscriptions/s-1/menu?date=2026-10-08&meal=lunch");
+      // The page replaces the day sheet; it is never pushed under it.
+      expect(router.replace).toHaveBeenLastCalledWith("/subscriptions/s-1/menu?date=2026-10-08&meal=lunch");
+      expect(router.push).not.toHaveBeenCalled();
       view.unmount();
       // The caterer picks and the menu is set: Lihat menu opens the package.
       await showDay(open("d-next", "2026-10-08"));
       expect(screen.queryByRole("button", { name: "Pilih menu" })).toBeNull();
       fireEvent.press(screen.getByRole("button", { name: "Lihat menu" }));
-      expect(router.push).toHaveBeenLastCalledWith(`/paket/p-rumahan?title=${encodeURIComponent("Makan Siang Rumahan")}`);
+      expect(router.replace).toHaveBeenLastCalledWith(`/paket/p-rumahan?title=${encodeURIComponent("Makan Siang Rumahan")}`);
+      expect(router.push).not.toHaveBeenCalled();
     });
 
     it("the menu circle is hidden when the caterer picks and no menu is set yet", async () => {
@@ -1355,8 +1385,10 @@ describe("Hari", () => {
       } as unknown as Partial<Delivery>);
       await showDay(d);
       expect(screen.getByText("Soto betawi")).toBeTruthy();
-      expect(screen.getByText("Makan siang · Dapur Contoh")).toBeTruthy();
-      expect(screen.getByText("Makan malam · Dapur Contoh")).toBeTruthy();
+      expect(screen.getByText("Kamis 8 Okt · Makan siang · Dapur Contoh")).toBeTruthy();
+      expect(screen.getByText("Kamis 8 Okt · Makan malam · Dapur Contoh")).toBeTruthy();
+      // Only the first block's line is the header the screen reader starts on.
+      expect(screen.getAllByRole("header", { name: /Dapur Contoh$/ })).toHaveLength(1);
       expect(screen.getByTestId("day-state-lunch")).toHaveTextContent(/^Terjadwal 11\.00–13\.00/);
       expect(screen.getByTestId("day-state-dinner")).toHaveTextContent(/^Terjadwal 17\.00–19\.00/);
       expect(screen.getAllByTestId("day-actions")).toHaveLength(1);
@@ -1367,6 +1399,7 @@ describe("Hari", () => {
       mockParams = { id: "d-bare" };
       renderV2(runtimeWith(stateOf([bare])), <DayScreen />);
       expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+      await act(async () => {});
     });
 
     it("signed out, the sheet asks to sign in and comes back to this day", async () => {
@@ -1379,17 +1412,19 @@ describe("Hari", () => {
       expect(runtime.api.customer).not.toHaveBeenCalled();
     });
 
-    it("a day the read does not hold, or a failed read, is titled Hari, never the day its link carried", async () => {
+    it("a day the read does not hold, or a failed read, never shows the day its link carried: the sheet has no title row", async () => {
       mockParams = { id: "d-palsu", title: "Senin 12 Okt" };
-      // Loading: the title row keeps the day the link carried.
+      // Loading: the skeleton alone.
       let view = renderV2(runtimeWith(() => new Promise(() => undefined)), <DayScreen />);
       await act(async () => {});
-      expect(screen.getByRole("header", { name: "Senin 12 Okt" })).toBeTruthy();
+      expect(screen.getByTestId("day-skeleton")).toBeTruthy();
+      expect(screen.queryByText("Senin 12 Okt")).toBeNull();
+      expect(screen.queryByRole("header")).toBeNull();
       view.unmount();
       // Not found.
       view = renderV2(runtimeWith(stateOf([open("d-next", "2026-10-08")])), <DayScreen />);
       expect(await screen.findByText("Pengantaran tidak ditemukan.")).toBeTruthy();
-      expect(screen.getByRole("header", { name: "Hari" })).toBeTruthy();
+      expect(screen.queryByText("Senin 12 Okt")).toBeNull();
       view.unmount();
       // A failed read (offline without a copy).
       renderV2(
@@ -1399,7 +1434,8 @@ describe("Hari", () => {
         <DayScreen />,
       );
       expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
-      expect(screen.getByRole("header", { name: "Hari" })).toBeTruthy();
+      expect(screen.queryByText("Senin 12 Okt")).toBeNull();
+      await act(async () => {});
     });
   });
 
@@ -1410,7 +1446,23 @@ describe("Hari", () => {
       mockWidth = 412;
       await showDay(four());
       expect(actionKeys()).toEqual(["change", "menu", "chat", "address"]);
-      expect(flat(screen.getByTestId("day-actions"))).toMatchObject({ flexDirection: "row", flexWrap: "nowrap" });
+      // One line, spread across the sheet with 12 at each side.
+      expect(flat(screen.getByTestId("day-actions"))).toMatchObject({
+        flexDirection: "row",
+        flexWrap: "nowrap",
+        justifyContent: "space-between",
+        paddingHorizontal: DAY_ACTIONS_PAD,
+      });
+      expect(flat(screen.getByTestId("day-action-change"))).toMatchObject({ minWidth: 56, flexShrink: 1 });
+    });
+
+    it("reads its circle, gap and padding from the same constants as the skeleton", async () => {
+      await showDay(four());
+      expect(ACTION_CIRCLE).toBe(56);
+      expect(DAY_ACTION_GAP).toBe(8);
+      expect(DAY_ACTIONS_PAD).toBe(12);
+      expect(flat(screen.getByTestId("day-action-change"))).toMatchObject({ gap: DAY_ACTION_GAP });
+      expect(flat(circleOf("change")!)).toMatchObject({ width: ACTION_CIRCLE, height: ACTION_CIRCLE });
     });
 
     it("wraps to two lines at 360dp: two circles per line, every label whole", async () => {
@@ -1444,6 +1496,7 @@ describe("Hari", () => {
           </ThemeProvider>,
         );
         await screen.findByText("Ayam bakar madu");
+        await act(async () => {});
         expect(flat(circleOf("change")!)).toMatchObject({ backgroundColor: nativeThemes.dark.sage });
         expect(flat(screen.getByTestId("day-address"))).toMatchObject({ backgroundColor: nativeThemes.dark.canvas });
       } finally {

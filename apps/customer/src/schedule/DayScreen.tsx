@@ -1,11 +1,13 @@
-import type { ReactNode } from "react";
-import { Image, View } from "react-native";
+import type { ReactNode, RefObject } from "react";
+import { Image, type Text as RNText, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { pushSheet } from "../nav";
 import {
   canChangeDay,
   changeDeadline,
+  dayLabel,
+  jakartaDay,
   mealJourney,
   mealLabel,
   menuIsSet,
@@ -17,13 +19,14 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   FadeSwap,
-  linkTitle,
   ReadError,
   SheetBody,
-  SheetHeader,
+  SheetHandle,
   Text,
   themedStyles,
   useColors,
+  useSheetTitleFocus,
+  useToastAnchor,
 } from "@catera/mobile-ui";
 import { signInSentence } from "../account/SignInFirst";
 import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
@@ -32,29 +35,35 @@ import { photoUri } from "../today/Plate";
 import { DaySkeleton } from "../skeletons";
 import { DayActions, type DayAction } from "./DayActionRow";
 import { dayClosed, dayVisibleActions } from "./dayActions";
-import { DAY_DOT, DAY_PHOTO_RADIUS, DAY_PHOTO_RATIO, DAY_WELL_MIN, DAY_WELL_RADIUS } from "./dayMetrics";
+import {
+  DAY_DOT,
+  DAY_GAP,
+  DAY_MEAL_GAP,
+  DAY_PHOTO_RADIUS,
+  DAY_PHOTO_RATIO,
+  DAY_WELL_MIN,
+  DAY_WELL_RADIUS,
+} from "./dayMetrics";
 
 /**
- * One delivery day, a form sheet over the page that opened it: the day under the handle, the meal's photo, what it is,
- * where it stands, where it goes, and the day's actions as visible circles.
+ * One delivery day, a form sheet over the page that opened it. Under the handle the first text is the day's own line
+ * ("Jumat 23 Okt · Makan siang · caterer"); then the photo, the dish, where the day stands, where it goes, and the
+ * day's actions as visible circles. There is no title row: the sheet has no bar of its own.
  */
 export function DayScreen() {
-  const params = useLocalSearchParams<{ id: string; title?: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
   const { id } = params;
   const { actor, ready, t } = useMobile();
   const c = useColors();
-  // The title row keeps the day the link carried while the session is read; only the day itself waits.
-  const carried = linkTitle(params);
   if (!ready)
     return (
-      <Sheet title={carried ?? t("Hari", "Day")} swapKey="loading" context={null}>
+      <Sheet swapKey="loading">
         <DaySkeleton />
       </Sheet>
     );
-  // Signed out, the sheet keeps the day its link carried as its title ("Senin 12 Okt").
   if (!actor)
     return (
-      <Sheet title={carried ?? t("Hari", "Day")} swapKey="signin">
+      <Sheet swapKey="signin">
         <Text style={{ color: c.muted }}>{signInSentence(t)}</Text>
         <Button
           label={t("Masuk", "Sign in")}
@@ -62,54 +71,51 @@ export function DayScreen() {
         />
       </Sheet>
     );
-  return <Day key={`${actor.id}:${id}`} id={id} carried={carried} />;
+  return <Day key={`${actor.id}:${id}`} id={id} />;
 }
 
 /**
- * The sheet's frame: the title row (the day, the package under it once known) over the scrolling body. The body sits in
- * one FadeSwap keyed by `swapKey`, so the day fades in from its skeleton as one block. The context line is held to one
- * line (`holdContextLine`) while the day is read, so the header keeps its height when the package lands.
+ * The sheet's frame: Android's drag handle (iOS draws the system grabber), then the scrolling body. The body sits in one
+ * FadeSwap keyed by `swapKey`, so the day fades in from its skeleton as one block. The screen reader starts on the
+ * element that takes `focus` (the day's line, once the day is read) when the sheet has risen, and the toast knows it
+ * sits over a sheet, as a sheet header would tell it.
  */
 function Sheet({
-  title,
-  context,
   swapKey,
   children,
 }: {
-  title: string;
-  context?: string | null;
   swapKey: string;
-  children: ReactNode;
+  children: ReactNode | ((focus: RefObject<RNText | null>) => ReactNode);
 }) {
-  const { t } = useMobile();
+  const focus = useSheetTitleFocus();
+  useToastAnchor({});
+  const ios = process.env.EXPO_OS === "ios";
   return (
     <View style={{ flex: 1 }}>
-      <SheetHeader title={title} context={context} holdContextLine closeLabel={t("Tutup", "Close")} />
+      {ios ? <View style={{ height: 12 }} /> : <SheetHandle />}
       <SheetBody>
-        <FadeSwap swapKey={swapKey} style={{ gap: 24 }}>
-          {children}
+        <FadeSwap swapKey={swapKey} style={{ gap: DAY_GAP }}>
+          {typeof children === "function" ? children(focus) : children}
         </FadeSwap>
       </SheetBody>
     </View>
   );
 }
 
-function Day({ id, carried }: { id: string; carried: string | undefined }) {
+function Day({ id }: { id: string }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
   const state = useData(`day:${id}`, () => runtime.api.customer(`?deliveryId=${encodeURIComponent(id)}`));
   const d = state.data?.deliveries.find((x) => x.id === id);
 
-  // While the day loads the title row keeps the day its link carried. A failed read or a day that is not there names the
-  // sheet "Hari": the carried day was never checked against a record.
   if (!d)
     return state.loading ? (
-      <Sheet title={carried ?? t("Hari", "Day")} swapKey="loading" context={null}>
+      <Sheet swapKey="loading">
         <DaySkeleton />
       </Sheet>
     ) : (
-      <Sheet title={t("Hari", "Day")} swapKey="missing">
+      <Sheet swapKey="missing">
         {/* A failed read leads with the puzzled mascot; a day that is not there is not a failure and has none. */}
         {state.error ? (
           <ReadError art message={state.error} onRetry={() => void state.reload()} />
@@ -138,8 +144,10 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
     address: () => pushSheet(`/ubah-hari/${id64}?mode=address` as never),
     chat: () => openCatererChat(catererPhoneOf(d)),
     report: (meal) => pushSheet(`/masalah/${id64}?meal=${meal}` as never),
+    // The menu is a page in the tab's stack: it replaces the day sheet, which would otherwise stay up over it (on iOS a
+    // pushed page can open hidden behind the sheet).
     menu: (meal) =>
-      router.push(
+      router.replace(
         (picks
           ? `/subscriptions/${d.subscription_id}/menu?date=${d.service_date}&meal=${meal}`
           : packageHref(d.offer.id, d.offer.name)) as never,
@@ -151,49 +159,79 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
     onPress: () => press[key](meal),
   }));
 
+  const date = shortDate(d.service_date, locale);
+  const spoken = dayLabel(d.service_date, jakartaDay(now), locale);
+  // A day with no meal still on (cancelled, or the read lists none) is drawn as one block named by its package.
+  const blocks: { meal: "lunch" | "dinner" | null; status: string }[] = meals.length
+    ? meals.map((m) => ({ meal: m.meal, status: m.status }))
+    : [{ meal: null, status: d.status }];
   return (
-    <Sheet title={shortDate(d.service_date, locale)} context={d.offer.name} swapKey="ready">
-      {photo ? (
-        <Image
-          testID="day-photo"
-          source={{ uri: photoUri(photo, runtime.apiBase) }}
-          style={styles.photo}
-          accessibilityIgnoresInvertColors
-        />
-      ) : null}
-      {meals.map((m) => {
-        const menu = d.offer.menus?.find((x) => x.meal === m.meal);
-        const dishes = menu && menuIsSet(menu) ? storyDishes(menu) : null;
-        const status = statusLabel(mealJourney(m).stage === "arrived" ? "arrived" : m.status, locale);
-        const line = [`${status} ${d.offer.windows?.[m.meal] ?? ""}`.trim(), change].filter(Boolean).join(" · ");
-        return (
-          <View key={m.meal} style={{ gap: 4 }}>
-            <Text variant="meta">
-              {mealLabel(m.meal, locale)} · {d.offer.caterer}
-            </Text>
-            <Text variant="heroTitle">{dishes?.title || t("Menu belum diisi", "Menu not set yet")}</Text>
-            {dishes?.sides.length ? <Text variant="bodyL">{dishes.sides.join(", ")}</Text> : null}
-            <View style={styles.state}>
-              <View
-                testID={`day-state-dot-${m.meal}`}
-                style={[styles.dot, { backgroundColor: m.status === "issue" ? c.danger : c.muted }]}
-              />
-              <Text variant="meta" testID={`day-state-${m.meal}`} style={[styles.stateText, { fontVariant: ["tabular-nums"] }]}>
-                {line}
-              </Text>
+    <Sheet swapKey="ready">
+      {(focus) => (
+        <>
+          {photo ? (
+            <Image
+              testID="day-photo"
+              source={{ uri: photoUri(photo, runtime.apiBase) }}
+              style={styles.photo}
+              accessibilityIgnoresInvertColors
+            />
+          ) : null}
+          {blocks.map((block, i) => {
+            const m = meals.find((x) => x.meal === block.meal);
+            const menu = d.offer.menus?.find((x) => x.meal === block.meal);
+            const dishes = menu && menuIsSet(menu) ? storyDishes(menu) : null;
+            const status = m
+              ? statusLabel(mealJourney(m).stage === "arrived" ? "arrived" : m.status, locale)
+              : block.status === "cancelled"
+                ? statusLabel("cancelled", locale)
+                : "";
+            const window = block.meal ? (d.offer.windows?.[block.meal] ?? "") : "";
+            const line = [`${status} ${window}`.trim(), change].filter(Boolean).join(" · ");
+            const mealName = block.meal ? mealLabel(block.meal, locale) : null;
+            const meta = [date, mealName, d.offer.caterer].filter(Boolean).join(" · ");
+            const first = i === 0;
+            const key = block.meal ?? "day";
+            return (
+              <View key={key} style={{ gap: DAY_MEAL_GAP }}>
+                {/* The first block's line names the sheet to a screen reader: the full day, then the meal. */}
+                <View
+                  ref={first ? (focus as unknown as RefObject<View>) : undefined}
+                  accessible={first}
+                  accessibilityRole={first ? "header" : undefined}
+                  accessibilityLabel={first ? [spoken, mealName, d.offer.caterer].filter(Boolean).join(", ") : undefined}
+                >
+                  <Text variant="meta">{meta}</Text>
+                </View>
+                <Text variant="heroTitle">
+                  {block.meal ? dishes?.title || t("Menu belum diisi", "Menu not set yet") : d.offer.name}
+                </Text>
+                {dishes?.sides.length ? <Text variant="bodyL">{dishes.sides.join(", ")}</Text> : null}
+                {line ? (
+                  <View style={styles.state}>
+                    <View
+                      testID={`day-state-dot-${key}`}
+                      style={[styles.dot, { backgroundColor: block.status === "issue" ? c.danger : c.muted }]}
+                    />
+                    <Text variant="meta" testID={`day-state-${key}`} style={[styles.stateText, { fontVariant: ["tabular-nums"] }]}>
+                      {line}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+          <View testID="day-address" style={styles.well}>
+            <Ionicons name="location-outline" size={20} color={c.charcoal} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text variant="meta">{t("Diantar ke", "Delivered to")}</Text>
+              <Text variant="bodyL">{[d.address.label, d.address.line, d.address.area].filter(Boolean).join(" · ")}</Text>
+              {d.address.instructions ? <Text variant="meta">{d.address.instructions}</Text> : null}
             </View>
           </View>
-        );
-      })}
-      <View testID="day-address" style={styles.well}>
-        <Ionicons name="location-outline" size={20} color={c.charcoal} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text variant="meta">{t("Diantar ke", "Delivered to")}</Text>
-          <Text variant="bodyL">{[d.address.label, d.address.line, d.address.area].filter(Boolean).join(" · ")}</Text>
-          {d.address.instructions ? <Text variant="meta">{d.address.instructions}</Text> : null}
-        </View>
-      </View>
-      <DayActions actions={actions} />
+          <DayActions actions={actions} />
+        </>
+      )}
     </Sheet>
   );
 }
