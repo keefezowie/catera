@@ -8,7 +8,8 @@ import { Thumb } from "./Thumb";
 /**
  * Two lines beside a 56 thumb (72 tall): `rowTitle` and `meta`, one line each. `leading` replaces the thumb; `notSet`
  * draws the dashed thumb; `trailing` is a node or `"chevron"`. Without `onPress` it is not a button. `wrap` lets both
- * lines grow past one line (the row grows too) for a row whose words must all show, like a state at large text.
+ * lines grow past one line (the row grows too) for a row whose words must all show, like a state at large text;
+ * `wrap="title"` grows only the title and keeps the meta to one truncated line (a day's date over its dish list).
  */
 export function MediaRow({
   image,
@@ -28,7 +29,7 @@ export function MediaRow({
   meta?: string;
   trailing?: ReactNode | "chevron";
   onPress?: () => void;
-  wrap?: boolean;
+  wrap?: boolean | "title";
   testID?: string;
 }) {
   const c = useColors();
@@ -41,7 +42,7 @@ export function MediaRow({
           {title}
         </Text>
         {meta ? (
-          <Text variant="meta" numberOfLines={wrap ? undefined : 1}>
+          <Text variant="meta" numberOfLines={wrap === true ? undefined : 1}>
             {meta}
           </Text>
         ) : null}

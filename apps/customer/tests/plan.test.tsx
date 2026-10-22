@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
 import { Linking, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { NavigationContext } from "expo-router/react-navigation";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { shortDate, type CustomerState, type Delivery, type Offer, type Subscription, type UsageName } from "@catera/domain";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativeLayout, nativeThemes } from "@catera/design-tokens";
+import { LayoutScaleProvider, ThemeProvider } from "@catera/mobile-ui";
 import { PlanDetailScreen } from "../src/plan/PlanDetail";
 import { customerLink } from "../src/links";
 import * as offline from "../src/today/offline";
@@ -74,10 +76,14 @@ function runtimeWith(read: () => Promise<unknown>, usage: UsageMock = jest.fn(as
 
 const renderPlan = (runtime: MobileRuntime) =>
   render(
-    <MobileProvider runtime={runtime} linkMapper={customerLink}>
-      <PlanDetailScreen />
-    </MobileProvider>,
+    <LayoutScaleProvider value="v2">
+      <MobileProvider runtime={runtime} linkMapper={customerLink}>
+        <PlanDetailScreen />
+      </MobileProvider>
+    </LayoutScaleProvider>,
   );
+
+const flat = (n: { props: { style?: unknown } }) => StyleSheet.flatten(n.props.style as never) as Record<string, unknown>;
 
 const dinnerOffer = (): Offer =>
   offer({
@@ -188,20 +194,20 @@ describe("Plan detail states", () => {
     expect(nativeTitle()).toBe("Paket Makan Siang Rumahan Sehat Sekeluarga Lima Hari Kerja…");
   });
 
-  it("an active plan that is not due: native title, caterer, hero with days left, no footer action", async () => {
+  it("an active plan that is not due: native title, hero with days left, no footer action", async () => {
     renderPlan(runtimeWith(async () => planState()));
-    // The package name is the screen's native title (Android's first content line; iOS's large title), the caterer
-    // under it on the page, and no mood header: the back is the platform's own.
+    // The package name is the screen's native title (Android's first content line; iOS's large title) and there is no
+    // mood header: the back is the platform's own. The caterer moved into the hero's meta line.
     // Waits for the plan itself: before the session is read the screen already has a title, over its skeleton.
-    await screen.findByTestId("plan-caterer");
+    const hero = await screen.findByTestId("plan-hero");
     const title = screen.getByTestId("screen-native-title");
     expect(within(title).getByRole("header", { name: "Makan Siang Rumahan" })).toBeTruthy();
-    expect(screen.getByTestId("plan-caterer").props.children).toBe("Dapur Contoh");
+    expect(screen.queryByTestId("plan-caterer")).toBeNull();
     expect(screen.queryByTestId("plan-header")).toBeNull();
     expect(screen.queryByTestId("mood-header")).toBeNull();
     expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
 
-    const hero = screen.getByTestId("plan-hero");
+    expect(within(hero).getByText("Dapur Contoh · makan siang")).toBeTruthy();
     expect(within(hero).getByText("6 hari lagi")).toBeTruthy();
     expect(within(hero).getByTestId("plan-photo").props.source).toEqual({ uri: "https://images.example.test/rumahan.jpg" });
     expect(within(hero).getByText(`${shortDate(at(-3), "id")} sampai ${shortDate(at(7), "id")}`)).toBeTruthy();
@@ -209,75 +215,81 @@ describe("Plan detail states", () => {
     expect(screen.queryByText("Sudah diperpanjang")).toBeNull();
   });
 
-  it("Berikutnya lists this plan's next five days with their photo ring, day and dishes", async () => {
+  it("the hero card is the Beranda hero's: photo 16:10 on top, radius 16 with no 10 frame, the mood fill with its shadow", async () => {
+    renderPlan(runtimeWith(async () => planState()));
+    const hero = await screen.findByTestId("plan-hero");
+    expect(flat(hero)).toMatchObject({ borderRadius: nativeLayout.radius.card });
+    expect(flat(hero).padding).toBeUndefined();
+    expect(flat(within(hero).getByTestId("plan-hero-fill-siang"))).toMatchObject({ borderRadius: 16, borderWidth: 1.5 });
+    expect(flat(within(hero).getByTestId("plan-hero-fill-siang")).boxShadow).toBeTruthy();
+    expect(flat(within(hero).getByTestId("plan-photo-frame"))).toMatchObject({ aspectRatio: 16 / 10 });
+    expect(nativeLayout.ratio.card).toBe(16 / 10);
+    // The body pads 16 under the photo.
+    expect(flat(within(hero).getByTestId("plan-hero-body"))).toMatchObject({ padding: 16 });
+  });
+
+  it("the hero's headline is the 24/30 heroTitle, its caterer and dates are meta lines", async () => {
+    renderPlan(runtimeWith(async () => planState()));
+    const hero = await screen.findByTestId("plan-hero");
+    expect(flat(within(hero).getByText("6 hari lagi"))).toMatchObject({ fontSize: 24, lineHeight: 30 });
+    expect(flat(within(hero).getByText("Dapur Contoh · makan siang"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(flat(within(hero).getByText(`${shortDate(at(-3), "id")} sampai ${shortDate(at(7), "id")}`))).toMatchObject({ fontSize: 13 });
+  });
+
+  it("Berikutnya is a section heading over one card of this plan's next five days as 72 media rows", async () => {
     renderPlan(runtimeWith(async () => planState()));
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
+    expect(flat(screen.getByText("Berikutnya"))).toMatchObject({ fontSize: 20, lineHeight: 26 });
+    expect(screen.getAllByTestId("list-card")).toHaveLength(1);
     const rows = screen.getAllByTestId("plan-upcoming-row");
     expect(rows).toHaveLength(5);
     expect(screen.queryByText("Paket Lain")).toBeNull();
+    for (const row of rows) {
+      expect(flat(row)).toMatchObject({ minHeight: 72 });
+      expect(flat(within(row).getByTestId("plan-upcoming-row-thumb"))).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+      expect(within(row).getByTestId("plan-upcoming-row-chevron")).toBeTruthy();
+    }
     // Today's lunch is still to come, so today leads (dated as Beranda dates today), then tomorrow and the dinner day.
     expect(within(rows[0]).getByText(shortDate(DAY, "id"))).toBeTruthy();
-    expect(within(rows[1]).getByText(`Besok, ${shortDate(at(1), "id")}`)).toBeTruthy();
-    expect(within(rows[1]).getByText("Ayam bakar madu, Sayur asem")).toBeTruthy();
+    expect(flat(within(rows[1]).getByText(`Besok, ${shortDate(at(1), "id")}`))).toMatchObject({ fontSize: 17, lineHeight: 22 });
+    const dishes = within(rows[1]).getByText("Ayam bakar madu, Sayur asem");
+    expect(flat(dishes)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(dishes.props.numberOfLines).toBe(1);
     expect(within(rows[2]).getByText(shortDate(at(2), "id"))).toBeTruthy();
     expect(within(rows[2]).getByText("Ikan bakar")).toBeTruthy();
-    // The row speaks for its ring, so the ring is hidden from screen readers and found with the hidden elements.
-    const ring = (row: (typeof rows)[number]) =>
-      StyleSheet.flatten(within(row).getByTestId("photo-ring", { includeHiddenElements: true }).props.style);
-    expect(ring(rows[1])).toMatchObject({ width: 60, borderColor: nativeThemes.light.controlRing });
-    expect(ring(rows[2])).toMatchObject({ width: 60, borderColor: nativeThemes.light.charcoal });
+    // The photo is a plain 56 thumb, not the old ring.
+    expect(screen.queryByTestId("photo-ring", { includeHiddenElements: true })).toBeNull();
     fireEvent.press(rows[1]);
-    // The link carries the day, so Hari's bar is final on its first frame.
+    // The link carries the day, so the day sheet's bar is final on its first frame.
     expect(router.push).toHaveBeenCalledWith(`/hari/d-1?title=${encodeURIComponent(shortDate(at(1), "id"))}`);
   });
 
-  it("each upcoming day has its … beside the row: the day's actions in the native action sheet", async () => {
+  it("the date is the title the row must show, so it may wrap at large text while the dishes stay one line", async () => {
     renderPlan(runtimeWith(async () => planState()));
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
-    // Tomorrow can still change (its cutoff is today 17.00), so its "…" is there, named for the meal and the day.
-    const more = screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(at(1), "id")}` });
-    // It sits beside the row, not inside it: the row stays one button that opens Hari.
-    expect(within(screen.getAllByTestId("plan-upcoming-row")[1]).queryByTestId("header-more")).toBeNull();
-    fireEvent.press(more);
-    expect(router.push).toHaveBeenCalledWith({ pathname: "/aksi", params: { id: expect.any(String) } });
+    const row = screen.getAllByTestId("plan-upcoming-row")[1];
+    expect(within(row).getByText(`Besok, ${shortDate(at(1), "id")}`).props.numberOfLines).toBeUndefined();
+    expect(within(row).getByText("Ayam bakar madu, Sayur asem").props.numberOfLines).toBe(1);
   });
 
-  /** This plan's days with every day past its cutoff and no caterer number (nothing to offer), except the ids kept. */
-  const quietExcept = (...kept: string[]) =>
-    planState().deliveries.map((d) =>
-      kept.includes(d.id) ? { ...d, cutoff_at: "2099-01-01T10:00:00Z" } : { ...d, cutoff_at: "2020-01-01T10:00:00Z", catererPhone: null },
-    );
-
-  it("the upcoming rows' chevrons line up: a day without a … keeps the …'s place while another day has one", async () => {
-    renderPlan(runtimeWith(async () => planState({}, { deliveries: quietExcept("d-1") })));
+  it("a day whose menu is not set says so on a not-set thumb", async () => {
+    const bare = delivery("d-1", at(1), {}, { offer: offer({ menus: [] }) });
+    renderPlan(runtimeWith(async () => planState({}, { deliveries: [bare] })));
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
-    const rows = screen.getAllByTestId("plan-upcoming-row");
-    const mores = screen.getAllByTestId("header-more");
-    const slots = screen.queryAllByTestId("day-more-slot", { includeHiddenElements: true });
-    // Tomorrow offers a "…"; the other days offer nothing.
-    expect(mores).toHaveLength(1);
-    expect(rows.length).toBeGreaterThan(1);
-    // Every row ends in the "…"'s width: its button, or an empty slot the same size that no screen reader stops on.
-    expect(slots).toHaveLength(rows.length - 1);
-    const size = (n: { props: { style?: unknown } }) => {
-      const s = StyleSheet.flatten(n.props.style as never) as { width?: number; height?: number };
-      return { width: s.width, height: s.height };
-    };
-    for (const slot of slots) {
-      expect(size(slot)).toEqual(size(mores[0]));
-      expect(slot.props.importantForAccessibility).toBe("no-hide-descendants");
-    }
+    const row = screen.getByTestId("plan-upcoming-row");
+    expect(within(row).getByText("Menu belum diisi")).toBeTruthy();
+    expect(within(row).getByTestId("plan-upcoming-row-thumb-not-set")).toBeTruthy();
   });
 
-  it("with no day offering a …, the rows keep no empty slot", async () => {
-    renderPlan(runtimeWith(async () => planState({}, { deliveries: quietExcept() })));
+  it("the rows carry no per-row ...: every day action lives in the day sheet", async () => {
+    renderPlan(runtimeWith(async () => planState()));
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
-    expect(screen.getAllByTestId("plan-upcoming-row").length).toBeGreaterThan(0);
     expect(screen.queryByTestId("header-more")).toBeNull();
     expect(screen.queryByTestId("day-more-slot", { includeHiddenElements: true })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Pilihan untuk/ })).toBeNull();
   });
 
-  it("offline, no upcoming day offers a …: a kept copy acts on nothing", async () => {
+  it("offline, the kept copy still lists the rows (they open the day sheet) and offers no action", async () => {
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValueOnce({ savedAt: "2026-10-07T23:12:00Z", data: planState() });
     renderPlan(
       runtimeWith(async () => {
@@ -287,6 +299,7 @@ describe("Plan detail states", () => {
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
     expect(screen.getAllByTestId("plan-upcoming-row").length).toBeGreaterThan(0);
     expect(screen.queryByTestId("header-more")).toBeNull();
+    expect(screen.queryByTestId("sticky-action")).toBeNull();
   });
 
   it("today's day leaves Berikutnya once its meal has arrived", async () => {
@@ -316,6 +329,31 @@ describe("Plan detail states", () => {
     expect(screen.queryByText("Belum ada pengantaran berikutnya.")).toBeNull();
     fireEvent.press(rows[0]);
     expect(router.push).toHaveBeenCalledWith(`/hari/d-today?title=${encodeURIComponent(shortDate(DAY, "id"))}`);
+  });
+
+  it("in dark the hero's text reads the mood's hero inks and the rows sit on the dark surface", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    render(
+      <LayoutScaleProvider value="v2">
+        <ThemeProvider storageKey="plan-dark-test">
+          <MobileProvider runtime={runtimeWith(async () => planState())} linkMapper={customerLink}>
+            <PlanDetailScreen />
+          </MobileProvider>
+        </ThemeProvider>
+      </LayoutScaleProvider>,
+    );
+    const hero = await screen.findByTestId("plan-hero");
+    expect(flat(within(hero).getByText("6 hari lagi")).color).toBeTruthy();
+    expect(flat(within(hero).getByText("6 hari lagi")).color).not.toBe(nativeThemes.light.charcoal);
+    expect(flat(screen.getByTestId("list-card")).backgroundColor).toBe(nativeThemes.dark.surface);
+  });
+
+  it("the sticky action keeps its place and conditions under the new hero (renewal due)", async () => {
+    renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) })));
+    const action = await screen.findByTestId("sticky-action");
+    expect(within(action).getByRole("button", { name: "Lanjutkan paket" })).toBeTruthy();
+    // The hero carries no second renew button: the one primary control is the footer.
+    expect(within(screen.getByTestId("plan-hero")).queryByRole("button")).toBeNull();
   });
 
   it("an active plan due for renewal: Lanjutkan paket opens Perpanjang and counts renew_started", async () => {
@@ -418,9 +456,11 @@ describe("Plan detail states", () => {
     const view = renderPlan(runtime);
     expect(await screen.findByText("6 hari lagi")).toBeTruthy();
     view.rerender(
-      <MobileProvider runtime={runtime} linkMapper={customerLink}>
-        <PlanDetailScreen />
-      </MobileProvider>,
+      <LayoutScaleProvider value="v2">
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <PlanDetailScreen />
+        </MobileProvider>
+      </LayoutScaleProvider>,
     );
     await act(async () => undefined);
     expect(usageNames(usage).filter((n) => n === "plan_sheet_opened")).toHaveLength(1);

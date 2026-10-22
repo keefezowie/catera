@@ -20,6 +20,7 @@ import {
 import { DAY_CIRCLE, MonthFrame } from "./schedule/MonthGrid";
 import { MealSegment } from "./discover/MealSegment";
 import { PackageGrid, useGridCell } from "./discover/PackageGrid";
+import { planPhotoFrame } from "./plan/heroFrame";
 import { HERO_BAND_RISE } from "./today/heroBand";
 import { HERO_RADIUS as BERANDA_HERO_RADIUS, heroPhotoFrame } from "./today/Plate";
 import { STATUS_HALO, STATUS_LABEL_LINE, STATUS_META_LINE, STATUS_ROW } from "./today/StatusStops";
@@ -31,22 +32,6 @@ import { STATUS_HALO, STATUS_LABEL_LINE, STATUS_META_LINE, STATUS_ROW } from "./
  * motion, and a screen reader meets one progress bar named "Memuat {what}". Chrome (native header, mood header, tab
  * bar) is never part of a skeleton: it renders at once.
  */
-
-const HERO_RADIUS = 28;
-
-/**
- * A raised hero card while it loads, in the loaded hero's own frame: 10 padding, the 28 radius, the mood's hero fill
- * with its shadow (Siang, with Malam fading over it). The blocks inside read the hero's track (`onHero`), so they show
- * on that fill in both themes and both moods.
- */
-function HeroFrame({ testID, children }: { testID: string; children: ReactNode }) {
-  return (
-    <View testID={testID} style={{ padding: 10, borderRadius: HERO_RADIUS, borderCurve: "continuous" }}>
-      <MoodFill surface="hero" testID={`${testID}-fill`} radius={HERO_RADIUS} heroShadow />
-      {children}
-    </View>
-  );
-}
 
 /**
  * The Beranda hero card while it loads, in the loaded hero's own frame: the 16 radius card with its mood fill and shadow
@@ -246,30 +231,64 @@ export function SavedSkeleton() {
 }
 
 /**
- * A plan's detail (Paket): the kitchen's line above the hero (its body line, pulled up 8 like the loaded one), the hero
- * card (the loaded hero's frame and fill, the 168 photo, the headline's 39 line and the dates' 23 line) and five rows of
- * what comes next. The kitchen line and the rows sit on the canvas and read the theme; the hero's blocks read its track.
+ * A plan's detail (Paket): the hero card (Beranda's card and fill with the 16:10 photo inside its edge, then the body's
+ * 16 padding: the meal line, the heading line and the dates line) and, 32 below, the "Berikutnya" heading's 26 line over
+ * one card of three 72 rows with 56 thumbs. The heading and the rows sit on the canvas and read the theme; the hero's
+ * blocks read its track.
  */
 export function PlanSkeleton() {
   const { t } = useMobile();
+  const c = useColors();
   return (
     <SkeletonGroup label={t("Memuat paket", "Loading plan")}>
-      <View testID="plan-skeleton" style={{ gap: 16 }}>
-        <View testID="plan-skeleton-caterer" style={{ height: 23, marginTop: -8, justifyContent: "center" }}>
-          <Skeleton width="40%" height={14} />
-        </View>
-        <HeroFrame testID="plan-skeleton-hero">
-          <Skeleton onHero height={168} radius={20} />
-          <View style={{ gap: 2, paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8 }}>
-            <View style={{ height: 39, justifyContent: "center" }}>
-              <Skeleton onHero width="70%" height={28} />
+      <View testID="plan-skeleton" style={{ gap: nativeLayout.sectionGap }}>
+        <View testID="plan-skeleton-hero" style={{ borderRadius: BERANDA_HERO_RADIUS, borderCurve: "continuous" }}>
+          <MoodFill surface="hero" testID="plan-skeleton-hero-fill" radius={BERANDA_HERO_RADIUS} heroShadow />
+          <View testID="plan-skeleton-photo" style={planPhotoFrame}>
+            <Skeleton onHero aspectRatio={nativeLayout.ratio.card} radius={0} />
+          </View>
+          <View testID="plan-skeleton-body" style={{ padding: nativeLayout.cardPadding, gap: nativeLayout.space.xs }}>
+            <View style={{ height: 18, justifyContent: "center" }}>
+              <Skeleton onHero width="46%" height={12} />
             </View>
-            <View style={{ height: 23, justifyContent: "center" }}>
-              <Skeleton onHero width="44%" height={14} />
+            <View style={{ height: 30, justifyContent: "center" }}>
+              <Skeleton onHero width="40%" height={22} />
+            </View>
+            <View style={{ height: 18, justifyContent: "center" }}>
+              <Skeleton onHero width="64%" height={12} />
             </View>
           </View>
-        </HeroFrame>
-        <Rows count={5} />
+        </View>
+        <View>
+          <View testID="plan-skeleton-heading" style={{ height: 26, justifyContent: "center", marginBottom: nativeLayout.headingGap }}>
+            <Skeleton width="34%" height={18} />
+          </View>
+          <View
+            testID="plan-skeleton-card"
+            style={{
+              backgroundColor: c.surface,
+              borderRadius: nativeLayout.radius.card,
+              paddingHorizontal: nativeLayout.cardPadding,
+              overflow: "hidden",
+            }}
+          >
+            {Array.from({ length: 3 }, (_, i) => (
+              <View
+                key={i}
+                testID="plan-skeleton-row"
+                style={{ minHeight: nativeLayout.row.media, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
+              >
+                <View testID="plan-skeleton-thumb" style={{ width: nativeLayout.thumb.sm, height: nativeLayout.thumb.sm, borderRadius: nativeLayout.radius.thumb, overflow: "hidden" }}>
+                  <Skeleton width={nativeLayout.thumb.sm} height={nativeLayout.thumb.sm} radius={nativeLayout.radius.thumb} />
+                </View>
+                <View style={{ flex: 1, gap: nativeLayout.space.sm }}>
+                  <Skeleton width={i % 2 ? "46%" : "58%"} height={16} />
+                  <Skeleton width="82%" height={12} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
       </View>
     </SkeletonGroup>
   );

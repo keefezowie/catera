@@ -895,13 +895,23 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     expect(panel().props.swapKey).toBe("ready");
   });
 
-  it("the plan's skeleton has the kitchen line and the hero card of the loaded plan (finding 7)", () => {
+  it("the plan's skeleton is the loaded plan's hero card (16:10 photo, 16 body) and one card of 72 rows", () => {
     renderWith(runtimeWith({}), <PlanSkeleton />);
-    const caterer = flat(screen.getByTestId("plan-skeleton-caterer"));
-    expect([caterer.height, caterer.marginTop]).toEqual([23, -8]);
+    expect(screen.queryByTestId("plan-skeleton-caterer")).toBeNull();
     const hero = screen.getByTestId("plan-skeleton-hero");
-    expect([flat(hero).padding, flat(hero).borderRadius]).toEqual([10, 28]);
-    expect(within(hero).getByTestId("plan-skeleton-hero-fill-siang")).toBeTruthy();
+    expect([flat(hero).padding, flat(hero).borderRadius]).toEqual([undefined, 16]);
+    const fill = within(hero).getByTestId("plan-skeleton-hero-fill-siang");
+    expect(flat(fill)).toMatchObject({ borderRadius: 16 });
+    expect(flat(fill).boxShadow).toBeTruthy();
+    expect(flat(within(hero).getByTestId("plan-skeleton-photo"))).toMatchObject({ aspectRatio: 16 / 10 });
+    expect(flat(within(hero).getByTestId("plan-skeleton-body"))).toMatchObject({ padding: 16 });
+    // Berikutnya: the section heading's 26 line, then one card of 72 rows with 56 thumbs.
+    expect(flat(screen.getByTestId("plan-skeleton-heading")).height).toBe(26);
+    const rows = screen.getAllByTestId("plan-skeleton-row");
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(flat(row).minHeight).toBe(72);
+    expect(flat(screen.getAllByTestId("plan-skeleton-thumb")[0])).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+    expect(flat(screen.getByTestId("plan-skeleton-card"))).toMatchObject({ borderRadius: 16 });
   });
 
   it("the Beranda skeleton's hero is the loaded hero's card, fill and shadow (finding 8)", async () => {

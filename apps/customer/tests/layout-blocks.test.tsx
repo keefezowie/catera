@@ -15,6 +15,12 @@ describe("layout blocks", () => {
     expect(screen.getByText("Rp25.000").props.numberOfLines).toBe(1);
   });
 
+  it('MediaRow with wrap="title" lets only the title grow: the meta stays one line', () => {
+    render(<MediaRow testID="row" title="Besok, Jumat 23 Okt" meta="Nasi putih, ayam panggang" wrap="title" />);
+    expect(screen.getByText("Besok, Jumat 23 Okt").props.numberOfLines).toBeUndefined();
+    expect(screen.getByText("Nasi putih, ayam panggang").props.numberOfLines).toBe(1);
+  });
+
   it("MediaRow presses, shows a chevron and a custom trailing node", () => {
     const onPress = jest.fn();
     render(<MediaRow testID="row" title="Satu" trailing="chevron" onPress={onPress} />);

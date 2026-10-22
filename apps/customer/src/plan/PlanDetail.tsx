@@ -1,17 +1,18 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   dayLabel,
   jakartaDay,
+  mealLabel,
   planDetail,
   shortDate,
   type CustomerState,
-  type Delivery,
   type PlanDetail as PlanData,
   type UpcomingRow,
 } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile-core";
 import {
   Button,
@@ -21,13 +22,10 @@ import {
   linkTitle,
   MoodFill,
   Photo,
-  PhotoRing,
-  PressableRow,
   ReadError,
   Screen,
   StickyAction,
   Text,
-  themedStyles,
   useColors,
   useMoodColors,
   useScreenNavigation,
@@ -37,12 +35,13 @@ import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
 import { remainingLabel } from "../remaining";
 import { StaleCopy } from "../staleCopy";
 import { loadCachedCustomer } from "../today/offline";
-import { photoUri } from "../today/Plate";
+import { photoUri } from "../today/photoUri";
 import { dayHref } from "../hrefs";
 import { goToTab } from "../nav";
 import { PlanSkeleton } from "../skeletons";
-import { dayHasActions } from "../schedule/dayActions";
-import { DayMore } from "../schedule/DayMore";
+import { ListCard, MediaRow, SectionHeader } from "../layout";
+import { HERO_RADIUS } from "../today/Plate";
+import { planPhotoFrame } from "./heroFrame";
 
 type LoadedPlan = { data: CustomerState; savedAt: string | null };
 
@@ -58,7 +57,6 @@ async function loadPlan(runtime: MobileRuntime, key: string): Promise<LoadedPlan
 }
 
 const tabular = { fontVariant: ["tabular-nums" as const] };
-const HERO_RADIUS = 28;
 
 /**
  * /subscriptions/{id}: one plan, what is left of it and what comes next. It sits under the native header, whose back
@@ -90,7 +88,6 @@ export function PlanDetailScreen() {
 
 function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; carried?: string; generic: string }) {
   const { runtime, t, locale } = useMobile();
-  const c = useColors();
   const track = useTrack();
   const read = useData("plan:customer", () => loadPlan(runtime, actorId));
   const state = read.data?.data;
@@ -181,29 +178,26 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
 
   return (
     <Screen nativeTitle={plan.offer.name} footer={footer}>
-      <FadeSwap swapKey="ready" style={{ gap: 16 }}>
-        {plan.offer.caterer ? (
-          <Text testID="plan-caterer" selectable style={{ color: c.muted, marginTop: -8 }}>
-            {plan.offer.caterer}
-          </Text>
-        ) : null}
+      <FadeSwap swapKey="ready" style={{ gap: nativeLayout.space.lg }}>
         <Hero plan={plan} apiBase={runtime.apiBase} />
         {/* Mounted whatever the page shows; it appears only while the phone is offline, naming the time of this copy. */}
         <ConnectionBanner lastSeen={savedAt ? new Date(savedAt) : undefined} onRetry={() => void read.reload()} />
         <StaleCopy savedAt={savedAt} onRetry={read.reload} />
-        {cancelled ? null : (
-          <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} deliveries={offline ? undefined : state?.deliveries} />
-        )}
+        {cancelled ? null : <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} />}
       </FadeSwap>
     </Screen>
   );
 }
 
-/** The screen's one raised card, on the mood's hero fill: the package photo, what is left of the plan and its dates. */
+/**
+ * The screen's one raised card, Beranda's hero card on the mood's hero fill: the package photo at 16:10 across its top
+ * (inside the 1.5 edge), then a body of 16 padding: the kitchen and meal as a meta line, what is left of the plan in
+ * `heroTitle`, and its dates.
+ */
 function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
   const { t, locale } = useMobile();
+  const c = useColors();
   const palette = useMoodColors();
-  const styles = useStyles();
   const photo = plan.offer.image ?? "";
   // The screen only reaches here for an active, completed or cancelled plan.
   const headline =
@@ -212,27 +206,34 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
       : plan.status === "completed"
         ? t("Paket selesai", "Plan finished")
         : t("Paket dibatalkan", "Plan cancelled");
+  const meta = [plan.offer.caterer, mealLabel(plan.offer.meal, locale).toLowerCase()].filter(Boolean).join(" · ");
   return (
-    <View testID="plan-hero" style={{ padding: 10, borderRadius: HERO_RADIUS, borderCurve: "continuous" }}>
+    <View testID="plan-hero" style={{ borderRadius: HERO_RADIUS, borderCurve: "continuous" }}>
       <MoodFill surface="hero" testID="plan-hero-fill" radius={HERO_RADIUS} heroShadow />
       {photo ? (
-        <View style={styles.photoFrame}>
-          <Photo testID="plan-photo" uri={photoUri(photo, apiBase)} style={{ width: "100%", height: 168 }} />
+        // The soft ground of the photo inside, so the frame reads as one tile while the photo loads or if it never does.
+        <View testID="plan-photo-frame" style={[planPhotoFrame, { backgroundColor: c.sage }]}>
+          <Photo testID="plan-photo" uri={photoUri(photo, apiBase)} style={StyleSheet.absoluteFill} />
         </View>
       ) : null}
-      <View style={{ paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8, gap: 2 }}>
-        {/* The screen's one heading is the package name in the header, so this headline is plain text. */}
-        <Text variant="title" accessibilityRole="text" selectable style={[{ color: palette.heroText }, tabular]}>
-          {headline}
-        </Text>
-        <Text selectable style={[{ color: palette.heroMeta }, tabular]}>
-          {/* A one-day plan names its day once. */}
-          {plan.startsOn === plan.endsOn
-            ? shortDate(plan.startsOn, locale)
-            : t(`${shortDate(plan.startsOn, locale)} sampai ${shortDate(plan.endsOn, locale)}`, `${shortDate(plan.startsOn, locale)} to ${shortDate(plan.endsOn, locale)}`)}
-        </Text>
+      <View testID="plan-hero-body" style={{ padding: nativeLayout.cardPadding, gap: nativeLayout.space.md }}>
+        <View style={{ gap: 2 }}>
+          <Text variant="meta" selectable style={{ color: palette.heroMeta }}>
+            {meta}
+          </Text>
+          {/* The screen's one heading is the package name in the header, so this headline is plain text. */}
+          <Text variant="heroTitle" accessibilityRole="text" selectable style={[{ color: palette.heroText }, tabular]}>
+            {headline}
+          </Text>
+          <Text variant="meta" selectable style={[{ color: palette.heroMeta }, tabular]}>
+            {/* A one-day plan names its day once. */}
+            {plan.startsOn === plan.endsOn
+              ? shortDate(plan.startsOn, locale)
+              : t(`${shortDate(plan.startsOn, locale)} sampai ${shortDate(plan.endsOn, locale)}`, `${shortDate(plan.startsOn, locale)} to ${shortDate(plan.endsOn, locale)}`)}
+          </Text>
+        </View>
         {plan.action.kind === "renewed" ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 6 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Ionicons name="checkmark-circle" size={18} color={palette.heroText} />
             <Text variant="label" style={{ color: palette.heroText, flexShrink: 1 }}>
               {t("Sudah diperpanjang", "Already renewed")}
@@ -245,69 +246,39 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
 }
 
 /**
- * This plan's next days: a ring with the day's photo (lunch grey, dinner ink), the day and its dishes. The row
- * opens Hari; the "…" beside it opens the day's actions, only from a fresh read (`deliveries` is left out offline).
+ * This plan's next days: "Berikutnya" over one card of 72 rows, each a 56 thumb (a dashed tile while the day's menu is
+ * not set), the date in `rowTitle` and the dishes as one truncated `meta` line. The row opens the day's sheet, where
+ * the full list and every action are, so a row has no menu of its own. The date may wrap at large text; the dishes do not.
  */
-function Upcoming({ rows, apiBase, deliveries }: { rows: UpcomingRow[]; apiBase: string; deliveries?: Delivery[] }) {
+function Upcoming({ rows, apiBase }: { rows: UpcomingRow[]; apiBase: string }) {
   const { t, locale } = useMobile();
   const c = useColors();
-  const styles = useStyles();
-  const now = new Date();
-  const today = jakartaDay(now);
-  const mealOf = (row: UpcomingRow) => (row.meal === "dinner" || row.meal === "lunch" ? row.meal : undefined);
-  const deliveryOf = (row: UpcomingRow) => deliveries?.find((d) => d.id === row.deliveryId);
-  // While any day has a "…", the others keep its place, so the chevrons line up in one column.
-  const reserve = rows.some((row) => dayHasActions(deliveryOf(row), now, mealOf(row)));
+  const today = jakartaDay(new Date());
   return (
-    <View>
-      <Text variant="label" style={{ marginBottom: 4 }}>
-        {t("Berikutnya", "Coming up")}
-      </Text>
+    // 16 from the screen's own gap and 16 more: the section sits 32 under whatever is above it.
+    <View style={{ marginTop: nativeLayout.space.lg }}>
+      <SectionHeader title={t("Berikutnya", "Coming up")} />
       {rows.length ? (
-        rows.map((row, i) => {
-          const day = locale === "id" ? row.label : dayLabel(row.date, today, "en");
-          const dishes = row.dishes || t("Menu belum diisi", "Menu not set yet");
-          return (
-            <View key={row.deliveryId} style={[styles.line, i > 0 && styles.divider]}>
-              <PressableRow
-                testID="plan-upcoming-row"
-                accessibilityRole="button"
-                accessibilityLabel={`${day}, ${dishes}`}
-                onPress={() => router.push(dayHref(row.deliveryId, row.date, locale) as never)}
-                style={styles.row}
-              >
-                {/* The row is the button and speaks for the ring. */}
-                <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                  <PhotoRing
-                    uri={photoUri(row.image, apiBase)}
-                    size={60}
-                    ring={row.meal === "dinner" ? "dinner" : "lunch"}
-                    accessibilityLabel={dishes}
-                  />
-                </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="label" style={[{ lineHeight: 18 }, tabular]}>
-                    {day}
-                  </Text>
-                  <Text>{dishes}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={c.muted} />
-              </PressableRow>
-              <DayMore delivery={deliveryOf(row)} meal={mealOf(row)} reserve={reserve} />
-            </View>
-          );
-        })
+        <ListCard>
+          {rows.map((row) => (
+            <MediaRow
+              key={row.deliveryId}
+              testID="plan-upcoming-row"
+              image={photoUri(row.image, apiBase)}
+              notSet={!row.dishes}
+              title={locale === "id" ? row.label : dayLabel(row.date, today, "en")}
+              meta={row.dishes || t("Menu belum diisi", "Menu not set yet")}
+              trailing="chevron"
+              wrap="title"
+              onPress={() => router.push(dayHref(row.deliveryId, row.date, locale) as never)}
+            />
+          ))}
+        </ListCard>
       ) : (
-        <Text style={{ color: c.muted }}>{t("Belum ada pengantaran berikutnya.", "No upcoming deliveries.")}</Text>
+        <Text variant="bodyL" style={{ color: c.muted }}>
+          {t("Belum ada pengantaran berikutnya.", "No upcoming deliveries.")}
+        </Text>
       )}
     </View>
   );
 }
-
-const useStyles = themedStyles((c) => ({
-  // The soft ground of the photo inside, so the frame reads as one tile while the photo loads or if it never does.
-  photoFrame: { borderRadius: 20, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.sage },
-  line: { flexDirection: "row", alignItems: "center", gap: 4 },
-  row: { flex: 1, minHeight: 76, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
-  divider: { borderTopWidth: 1, borderTopColor: c.line },
-}));
