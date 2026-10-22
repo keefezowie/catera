@@ -9,8 +9,8 @@ Phase G is closed. The G-c session ran gates g-c-1 to g-c-14 on the Android emul
 - Gate results: `output/native-review/phase-g/gates/g-c-1` to `g-c-14`, each with `RESULTS.txt` and its captures.
 - Pool worktrees `C:\wt\1`, `C:\wt\2` and `C:\wt\3`. Briefs are in `C:\wt\logs-g\`.
 - Final checks on `v2` `92ca26b5`: customer Jest 1462, caterer Jest 616, `npm test` 1043, typecheck 0 errors, build OK.
-- APKs: output/apk/catera-*-uat-arm64-v8a-<date>-92ca26b5.apk
-- Usage: weekly <fill in>
+- APKs: output/apk/catera-customer-uat-arm64-v8a-20261022-92ca26b5.apk (55.1 MB) and output/apk/catera-dapur-uat-arm64-v8a-20261022-92ca26b5.apk (54.4 MB), arm64 UAT release builds from v2 92ca26b5 with the DimmingView patch applied.
+- Usage: weekly 52% at the end of G-c (2026-10-22; 15% at the start of G-c), 5-hour 18%.
 - Push: `v2` is not pushed. The owner decides when.
 
 ## What G-c fixed
