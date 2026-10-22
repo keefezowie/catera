@@ -403,6 +403,7 @@ export function Screen({
   scroll = true,
   footer,
   header,
+  plainHeader = false,
   nativeTitle,
   title,
   bleed = false,
@@ -417,6 +418,8 @@ export function Screen({
    * drops its own top edge; it scrolls with the page, above the capped body.
    */
   header?: ReactNode;
+  /** The header is a `plain` MoodHeader on the canvas, so the status band behind the bar is the canvas too. */
+  plainHeader?: boolean;
   /**
    * The screen's name under a native stack header. iOS shows it as the large title that collapses into the bar. On
    * Android it is the first content line (headline small, 24/32, wraps), and the bar takes it once that line has
@@ -558,7 +561,7 @@ export function Screen({
         {footer ? <ScreenFooter>{footer}</ScreenFooter> : null}
       </KeyboardAvoidingView>
       {/* Last, so it paints above the scrolled page; the demo strip already covers the inset when it is shown. */}
-      {header && !topOwned ? <StatusBand /> : null}
+      {header && !topOwned ? <StatusBand plain={plainHeader} /> : null}
     </SafeAreaView>
   );
 }

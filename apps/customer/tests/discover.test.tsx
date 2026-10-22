@@ -200,7 +200,12 @@ describe("Jelajah", () => {
     );
     await screen.findByText("Menu Sehat Premium");
     // A hitSlop never reaches past its parent, so the chip row's own content must be 44 tall for the chips' slop to count.
+    // The row's own height is a real 44 (not shrunk by a negative margin), and so is its frame.
     const row = screen.getByTestId("chip-row");
+    expect(flat(row)).toMatchObject({ height: 44, flexShrink: 0 });
+    expect(flat(row).marginTop).toBeUndefined();
+    expect(flat(row).marginVertical).toBeUndefined();
+    expect(flat(screen.getByTestId("chip-row-frame"))).toMatchObject({ height: 44, flexShrink: 0 });
     expect(flat({ props: { style: row.props.contentContainerStyle } }).minHeight).toBeGreaterThanOrEqual(44);
     for (const name of ["Di bawah Rp30.000", "Bisa coba 1 hari"]) {
       const node = screen.getByRole("button", { name });
@@ -539,6 +544,11 @@ describe("Jelajah mood header", () => {
     // A 44 row holding the 34 surface track, whose two pills are 30 tall (a 2 inset).
     expect(flat(segment).height).toBe(44);
     expect(flat(screen.getByTestId("meal-track"))).toMatchObject({ height: 34, borderRadius: 17 });
+    // The track is centred in the 44 row by its own wrapper, not pinned to the top.
+    expect(flat(screen.getByTestId("meal-track-frame"))).toMatchObject({ justifyContent: "center", top: 0, bottom: 0 });
+    // Each tab is named from its label alone, with no empty part and no stray comma.
+    expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityLabel).toBe("Siang");
+    expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityLabel).toBe("Malam");
     for (const name of ["Siang", "Malam"]) {
       expect(within(segment).getByRole("tab", { name })).toBeTruthy();
       expect(flat(screen.getByRole("tab", { name })).minHeight).toBe(44);
@@ -565,8 +575,8 @@ describe("Jelajah mood header", () => {
     await screen.findByText("Menu Sehat Premium");
     const row = screen.getByTestId("chip-row");
     expect(row.props.horizontal).toBe(true);
-    // It starts at the margin and runs to the right edge: a negative right margin and a matching content padding.
-    expect(flat(row)).toMatchObject({ marginVertical: -5, marginRight: -16 });
+    // It starts at the margin and runs to the right edge: a negative right margin on the frame, a matching content padding.
+    expect(flat(screen.getByTestId("chip-row-frame"))).toMatchObject({ marginRight: -16 });
     expect(flat({ props: { style: row.props.contentContainerStyle } })).toMatchObject({ paddingRight: 16, gap: 8 });
     // The segment's own two tabs are tabs, not buttons; the buttons after it are the filters, then the categories.
     expect(within(row).getByTestId("meal-segment")).toBeTruthy();
@@ -642,13 +652,25 @@ describe("Jelajah mood header", () => {
     expect(within(screen.getByTestId("jelajah-header")).queryByRole("tab")).toBeNull();
   });
 
-  it("paints the header from the mood palette and the search text on it", async () => {
+  it("draws the header on the canvas: no mood band, no rounded panel, ink and surface from the theme", async () => {
     mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
-    const palette = nativeMood.light.malam;
-    expect(flat(screen.getByTestId("jelajah-title")).color).toBe(palette.headerText);
-    expect(flat(header().getByPlaceholderText("Cari menu atau katering…")).color).toBe(palette.headerText);
-    expect(flat(screen.getByTestId("mood-fill-malam")).backgroundColor).toBe(palette.header);
+    const colors = nativeThemes.light;
+    expect(screen.queryByTestId("mood-fill-siang", { includeHiddenElements: true })).toBeNull();
+    expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
+    expect(screen.getByTestId("jelajah-header").props.style).toEqual({ paddingTop: 8 });
+    expect(flat(screen.getByTestId("jelajah-title")).color).toBe(colors.charcoal);
+    expect(flat(header().getByPlaceholderText("Cari menu atau katering…")).color).toBe(colors.charcoal);
+    // A tone step on the canvas, no borders; the heart is a bare glyph on a 44 target.
+    expect(flat(screen.getByTestId("jelajah-search"))).toMatchObject({ backgroundColor: colors.surface });
+    expect(flat(screen.getByTestId("jelajah-search")).borderWidth).toBeUndefined();
+    expect(flat(screen.getByTestId("area-chip")).borderWidth).toBeUndefined();
+    const heart = flat(header().getByRole("button", { name: "Paket disimpan" }));
+    expect(heart.backgroundColor).toBeUndefined();
+    expect(heart.borderWidth).toBeUndefined();
+    // The status band behind the bar is the canvas, not a mood tint.
+    expect(screen.getByTestId("status-band-canvas", { includeHiddenElements: true })).toBeTruthy();
+    expect(flat(screen.getByTestId("status-band-canvas", { includeHiddenElements: true })).backgroundColor).toBe(colors.canvas);
   });
 
   it("draws the selected meal with a 1.5 forest ring, a 700 forest label and its glyph, and the idle one with a 500 label and no ring", async () => {
@@ -839,13 +861,60 @@ describe("Jelajah mood header", () => {
       expect(within(cost).getByText("/ makan")).toBeTruthy();
     });
 
-    it("shows the calorie estimate and the one-day trial on one meta line", async () => {
-      const full = { ...cheap, nutrition: { caloriesKcal: 610 } } as typeof cheap;
-      mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [full, pricey], nextCursor: null })) }));
+    it("always draws a meta line: calories and trial, calories alone, or the no-trial wording", async () => {
+      const kcal = (o: typeof cheap, n: number) => ({ ...o, nutrition: { caloriesKcal: n } }) as typeof cheap;
+      const both = { ...kcal(cheap, 610), id: "p-a", name: "Paket A" };
+      const kcalOnly = { ...kcal(pricey, 480), id: "p-b", name: "Paket B" };
+      const neither = { ...pricey, id: "p-c", name: "Paket C" };
+      mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both, kcalOnly, neither], nextCursor: null })) }));
+      await screen.findByText("Paket C");
+      const metaOf = (name: string) => {
+        const tile = within(screen.getAllByTestId("package-tile").find((t) => within(t).queryByText(name))!);
+        return tile.getAllByTestId("tile-group")[1];
+      };
+      expect(within(metaOf("Paket A")).getByText("± 610 kkal · coba 1 hari")).toBeTruthy();
+      expect(within(metaOf("Paket B")).getByText("± 480 kkal")).toBeTruthy();
+      expect(within(metaOf("Paket C")).getByText("Belum bisa dicoba")).toBeTruthy();
+      // The cost group is the price line and one meta line in all three, so tiles in a row keep one structure.
+      for (const name of ["Paket A", "Paket B", "Paket C"]) expect(within(metaOf(name)).getAllByText(/./)).toHaveLength(3);
+    });
+
+    it("fits the first two tile rows above the tab bar at 412x915, measured from the rendered styles", async () => {
+      mockWindow = { width: 412, height: 915, scale: 2.625, fontScale: 1 };
+      mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
-      expect(screen.getByText("± 610 kkal · coba 1 hari")).toBeTruthy();
-      // A package with neither has no meta line at all.
-      expect(cellOf("Menu Sehat Premium").queryByText(/kkal|coba/)).toBeNull();
+      const st = (id: string) => flat(screen.getByTestId(id));
+      // Header stack, top to bottom (the 8 above the row is the plain header's own; the status inset and demo strip come
+      // from the device and are added below).
+      const header = screen.getByTestId("jelajah-header").props.style as { paddingTop: number };
+      const row = st("mood-header-row").minHeight as number;
+      const headerGap = st("mood-header-content").gap as number;
+      const titleLine = st("jelajah-title").lineHeight as number;
+      const searchTop = st("jelajah-search").marginTop as number;
+      const search = st("jelajah-search").minHeight as number;
+      const headerBottom = header.paddingTop + row + headerGap + titleLine + headerGap + searchTop + search;
+      expect(headerBottom).toBe(8 + 44 + 8 + 30 + 8 + 8 + 44); // 150
+      // The body adds its 16; the chip row is pulled up so its chips are 12 under the search, and pushes the grid 16
+      // under the chips.
+      const bodyTop = (st("screen-body").paddingTop as number) ?? 16;
+      const frame = st("chip-row-frame");
+      const gridTop = headerBottom + bodyTop + (frame.marginTop as number) + (frame.height as number) + (frame.marginBottom as number) + 16;
+      expect(headerBottom + bodyTop + (frame.marginTop as number) + 5).toBe(headerBottom + 12); // chips 12 under the search
+      expect(gridTop).toBe(212);
+      // A tile at 412dp: two columns of (412 - 2 x 16 - 12) / 2 = 184, a 4:3 photo (138), the body's 8, the name group
+      // (a 22 line, or 44 for two, plus 2 and the 18 caterer), 8, and the cost group (the 22 price, 2, the 18 meta).
+      const column = (412 - 2 * 16 - 12) / 2;
+      const photo = column / (4 / 3);
+      const tile = (nameLines: number) => photo + 8 + (22 * nameLines + 2 + 18) + 8 + (22 + 2 + 18);
+      const rowGap = st("package-grid").rowGap as number;
+      const worst = gridTop + tile(2) + rowGap + tile(2);
+      const typical = gridTop + tile(1) + rowGap + tile(1);
+      // The screen's usable bottom is 915 less the 80 tab bar, and the top inset (a 28 status bar and the 24 demo strip)
+      // comes off the same height.
+      const inset = 28 + 24;
+      const limit = 915 - 80 - inset;
+      expect(typical).toBeLessThanOrEqual(limit);
+      expect(worst).toBeLessThanOrEqual(limit);
     });
 
     it("keeps two columns on a 360dp phone at the default text size", async () => {

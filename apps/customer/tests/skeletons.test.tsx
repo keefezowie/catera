@@ -786,7 +786,9 @@ describe("finding 5: every screen's first read waits as its own skeleton", () =>
     const skeleton = await screen.findByTestId("jelajah-skeleton");
     // The chip row is the loaded row's 44 tall, with the live meal segment first and two 34 placeholder chips after it.
     const chips = within(skeleton).getByTestId("jelajah-skeleton-chips");
-    expect(flat(chips)).toMatchObject({ minHeight: 44, marginVertical: -5 });
+    expect(flat(chips)).toMatchObject({ height: 44 });
+    expect(flat(within(skeleton).getByTestId("chip-row-frame"))).toMatchObject({ height: 44 });
+    expect(flat(within(skeleton).getByTestId("chip-row-frame")).marginRight).toBeLessThan(0);
     expect(within(chips).getByTestId("meal-segment")).toBeTruthy();
     const placeholders = chips.findAll((n) => typeof n.type !== "string" && n.props.height === 34 && n.props.radius === 17, { deep: true });
     expect(placeholders).toHaveLength(2);

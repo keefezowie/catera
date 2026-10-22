@@ -2,7 +2,7 @@ import { Image, View } from "react-native";
 import { currency, perMealPrice, priceUnitLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { PressableRow, SaveHeart, Text, themedStyles } from "@catera/mobile-ui";
+import { fontFor, PressableRow, SaveHeart, Text, themedStyles } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { type CatalogOffer } from "./format";
 import { calorieHint } from "./NutritionCard";
@@ -39,9 +39,12 @@ export function PackageCard({
   const { runtime, t, locale } = useMobile();
   const styles = useStyles();
   const { note } = priceUnitLabel(offer, locale);
-  const meta = [calorieHint(offer, locale), offer.trialPrice ? t("coba 1 hari", "1-day trial") : null]
-    .filter(Boolean)
-    .join(" · ");
+  // Every tile has this line, so tiles in a row keep one structure: "± 610 kkal · coba 1 hari", the calories alone when
+  // there is no trial, or "Belum bisa dicoba" when there is neither.
+  const kcal = calorieHint(offer, locale);
+  const meta = offer.trialPrice
+    ? [kcal, t("coba 1 hari", "1-day trial")].filter(Boolean).join(" · ")
+    : (kcal ?? t("Belum bisa dicoba", "No trial yet"));
   return (
     <View testID="package-tile">
       <PressableRow accessibilityRole="button" accessibilityLabel={`${offer.name}, ${offer.caterer}`} onPress={onOpen}>
@@ -68,17 +71,15 @@ export function PackageCard({
           </View>
           <View testID="tile-group" style={styles.group}>
             <View style={styles.price}>
-              <Text variant="bodyStrong" style={{ fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+              <Text variant="bodyStrong" style={{ fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] }}>
                 {currency(perMealPrice(offer), locale)}
               </Text>
               <Text variant="meta">{t("/ makan", "/ meal")}</Text>
             </View>
             {note ? <Text variant="meta">{note}</Text> : null}
-            {meta ? (
-              <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
-                {meta}
-              </Text>
-            ) : null}
+            <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
+              {meta}
+            </Text>
           </View>
         </View>
       </PressableRow>

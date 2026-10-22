@@ -18,6 +18,7 @@ import {
   DAY_WELL_RADIUS,
 } from "./schedule/dayMetrics";
 import { DAY_CIRCLE, MonthFrame } from "./schedule/MonthGrid";
+import { ChipRowFrame } from "./discover/ChipRow";
 import { MealSegment } from "./discover/MealSegment";
 import { PackageGrid, useGridCell } from "./discover/PackageGrid";
 import { planPhotoFrame } from "./plan/heroFrame";
@@ -201,6 +202,7 @@ function TileSkeleton({ testID }: { testID: string }) {
         <Skeleton width="85%" height={16} />
         <Skeleton width="55%" height={12} />
         <Skeleton width="45%" height={16} />
+        <Skeleton width="70%" height={12} />
       </View>
     </View>
   );
@@ -217,27 +219,22 @@ const GRID_SKELETON_TILES = 4;
 export function JelajahSkeleton() {
   const { t } = useMobile();
   const chip = nativeLayout.control.chip;
-  const slop = (nativeLayout.control.icon - chip) / 2;
   return (
     <View testID="jelajah-skeleton" style={{ gap: 16 }}>
       {/* The meal segment is the real control (it is the mood, which needs no data), so it works from the first frame;
-          only the chips that need the catalogue are placeholders. The row has the loaded row's 44 height and margins. */}
-      <View
-        testID="jelajah-skeleton-chips"
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: nativeLayout.space.sm,
-          minHeight: nativeLayout.control.icon,
-          marginVertical: -slop,
-        }}
-      >
-        <MealSegment />
-        <SkeletonGroup>
-          <Skeleton width={132} height={chip} radius={chip / 2} />
-          <Skeleton width={112} height={chip} radius={chip / 2} />
-        </SkeletonGroup>
-      </View>
+          only the chips that need the catalogue are placeholders. The row has the loaded row's frame and 44 height. */}
+      <ChipRowFrame>
+        <View
+          testID="jelajah-skeleton-chips"
+          style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.sm, height: nativeLayout.control.icon }}
+        >
+          <MealSegment />
+          <SkeletonGroup>
+            <Skeleton width={132} height={chip} radius={chip / 2} />
+            <Skeleton width={112} height={chip} radius={chip / 2} />
+          </SkeletonGroup>
+        </View>
+      </ChipRowFrame>
       <SkeletonGroup label={t("Memuat paket", "Loading packages")}>
         <PackageGrid testID="jelajah-skeleton-grid">
           {Array.from({ length: GRID_SKELETON_TILES }, (_, i) => (

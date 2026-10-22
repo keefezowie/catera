@@ -477,17 +477,30 @@ describe("tab roots", () => {
     expect(found.length).toBeGreaterThanOrEqual(4);
     const pads = new Set<unknown>();
     const bands: unknown[] = [];
+    const plains: unknown[] = [];
     for (const { row, content } of found) {
+      // Jelajah's header is plain (no mood band, on the canvas): the same 44 row, and 8 (not 12) between its parts.
+      let up = row as unknown as Host | null;
+      while (up && up.props.testID !== "jelajah-header") up = up.parent as Host | null;
+      const plain = up !== null;
+      if (plain) {
+        plains.push(row);
+        expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 44 });
+        // The row keeps its 12 gap between the meta and the heart; the 8 is between the header's parts (below).
+        expect(StyleSheet.flatten(content.props.style)).toMatchObject({ gap: 12 });
+        continue;
+      }
       // A row first in the header, with the title straight after it. Beranda's band (customer layout, v2) is the one
-      // exception: a 36 row and a 4 gap between its lines, under the same top inset; the other roots keep the 48 row and the 12 gap until
+      // exception: a 36 row and a 4 gap between its lines, under the same top inset; the other roots keep the 12 gap (and a 44 row under v2) until
       // their own screens are rebuilt on the layout scale.
       const style = StyleSheet.flatten(row.props.style);
       if (style.minHeight === 36) bands.push(row);
-      else expect(style).toMatchObject({ minHeight: 48 });
+      else expect(style).toMatchObject({ minHeight: 44 });
       expect(StyleSheet.flatten(content.props.style)).toMatchObject({ gap: 12 });
       pads.add(StyleSheet.flatten((content.parent as Host).props.style as never)?.paddingTop);
     }
     expect(bands).toHaveLength(1);
+    expect(plains).toHaveLength(1);
     expect(pads.size).toBe(1);
   });
 
@@ -520,7 +533,7 @@ describe("tab roots", () => {
     expect(within(row as never).getByText("RC", { includeHiddenElements: true })).toBeTruthy();
     expect(within(row as never).getByText("Rani Contoh", { includeHiddenElements: true })).toBeTruthy();
     expect(within(row as never).queryAllByRole("button", { includeHiddenElements: true })).toHaveLength(0);
-    expect(StyleSheet.flatten((row as unknown as Host).props.style)).toMatchObject({ minHeight: 48 });
+    expect(StyleSheet.flatten((row as unknown as Host).props.style)).toMatchObject({ minHeight: 44 });
   });
 
   it("no tab root repeats its own tab name in the meta line", async () => {

@@ -667,6 +667,16 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       await act(async () => {});
     });
 
+    it("keeps the classic header geometry on Dapur: a 48 top row, a 12 gap and the mood band behind it", async () => {
+      // Dapur mounts no layout scale, so the shared header keeps today's values (the customer app's v2 row is 44).
+      mount({ offers: [bothOffer()] });
+      await screen.findByText("5–9 Okt");
+      expect(StyleSheet.flatten(screen.getByTestId("mood-header-row").props.style)).toMatchObject({ minHeight: 48 });
+      expect(StyleSheet.flatten(screen.getByTestId("mood-header-content").props.style)).toMatchObject({ gap: 12 });
+      expect(StyleSheet.flatten(screen.getByTestId("mood-header").props.style)).toMatchObject({ overflow: "hidden", paddingBottom: 16 });
+      expect(screen.getByTestId("mood-fill-siang")).toBeTruthy();
+    });
+
     it("an owner's loaded week has the toggle and no gear: Pengaturan lives on Usaha", async () => {
       mount({ offers: [bothOffer()] });
       await screen.findByText("5–9 Okt");

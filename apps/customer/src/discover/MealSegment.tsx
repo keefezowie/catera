@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { nativeLayout } from "@catera/design-tokens";
-import { PressableScale, Text, useColors, useMood } from "@catera/mobile-ui";
+import { fontFor, PressableScale, Text, useColors, useMood } from "@catera/mobile-ui";
 import { useMobile } from "@catera/mobile-core";
 
 /** The visible track is a 34 chip; its two tabs are 44 tall touch targets, so the hit area is real (a hitSlop never
@@ -33,19 +33,10 @@ export function MealSegment() {
       accessibilityLabel={t("Waktu makan", "Meal time")}
       style={{ flexDirection: "row", height: TARGET, alignItems: "center" }}
     >
-      <View
-        testID="meal-track"
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: (TARGET - TRACK) / 2,
-          height: TRACK,
-          borderRadius: TRACK / 2,
-          backgroundColor: c.surface,
-        }}
-      />
+      {/* The track fills the row and centres its 34 shape, so it stays level with the chips whatever the row measures. */}
+      <View testID="meal-track-frame" pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, justifyContent: "center" }}>
+        <View testID="meal-track" style={{ height: TRACK, borderRadius: TRACK / 2, backgroundColor: c.surface }} />
+      </View>
       {options.map((option) => {
         const selected = option.value === mood;
         const ink = selected ? c.forest : c.charcoal;
@@ -53,6 +44,8 @@ export function MealSegment() {
           <PressableScale
             key={option.value}
             accessibilityRole="tab"
+            // Named from the label alone: the glyph has no text, and a name built from the tree would start with a comma.
+            accessibilityLabel={option.label}
             accessibilityState={{ selected }}
             // The meal that is already chosen has nothing to confirm.
             haptic={selected ? "none" : "select"}
@@ -73,8 +66,8 @@ export function MealSegment() {
                 borderColor: selected ? c.forest : "transparent",
               }}
             >
-              <Ionicons name={option.icon} size={14} color={ink} />
-              <Text variant="label" style={{ fontSize: 13, fontWeight: selected ? "700" : "500", color: ink }}>
+              <Ionicons name={option.icon} size={14} color={ink} accessible={false} importantForAccessibility="no" />
+              <Text variant="label" style={{ fontSize: 13, fontFamily: fontFor(selected ? "700" : "500"), color: ink }}>
                 {option.label}
               </Text>
             </View>

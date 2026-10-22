@@ -19,10 +19,10 @@ import {
   Text,
   useColors,
   useMood,
-  useMoodColors,
   useScreenMargin,
 } from "@catera/mobile-ui";
 import { topTags } from "./categories";
+import { ChipRowFrame } from "./ChipRow";
 import { FilterChip } from "./FilterChip";
 import { MealSegment } from "./MealSegment";
 import { PackageCard } from "./PackageCard";
@@ -38,17 +38,16 @@ const BUDGET = 30000;
 const centred = { textAlign: "center" } as const;
 /** The category chips after the two filters: the tags caterers used most in this area and meal. */
 const CATEGORIES = 6;
-/** The room a 34 chip leaves in its 44 tall row, above and below. */
-const CHIP_ROW_SLOP = (nativeLayout.control.icon - nativeLayout.control.chip) / 2;
+/** The search pill sits 16 under the headline (the header's 8 plus its own 8). */
+const SEARCH_TOP = 8;
 
 /** The headline names the meal the mood is on, as one question on one line (it wraps only when the text is large). */
 function JelajahTitle() {
   const { t } = useMobile();
   const { mood } = useMood();
-  const palette = useMoodColors();
   const meal = mood === "siang" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
   return (
-    <Text testID="jelajah-title" variant="heroTitle" accessibilityRole="header" style={{ color: palette.headerText }}>
+    <Text testID="jelajah-title" variant="heroTitle" accessibilityRole="header">
       {`${meal} ${t("minggu depan?", "next week?")}`}
     </Text>
   );
@@ -65,7 +64,6 @@ export function Jelajah() {
 function Browse({ area, onArea }: { area: string | null; onArea: (value: string) => void }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
-  const palette = useMoodColors();
   const { mood, setMood } = useMood();
   // The meal segment is the mood toggle, so the list always follows the mood, wherever it was changed.
   const meal = mood === "siang" ? "lunch" : "dinner";
@@ -128,8 +126,12 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
 
   return (
     <Screen
+      plainHeader
       header={
+        // No mood band: the question, the area, the heart and the search sit on the canvas (spec 3.3). The meal is the
+        // segment in the chip row, and the mood still tints Beranda and the tab roots that keep their band.
         <MoodHeader
+          plain
           testID="jelajah-header"
           meta={
             <PressableScale
@@ -151,29 +153,28 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
                   paddingHorizontal: 12,
                   borderRadius: nativeLayout.control.chip / 2,
                   borderCurve: "continuous",
-                  backgroundColor: palette.toggleTrack,
-                  borderWidth: 1.5,
-                  borderColor: palette.markerIdle,
+                  backgroundColor: c.surface,
                 }}
               >
-                <Ionicons name="location-outline" size={16} color={palette.headerMeta} />
+                <Ionicons name="location-outline" size={16} color={c.muted} />
                 {area === null ? (
                   // The kept area is still being read (a moment): its place waits rather than saying "Pilih area". It is
                   // part of the list's wait, so it breathes with the list's skeleton (mounted in the same commit), and
                   // that group names the wait for screen readers.
                   <SkeletonGroup>
-                    <Skeleton testID="jelajah-area-skeleton" onMood width={96} height={14} />
+                    <Skeleton testID="jelajah-area-skeleton" width={96} height={14} />
                   </SkeletonGroup>
                 ) : (
-                  <Text variant="label" style={{ flexShrink: 1, fontSize: 13, color: palette.headerMeta }} numberOfLines={1}>
+                  <Text variant="label" style={{ flexShrink: 1, fontSize: 13 }} numberOfLines={1}>
                     {area || t("Pilih area", "Choose area")}
                   </Text>
                 )}
-                <Ionicons name="chevron-down" size={14} color={palette.headerMeta} />
+                <Ionicons name="chevron-down" size={14} color={c.muted} />
               </View>
             </PressableScale>
           }
           trailing={
+            // A bare heart on a 44 target: the board draws the glyph with no ring.
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={t("Paket disimpan", "Saved packages")}
@@ -182,15 +183,11 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               style={{
                 width: nativeLayout.control.icon,
                 height: nativeLayout.control.icon,
-                borderRadius: nativeLayout.control.icon / 2,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: palette.toggleTrack,
-                borderWidth: 1.5,
-                borderColor: palette.markerIdle,
               }}
             >
-              <Ionicons name="heart-outline" size={22} color={palette.headerText} />
+              <Ionicons name="heart-outline" size={24} color={c.charcoal} />
             </PressableScale>
           }
           title={<JelajahTitle />}
@@ -198,6 +195,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
           <View
             testID="jelajah-search"
             style={{
+              marginTop: SEARCH_TOP,
               minHeight: nativeLayout.control.search,
               flexDirection: "row",
               alignItems: "center",
@@ -205,21 +203,19 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               paddingHorizontal: 14,
               borderRadius: nativeLayout.control.search / 2,
               borderCurve: "continuous",
-              // The field is the card colour, 1.0x off a pale header, so its edge (3:1) is its boundary.
-              backgroundColor: palette.toggleTrack,
-              borderWidth: 1.5,
-              borderColor: palette.markerIdle,
+              // A tone step on the canvas, no border (palette K).
+              backgroundColor: c.surface,
             }}
           >
-            <Ionicons name="search-outline" size={20} color={palette.headerMeta} />
+            <Ionicons name="search-outline" size={20} color={c.muted} />
             <TextInput
               accessibilityLabel={t("Cari paket", "Search packages")}
               value={search}
               onChangeText={setSearch}
               placeholder={t("Cari menu atau katering…", "Search a dish or caterer…")}
-              placeholderTextColor={palette.headerMeta}
+              placeholderTextColor={c.muted}
               returnKeyType="search"
-              style={{ flex: 1, minHeight: nativeLayout.control.search, fontFamily: FONT, fontSize: 15, color: palette.headerText }}
+              style={{ flex: 1, minHeight: nativeLayout.control.search, fontFamily: FONT, fontSize: 15, color: c.charcoal }}
             />
           </View>
         </MoodHeader>
@@ -232,35 +228,35 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
           <JelajahSkeleton />
         ) : (
           <>
-            {/* One row: the meal, then the two filters, then what caterers tagged. */}
-            {/* The row starts at the margin and runs to the right edge of the screen. Its content is 44 tall (the chips are
-                34 inside it), so each chip's hit slop sits inside its parent and is real; the negative margin gives
-                the 5 above and below back to the layout. */}
-            <ScrollView
-              testID="chip-row"
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginVertical: -CHIP_ROW_SLOP, marginRight: -margin }}
-              contentContainerStyle={{
-                gap: nativeLayout.space.sm,
-                alignItems: "center",
-                minHeight: nativeLayout.control.icon,
-                paddingRight: margin,
-              }}
-            >
-              <MealSegment />
-              <FilterChip label={t("Di bawah Rp30.000", "Under Rp30,000")} selected={budget} onPress={() => setBudget(!budget)} />
-              <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
-              {tags.map((name) => (
-                <FilterChip
-                  key={name}
-                  label={name}
-                  accessibilityLabel={t(`Kategori ${name}`, `Category ${name}`)}
-                  selected={name === activeTag}
-                  onPress={() => setTag(name === activeTag ? "" : name)}
-                />
-              ))}
-            </ScrollView>
+            {/* One row: the meal, then the two filters, then what caterers tagged. It starts at the margin and runs to the
+                right edge; its frame is a real 44 tall, so each chip's hit slop sits inside its parent. */}
+            <ChipRowFrame>
+              <ScrollView
+                testID="chip-row"
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ flexGrow: 0, flexShrink: 0, height: nativeLayout.control.icon }}
+                contentContainerStyle={{
+                  gap: nativeLayout.space.sm,
+                  alignItems: "center",
+                  minHeight: nativeLayout.control.icon,
+                  paddingRight: margin,
+                }}
+              >
+                <MealSegment />
+                <FilterChip label={t("Di bawah Rp30.000", "Under Rp30,000")} selected={budget} onPress={() => setBudget(!budget)} />
+                <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
+                {tags.map((name) => (
+                  <FilterChip
+                    key={name}
+                    label={name}
+                    accessibilityLabel={t(`Kategori ${name}`, `Category ${name}`)}
+                    selected={name === activeTag}
+                    onPress={() => setTag(name === activeTag ? "" : name)}
+                  />
+                ))}
+              </ScrollView>
+            </ChipRowFrame>
 
             {saved.error ? <ReadError message={saved.error} onRetry={() => void saved.reload()} /> : null}
 
