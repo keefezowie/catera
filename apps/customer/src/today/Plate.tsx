@@ -127,6 +127,18 @@ export const sentences = (p: PlateData, t: (id: string, en: string) => string): 
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
+ * The hero's detail line, under the status line: the second of its two lines (when and where, the time it arrived, how
+ * the report stands), or the promoted one when the track already says the first. The state itself is the stop's, so a
+ * line that only repeats it is left out.
+ */
+export function heroDetail(p: PlateData, t: Translate, trackShown: boolean): string {
+  const [headline, line] = heroSentences(p, t, trackShown);
+  const [, second] = sentences(p, t);
+  const detail = line || (second && headline === capitalise(second) ? headline : "");
+  return detail === stateLabel(p, t) ? "" : detail;
+}
+
+/**
  * The hero's two status lines. The track under the dishes already says where the meal is, so the hero never says it
  * twice: a scheduled meal ("Terjadwal") and an on-the-way meal without a departure time ("Sedang diantar") are said
  * by the track alone, and the second line becomes the header. A meal past its window that the kitchen never tapped
@@ -160,6 +172,66 @@ export function heroSentences(
         : t("Belum ada kabar dari dapur", "No word from the kitchen yet"),
     ];
   return [first, second];
+}
+
+type Translate = (id: string, en: string) => string;
+
+/**
+ * The short state a status stop shows for a plate, in the words the screen already uses for it: "Terjadwal", "Sedang
+ * dimasak", "Sedang diantar", "Belum sampai" (it should have arrived), "Sudah diterima?" (the kitchen marked it
+ * arrived), "Sudah sampai", "Gagal diantar", "Laporan terkirim".
+ */
+export function stateLabel(p: PlateData, t: Translate): string {
+  switch (p.state) {
+    case "scheduled":
+      return t("Terjadwal", "Scheduled");
+    case "cooking":
+      return t("Sedang dimasak", "Being cooked");
+    case "on_the_way":
+      return t("Sedang diantar", "On the way");
+    case "due":
+      return t("Belum sampai", "Not here yet");
+    case "arrived_unconfirmed":
+      return t("Sudah diterima?", "Has it reached you?");
+    case "arrived":
+      return t("Sudah sampai", "Arrived");
+    case "failed":
+      return t("Gagal diantar", "Not delivered");
+    case "reported":
+      return t("Laporan terkirim", "Report sent");
+    default:
+      return t("Tidak ada", "None");
+  }
+}
+
+/**
+ * The band's statement for the one plate of the shown meal: the meal and its state ("Makan siang sedang diantar."),
+ * never the dish, which the hero names in its title.
+ */
+export function statementFor(p: PlateData, t: Translate): string {
+  const dinner = p.meal === "dinner";
+  const meal = dinner ? t("Makan malam", "Dinner") : t("Makan siang", "Lunch");
+  const lower = dinner ? t("makan malam", "dinner") : t("makan siang", "lunch");
+  switch (p.state) {
+    case "scheduled":
+      return t(`${meal} terjadwal.`, `${meal} is scheduled.`);
+    case "cooking":
+      return t(`${meal} sedang dimasak.`, `${meal} is being cooked.`);
+    case "on_the_way":
+      return t(`${meal} sedang diantar.`, `${meal} is on the way.`);
+    case "due":
+      return t(`${meal} belum sampai.`, `${meal} hasn't arrived yet.`);
+    case "arrived_unconfirmed":
+      return t(`Dapur menandai ${lower} sudah sampai.`, `The kitchen marked ${lower} as arrived.`);
+    case "arrived":
+      return t(`${meal} sudah sampai.`, `${meal} has arrived.`);
+    case "failed":
+      return t(`${meal} gagal diantar.`, `${meal} wasn't delivered.`);
+    case "reported":
+      return t(`Laporan ${lower} terkirim.`, `Your ${lower} report was sent.`);
+    default:
+      return t("Tidak ada pengantaran.", "No delivery.");
+  }
 }
 
 export const HERO_RADIUS = nativeLayout.radius.card;
@@ -279,7 +351,7 @@ function PlateContent({
     hero && plate.state !== "failed" && plate.state !== "reported" ? journeyCaption(plate.journey, locale) : null;
   // A failed meal keeps the track, with its warning stop: it has an honest place on it. A reported one does not.
   const showTrack = hero && plate.state !== "reported" && (!!caption || plate.state === "failed");
-  const [sentence, second] = hero ? heroSentences(plate, t, showTrack) : sentences(plate, t);
+  const detail = hero ? heroDetail(plate, t, showTrack) : "";
   const { deliveryId, meal: mealKey, journey } = plate;
   // A meal nobody tapped has no journey to look at yet, and stale offline data is not a view of today.
   // In the pager only the card in view counts; the peeking one counts once it is swiped to.
@@ -344,22 +416,6 @@ function PlateContent({
       >
         {/* Fades in over the dark failed-photo ground, which stays if the photo never comes: the frame's own ground, so no band. */}
         {plate.image ? <Photo ground="photo" uri={photoUri(plate.image, apiBase)} style={StyleSheet.absoluteFill} /> : null}
-        {!hero ? (
-          <>
-            {/* The K ramp: 0 at the top of the photo to 0.3 at the bottom, so a loaded photo has no straight edge. */}
-            <View testID="plate-scrim" pointerEvents="none" style={styles.scrim} />
-            {/* The text block ramps in over its top 26dp and holds, so every wrapped line sits on the full overlay. */}
-            <View style={styles.overlay} testID="plate-overlay">
-              <RNText style={styles.meal}>
-                {meal} · {plate.catererName}
-              </RNText>
-              <RNText testID="plate-sentence" style={styles.sentence} accessibilityRole="header">
-                {sentence}
-              </RNText>
-              {second ? <RNText style={styles.second}>{second}</RNText> : null}
-            </View>
-          </>
-        ) : null}
         {/* The day's other actions, at the photo's top corner on its own dark ground, so a light photo never hides it.
             Only the hero has it, and only from a fresh read: a copy kept offline acts on nothing. */}
         {more ? (
@@ -369,36 +425,32 @@ function PlateContent({
         ) : null}
       </View>
       <View testID="plate-body" style={styles.body}>
-        {hero ? (
-          <Text variant="meta" style={{ color: quiet }}>
-            {meal} · {plate.catererName}
-          </Text>
-        ) : null}
-        {plate.dishes.length ? (
-          <Text
-            testID="plate-dishes"
-            variant={hero ? "heroTitle" : "body"}
-            style={hero ? { color: moodColors.heroText } : undefined}
-          >
-            {plate.dishes.join(" · ")}
-          </Text>
-        ) : (
-          <Text testID="plate-dishes" variant={hero ? "bodyL" : "caption"} style={hero ? { color: quiet } : undefined}>
-            {plate.packageName}
-          </Text>
-        )}
-        {hero ? status : null}
-        {hero ? (
-          <View style={{ gap: 2 }}>
-            <Text testID="plate-sentence" variant="bodyStrong" accessibilityRole="header" style={{ color: ink, fontVariant: ["tabular-nums"] }}>
-              {sentence}
+        {/* The meal line and the dish are one group, 2 apart. */}
+        <View style={{ gap: 2 }}>
+          {hero ? (
+            <Text variant="meta" style={{ color: quiet }}>
+              {meal} · {plate.catererName}
             </Text>
-            {second ? (
-              <Text variant="meta" style={{ color: quiet, fontVariant: ["tabular-nums"] }}>
-                {second}
-              </Text>
-            ) : null}
-          </View>
+          ) : null}
+          {plate.dishes.length ? (
+            <Text
+              testID="plate-dishes"
+              variant={hero ? "heroTitle" : "body"}
+              style={hero ? { color: moodColors.heroText } : undefined}
+            >
+              {plate.dishes.join(" · ")}
+            </Text>
+          ) : (
+            <Text testID="plate-dishes" variant={hero ? "bodyL" : "caption"} style={hero ? { color: quiet } : undefined}>
+              {plate.packageName}
+            </Text>
+          )}
+        </View>
+        {hero ? status : null}
+        {detail ? (
+          <Text testID="plate-detail" variant="meta" style={{ color: quiet, fontVariant: ["tabular-nums"] }}>
+            {detail}
+          </Text>
         ) : null}
         {showTrack ? (
           <RantangTrack
@@ -559,35 +611,9 @@ const useStyles = themedStyles((c) => ({
     borderWidth: 1,
     borderColor: c.surface,
   },
-  // A failed or loading photo shows the neutral ground; the overlay below it is the same ink, so no band shows.
+  // A failed or loading photo shows the neutral ground.
   photo: { backgroundColor: fixedInk.photoGround, justifyContent: "flex-end" },
-  scrim: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    experimental_backgroundImage: `linear-gradient(${OVERLAY(0)}, ${OVERLAY(nativePhoto.scrimBottomAlpha)})`,
-  },
   more: { position: "absolute", top: 8, right: 8 },
-  // 0.72 of the overlay ink over a pure white photo still gives cream text 8.6:1 (15.5:1 over a failed photo).
-  overlay: {
-    padding: 18,
-    paddingTop: nativePhoto.textBlockHeight,
-    gap: 4,
-    experimental_backgroundImage: `linear-gradient(${OVERLAY(0)}, ${OVERLAY(nativePhoto.textBlockAlpha)} ${nativePhoto.textBlockHeight}px, ${OVERLAY(nativePhoto.textBlockAlpha)})`,
-  },
-  meal: { fontSize: 13, fontFamily: fontFor("700"), color: fixedInk.cream },
-  // Tabular: the promoted header carries the delivery window.
-  sentence: {
-    fontSize: 28,
-    lineHeight: 33,
-    fontFamily: fontFor("800"),
-    letterSpacing: -0.5,
-    color: fixedInk.cream,
-    fontVariant: ["tabular-nums"],
-  },
-  second: { fontSize: 17, fontFamily: fontFor("600"), color: fixedInk.cream, fontVariant: ["tabular-nums"] },
   body: { padding: nativeLayout.cardPadding, gap: nativeLayout.space.md },
   row: { flexDirection: "row", gap: 8 },
   reaction: {

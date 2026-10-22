@@ -222,7 +222,7 @@ describe("the hero pager", () => {
     expect(screen.queryByTestId("hero-pager")).toBeNull();
     expect(screen.queryByText(/dari \d/)).toBeNull();
     expect(screen.queryByRole("adjustable")).toBeNull();
-    expect(title()).toBe("Siang ini, ayam bakar madu.");
+    expect(title()).toBe("Makan siang terjadwal.");
   });
 
   it("counts journey_viewed for the card in view only, and for the next one once swiped to", async () => {
@@ -295,7 +295,7 @@ describe("the other meal's stop", () => {
     pin(eveningOf(DEMO_TODAY));
     mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
     await screen.findByTestId("plate-hero");
-    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Seharusnya sudah tiba")).toBeTruthy();
+    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Belum sampai")).toBeTruthy();
   });
 
   /** One lunch (Rumahan, whose menu starts with rice) and one dinner, seen in the evening. */

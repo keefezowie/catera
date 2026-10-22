@@ -188,7 +188,7 @@ it("says a meal the caterer could not deliver is not coming, with chat and a rep
       customerState({ status: "issue", departed_at: `${TODAY}T03:42:00Z` }, { catererPhone: "+6281200000001" }),
     ),
   );
-  expect(await screen.findByText("Pesananmu gagal diantar")).toBeTruthy();
+  expect(await screen.findByText("Makan siang gagal diantar.")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Belum" })).toBeNull();
   // The plate's own chat, the only one on Beranda.
@@ -423,9 +423,11 @@ it("offline shows the cached day and when it was updated", async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
   );
-  // No departure time was saved, so the track says "Sedang diantar" and the header gives the arrival window instead.
-  expect(await screen.findByRole("header", { name: "Tiba sekitar 11.00–13.00" })).toBeTruthy();
-  expect(screen.getAllByText("Sedang diantar")).toHaveLength(1);
+  // No departure time was saved, so the track says "Sedang diantar", the stop says it too in its short label, and the
+  // detail line under the stop gives the arrival window instead.
+  expect((await screen.findByTestId("plate-detail")).props.children).toBe("Tiba sekitar 11.00–13.00");
+  expect(within(screen.getByTestId("status-stop-lunch")).getAllByText("Sedang diantar")).toHaveLength(1);
+  expect(within(screen.getByTestId("rantang-track")).getAllByText("Sedang diantar")).toHaveLength(1);
   expect(screen.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sedang diantar");
   expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
   expect(screen.getByText(keptLine("2026-10-07T23:12:00.000Z"))).toBeTruthy();
@@ -501,9 +503,12 @@ const luminance = ([r, g, b]: number[]) => {
 describe("design tokens", () => {
   it("sets the plate sentence in bodyStrong and times in tabular numerals", async () => {
     renderHome(runtimeWith(async () => customerState({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` })));
-    const sentence = StyleSheet.flatten((await screen.findByText("Sudah sampai")).props.style);
-    expect(sentence).toMatchObject({ fontSize: 15, lineHeight: 22 });
-    expect(StyleSheet.flatten(screen.getByText("pukul 11.48").props.style).fontVariant).toContain("tabular-nums");
+    // The stop's label is bodyStrong, its state line and the body's detail are meta, and the time is tabular.
+    const label = StyleSheet.flatten((await screen.findByTestId("status-stop-lunch-label")).props.style);
+    expect(label).toMatchObject({ fontSize: 15, lineHeight: 22 });
+    const detail = StyleSheet.flatten(screen.getByText("pukul 11.48").props.style);
+    expect(detail).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(detail.fontVariant).toContain("tabular-nums");
   });
 
   it.each(["light", "dark"] as const)("keeps the hero text and meta at 4.5:1 or more on the hero card, in both moods (%s)", async (scheme) => {
@@ -598,7 +603,8 @@ describe("fixed surfaces in the dark theme", () => {
       </ThemeProvider>,
     );
     const ink = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never).color;
-    expect(ink(await screen.findByText("Sedang diantar"))).toBe(nativeMood.dark.siang.heroText);
+    expect(ink(await screen.findByTestId("plate-dishes"))).toBe(nativeMood.dark.siang.heroText);
+    expect(ink(screen.getByText("tiba sekitar 11.00–13.00"))).toBe(nativeMood.dark.siang.heroMeta);
     expect(ink(screen.getByText("Berangkat 10.42"))).toBe(nativeMood.dark.siang.heroText);
     expect(ink(screen.getByText("Sudah sampai"))).toBe(nativeThemes.dark.cream);
     // Control: the fixed inks above would read the same in light, so prove the dark theme was in force.
@@ -672,10 +678,12 @@ describe("Beranda mood", () => {
   const title = () => screen.getByTestId("home-title").props.children;
   const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style);
 
-  it("opens in Siang with the lunch dish in the band, the lunch plate as the hero and dinner as a stop", async () => {
+  it("opens in Siang with the lunch's state in the band, the lunch plate as the hero and dinner as a stop", async () => {
     mount(runtimeWith(async () => bothMeals()));
     expect(await screen.findByTestId("plate-hero")).toBeTruthy();
-    expect(title()).toBe("Siang ini, ayam bakar madu.");
+    // The lunch window opened at 11.00 and it is 12.00: due. The band says so; the dish is the hero's title, once.
+    expect(title()).toBe("Makan siang belum sampai.");
+    expect(screen.getByTestId("plate-dishes").props.children).toBe("Ayam bakar madu · Sayur asem");
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan siang · /)).toBeTruthy();
     const stop = within(screen.getByTestId("status-stop-dinner"));
     expect(stop.getByText("Malam 17.00–19.00")).toBeTruthy();
@@ -696,7 +704,8 @@ describe("Beranda mood", () => {
     mount(runtimeWith(async () => bothMeals()));
     await screen.findByTestId("plate-hero");
     fireEvent.press(screen.getByRole("tab", { name: /^Makan malam, / }));
-    expect(title()).toBe("Malam ini, sate ayam madura.");
+    expect(title()).toBe("Makan malam terjadwal.");
+    expect(screen.getByTestId("plate-dishes").props.children).toBe("Sate ayam madura · Tumis kangkung");
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan malam · /)).toBeTruthy();
     expect(within(screen.getByTestId("status-stop-lunch")).getByText("Siang 11.00–13.00")).toBeTruthy();
   });
@@ -705,7 +714,8 @@ describe("Beranda mood", () => {
     mount(runtimeWith(async () => bothMeals()));
     await screen.findByTestId("plate-hero");
     fireEvent.press(screen.getByTestId("status-stop-dinner"));
-    expect(title()).toBe("Malam ini, sate ayam madura.");
+    expect(title()).toBe("Makan malam terjadwal.");
+    expect(screen.getByTestId("plate-dishes").props.children).toBe("Sate ayam madura · Tumis kangkung");
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan malam · /)).toBeTruthy();
   });
 
@@ -728,7 +738,7 @@ describe("Beranda mood", () => {
       await screen.findByTestId("plate-hero");
       const stop = within(screen.getByTestId("status-stop-lunch"));
       expect(stop.getByText("Siang 00.01–00.30")).toBeTruthy();
-      expect(stop.getByText("Seharusnya sudah tiba")).toBeTruthy();
+      expect(stop.getByText("Belum sampai")).toBeTruthy();
       // The actions stay on the hero: pressing the row switches the mood and reveals them.
       expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
       fireEvent.press(screen.getByTestId("status-stop-lunch"));
@@ -753,7 +763,7 @@ describe("Beranda mood", () => {
       // Its dish, not a status sentence: nothing here needs the customer.
       const stop = within(screen.getByTestId("status-stop-lunch"));
       expect(stop.getByText("Ayam bakar madu")).toBeTruthy();
-      expect(stop.queryByText("Seharusnya sudah tiba")).toBeNull();
+      expect(stop.queryByText("Belum sampai")).toBeNull();
     });
 
     it("keeps the stop quiet for a plate still to come", async () => {
@@ -769,7 +779,8 @@ describe("Beranda mood", () => {
   it("opens in Malam in the evening", async () => {
     mount(runtimeWith(async () => bothMeals()), { now: MALAM_NOW });
     await screen.findByTestId("plate-hero");
-    expect(title()).toBe("Malam ini, sate ayam madura.");
+    expect(title()).toBe("Makan malam terjadwal.");
+    expect(screen.getByTestId("plate-dishes").props.children).toBe("Sate ayam madura · Tumis kangkung");
   });
 
   it("says nothing is coming in the chosen meal and names the next delivery (ruling B6)", async () => {
@@ -786,7 +797,7 @@ describe("Beranda mood", () => {
     expect(within(stop).getByText("Siang 11.00–13.00")).toBeTruthy();
     expect(within(stop).getByText("Ayam bakar madu")).toBeTruthy();
     fireEvent.press(stop);
-    expect(title()).toBe("Siang ini, ayam bakar madu.");
+    expect(title()).toBe("Makan siang sudah sampai.");
     expect(screen.getByTestId("plate-hero")).toBeTruthy();
   });
 
@@ -830,12 +841,13 @@ describe("Beranda mood", () => {
     expect(within(screen.getByTestId("mood-header")).getByText(`Berikutnya ${next}`)).toBeTruthy();
   });
 
-  it("keeps a package name's own casing when a plate has no dishes", async () => {
+  it("keeps the package name, in its own casing, as the hero's title when a plate has no dishes", async () => {
     const state = customerState(null);
     state.deliveries.unshift(delivery("d-bare", TODAY, { status: "scheduled" }, { offer: offer({ menus: [] }) }));
     mount(runtimeWith(async () => state));
     await screen.findByTestId("plate-hero");
-    expect(title()).toBe("Siang ini, Makan Siang Rumahan.");
+    expect(screen.getByTestId("plate-dishes").props.children).toBe("Makan Siang Rumahan");
+    expect(title()).toBe("Makan siang belum sampai.");
   });
 
   it("with no delivery at all today still names the next one", async () => {
@@ -861,13 +873,14 @@ describe("Beranda mood", () => {
     expect(within(screen.getByTestId("status-stop-lunch")).getByText("Lunch 11.00–13.00")).toBeTruthy();
   });
 
-  it("lets a long dish name wrap in the title", async () => {
+  it("lets a long dish name wrap in the hero's title, and keeps it out of the band", async () => {
     const long = "Nasi campur ayam bakar madu pedas manis dengan sambal terasi";
     expect(long).toHaveLength(60);
     mount(runtimeWith(async () => bothMeals([long])));
     await screen.findByTestId("plate-hero");
-    expect(title()).toBe(`Siang ini, ${long.toLowerCase()}.`);
-    const node = screen.getByTestId("home-title");
+    expect(title()).toBe("Makan siang belum sampai.");
+    const node = screen.getByTestId("plate-dishes");
+    expect(node.props.children).toBe(long);
     expect(node.props.numberOfLines).toBeUndefined();
     expect(node.props.ellipsizeMode).toBeUndefined();
   });
@@ -949,11 +962,12 @@ describe("Beranda mood", () => {
     await screen.findByTestId("plate-hero");
     const photo = within(screen.getByTestId("plate-photo"));
     expect(photo.queryByTestId("plate-overlay")).toBeNull();
-    expect(photo.queryByTestId("plate-sentence")).toBeNull();
+    expect(photo.queryByTestId("plate-detail")).toBeNull();
     expect(flat("plate-photo").aspectRatio).toBeCloseTo(4 / 3, 6);
     expect(flat("plate-photo").height).toBeUndefined();
-    // The sentence is in the body, under the dish and the status line.
-    expect(within(screen.getByTestId("plate-body")).getByTestId("plate-sentence")).toBeTruthy();
+    // The detail line is in the body, under the dish and the status line; there is no state sentence.
+    expect(within(screen.getByTestId("plate-body")).getByTestId("plate-detail")).toBeTruthy();
+    expect(screen.queryByTestId("plate-sentence")).toBeNull();
   });
 
   describe("the rantang track on the hero", () => {
@@ -989,44 +1003,56 @@ describe("Beranda mood", () => {
     }
 
     const hero = async () => within(await screen.findByTestId("plate-hero"));
+    // Each fact has its own region on the screen: the band says the state in a sentence, the status stop in a short label
+    // (the shown meal is lunch here, or dinner where a test says so), the body's detail line when and where, and the
+    // tracker how far it has got. A fact is said once in each region and never twice in one.
+    const stop = (id: "lunch" | "dinner" = "lunch") => within(screen.getByTestId(`status-stop-${id}`));
+    const detail = () => screen.queryByTestId("plate-detail")?.props.children as string | undefined;
+    const label = (id: "lunch" | "dinner" = "lunch") =>
+      (screen.getByTestId(`status-stop-${id}`).props.accessibilityLabel as string).split(", ").at(-1);
 
-    it("says Terjadwal once, in the track, and never Sedang dimasak; the header is when and where", async () => {
+    it("says Terjadwal once on the stop and once in the track, never Sedang dimasak; the detail is when and where", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "scheduled" })));
       const h = await hero();
       const track = h.getByTestId("rantang-track");
       expect(track.props.accessibilityLabel).toBe("Pesanan: Terjadwal, langkah 1 dari 4");
       expect(track.props.accessibilityValue.text).toBe("Terjadwal");
       expect(within(track).getByText("Terjadwal")).toBeTruthy();
-      expect(h.getAllByText("Terjadwal")).toHaveLength(1);
-      const header = h.getByTestId("plate-sentence");
-      expect(header.props.children).toBe(`Diantar ${NOT_YET} ke Kantor`);
-      // The promoted header carries the window, so its figures are tabular.
-      expect(StyleSheet.flatten(header.props.style).fontVariant).toContain("tabular-nums");
+      expect(stop().getAllByText("Terjadwal")).toHaveLength(1);
+      expect(within(track).getAllByText("Terjadwal")).toHaveLength(1);
+      expect(screen.getByTestId("home-title").props.children).toBe("Makan siang terjadwal.");
+      expect(detail()).toBe(`Diantar ${NOT_YET} ke Kantor`);
+      // The detail carries the window, so its figures are tabular.
+      expect(StyleSheet.flatten(screen.getByTestId("plate-detail").props.style).fontVariant).toContain("tabular-nums");
       expect(h.queryByText("Sedang dimasak")).toBeNull();
       expect(h.queryByText("Dimasak")).toBeNull();
     });
 
-    it("promotes the second line to the header in English too", async () => {
+    it("promotes the second line to the detail in English too", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
       mount(runtimeWith(async () => lunchToday({ status: "scheduled" })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe(`Delivered ${NOT_YET} to Kantor`);
-      expect(h.getAllByText("Scheduled")).toHaveLength(1);
+      expect(detail()).toBe(`Delivered ${NOT_YET} to Kantor`);
+      expect(stop().getAllByText("Scheduled")).toHaveLength(1);
+      expect(within(h.getByTestId("rantang-track")).getAllByText("Scheduled")).toHaveLength(1);
+      expect(screen.getByTestId("home-title").props.children).toBe("Lunch is scheduled.");
     });
 
     it("promotes 'Tiba sekitar' when a meal is on the way with no departure time", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "out_for_delivery" })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe(`Tiba sekitar ${NOT_YET}`);
-      expect(h.getAllByText("Sedang diantar")).toHaveLength(1);
+      expect(detail()).toBe(`Tiba sekitar ${NOT_YET}`);
+      expect(stop().getAllByText("Sedang diantar")).toHaveLength(1);
+      expect(within(h.getByTestId("rantang-track")).getAllByText("Sedang diantar")).toHaveLength(1);
       expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sedang diantar");
     });
 
-    it("keeps both lines when the departure time is known", async () => {
+    it("keeps the state on the stop and the arrival window in the detail when the departure time is known", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe("Sedang diantar");
-      expect(h.getByText(`tiba sekitar ${NOT_YET}`)).toBeTruthy();
+      expect(label()).toBe("Sedang diantar");
+      expect(detail()).toBe(`tiba sekitar ${NOT_YET}`);
+      expect(screen.queryByTestId("plate-sentence")).toBeNull();
     });
 
     // The window started at 00.01 and the clock is 12.00, so a meal the kitchen never started is due.
@@ -1037,8 +1063,9 @@ describe("Beranda mood", () => {
     it("says the kitchen has not reported when a due meal is still scheduled", async () => {
       mount(runtimeWith(async () => dueMeal({ status: "scheduled" })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe("Seharusnya sudah tiba");
-      expect(h.getByText(`${EARLY} · belum ada kabar dari dapur`)).toBeTruthy();
+      expect(label()).toBe("Belum sampai");
+      expect(screen.getByTestId("home-title").props.children).toBe("Makan siang belum sampai.");
+      expect(detail()).toBe(`${EARLY} · belum ada kabar dari dapur`);
       expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Terjadwal");
     });
 
@@ -1051,8 +1078,8 @@ describe("Beranda mood", () => {
     it("keeps the bare window when a due meal is being cooked", async () => {
       mount(runtimeWith(async () => dueMeal({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe("Seharusnya sudah tiba");
-      expect(h.getByText(EARLY)).toBeTruthy();
+      expect(label()).toBe("Belum sampai");
+      expect(detail()).toBe(EARLY);
       expect(h.queryByText(/belum ada catatan/)).toBeNull();
     });
 
@@ -1062,8 +1089,8 @@ describe("Beranda mood", () => {
     it("says the kitchen has not reported without a dangling window when a due meal has no window", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "scheduled" }, { offer: offer(noWindow) })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe("Seharusnya sudah tiba");
-      expect(h.getByText("Belum ada kabar dari dapur")).toBeTruthy();
+      expect(label()).toBe("Belum sampai");
+      expect(detail()).toBe("Belum ada kabar dari dapur");
       expect(h.queryByText(/^ · /)).toBeNull();
     });
 
@@ -1076,7 +1103,7 @@ describe("Beranda mood", () => {
     it("keeps both original lines instead of promoting 'Tiba sekitar ' when the window is empty", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "out_for_delivery" }, { offer: offer(noWindow) })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe("Sedang diantar");
+      expect(label()).toBe("Sedang diantar");
       expect(h.getByText("tiba sekitar")).toBeTruthy();
       expect(h.queryByText(/^Tiba sekitar/)).toBeNull();
     });
@@ -1095,7 +1122,7 @@ describe("Beranda mood", () => {
       };
       mount(runtimeWith(async () => dinner({})), { now: MALAM_NOW });
       const noWindowHero = await hero();
-      expect(noWindowHero.getByTestId("plate-sentence").props.children).toBe("Terjadwal");
+      expect(label("dinner")).toBe("Terjadwal");
       expect(noWindowHero.queryByText(/^Diantar /)).toBeNull();
       screen.unmount();
 
@@ -1110,7 +1137,7 @@ describe("Beranda mood", () => {
       );
       mount(runtimeWith(async () => withWindow), { now: MALAM_NOW });
       const noAddressHero = await hero();
-      expect(noAddressHero.getByTestId("plate-sentence").props.children).toBe("Terjadwal");
+      expect(label("dinner")).toBe("Terjadwal");
       expect(noAddressHero.queryByText(/^Diantar /)).toBeNull();
     });
 
@@ -1127,29 +1154,36 @@ describe("Beranda mood", () => {
       // "Arrived by the system without a time" is the one deliberate exception: see the test after this table.
       ["arrived without a recorder", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }],
     ] as [string, Partial<DeliveryMeal>, boolean?][])(
-      "never says the header again in the track caption (%s)",
+      "says each fact once per region: the stop's label is not the detail and neither is the track caption (%s)",
       // `due` has a default so that jest-each, which counts parameters, does not take it for a done callback.
       async (_name, meal, due = false) => {
         mount(runtimeWith(async () => (due ? dueMeal(meal) : lunchToday(meal))));
         const h = await hero();
-        const header = h.getByTestId("plate-sentence").props.children;
+        const state = label();
         const caption = h.getByTestId("rantang-track").props.accessibilityValue.text;
-        expect(header).toBeTruthy();
+        expect(state).toBeTruthy();
         expect(caption).toBeTruthy();
-        expect(header).not.toBe(caption);
-        // Nor does any other accessible line of the hero repeat the caption.
-        expect(h.getAllByText(caption)).toHaveLength(1);
+        // The body has no state sentence of its own, and its detail line repeats neither the stop's state nor the caption.
+        expect(screen.queryByTestId("plate-sentence")).toBeNull();
+        expect(detail()).not.toBe(state);
+        expect(detail()).not.toBe(caption);
+        // Each region says its own fact once: the stop its label, the tracker its caption.
+        expect(stop().getAllByText(state as string)).toHaveLength(1);
+        expect(within(h.getByTestId("rantang-track")).getAllByText(caption)).toHaveLength(1);
+        // The dish is named once on the screen's hero, never in the band.
+        expect(h.getAllByTestId("plate-dishes")).toHaveLength(1);
+        expect(screen.getByTestId("home-title").props.children).not.toMatch(/ayam bakar madu|sayur asem/i);
       },
     );
 
     // Carve-out from the table above: with no time to promote, the truthful state wins over the no-repeat rule. The
     // data writers always set `confirmed_at`, so this only shows on malformed data.
-    it("keeps Ditandai sampai otomatis in the header, with no second line, when the system arrival has no time", async () => {
+    it("says Ditandai sampai otomatis once, in the tracker, with no detail line, when the system arrival has no time", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "delivered", confirmed_by: "auto" })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe("Ditandai sampai otomatis");
-      expect(h.getByRole("header", { name: "Ditandai sampai otomatis" })).toBeTruthy();
-      expect(h.queryByText("Sudah sampai")).toBeNull();
+      expect(h.getAllByText("Ditandai sampai otomatis")).toHaveLength(1);
+      expect(label()).toBe("Sudah sampai");
+      expect(detail()).toBeUndefined();
       expect(h.queryByText(/^pukul /i)).toBeNull();
       expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Ditandai sampai otomatis");
     });
@@ -1158,15 +1192,16 @@ describe("Beranda mood", () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
       mount(runtimeWith(async () => lunchToday({ status: "delivered", confirmed_by: "auto" })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe("Marked as arrived automatically");
-      expect(h.queryByText("Arrived")).toBeNull();
+      expect(h.getAllByText("Marked as arrived automatically")).toHaveLength(1);
+      expect(label()).toBe("Arrived");
+      expect(detail()).toBeUndefined();
     });
 
-    it("says Dimasak with the time the kitchen started, while the sentence stays Sedang dimasak", async () => {
+    it("says Dimasak with the time the kitchen started in the track, while the stop stays Sedang dimasak", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` })));
       const h = await hero();
       expect(within(h.getByTestId("rantang-track")).getByText("Dimasak 08.10")).toBeTruthy();
-      expect(h.getByRole("header", { name: "Sedang dimasak" })).toBeTruthy();
+      expect(label()).toBe("Sedang dimasak");
       // Two different lines, and neither is said twice.
       expect(h.getAllByText("Sedang dimasak")).toHaveLength(1);
       expect(h.getAllByText("Dimasak 08.10")).toHaveLength(1);
@@ -1185,7 +1220,7 @@ describe("Beranda mood", () => {
       expect(within(h.getByTestId("rantang-track")).getByText("Berangkat 10.42")).toBeTruthy();
       expect(h.getAllByText("Berangkat 10.42")).toHaveLength(1);
       expect(h.queryByTestId("plate-chip")).toBeNull();
-      expect(h.getByRole("header", { name: "Sedang diantar" })).toBeTruthy();
+      expect(label()).toBe("Sedang diantar");
     });
 
     it("says Ditandai sampai otomatis when nobody tapped and the system closed the meal", async () => {
@@ -1196,13 +1231,13 @@ describe("Beranda mood", () => {
       );
       const h = await hero();
       expect(within(h.getByTestId("rantang-track")).getByText("Ditandai sampai otomatis")).toBeTruthy();
-      // The track says it, so the header carries the time instead of "Sudah sampai", and nothing says it twice.
-      expect(h.getByRole("header", { name: "Pukul 11.48" })).toBeTruthy();
+      // The track says it, so the detail carries the time and the stop says the short state; nothing says it twice.
+      expect(detail()).toBe("Pukul 11.48");
       expect(h.getAllByText("Ditandai sampai otomatis")).toHaveLength(1);
-      expect(h.queryByText("Sudah sampai")).toBeNull();
+      expect(label()).toBe("Sudah sampai");
     });
 
-    it("says it in English: Marked as arrived automatically on the track, At 11.48 in the header", async () => {
+    it("says it in English: Marked as arrived automatically on the track, At 11.48 in the detail", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
       mount(
         runtimeWith(async () =>
@@ -1211,7 +1246,7 @@ describe("Beranda mood", () => {
       );
       const h = await hero();
       expect(within(h.getByTestId("rantang-track")).getByText("Marked as arrived automatically")).toBeTruthy();
-      expect(h.getByRole("header", { name: "At 11.48" })).toBeTruthy();
+      expect(detail()).toBe("At 11.48");
       expect(h.getAllByText("Marked as arrived automatically")).toHaveLength(1);
     });
 
@@ -1230,14 +1265,14 @@ describe("Beranda mood", () => {
       expect(sentences(byCustomer, (id) => id)).toEqual(["Sudah sampai", "pukul 11.48"]);
     });
 
-    it("keeps Sudah sampai in the header when the customer confirmed, with the time on the second line", async () => {
+    it("says Sudah sampai on the stop when the customer confirmed, with the time as the detail", async () => {
       mount(
         runtimeWith(async () =>
           lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "customer" }),
         ),
       );
       const h = await hero();
-      expect(h.getByRole("header", { name: "Sudah sampai" })).toBeTruthy();
+      expect(label()).toBe("Sudah sampai");
       expect(h.getByText("pukul 11.48")).toBeTruthy();
     });
 
@@ -1277,9 +1312,11 @@ describe("Beranda mood", () => {
     ] as const)("shows the warning stop and Gagal diantar for a %s plate, next to its message", async (_name, meal, step) => {
       mount(runtimeWith(async () => lunchToday(meal as unknown as Partial<DeliveryMeal>)));
       const h = await hero();
-      expect(h.getByText("Pesananmu gagal diantar")).toBeTruthy();
-      expect(h.getAllByText("Gagal diantar")).toHaveLength(1);
-      expect(within(h.getByTestId("rantang-track")).getByText("Gagal diantar")).toBeTruthy();
+      // The band says it in a sentence, the stop in its short label, the tracker on its warning stop: once each.
+      expect(screen.getByTestId("home-title").props.children).toBe("Makan siang gagal diantar.");
+      expect(within(screen.getByTestId("status-stop-lunch")).getAllByText("Gagal diantar")).toHaveLength(1);
+      expect(within(h.getByTestId("rantang-track")).getAllByText("Gagal diantar")).toHaveLength(1);
+      expect(h.queryByText("Pesananmu gagal diantar")).toBeNull();
       expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe(`Pesanan: Gagal diantar, langkah ${step} dari 4`);
       expect(screen.queryByTestId("rantang-track-stop-3-warn", { includeHiddenElements: true })).not.toBeNull();
     });

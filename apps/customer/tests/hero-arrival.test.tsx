@@ -114,7 +114,7 @@ describe("Sudah sampai", () => {
 describe("the arrived-unconfirmed hero", () => {
   it("the arrived-unconfirmed hero shows the photo, Sudah sampai and Belum", async () => {
     renderHome(runtimeWith(async () => arrived()));
-    expect(await screen.findByRole("header", { name: "Dapur menandai pesananmu sudah sampai" })).toBeTruthy();
+    expect(await screen.findByRole("header", { name: "Dapur menandai makan siang sudah sampai." })).toBeTruthy();
     expect(screen.getByText("Sudah diterima?")).toBeTruthy();
     const actions = within(screen.getByTestId("plate-actions"));
     expect(actions.getByRole("button", { name: "Sudah sampai" })).toBeTruthy();
@@ -175,7 +175,7 @@ describe("the arrived-unconfirmed hero", () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
     );
-    expect(await screen.findByText("Dapur menandai pesananmu sudah sampai")).toBeTruthy();
+    expect(await screen.findByText("Dapur menandai makan siang sudah sampai.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
   });
 });
@@ -272,7 +272,7 @@ describe("Beranda offline and failed reads", () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
     );
-    await screen.findByText("Sedang diantar");
+    await screen.findByText("Makan siang sedang diantar.");
     // Not "no connection" (the phone is online): the read failed, so the copy may be old, and the page says so.
     const clock = bannerTime(new Date(`${TODAY}T03:12:00.000Z`));
     expect(await screen.findByText(`Belum bisa memperbarui. Menampilkan data terakhir, ${clock}.`)).toBeTruthy();

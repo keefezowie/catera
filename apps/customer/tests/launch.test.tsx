@@ -394,7 +394,7 @@ describe("cache-first Beranda", () => {
     storedSession(rani);
     keptHome(rani);
     renderHome();
-    expect(await screen.findByText("Sedang diantar")).toBeTruthy();
+    expect(await screen.findByText("Makan siang sedang diantar.")).toBeTruthy();
     await act(async () => {
       await mobile.logout();
     });
@@ -455,7 +455,7 @@ describe("cache-first Beranda", () => {
     storedSession(rani);
     keptHome(rani);
     renderHome();
-    expect(await screen.findByText("Sedang diantar")).toBeTruthy();
+    expect(await screen.findByText("Makan siang sedang diantar.")).toBeTruthy();
     expect(screen.getByText("Memperbarui…")).toBeTruthy();
     // The kept copy is labelled as refreshing, not as offline.
     expect(screen.queryByText(/tidak ada koneksi/)).toBeNull();
@@ -467,7 +467,7 @@ describe("cache-first Beranda", () => {
     storedSession(rani);
     keptHome(rani);
     renderHome();
-    expect(await screen.findByText("Sedang diantar")).toBeTruthy();
+    expect(await screen.findByText("Makan siang sedang diantar.")).toBeTruthy();
     // Review Focus 1: the meal may have moved since the copy was kept, so nothing on it can be acted on.
     expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Belum" })).toBeNull();
@@ -519,7 +519,7 @@ describe("cache-first Beranda", () => {
     storedSession(rani);
     renderHome();
     expect(await screen.findByTestId("beranda-skeleton")).toBeTruthy();
-    expect(screen.queryByText("Sedang diantar")).toBeNull();
+    expect(screen.queryByText("Makan siang sedang diantar.")).toBeNull();
   });
 
   it("another account's kept Beranda never paints for the person now signed in", async () => {
@@ -530,7 +530,7 @@ describe("cache-first Beranda", () => {
     renderHome();
     expect(await screen.findByTestId("beranda-skeleton")).toBeTruthy();
     await act(async () => {});
-    expect(screen.queryByText("Sedang diantar")).toBeNull();
+    expect(screen.queryByText("Makan siang sedang diantar.")).toBeNull();
   });
 
   it("me() answering UNAUTHORIZED after a cached paint signs out and forgets the copy", async () => {
@@ -540,9 +540,9 @@ describe("cache-first Beranda", () => {
     storedSession(rani);
     keptHome(rani);
     renderHome();
-    expect(await screen.findByText("Sedang diantar")).toBeTruthy();
+    expect(await screen.findByText("Makan siang sedang diantar.")).toBeTruthy();
     await act(async () => me.reject(Object.assign(new Error("UNAUTHORIZED"), { code: "UNAUTHORIZED" })));
-    await waitFor(() => expect(screen.queryByText("Sedang diantar")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Makan siang sedang diantar.")).toBeNull());
     expect(mobile.actor).toBeNull();
     await waitFor(() => expect([...files.keys()].filter((k) => k.includes("catera-customer-"))).toEqual([]));
   });

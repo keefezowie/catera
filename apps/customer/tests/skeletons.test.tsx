@@ -518,12 +518,22 @@ describe("finding 1: Beranda's band keeps its height when the page lands", () =>
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const frame = flat(screen.getByTestId("beranda-skeleton-hero"));
     const body = flat(screen.getByTestId("beranda-skeleton-body"));
-    expect(screen.getByTestId("beranda-skeleton-stops")).toBeTruthy();
+    // The status line's placeholder is the loaded row's 40, and the meal line and dish are a 2-apart group in both.
+    const stopsHeight = flat(screen.getByTestId("beranda-skeleton-stops")).height;
+    expect(stopsHeight).toBe(40);
+    const group = screen.getByTestId("beranda-skeleton-body").children[0] as unknown as { props: { style: unknown } };
+    expect(flat(group).gap).toBe(2);
     await act(async () => read.resolve(customerState({ status: "scheduled", meal: "lunch" })));
     await screen.findByTestId("plate-hero");
     expect(flat(screen.getByTestId("plate-hero")).borderRadius).toBe(frame.borderRadius);
     expect(flat(screen.getByTestId("plate-body"))).toMatchObject({ padding: body.padding, gap: body.gap });
-    expect(flat(screen.getByTestId("status-stop-lunch")).minHeight).toBeGreaterThanOrEqual(44);
+    expect(flat(screen.getByTestId("status-stops")).minHeight).toBe(stopsHeight);
+    const loadedGroup = screen.getByTestId("plate-body").children[0] as unknown as { props: { style: unknown } };
+    expect(flat(loadedGroup).gap).toBe(2);
+    // A stop is 40 tall and its hit area makes it a 44 target.
+    const stop = screen.getByTestId("status-stop-lunch");
+    const slop = stop.props.hitSlop as { top: number; bottom: number };
+    expect((flat(stop).minHeight as number) + slop.top + slop.bottom).toBeGreaterThanOrEqual(44);
   });
 });
 

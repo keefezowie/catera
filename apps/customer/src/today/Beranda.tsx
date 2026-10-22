@@ -31,7 +31,8 @@ import {
 import type { Mood } from "@catera/design-tokens";
 import { EmptyHome, EmptyHomeBody, EmptyHomeHeader, type HomeCatalog } from "./EmptyHome";
 import { HERO_BAND_OVERLAP, HERO_BAND_RISE } from "./heroBand";
-import { Plate, sentences } from "./Plate";
+import { Plate, stateLabel, statementFor } from "./Plate";
+import { stopStatuses } from "./stopStatus";
 import { StatusStops, type StopInfo } from "./StatusStops";
 import { RecapCard } from "./RecapCard";
 import { StaleCopy } from "../staleCopy";
@@ -140,7 +141,7 @@ function HomeMeta({ text, updating }: { text: string; updating: string | null })
         importantForAccessibility="no-hide-descendants"
         style={{ marginRight: 6 }}
       >
-        <Ionicons name={mood === "siang" ? "sunny" : "moon"} size={14} color={palette.headerMeta} />
+        <Ionicons name={mood === "siang" ? "sunny" : "moon"} size={18} color={palette.headerMeta} />
       </View>
       <Text variant="meta" style={line}>
         {updating ? `${text} · ` : text}
@@ -200,45 +201,36 @@ function HomeHeader({ loaded }: { loaded?: HomeHeading }) {
 }
 
 /**
- * The second line of the headline for the chosen meal's plates today: the main dish of one plate (lowercased; the
- * package name, in its own casing, while the menu is not set, so an unset menu never shows a dish), the count of
- * several, or that none comes.
+ * The band's statement for the shown meal's plates today: its state when one plate comes ("Makan siang sedang diantar."),
+ * the count of several, or that none comes. It never names the dish: the hero's title does.
  */
-function headlineFor(plates: PlateData[], t: Translate): string {
-  if (plates.length > 1) return t(`${plates.length} pengantaran.`, `${plates.length} deliveries.`);
-  const plate = plates[0];
-  if (!plate) return t("tidak ada pengantaran.", "no delivery.");
-  return `${plate.lead?.toLowerCase() ?? plate.packageName}.`;
+function statementLine(plates: PlateData[], mood: Mood, t: Translate): string {
+  if (plates.length > 1) return `${openingFor(mood, t)} ${t(`${plates.length} pengantaran.`, `${plates.length} deliveries.`)}`;
+  if (plates.length === 1) return statementFor(plates[0], t);
+  return `${openingFor(mood, t)} ${t("tidak ada pengantaran.", "no delivery.")}`;
 }
 
 /** Plates that need the customer now. The mood must not hide them behind the other meal's hero. */
 const NEEDS_YOU: PlateData["state"][] = ["due", "on_the_way", "failed"];
 
-/** Plates being cooked, on their way, due or failed: their meal is "now" in the day. */
-const IN_PROGRESS: PlateData["state"][] = ["cooking", "on_the_way", "due", "arrived_unconfirmed", "failed"];
-
 /**
  * One stop of the status line. A meal with no plate says "Tidak ada". Otherwise its label carries the window of its one
- * plate. The chosen meal's hero already says its own state and shows its dish, so its state line is the count of its
- * deliveries. The other meal shows the first plate's main dish (the package name while its menu is not set, the
- * headline's rule), or, when a plate of it needs the customer (it should have arrived, is on the way, or failed), its
- * status sentence, so "needs you now" stays visible behind the mood. The actions are one tap away, on the hero.
+ * plate. The shown meal's state line is its plate's short state ("Sedang diantar", "Terjadwal", "Sudah sampai"), or the
+ * count when several plates fill the pager. The other meal shows the first plate's main dish (the package name while its
+ * menu is not set, the headline's rule), or, when a plate of it needs the customer (it should have arrived, is on the
+ * way, or failed), that plate's state, so "needs you now" stays visible behind the mood. The actions are one tap away,
+ * on the hero.
  */
-function stopFor(plates: PlateData[], chosen: boolean, t: Translate): StopInfo {
-  if (!plates.length) return { window: null, state: t("Tidak ada", "None"), status: "none" };
+function stopFor(plates: PlateData[], chosen: boolean, t: Translate): Omit<StopInfo, "status"> {
+  if (!plates.length) return { window: null, state: t("Tidak ada", "None") };
   const first = plates[0];
   const waiting = plates.find((p) => NEEDS_YOU.includes(p.state));
   const count = t(`${plates.length} pengantaran`, plates.length === 1 ? "1 delivery" : `${plates.length} deliveries`);
   let state: string;
-  if (chosen) state = count;
-  else if (waiting) state = sentences(waiting, t)[0];
+  if (chosen) state = plates.length > 1 ? count : stateLabel(first, t);
+  else if (waiting) state = stateLabel(waiting, t);
   else state = plates.length > 1 ? count : (first.lead ?? first.packageName);
-  const status = plates.some((p) => IN_PROGRESS.includes(p.state))
-    ? "now"
-    : plates.every((p) => ["arrived", "reported"].includes(p.state))
-      ? "done"
-      : "next";
-  return { window: plates.length === 1 ? first.window || null : null, state, status };
+  return { window: plates.length === 1 ? first.window || null : null, state };
 }
 
 function SignedInHome({ actorId }: { actorId: string }) {
@@ -336,10 +328,12 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const byMeal = mealPlates(plates);
   const heroPlates = byMeal[meal];
   const otherPlates = byMeal[meal === "lunch" ? "dinner" : "lunch"];
-  const statement = `${openingFor(mood, t)} ${headlineFor(heroPlates, t)}`;
+  const statement = statementLine(heroPlates, mood, t);
+  // At most one stop is "now": the earlier meal while it is under way (see stopStatuses).
+  const dots = stopStatuses(byMeal.lunch, byMeal.dinner);
   const stops = {
-    lunch: stopFor(byMeal.lunch, meal === "lunch", t),
-    dinner: stopFor(byMeal.dinner, meal === "dinner", t),
+    lunch: { ...stopFor(byMeal.lunch, meal === "lunch", t), status: dots.lunch },
+    dinner: { ...stopFor(byMeal.dinner, meal === "dinner", t), status: dots.dinner },
   };
   // The status line sits in the hero's body when one plate leads, under the pager when several do, and alone under the
   // band when none does.

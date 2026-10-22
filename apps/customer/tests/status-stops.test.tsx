@@ -4,11 +4,13 @@ import { StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { type CustomerState, type Delivery, type Offer } from "@catera/domain";
+import { type CustomerState, type Delivery, type Offer, type Plate } from "@catera/domain";
 import { nativeLayout, nativeMood, nativeThemes } from "@catera/design-tokens";
 import { HeroPager, LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
 import { Beranda, HERO_BAND_OVERLAP } from "../src/today/Beranda";
-import { StatusStops, type StopInfo } from "../src/today/StatusStops";
+import { StatusStops, withAlpha, type StopInfo } from "../src/today/StatusStops";
+import { stateLabel, statementFor } from "../src/today/Plate";
+import { stopStatuses } from "../src/today/stopStatus";
 import { customerLink } from "../src/links";
 import * as offline from "../src/today/offline";
 import { customerState, delivery, offer, TODAY } from "./fixtures";
@@ -97,7 +99,6 @@ async function settled(ui: React.ReactElement, options?: Parameters<typeof mount
 }
 
 describe("StatusStops", () => {
-
   it("is a tablist of two tabs, the chosen mood selected, named by meal, window and state", async () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
     expect(screen.getByTestId("status-stops").props.accessibilityRole).toBe("tablist");
@@ -127,12 +128,16 @@ describe("StatusStops", () => {
     expect(screen.getByTestId("status-stop-dinner").props.accessibilityState).toMatchObject({ selected: true });
   });
 
-  it("gives each stop a 44 target in a half of the row, label in bodyStrong and the state line in meta", async () => {
+  it("is one 40 tall row: each stop a dot beside a two-line block 8 apart, label in bodyStrong over the state in meta, a 44 target", async () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
+    expect(flat("status-stops")).toMatchObject({ flexDirection: "row", minHeight: 40 });
     for (const id of ["status-stop-lunch", "status-stop-dinner"]) {
-      const s = flat(id);
-      expect(s.minHeight).toBeGreaterThanOrEqual(nativeLayout.control.icon);
-      expect(s.flex).toBe(1);
+      const stop = screen.getByTestId(id);
+      const s = flatOf(stop);
+      expect(s).toMatchObject({ flexDirection: "row", gap: 8, minHeight: 40 });
+      // 40 tall, and the hit area adds the 2 above and below that make the 44 target.
+      const slop = stop.props.hitSlop as { top: number; bottom: number };
+      expect((s.minHeight as number) + slop.top + slop.bottom).toBeGreaterThanOrEqual(nativeLayout.control.icon);
     }
     expect(flatOf(screen.getByText("Siang 11.00–13.00"))).toMatchObject({ fontSize: 15, lineHeight: 22 });
     expect(flatOf(screen.getByText("Sedang diantar"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
@@ -141,9 +146,9 @@ describe("StatusStops", () => {
     expect(screen.getByText("Siang 11.00–13.00").props.numberOfLines).toBeUndefined();
   });
 
-  it("draws a 2dp track between the stops and labels a stop with no window by its name alone", async () => {
+  it("draws a 2dp heroEdge track between the stops, flexing to fill, and labels a stop with no window by its name alone", async () => {
     await settled(<Stops lunch={{ window: null, state: "2 pengantaran", status: "next" }} dinner={DINNER} />);
-    expect(flat("status-stops-track").height).toBe(2);
+    expect(flat("status-stops-track")).toMatchObject({ height: 2, flex: 1, backgroundColor: nativeMood.light.siang.heroEdge });
     expect(screen.getByText("Siang")).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Makan siang, 2 pengantaran" })).toBeTruthy();
   });
@@ -151,7 +156,7 @@ describe("StatusStops", () => {
   it.each([
     ["light", "siang"],
     ["dark", "malam"],
-  ] as const)("paints the dots from the tokens in the %s theme: now is stopActive with a 4dp halo, next an ink ring, none a controlRing ring (%s)", async (scheme, mood) => {
+  ] as const)("paints the dots from the tokens in the %s theme: now a filled ink dot with a 4dp halo at 16%% ink, none a controlRing ring 2 (%s)", async (scheme, mood) => {
     await settled(
       <Stops
         lunch={{ window: null, state: "Sedang diantar", status: "now" }}
@@ -160,35 +165,106 @@ describe("StatusStops", () => {
       { scheme, now: mood === "siang" ? SIANG_NOW : MALAM_NOW },
     );
     const palette = nativeMood[scheme][mood];
+    const ink = nativeThemes[scheme].charcoal;
     const dot = flat("status-stop-lunch-dot");
-    expect(dot.backgroundColor).toBe(palette.stopActive);
+    expect(dot.backgroundColor).toBe(ink);
+    // stopActive belongs to the tracker's current stop alone.
+    expect(dot.backgroundColor).not.toBe(palette.stopActive);
     const halo = flat("status-stop-lunch-halo");
-    expect((halo.width as number - (dot.width as number)) / 2).toBe(4);
-    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderColor: nativeThemes[scheme].controlRing, borderWidth: 1.5 });
+    expect(((halo.width as number) - (dot.width as number)) / 2).toBe(4);
+    expect(halo.backgroundColor).toBe(withAlpha(ink, 0.16));
+    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderColor: nativeThemes[scheme].controlRing, borderWidth: 2 });
     expect(screen.queryByTestId("status-stop-dinner-halo")).toBeNull();
   });
 
-  it("marks a next stop with an ink ring and a done stop with a filled muted dot, never stopActive", async () => {
+  it("withAlpha turns a hex colour into the same colour at a fraction of its strength", () => {
+    expect(withAlpha("#2E2E2E", 0.16)).toBe("rgba(46,46,46,0.16)");
+    expect(withAlpha("#F5F1E8", 1)).toBe("rgba(245,241,232,1)");
+  });
+
+  it("marks a next stop with an ink ring 2 and a done stop with a filled muted dot", async () => {
     await settled(
       <Stops
         lunch={{ window: null, state: "Sudah sampai", status: "done" }}
         dinner={{ window: null, state: "Sate ayam madura", status: "next" }}
       />,
     );
-    const palette = nativeMood.light.siang;
-    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderColor: nativeThemes.light.charcoal, borderWidth: 1.5 });
+    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderColor: nativeThemes.light.charcoal, borderWidth: 2 });
     expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeThemes.light.muted);
-    expect(flat("status-stop-lunch-dot").backgroundColor).not.toBe(palette.stopActive);
   });
 
-  it("on the hero card reads the hero inks, on the canvas the theme's", async () => {
+  it("the shown meal's label is forest and 700, the other's ink and 600, so selection is not colour alone", async () => {
+    await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
+    expect(flatOf(screen.getByText("Siang 11.00–13.00"))).toMatchObject({
+      color: nativeThemes.light.forest,
+      fontFamily: "Jakarta-Bold",
+    });
+    expect(flatOf(screen.getByText("Malam 17.00–19.00"))).toMatchObject({
+      color: nativeThemes.light.charcoal,
+      fontFamily: "Jakarta-SemiBold",
+    });
+    fireEvent.press(screen.getByTestId("status-stop-dinner"));
+    expect(flatOf(screen.getByText("Malam 17.00–19.00"))).toMatchObject({ color: nativeThemes.light.forest, fontFamily: "Jakarta-Bold" });
+    expect(flatOf(screen.getByText("Siang 11.00–13.00")).color).toBe(nativeThemes.light.charcoal);
+  });
+
+  it("on the hero card the unshown label and state line read the hero inks, on the canvas the theme's", async () => {
     const view = await settled(<Stops lunch={LUNCH} dinner={DINNER} onHero />);
-    expect(flatOf(screen.getByText("Siang 11.00–13.00")).color).toBe(nativeMood.light.siang.heroText);
+    expect(flatOf(screen.getByText("Malam 17.00–19.00")).color).toBe(nativeMood.light.siang.heroText);
     expect(flatOf(screen.getByText("Sate ayam madura")).color).toBe(nativeMood.light.siang.heroMeta);
     view.unmount();
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
-    expect(flatOf(screen.getByText("Siang 11.00–13.00")).color).toBe(nativeThemes.light.charcoal);
+    expect(flatOf(screen.getByText("Malam 17.00–19.00")).color).toBe(nativeThemes.light.charcoal);
     expect(flatOf(screen.getByText("Sate ayam madura")).color).toBe(nativeThemes.light.muted);
+  });
+});
+
+describe("the words for each Plate state", () => {
+  const plate = (state: Plate["state"], meal: Plate["meal"] = "lunch") => ({ state, meal }) as Plate;
+  const id = (i: string) => i;
+  const en = (_i: string, e: string) => e;
+  it.each([
+    ["scheduled", "Terjadwal", "Makan siang terjadwal.", "Scheduled", "Lunch is scheduled."],
+    ["cooking", "Sedang dimasak", "Makan siang sedang dimasak.", "Being cooked", "Lunch is being cooked."],
+    ["on_the_way", "Sedang diantar", "Makan siang sedang diantar.", "On the way", "Lunch is on the way."],
+    ["due", "Belum sampai", "Makan siang belum sampai.", "Not here yet", "Lunch hasn't arrived yet."],
+    ["arrived_unconfirmed", "Sudah diterima?", "Dapur menandai makan siang sudah sampai.", "Has it reached you?", "The kitchen marked lunch as arrived."],
+    ["arrived", "Sudah sampai", "Makan siang sudah sampai.", "Arrived", "Lunch has arrived."],
+    ["failed", "Gagal diantar", "Makan siang gagal diantar.", "Not delivered", "Lunch wasn't delivered."],
+    ["reported", "Laporan terkirim", "Laporan makan siang terkirim.", "Report sent", "Your lunch report was sent."],
+  ] as [Plate["state"], string, string, string, string][])("%s: short label and band statement in both languages", (state, label, statement, labelEn, statementEn) => {
+    expect(stateLabel(plate(state), id)).toBe(label);
+    expect(statementFor(plate(state), id)).toBe(statement);
+    expect(stateLabel(plate(state), en)).toBe(labelEn);
+    expect(statementFor(plate(state), en)).toBe(statementEn);
+    // The statement names the meal and the state, never a dish.
+    expect(statement.toLowerCase()).toContain("makan siang");
+  });
+
+  it("names the dinner in the statement of a dinner plate", () => {
+    expect(statementFor(plate("on_the_way", "dinner"), id)).toBe("Makan malam sedang diantar.");
+    expect(statementFor(plate("on_the_way", "dinner"), en)).toBe("Dinner is on the way.");
+  });
+});
+
+describe("stopStatuses: at most one stop is now", () => {
+  const p = (state: Plate["state"]) => ({ state }) as Plate;
+  it.each([
+    [[], [], "none", "none"],
+    [[p("scheduled")], [], "next", "none"],
+    [[p("on_the_way")], [p("scheduled")], "now", "next"],
+    [[p("arrived")], [p("scheduled")], "done", "next"],
+    [[p("reported")], [], "done", "none"],
+    // Lunch failed and dinner is on the way: the live stop is dinner, lunch is done.
+    [[p("failed")], [p("on_the_way")], "done", "now"],
+    [[p("arrived_unconfirmed")], [p("cooking")], "done", "now"],
+    // Lunch failed and dinner has only been scheduled so far: lunch still needs the customer.
+    [[p("failed")], [p("scheduled")], "now", "next"],
+    // Both genuinely under way: the earlier meal is the live one.
+    [[p("on_the_way")], [p("cooking")], "now", "next"],
+    [[p("due")], [p("due")], "now", "next"],
+  ] as [Plate[], Plate[], string, string][])("%#: lunch %j dinner %j gives %s and %s", (lunch, dinner, first, second) => {
+    expect(stopStatuses(lunch, dinner)).toEqual({ lunch: first, dinner: second });
   });
 });
 
@@ -254,10 +330,14 @@ describe("Beranda hero, band and status line", () => {
     await screen.findByTestId("plate-hero");
     const band = within(screen.getByTestId("mood-header"));
     expect(flatOf(title())).toMatchObject({ fontSize: 20, lineHeight: 26 });
-    expect(title().props.children).toBe("Siang ini, ayam bakar madu.");
+    // Lunch's window opened at 11.00 and it is 12.00: the band says the state, never the dish the hero names.
+    expect(title().props.children).toBe("Makan siang belum sampai.");
+    expect(title().props.children).not.toMatch(/ayam bakar madu/i);
+    expect(screen.getByTestId("plate-dishes").props.children).toBe("Ayam bakar madu");
     const date = band.getByText(/^(Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu) \d+ \w+$/);
     expect(flatOf(date)).toMatchObject({ fontSize: 13, lineHeight: 18 });
-    expect(within(band.getByTestId("home-meta-glyph", { includeHiddenElements: true })).UNSAFE_getByProps({ name: "sunny" })).toBeTruthy();
+    const glyph = within(band.getByTestId("home-meta-glyph", { includeHiddenElements: true })).UNSAFE_getByProps({ name: "sunny" });
+    expect(glyph.props.size).toBe(18);
     expect(HERO_BAND_OVERLAP).toBe(104);
     expect(flatOf(screen.getByTestId("mood-header")).paddingBottom).toBe(16 + HERO_BAND_OVERLAP);
     // The hero rides up the overlap plus the body's own 16 top padding.
@@ -317,7 +397,8 @@ describe("Beranda hero, band and status line", () => {
     fireEvent.press(screen.getByTestId("status-stop-dinner"));
     expect(seen.mood).toBe("malam");
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan malam · /)).toBeTruthy();
-    expect(title().props.children).toBe("Malam ini, sate ayam madura.");
+    expect(title().props.children).toBe("Makan malam terjadwal.");
+    expect(screen.getByTestId("plate-dishes").props.children).toBe("Sate ayam madura");
     expect(screen.getByTestId("status-stop-dinner").props.accessibilityState).toMatchObject({ selected: true });
   });
 
@@ -337,7 +418,7 @@ describe("Beranda hero, band and status line", () => {
     await screen.findByTestId("plate-hero");
     const lunch = within(screen.getByTestId("status-stop-lunch"));
     expect(lunch.getByText("Siang 00.01–00.30")).toBeTruthy();
-    expect(lunch.getByText("Seharusnya sudah tiba")).toBeTruthy();
+    expect(lunch.getByText("Belum sampai")).toBeTruthy();
     expect(screen.queryByTestId("other-meal-row")).toBeNull();
     // The actions stay on the dinner hero until the stop is pressed.
     expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
@@ -356,7 +437,9 @@ describe("Beranda hero, band and status line", () => {
     expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeThemes.light.muted);
     // No hero rides up over the band, and the line reads the canvas inks.
     expect(flatOf(screen.getByTestId("mood-header")).paddingBottom).toBe(16);
-    expect(flatOf(screen.getByText("Malam")).color).toBe(nativeThemes.light.charcoal);
+    // The shown meal's label is forest, the other's ink.
+    expect(flatOf(screen.getByText("Malam")).color).toBe(nativeThemes.light.forest);
+    expect(flatOf(screen.getByText("Siang 11.00–13.00")).color).toBe(nativeThemes.light.charcoal);
   });
 
   it("two plates of the chosen meal keep the pager, with one status line under it", async () => {
@@ -435,16 +518,19 @@ describe("Beranda statement and stops", () => {
     });
     home(lunches(o));
     await screen.findByTestId("plate-hero");
-    expect(title()).toBe("Siang ini, rendang sapi.");
-    expect(screen.getByRole("tab", { name: "Makan siang, 11.00–13.00, 1 pengantaran", selected: true })).toBeTruthy();
+    // The dish is the hero's title, once; the band says the state.
+    expect(title()).toBe("Makan siang belum sampai.");
+    expect(screen.getByTestId("plate-dishes").props.children).toBe("Sayur asem · Rendang sapi");
+    expect(screen.getByRole("tab", { name: "Makan siang, 11.00–13.00, Belum sampai", selected: true })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Makan malam, Tidak ada", selected: false })).toBeTruthy();
   });
 
-  it("names the package, never a dish, while the menu is not set", async () => {
+  it("never names a dish in the band, whether the menu is set or not", async () => {
     const o = offer({ menus: [menu("lunch", [{ id: "l-1", name: "Ayam bakar madu" }], { selectionStatus: "pending" })] });
     home(lunches(o));
     await screen.findByTestId("plate-hero");
-    expect(title()).toBe("Siang ini, Makan Siang Rumahan.");
+    expect(title()).toBe("Makan siang belum sampai.");
+    expect(title()).not.toMatch(/ayam bakar madu|makan siang rumahan/i);
   });
 
   it("labels a stop with a window that does not start with a time by that window as the caterer wrote it", async () => {
@@ -475,11 +561,16 @@ describe("Beranda statement and stops", () => {
     expect(screen.getByText("Dinner")).toBeTruthy();
   });
 
-  it("the chosen stop counts its one delivery while the hero says the state", async () => {
+  it("says the state once: the band's statement, the shown stop's short label, and no state sentence in the hero body", async () => {
     home(bothTodayForState());
     await screen.findByTestId("plate-hero");
-    expect(within(screen.getByTestId("status-stop-lunch")).getByText("1 pengantaran")).toBeTruthy();
-    expect(screen.getByTestId("plate-sentence").props.children).toBe("Sedang diantar");
+    expect(title()).toBe("Makan siang sedang diantar.");
+    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Sedang diantar")).toBeTruthy();
+    expect(screen.queryByTestId("plate-sentence")).toBeNull();
+    // The body keeps its second line: when the meal is due, as meta.
+    expect(screen.getByTestId("plate-detail").props.children).toBe("tiba sekitar 11.00–13.00");
+    // The state label appears once on the screen outside the tracker.
+    expect(within(screen.getByTestId("plate-body")).getAllByText("Sedang diantar")).toHaveLength(1);
   });
 
   function bothTodayForState() {
@@ -505,9 +596,11 @@ describe("Beranda statement and stops", () => {
     ];
     home(state);
     await screen.findByTestId("plate-hero");
-    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.stopActive);
+    // The live stop is a filled ink dot with its halo; stopActive stays the tracker's.
+    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.heroText);
+    expect(flat("status-stop-lunch-dot").backgroundColor).not.toBe(nativeMood.light.siang.stopActive);
     expect(screen.getByTestId("status-stop-lunch-halo")).toBeTruthy();
-    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderWidth: 1.5, borderColor: nativeMood.light.siang.heroText });
+    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderWidth: 2, borderColor: nativeMood.light.siang.heroText });
   });
 });
 
@@ -552,25 +645,51 @@ describe("every Plate state under the food-led hero", () => {
     return state;
   }
 
-  // Each Plate state, the dot its meal's stop wears, and the one-line fact the hero says about it.
+  // Each Plate state: the dot its meal's stop wears, the stop's short label, the band's statement and the detail line.
   it.each([
-    ["scheduled", { status: "scheduled" }, NOT_YET, "next", "Diantar 23.59–23.59 ke Kantor"],
-    ["cooking", { status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` }, NOT_YET, "now", "Sedang dimasak"],
-    ["on_the_way", { status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` }, NOT_YET, "now", "Sedang diantar"],
-    ["due", { status: "scheduled" }, EARLY, "now", "Seharusnya sudah tiba"],
+    ["scheduled", { status: "scheduled" }, NOT_YET, "next", "Terjadwal", "Makan siang terjadwal.", "Diantar 23.59–23.59 ke Kantor"],
+    [
+      "cooking",
+      { status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` },
+      NOT_YET,
+      "now",
+      "Sedang dimasak",
+      "Makan siang sedang dimasak.",
+      "diantar 23.59–23.59 ke Kantor",
+    ],
+    [
+      "on_the_way",
+      { status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` },
+      NOT_YET,
+      "now",
+      "Sedang diantar",
+      "Makan siang sedang diantar.",
+      "tiba sekitar 23.59–23.59",
+    ],
+    ["due", { status: "scheduled" }, EARLY, "now", "Belum sampai", "Makan siang belum sampai.", `${EARLY} · belum ada kabar dari dapur`],
     [
       "arrived_unconfirmed",
       { status: "out_for_delivery", arrived_at: `${TODAY}T04:30:00Z` },
       NOT_YET,
       "now",
-      "Dapur menandai pesananmu sudah sampai",
+      "Sudah diterima?",
+      "Dapur menandai makan siang sudah sampai.",
+      "",
     ],
-    ["arrived", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }, NOT_YET, "done", "Sudah sampai"],
-    ["failed", { status: "issue" }, NOT_YET, "now", "Pesananmu gagal diantar"],
-    ["reported", { status: "scheduled", issue: { status: "open" } }, NOT_YET, "done", "Laporan terkirim"],
-  ] as [string, Record<string, unknown>, string, "now" | "next" | "done", string][])(
-    "%s: the hero keeps its 4:3 photo and sentence, and the Siang stop wears the %s dot",
-    async (_state, meal, window, status, sentence) => {
+    ["arrived", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }, NOT_YET, "done", "Sudah sampai", "Makan siang sudah sampai.", "pukul 11.48"],
+    ["failed", { status: "issue" }, NOT_YET, "now", "Gagal diantar", "Makan siang gagal diantar.", ""],
+    [
+      "reported",
+      { status: "scheduled", issue: { status: "open" } },
+      NOT_YET,
+      "done",
+      "Laporan terkirim",
+      "Laporan makan siang terkirim.",
+      "Menunggu balasan katering",
+    ],
+  ] as [string, Record<string, unknown>, string, "now" | "next" | "done", string, string, string][])(
+    "%s: each fact is said once in its own region and the Siang stop wears its dot",
+    async (_state, meal, window, status, label, statement, detail) => {
       mount(
         <MobileProvider runtime={runtimeFor(lunch(meal, window))} linkMapper={customerLink}>
           <Beranda />
@@ -578,15 +697,54 @@ describe("every Plate state under the food-led hero", () => {
       );
       await screen.findByTestId("plate-hero");
       expect(flat("plate-photo").aspectRatio).toBeCloseTo(4 / 3, 6);
-      expect(within(screen.getByTestId("plate-body")).getByTestId("plate-sentence").props.children).toBe(sentence);
+      // The band says the state, the stop its short label, the body only the detail (the second line), the title the dish.
+      expect(screen.getByTestId("home-title").props.children).toBe(statement);
+      expect(screen.getByTestId("home-title").props.children).not.toMatch(/ayam bakar madu/i);
+      expect(screen.getByTestId("status-stop-lunch").props.accessibilityLabel).toMatch(new RegExp(`, ${label.replace("?", "\\?")}$`));
+      expect(within(screen.getByTestId("status-stop-lunch")).getAllByText(label)).toHaveLength(1);
+      expect(screen.queryByTestId("plate-sentence")).toBeNull();
+      if (detail) expect(screen.getByTestId("plate-detail").props.children).toMatch(new RegExp(`^${detail.replace(/[.?]/g, "\\$&")}$`, "i"));
+      else expect(screen.queryByTestId("plate-detail")).toBeNull();
+      expect(screen.getAllByText("Ayam bakar madu · Sayur asem")).toHaveLength(1);
       const dot = flat("status-stop-lunch-dot");
-      if (status === "now") expect(dot.backgroundColor).toBe(nativeMood.light.siang.stopActive);
+      if (status === "now") expect(dot.backgroundColor).toBe(nativeMood.light.siang.heroText);
       else if (status === "done") expect(dot.backgroundColor).toBe(nativeThemes.light.muted);
       else expect(dot.borderColor).toBe(nativeMood.light.siang.heroText);
       // The status line is the one in the hero's body, never a second one.
       expect(screen.getAllByTestId("status-stops")).toHaveLength(1);
     },
   );
+
+  it("lunch failed and dinner on the way: one now dot, dinner's, and lunch's reads done", async () => {
+    const state = customerState(null);
+    state.deliveries.unshift(
+      delivery("d-two-meals", TODAY, {}, {
+        offer: offer({
+          meal: "both",
+          windows: { lunch: "00.01–00.30", dinner: "00.01–00.30" },
+          menus: [
+            { meal: "lunch", name: "Ayam", description: "", image: "", items: [{ id: "l", name: "Ayam bakar madu" }] },
+            { meal: "dinner", name: "Sate", description: "", image: "", items: [{ id: "d", name: "Sate ayam madura" }] },
+          ] as unknown as Offer["menus"],
+        }),
+        meals: [
+          { meal: "lunch", status: "issue" },
+          { meal: "dinner", status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` },
+        ],
+      }),
+    );
+    mount(
+      <MobileProvider runtime={runtimeFor(state)} linkMapper={customerLink}>
+        <Beranda />
+      </MobileProvider>,
+    );
+    await screen.findByTestId("plate-hero");
+    const ink = nativeMood.light.siang.heroText;
+    expect(screen.queryByTestId("status-stop-lunch-halo")).toBeNull();
+    expect(screen.getByTestId("status-stop-dinner-halo")).toBeTruthy();
+    expect(flat("status-stop-dinner-dot").backgroundColor).toBe(ink);
+    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeThemes.light.muted);
+  });
 
   it("no delivery for the chosen meal: the status line alone under the band, both stops Tidak ada", async () => {
     mount(
@@ -626,7 +784,7 @@ describe("every Plate state under the food-led hero", () => {
   });
 
   it.each(["light", "dark"] as const)(
-    "the Malam band is tinted from the %s Malam tokens and the current stop wears its stopActive",
+    "the Malam band is tinted from the %s Malam tokens and the live stop is a filled ink dot",
     async (scheme) => {
       const state = customerState(null);
       state.deliveries.unshift(
@@ -655,7 +813,8 @@ describe("every Plate state under the food-led hero", () => {
       const malam = nativeMood[scheme].malam;
       expect(flat("mood-fill-malam")).toMatchObject({ backgroundColor: malam.header });
       expect(flat("plate-hero-fill-malam").backgroundColor).toBe(malam.hero);
-      expect(flat("status-stop-dinner-dot").backgroundColor).toBe(malam.stopActive);
+      expect(flat("status-stop-dinner-dot").backgroundColor).toBe(malam.heroText);
+      expect(flat("status-stop-dinner-dot").backgroundColor).not.toBe(malam.stopActive);
       expect(flatOf(screen.getByTestId("home-title")).color).toBe(malam.headerText);
     },
   );
