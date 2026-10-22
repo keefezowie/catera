@@ -181,16 +181,19 @@ describe("the arrived-unconfirmed hero", () => {
 });
 
 describe("the hero with a failed photo", () => {
-  it("the hero with a failed photo shows the overlay ground and no pale band", async () => {
+  it("the hero with a failed photo shows the photo ground and no pale band", async () => {
     renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
     const photo = await screen.findByTestId("plate-photo");
     const hero = within(photo).UNSAFE_getAllByType(Image)[0];
     act(() => hero.props.onError());
     const ground = await within(photo).findByTestId("photo-ground");
-    // The dark photo ground of the theme, under the overlay ink: one even slab, never the page's pale neutral.
+    // The dark photo ground of the theme: one even slab, never the page's pale neutral. The 4:3 frame keeps its size.
     expect(StyleSheet.flatten(ground.props.style).backgroundColor).toBe(nativeThemes.light.photoGround);
     expect(StyleSheet.flatten(photo.props.style).backgroundColor).toBe(nativeThemes.light.photoGround);
-    expect(within(photo).getByTestId("plate-scrim")).toBeTruthy();
+    expect(StyleSheet.flatten(photo.props.style).aspectRatio).toBeCloseTo(4 / 3, 6);
+    // The text sits in the card's body now, so the photo carries no scrim or overlay.
+    expect(within(photo).queryByTestId("plate-scrim")).toBeNull();
+    expect(within(photo).queryByTestId("plate-overlay")).toBeNull();
   });
 });
 

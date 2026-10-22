@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Linking, StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { pushSheet } from "../nav";
-import { nativePhoto, nativeThemes } from "@catera/design-tokens";
+import { nativeLayout, nativePhoto, nativeThemes } from "@catera/design-tokens";
 import { errorLabel, journeyCaption, whatsappUrl, type Delivery, type Plate as PlateData } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
 import {
   Button,
   fontFor,
+  HERO_EDGE,
   MoodFill,
   Photo,
   PressableScale,
@@ -161,19 +162,27 @@ export function heroSentences(
   return [first, second];
 }
 
-const HERO_RADIUS = 28;
+export const HERO_RADIUS = nativeLayout.radius.card;
 
 /**
- * The hero rides 58 over the header, plus the body's 16 top padding. Beranda lifts its whole data area by this much
- * (and its skeleton by the same), so the hero never sits outside its parent's bounds.
+ * The hero's photo frame: 4:3 across the top of the card, inside its 1.5 edge so the edge runs unbroken round it, its
+ * top corners one edge-width tighter than the card's. The loading skeleton draws the same frame.
  */
-export const HERO_OVERLAP = -74;
+export const heroPhotoFrame = {
+  aspectRatio: nativeLayout.ratio.hero,
+  margin: HERO_EDGE,
+  borderTopLeftRadius: HERO_RADIUS - HERO_EDGE,
+  borderTopRightRadius: HERO_RADIUS - HERO_EDGE,
+  borderCurve: "continuous",
+  overflow: "hidden",
+} as const;
 
 /**
- * Today's plate: the photo with one status sentence, the dishes and one action. As the `hero` it is the Beranda's
- * raised card: a `MoodFill` (Siang, and Malam fading over it) that Beranda places over the header. The frame stays mounted when
- * the mood switches, so the fills cross-fade; only its content is keyed to the plate. The shadow sits on the base fill
- * and switches with the mood. A `card` plate has no mood of its own and reads the theme.
+ * Today's plate: the photo, the meal line, the dish, the status line and one action. As the `hero` it is the Beranda's
+ * raised card: a `MoodFill` (Siang, and Malam fading over it) that Beranda places over the band, 16 radius with the
+ * 1.5 `heroEdge` and the hero shadow, the photo at 4:3 across its top and a body of 16 padding and 12 gap. The frame
+ * stays mounted when the mood switches, so the fills cross-fade; only its content is keyed to the plate. A `card`
+ * plate has no mood of its own and reads the theme.
  */
 export function Plate({
   plate,
@@ -183,17 +192,20 @@ export function Plate({
   paged = false,
   counted = true,
   delivery,
+  status,
 }: {
   plate: PlateData;
   apiBase: string;
   offline?: boolean;
   variant?: "card" | "hero";
-  /** A card of the pager: the pager rides over the header, not the card, and the cards fill its height, so they match. */
+  /** A card of the pager: the pager rides over the band, not the card, and the cards fill its height, so they match. */
   paged?: boolean;
   /** Whether this hero is the one in view, so its journey counts as seen. A card behind the pager's first is not. */
   counted?: boolean;
   /** The day behind a hero plate, from a fresh read: its "…" opens the day's actions. Left out offline. */
   delivery?: Delivery;
+  /** The hero's two-stop status line, set in its body under the dish. */
+  status?: ReactNode;
 }) {
   const styles = useStyles();
   const content = (
@@ -205,6 +217,7 @@ export function Plate({
       variant={variant}
       counted={counted}
       delivery={delivery}
+      status={status}
     />
   );
   if (variant !== "hero") return <View style={styles.card}>{content}</View>;
@@ -213,7 +226,6 @@ export function Plate({
       testID="plate-hero"
       // Not clipped: the shadow of each fill falls outside the frame.
       style={{
-        padding: 10,
         ...(paged ? { flexGrow: 1 } : null),
         borderRadius: HERO_RADIUS,
         borderCurve: "continuous",
@@ -232,6 +244,7 @@ function PlateContent({
   variant,
   counted,
   delivery,
+  status,
 }: {
   plate: PlateData;
   apiBase: string;
@@ -239,6 +252,7 @@ function PlateContent({
   variant: "card" | "hero";
   counted: boolean;
   delivery?: Delivery;
+  status?: ReactNode;
 }) {
   const { command, t, locale } = useMobile();
   const c = useColors();
@@ -324,25 +338,28 @@ function PlateContent({
         style={[
           styles.photo,
           hero
-            ? { minHeight: 168, borderRadius: 20, borderCurve: "continuous", overflow: "hidden" }
+            ? heroPhotoFrame
             : { height: 268 },
         ]}
       >
         {/* Fades in over the dark failed-photo ground, which stays if the photo never comes: the frame's own ground, so no band. */}
         {plate.image ? <Photo ground="photo" uri={photoUri(plate.image, apiBase)} style={StyleSheet.absoluteFill} /> : null}
-        {/* The K ramp: 0 at the top of the photo to 0.3 at the bottom, so a loaded photo has no straight edge. */}
-        <View testID="plate-scrim" pointerEvents="none" style={styles.scrim} />
-        {/* The text block ramps in over its top 26dp and holds, so every wrapped line sits on the full overlay. */}
-        <View style={styles.overlay} testID="plate-overlay">
-          {/* The meal line keeps clear of the "…" when a large font lifts the overlay to the photo's top. */}
-          <RNText style={[styles.meal, more && { paddingEnd: 48 }]}>
-            {meal} · {plate.catererName}
-          </RNText>
-          <RNText testID="plate-sentence" style={styles.sentence} accessibilityRole="header">
-            {sentence}
-          </RNText>
-          {second ? <RNText style={styles.second}>{second}</RNText> : null}
-        </View>
+        {!hero ? (
+          <>
+            {/* The K ramp: 0 at the top of the photo to 0.3 at the bottom, so a loaded photo has no straight edge. */}
+            <View testID="plate-scrim" pointerEvents="none" style={styles.scrim} />
+            {/* The text block ramps in over its top 26dp and holds, so every wrapped line sits on the full overlay. */}
+            <View style={styles.overlay} testID="plate-overlay">
+              <RNText style={styles.meal}>
+                {meal} · {plate.catererName}
+              </RNText>
+              <RNText testID="plate-sentence" style={styles.sentence} accessibilityRole="header">
+                {sentence}
+              </RNText>
+              {second ? <RNText style={styles.second}>{second}</RNText> : null}
+            </View>
+          </>
+        ) : null}
         {/* The day's other actions, at the photo's top corner on its own dark ground, so a light photo never hides it.
             Only the hero has it, and only from a fresh read: a copy kept offline acts on nothing. */}
         {more ? (
@@ -351,20 +368,38 @@ function PlateContent({
           </View>
         ) : null}
       </View>
-      <View style={[styles.body, hero && { paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8 }]}>
+      <View testID="plate-body" style={styles.body}>
+        {hero ? (
+          <Text variant="meta" style={{ color: quiet }}>
+            {meal} · {plate.catererName}
+          </Text>
+        ) : null}
         {plate.dishes.length ? (
           <Text
             testID="plate-dishes"
-            variant={hero ? "heading" : "body"}
+            variant={hero ? "heroTitle" : "body"}
             style={hero ? { color: moodColors.heroText } : undefined}
           >
             {plate.dishes.join(" · ")}
           </Text>
         ) : (
-          <Text testID="plate-dishes" variant="caption" style={hero ? { color: quiet } : undefined}>
+          <Text testID="plate-dishes" variant={hero ? "bodyL" : "caption"} style={hero ? { color: quiet } : undefined}>
             {plate.packageName}
           </Text>
         )}
+        {hero ? status : null}
+        {hero ? (
+          <View style={{ gap: 2 }}>
+            <Text testID="plate-sentence" variant="bodyStrong" accessibilityRole="header" style={{ color: ink, fontVariant: ["tabular-nums"] }}>
+              {sentence}
+            </Text>
+            {second ? (
+              <Text variant="meta" style={{ color: quiet, fontVariant: ["tabular-nums"] }}>
+                {second}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
         {showTrack ? (
           <RantangTrack
             stage={trackStage(journey)}
@@ -553,7 +588,7 @@ const useStyles = themedStyles((c) => ({
     fontVariant: ["tabular-nums"],
   },
   second: { fontSize: 17, fontFamily: fontFor("600"), color: fixedInk.cream, fontVariant: ["tabular-nums"] },
-  body: { padding: 16, gap: 12 },
+  body: { padding: nativeLayout.cardPadding, gap: nativeLayout.space.md },
   row: { flexDirection: "row", gap: 8 },
   reaction: {
     flex: 1,

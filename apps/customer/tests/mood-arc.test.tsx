@@ -5,26 +5,9 @@ import type { ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
 import * as SecureStore from "expo-secure-store";
-import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { type CustomerState, type Offer } from "@catera/domain";
 import { nativeMood } from "@catera/design-tokens";
 import { MoodArc, MoodHeader, MoodProvider, MoodToggle, ThemeProvider } from "@catera/mobile-ui";
-import { Beranda } from "../src/today/Beranda";
-import { customerLink } from "../src/links";
-import { customerState, delivery, offer, TODAY } from "./fixtures";
 
-jest.mock("expo-router", () => ({
-  router: { push: jest.fn(), replace: jest.fn() },
-  Link: () => null,
-  useLocalSearchParams: () => ({}),
-}));
-jest.mock("expo-notifications", () => ({
-  setNotificationHandler: jest.fn(),
-  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
-  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
-  getLastNotificationResponseAsync: jest.fn(async () => null),
-  clearLastNotificationResponseAsync: jest.fn(async () => undefined),
-}));
 jest.mock("expo-secure-store", () => {
   const store = new Map();
   return {
@@ -34,12 +17,6 @@ jest.mock("expo-secure-store", () => {
     deleteItemAsync: jest.fn(async (k: string) => void store.delete(k)),
   };
 });
-jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
-jest.mock("../src/today/offline", () => ({
-  saveCachedCustomer: jest.fn(async () => undefined),
-  loadCachedCustomer: jest.fn(async () => null),
-  forgetCachedCustomer: jest.fn(async () => undefined),
-}));
 
 const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
 const MALAM_NOW = () => new Date("2026-10-09T10:00:00Z"); // 17:00 WIB
@@ -291,140 +268,5 @@ describe("MoodHeader with the arc", () => {
   it("has no arc unless asked", () => {
     mount(<MoodHeader title="Halo" />);
     expect(screen.queryByTestId("mood-arc")).toBeNull();
-  });
-});
-
-describe("Beranda header", () => {
-  beforeEach(() => {
-    jest.useFakeTimers({
-      now: new Date(`${TODAY}T05:00:00Z`),
-      doNotFake: [
-        "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame",
-        "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "setImmediate",
-        "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout",
-      ],
-    });
-  });
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  function runtimeWith(state: CustomerState): MobileRuntime {
-    const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "catera" });
-    runtime.api = {
-      ...runtime.api,
-      me: jest.fn(async () => ({ actor: { id: "u-c1", role: "customer", name: "Rani Contoh" }, demo: false })),
-      customer: jest.fn(async () => state),
-      customerActions: jest.fn(async () => ({ total: 0, items: [] })),
-      catalog: jest.fn(async () => ({ items: [], nextCursor: null })),
-      command: jest.fn(async () => ({})),
-    } as unknown as MobileRuntime["api"];
-    return runtime;
-  }
-
-  const home = (state: CustomerState, now = SIANG_NOW) =>
-    mount(
-      <MobileProvider runtime={runtimeWith(state)} linkMapper={customerLink}>
-        <Beranda />
-      </MobileProvider>,
-      { now },
-    );
-
-  const title = () => screen.getByTestId("home-title").props.children;
-
-  type Item = { id: string; name: string; categoryId?: string };
-  const menu = (meal: "lunch" | "dinner", items: Item[], extra: Record<string, unknown> = {}) =>
-    ({ meal, name: items.map((i) => i.name).join(", "), description: "", image: "", items, ...extra }) as unknown as Offer["menus"][number];
-
-  /** Today brings one delivery per entry, each its own package and lunch, plus the fixtures' later days. */
-  function lunches(...offers: Offer[]): CustomerState {
-    const state = customerState(null);
-    state.deliveries.unshift(
-      ...offers.map((o, i) => delivery(`d-lunch-${i}`, TODAY, {}, { offer: o, meals: [{ meal: "lunch", status: "scheduled" }] })),
-    );
-    return state;
-  }
-
-  it("headline names the main dish", async () => {
-    // The main dish is second in the menu; the old headline took the first dish.
-    const o = offer({
-      menus: [
-        menu("lunch", [
-          { id: "l-1", name: "Sayur asem", categoryId: "veg" },
-          { id: "l-2", name: "Rendang sapi", categoryId: "main" },
-        ]),
-      ],
-    });
-    home(lunches(o));
-    await screen.findByTestId("plate-hero");
-    expect(title()).toBe("Siang ini,\nrendang sapi.");
-    // One lunch today: the Siang end names when it comes, the Malam end that nothing comes.
-    expect(screen.getByRole("tab", { name: "Makan siang, 11.00", selected: true })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Makan malam, Tidak ada", selected: false })).toBeTruthy();
-    expect(screen.getByTestId("mood-arc-detail-siang").props.children).toBe("11.00");
-    expect(screen.getByTestId("mood-arc-detail-malam").props.children).toBe("Tidak ada");
-  });
-
-  it("headline uses the package name while the menu is not set, never a dish", async () => {
-    const o = offer({
-      menus: [menu("lunch", [{ id: "l-1", name: "Ayam bakar madu" }], { selectionStatus: "pending" })],
-    });
-    home(lunches(o));
-    await screen.findByTestId("plate-hero");
-    expect(title()).toBe("Siang ini,\nMakan Siang Rumahan.");
-  });
-
-  it("counts one delivery under the arc when its window does not start with a time", async () => {
-    home(lunches(offer({ windows: { lunch: "siang hari", dinner: "17.00–19.00" } })));
-    await screen.findByTestId("plate-hero");
-    expect(screen.getByTestId("mood-arc-detail-siang").props.children).toBe("1 pengantaran");
-  });
-
-  it("headline counts two lunches", async () => {
-    const first = offer();
-    const second = offer({ id: "p-sehat", name: "Paket Sehat", windows: { lunch: "12.00–13.00", dinner: "17.00–19.00" } });
-    home(lunches(first, second));
-    await screen.findAllByTestId(/^plate-/);
-    expect(title()).toBe("Siang ini,\n2 pengantaran.");
-    expect(screen.getByRole("tab", { name: "Makan siang, 2 pengantaran", selected: true })).toBeTruthy();
-    expect(screen.getByTestId("mood-arc-detail-siang").props.children).toBe("2 pengantaran");
-  });
-
-  it("says nothing comes with no plate for the chosen meal, and counts the other meal in English", async () => {
-    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
-    const second = offer({ id: "p-sehat", name: "Paket Sehat" });
-    home(lunches(offer(), second), MALAM_NOW);
-    await screen.findByTestId("home-title");
-    expect(title()).toBe("Dinner tonight,\nno delivery.");
-    expect(screen.getByRole("tab", { name: "Lunch, 2 deliveries", selected: false })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Dinner, None", selected: true })).toBeTruthy();
-    expect(screen.getByText("Lunch")).toBeTruthy();
-    expect(screen.getByText("Dinner")).toBeTruthy();
-  });
-
-  it("switches the headline when the Malam end is tapped, and has one tablist", async () => {
-    const dual = offer({
-      meal: "both",
-      menus: [
-        menu("lunch", [{ id: "l-1", name: "Ayam bakar madu" }]),
-        menu("dinner", [{ id: "d-1", name: "Sate ayam madura" }]),
-      ],
-    });
-    const state = customerState(null);
-    state.deliveries.unshift(
-      delivery("d-both", TODAY, {}, {
-        offer: dual,
-        meals: [
-          { meal: "lunch", status: "scheduled" },
-          { meal: "dinner", status: "scheduled" },
-        ],
-      }),
-    );
-    home(state);
-    await screen.findByTestId("plate-hero");
-    expect(tablists()).toHaveLength(1);
-    fireEvent.press(screen.getByRole("tab", { name: "Makan malam, 17.00" }));
-    expect(title()).toBe("Malam ini,\nsate ayam madura.");
-    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 });

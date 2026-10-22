@@ -158,7 +158,7 @@ describe("the hero pager", () => {
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => undefined);
     mount(demo().runtime);
     const pager = await screen.findByTestId("hero-pager");
-    expect(title()).toBe("Siang ini,\n2 pengantaran.");
+    expect(title()).toBe("Siang ini, 2 pengantaran.");
     const heroes = within(pager).getAllByTestId("plate-hero");
     expect(heroes).toHaveLength(2);
     // Equal cards: each page is the same width, and the pager snaps one card at a time.
@@ -222,7 +222,7 @@ describe("the hero pager", () => {
     expect(screen.queryByTestId("hero-pager")).toBeNull();
     expect(screen.queryByText(/dari \d/)).toBeNull();
     expect(screen.queryByRole("adjustable")).toBeNull();
-    expect(title()).toBe("Siang ini,\nayam bakar madu.");
+    expect(title()).toBe("Siang ini, ayam bakar madu.");
   });
 
   it("counts journey_viewed for the card in view only, and for the next one once swiped to", async () => {
@@ -270,21 +270,32 @@ describe("the hero pager", () => {
   });
 });
 
-describe("the other-meal row", () => {
-  it("the other meal row counts its deliveries", async () => {
+describe("the other meal's stop", () => {
+  it("counts the other meal's deliveries and a tap switches to it", async () => {
+    // The morning clock keeps both lunches still to come; the mood is Malam, so one dinner is the hero.
+    pin(morningOf(DEMO_TODAY));
+    mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
+    await screen.findByTestId("plate-hero");
+    expect(screen.queryByTestId("hero-pager")).toBeNull();
+    expect(screen.queryByTestId("other-meal-row")).toBeNull();
+    const stop = within(screen.getByTestId("status-stop-lunch"));
+    expect(stop.getByText("Siang")).toBeTruthy();
+    expect(stop.getByText("2 pengantaran")).toBeTruthy();
+    // A tap switches to Siang, where both lunches are the pager and the dinner is the other stop.
+    fireEvent.press(screen.getByTestId("status-stop-lunch"));
+    expect(await screen.findByTestId("hero-pager")).toBeTruthy();
+    expect(within(screen.getByTestId("status-stop-dinner")).getByText("Malam 17.00–19.00")).toBeTruthy();
+    expect(within(screen.getByTestId("status-stop-dinner")).getByText("Sate ayam madura")).toBeTruthy();
+    // One status line serves the pager.
+    expect(screen.getAllByTestId("status-stops")).toHaveLength(1);
+    expect(within(screen.getByTestId("hero-pager")).queryByTestId("status-stops")).toBeNull();
+  });
+
+  it("says the lunches should have arrived once their window is past, in place of the count", async () => {
     pin(eveningOf(DEMO_TODAY));
     mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
     await screen.findByTestId("plate-hero");
-    // Malam: one dinner is the hero; the two lunches are one row that counts them.
-    expect(screen.queryByTestId("hero-pager")).toBeNull();
-    const row = within(screen.getByTestId("other-meal-row"));
-    expect(row.getByText("Siang ini · 2 pengantaran")).toBeTruthy();
-    expect(row.getByText("Ayam bakar madu")).toBeTruthy();
-    // A tap switches to Siang, where both lunches are the pager.
-    fireEvent.press(screen.getByTestId("other-meal-row"));
-    expect(await screen.findByTestId("hero-pager")).toBeTruthy();
-    expect(within(screen.getByTestId("other-meal-row")).getByText("Malam ini · 17.00–19.00")).toBeTruthy();
-    expect(within(screen.getByTestId("other-meal-row")).getByText("Sate ayam madura")).toBeTruthy();
+    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Seharusnya sudah tiba")).toBeTruthy();
   });
 
   /** One lunch (Rumahan, whose menu starts with rice) and one dinner, seen in the evening. */
@@ -301,19 +312,19 @@ describe("the other-meal row", () => {
   }
 
   it("names the main dish, not the first item on the menu", async () => {
-    pin(eveningOf(DEMO_TODAY));
+    pin(morningOf(DEMO_TODAY));
     const { runtime } = runtimeWith(async () => riceFirst());
     mount(runtime, { now: eveningOf(DEMO_TODAY) });
-    const row = within(await screen.findByTestId("other-meal-row"));
+    const row = within(await screen.findByTestId("status-stop-lunch"));
     expect(row.getByText("Rendang sapi")).toBeTruthy();
     expect(row.queryByText("Nasi putih")).toBeNull();
   });
 
   it("names the package, never a dish, while the menu is not set", async () => {
-    pin(eveningOf(DEMO_TODAY));
+    pin(morningOf(DEMO_TODAY));
     const { runtime } = runtimeWith(async () => riceFirst(pendingMenu("lunch")));
     mount(runtime, { now: eveningOf(DEMO_TODAY) });
-    const row = within(await screen.findByTestId("other-meal-row"));
+    const row = within(await screen.findByTestId("status-stop-lunch"));
     expect(row.getByText("Makan Siang Rumahan")).toBeTruthy();
     expect(row.queryByText(/Nasi|Rendang/)).toBeNull();
   });
@@ -586,7 +597,7 @@ describe("Berikutnya", () => {
     const { runtime } = runtimeWith(async () => quietSaturday());
     mount(runtime);
     await screen.findByTestId("home-title");
-    expect(title()).toBe("Siang ini,\ntidak ada pengantaran.");
+    expect(title()).toBe("Siang ini, tidak ada pengantaran.");
     expect(screen.queryByTestId("plate-hero")).toBeNull();
     expect(within(screen.getByTestId("mood-header")).getByText("Berikutnya Senin 12 Okt")).toBeTruthy();
     expect(within(screen.getByTestId("upcoming-days")).getAllByTestId("upcoming-day-label")[0].props.children).toBe(

@@ -9,7 +9,8 @@ import { FadeSwap, MoodProvider, SheetHeader, SkeletonGroup, ThemeProvider } fro
 import { jakartaDay, monthOf, monthWeeks, type CustomerState } from "@catera/domain";
 import { spyFades } from "./fade";
 import { Beranda } from "../src/today/Beranda";
-import { HERO_OVERLAP } from "../src/today/Plate";
+import { HERO_BAND_OVERLAP } from "../src/today/Beranda";
+import { HERO_BAND_RISE } from "../src/today/heroBand";
 import { Jadwal } from "../src/schedule/Jadwal";
 import { DAY_CIRCLE, MONTH_CELL, WEEKDAY_ROW } from "../src/schedule/MonthGrid";
 import { PaymentScreen } from "../src/buy/PaymentScreen";
@@ -145,19 +146,20 @@ describe("Beranda", () => {
     expect(inside(skeleton, screen.getByTestId("screen-body"))).toBe(true);
     expect(screen.getByRole("progressbar", { name: "Memuat beranda" })).toBeTruthy();
     expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
-    // Carried from Task 4: the skeleton hero rides over the header exactly as the loaded hero does, so the swap does
-    // not jump. The header leaves the same 58 for it, and the skeleton lifts by the same 74 (58 plus the body's 16).
-    expect(flat(header).paddingBottom).toBe(16 + 58);
-    expect(flat(skeleton).marginTop).toBe(HERO_OVERLAP);
+    // The skeleton hero rides over the band exactly as the loaded hero does, so the swap does not jump. The band leaves
+    // the same 104 for it, and the skeleton lifts by the same 120 (104 plus the body's 16).
+    expect(flat(header).paddingBottom).toBe(16 + HERO_BAND_OVERLAP);
+    expect(flat(skeleton).marginTop).toBe(HERO_BAND_RISE);
+    expect(HERO_BAND_RISE).toBe(-(HERO_BAND_OVERLAP + 16));
   });
 
-  it("the loaded hero rides over the header by the same offset as its skeleton", async () => {
+  it("the loaded hero rides over the band by the same offset as its skeleton", async () => {
     renderWith(runtimeWith({ customer: jest.fn(async () => customerState({ status: "scheduled" })) }), <Beranda />);
     await screen.findByTestId("plate-hero");
-    expect(flat(screen.getByTestId("mood-header")).paddingBottom).toBe(16 + 58);
+    expect(flat(screen.getByTestId("mood-header")).paddingBottom).toBe(16 + HERO_BAND_OVERLAP);
     // The overlap belongs to the swapped data area, so the hero's own frame never sits outside its parent's bounds.
     const swap = screen.UNSAFE_getByType(FadeSwap);
-    expect(flat(swap).marginTop).toBe(HERO_OVERLAP);
+    expect(flat(swap).marginTop).toBe(HERO_BAND_RISE);
     expect(flat(screen.getByTestId("plate-hero")).marginTop ?? 0).toBe(0);
   });
 
@@ -287,7 +289,12 @@ describe("states", () => {
         await waitFor(() => expect(home.api.customer).toHaveBeenCalled());
         const blocks = screen
           .getByTestId("beranda-skeleton")
-          .findAll((n) => typeof n.type === "string" && flat(n).height !== undefined && !!flat(n).backgroundColor)
+          .findAll(
+            (n) =>
+              typeof n.type === "string" &&
+              (flat(n).height !== undefined || flat(n).aspectRatio !== undefined) &&
+              !!flat(n).backgroundColor,
+          )
           .map((n) => flat(n));
         // The hero's blocks sit on the hero card's own fill, so they read the hero's track (light Malam paints the hero
         // in the toggle track's colour, where a toggle-track block would vanish); the rows below read the theme.
@@ -295,7 +302,8 @@ describe("states", () => {
         expect(flat(within(hero).getByTestId("beranda-skeleton-hero-fill-siang")).backgroundColor).toBe(
           nativeMood[scheme].siang.hero,
         );
-        expect(blocks.find((b) => b.height === 168)?.backgroundColor).toBe(nativeMood[scheme][mood].arcTrack);
+        // The photo block has its height from the 4:3 ratio, not a number.
+        expect(blocks.find((b) => b.aspectRatio !== undefined)?.backgroundColor).toBe(nativeMood[scheme][mood].arcTrack);
         expect(nativeMood[scheme][mood].arcTrack).not.toBe(nativeMood[scheme][mood].hero);
         expect(blocks.find((b) => b.height === 54)?.backgroundColor).toBe(nativeThemes[scheme].sage);
       });
@@ -352,11 +360,16 @@ describe("states", () => {
       .getByTestId("beranda-skeleton")
       .findAll((n) => typeof n.type === "string" && typeof flat(n).height === "number")
       .map((n) => flat(n).height as number);
-    // The hero photo and the 54 ring of a 60 row, in dp; they do not scale with text.
-    expect(blocks).toContain(168);
+    // The 54 ring of a 60 row and the hero's 30 dish line, in dp; they do not scale with text.
     expect(blocks).toContain(54);
+    expect(blocks).toContain(30);
+    const skeletonPhoto = flat(screen.getByTestId("beranda-skeleton-photo"));
     await act(async () => read.resolve(customerState({ status: "scheduled" }, { past: [] })));
-    expect(flat(await screen.findByTestId("plate-photo")).minHeight).toBe(168);
+    // The loaded photo is the same 4:3 frame (ratio, inset and radii), so the page does not move when it lands.
+    const photo = flat(await screen.findByTestId("plate-photo"));
+    expect(photo.aspectRatio).toBeCloseTo(4 / 3, 6);
+    for (const key of ["aspectRatio", "margin", "borderTopLeftRadius", "borderTopRightRadius"] as const)
+      expect(photo[key]).toBe(skeletonPhoto[key]);
   });
 });
 
@@ -445,10 +458,10 @@ function renderAt(runtime: MobileRuntime, ui: React.ReactElement, now: () => Dat
 const num = (v: unknown) => v as number;
 
 /**
- * Beranda's header height at font scale 1.0, summed from its fixed parts. Jest lays nothing out, so this adds up what
- * the header is built from: its two paddings, the 48 top row, the headline's lines (each at the title's 39), the day
- * arc (the tab's top inset, the 50 marker, the 16 title line and the 15 detail line) and the 12 gaps between them. Two
- * headers with the same sum and the same parts are laid out at the same height at 360dp, where each line fits.
+ * Beranda's band height at font scale 1.0, summed from its fixed parts. Jest lays nothing out, so this adds up what the
+ * band is built from: its two paddings (the bottom one holds the 104 overlap), the 36 top row, the statement's lines (each
+ * at the `section` 26; the loading band holds one line the same height) and the 4 gap between them. Two bands with the
+ * same sum and the same parts are laid out at the same height at 360dp, where each line fits.
  */
 function headerHeight(header: ReturnType<typeof screen.getByTestId>) {
   const box = flat(header);
@@ -460,21 +473,10 @@ function headerHeight(header: ReturnType<typeof screen.getByTestId>) {
   else {
     const loading = within(header).getByTestId("home-title-loading");
     const first = within(loading).getByText(/ini,$/);
-    title =
-      num(flat(first).lineHeight) * String(first.props.children).split("\n").length +
-      num(flat(within(loading).getByTestId("home-title-placeholder")).height);
+    // The opening line and the placeholder sit side by side, so the row is as tall as the taller of the two.
+    title = Math.max(num(flat(first).lineHeight), num(flat(within(loading).getByTestId("home-title-placeholder")).height));
   }
-  const arc = within(header).getByTestId("mood-arc");
-  const details = (["siang", "malam"] as const).map((m) => {
-    const d = flat(within(arc).getByTestId(`mood-arc-detail-${m}`));
-    return num(d.height ?? d.lineHeight);
-  });
-  const arcHeight =
-    num(flat(within(arc).getByTestId("mood-arc-tab-siang")).paddingTop) +
-    num(flat(within(arc).getByTestId("mood-arc-marker-siang")).height) +
-    num(flat(within(arc).getByTestId("mood-arc-title-siang")).lineHeight) +
-    Math.max(...details);
-  const parts = [num(row.minHeight), title, arcHeight];
+  const parts = [num(row.minHeight), title];
   return {
     height:
       num(box.paddingTop) +
@@ -482,35 +484,47 @@ function headerHeight(header: ReturnType<typeof screen.getByTestId>) {
       parts.reduce((a, b) => a + b, 0) +
       num(flat(content).gap) * (parts.length - 1),
     parts,
-    // The details hold one line each: a detail line taller than 15 would grow the arc.
-    details,
   };
 }
 
-describe("finding 1: Beranda's header keeps its height when the page lands", () => {
+describe("finding 1: Beranda's band keeps its height when the page lands", () => {
   for (const [mood, now, meal] of [
     ["Siang", SIANG, "lunch"],
     ["Malam", MALAM, "dinner"],
   ] as const)
-    it(`in ${mood}, the loading header is laid out as the loaded one: meta row, two headline lines, the arc`, async () => {
+    it(`in ${mood}, the loading band is laid out as the loaded one: the meta row and one statement line`, async () => {
       const read = deferred<CustomerState>();
       const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
       renderAt(runtime, <Beranda />, now);
       await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
       const before = headerHeight(screen.getByTestId("mood-header"));
-      // The arc is drawn while it loads, each end's detail line held by a skeleton line of its own height.
-      expect(before.details).toEqual([15, 15]);
-      expect(screen.getByTestId("mood-arc-tab-siang").props.accessibilityLabel).toBe("Makan siang");
       expect(screen.getByTestId("home-meta")).toBeTruthy();
+      // The status line is part of the hero card, so the band itself holds no switch while it loads.
+      expect(screen.queryByTestId("status-stops")).toBeNull();
 
       await act(async () => read.resolve(customerState({ status: "scheduled", meal })));
       await screen.findByTestId("plate-hero");
       const after = headerHeight(screen.getByTestId("mood-header"));
       expect(after.parts).toEqual(before.parts);
       expect(after.height).toBe(before.height);
-      // Two headline lines in both, at the title's 39.
-      expect(before.parts[1]).toBe(78);
+      // One statement line at the `section` 26, in both.
+      expect(before.parts[1]).toBe(26);
     });
+
+  it("the skeleton hero is the loaded hero's frame: the same radius, photo ratio and body padding and gap", async () => {
+    const read = deferred<CustomerState>();
+    const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
+    renderAt(runtime, <Beranda />, SIANG);
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    const frame = flat(screen.getByTestId("beranda-skeleton-hero"));
+    const body = flat(screen.getByTestId("beranda-skeleton-body"));
+    expect(screen.getByTestId("beranda-skeleton-stops")).toBeTruthy();
+    await act(async () => read.resolve(customerState({ status: "scheduled", meal: "lunch" })));
+    await screen.findByTestId("plate-hero");
+    expect(flat(screen.getByTestId("plate-hero")).borderRadius).toBe(frame.borderRadius);
+    expect(flat(screen.getByTestId("plate-body"))).toMatchObject({ padding: body.padding, gap: body.gap });
+    expect(flat(screen.getByTestId("status-stop-lunch")).minHeight).toBeGreaterThanOrEqual(44);
+  });
 });
 
 describe("finding 2 and 9: a kept copy refreshes in place", () => {
@@ -524,8 +538,8 @@ describe("finding 2 and 9: a kept copy refreshes in place", () => {
     const word = await screen.findByText("Memperbarui…");
     const row = screen.getByTestId("mood-header-row");
     expect(inside(word, row)).toBe(true);
-    // The meta row is 48 whatever it holds; its label lines are 18, so even a wrapped date and word fit in it.
-    expect(flat(row).minHeight).toBe(48);
+    // The meta row is 36 whatever it holds; its lines are 18, so even a wrapped date and word fit in it.
+    expect(flat(row).minHeight).toBe(36);
     expect(flat(within(row).getByText(/·$/)).lineHeight).toBe(18);
     const before = headerHeight(screen.getByTestId("mood-header"));
     expect(screen.UNSAFE_getByType(FadeSwap).props.swapKey).toBe("kept");
@@ -825,7 +839,8 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     renderWith(runtime, <Beranda />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const hero = screen.getByTestId("beranda-skeleton-hero");
-    expect([flat(hero).padding, flat(hero).borderRadius]).toEqual([10, 28]);
+    expect([flat(hero).padding, flat(hero).borderRadius]).toEqual([undefined, 16]);
+    expect(flat(within(hero).getByTestId("beranda-skeleton-hero-fill-siang"))).toMatchObject({ borderRadius: 16 });
     expect(flat(within(hero).getByTestId("beranda-skeleton-hero-fill-siang")).boxShadow).toBeTruthy();
   });
 });

@@ -23,6 +23,9 @@ export { StatusBand } from "./StatusBand";
 
 /** The header's top row, the same on every screen so the headline starts at one height. */
 const ROW_HEIGHT = 48;
+/** The band's top row: one date line, or two when a large font wraps it. */
+const BAND_ROW_HEIGHT = 36;
+const BAND_GAP = 4;
 const TRACK_PADDING = 3;
 /** The track's edge (`markerIdle`, 3:1 off the header): the white track is 1.0x off a pale header, so the edge is its boundary. */
 const TRACK_EDGE = 1.5;
@@ -139,6 +142,7 @@ const isText = (node: ReactNode): node is string | number => typeof node === "st
  *   evenly above and below. The meta line carries a fact (a date, the area), never the tab's own name. With both a
  *   toggle and a trailing control, the toggle comes first and the trailing control (Dapur's settings gear for a helper
  *   on Menu) sits at the end.
+ * - `band` is the customer layout's compact band (v2): a 36 top row instead of 48 and 4 between its lines. `overlap` is then the height the card behind it rides up over the band (104 on Beranda).
  * - `arc` puts the day arc under the headline as the Siang / Malam switch (`MoodArc`, with each end's title and detail
  *   line). The arc is then the switch, so the toggle is not drawn in the top row even when `toggle` is set.
  * - While its screen is focused it sets the status-bar glyphs for the mood (`statusBarStyle`); once a pushed screen
@@ -156,6 +160,7 @@ export function MoodHeader({
   arc,
   children,
   overlap = 0,
+  band = false,
   testID = "mood-header",
 }: {
   meta?: ReactNode;
@@ -165,7 +170,10 @@ export function MoodHeader({
   toggle?: boolean;
   arc?: MoodArcProps;
   children?: ReactNode;
-  overlap?: 0 | 58;
+  /** How far a card rides up over the bottom of the header: 58 (the classic hero), 104 (the v2 band) or none. */
+  overlap?: number;
+  /** The compact band of the customer layout scale. */
+  band?: boolean;
   testID?: string;
 }) {
   const insets = useSafeAreaInsets();
@@ -176,7 +184,7 @@ export function MoodHeader({
   const palette = useMoodColors();
   const { mood } = useMood();
   const { scheme } = useThemePreference();
-  const radius = overlap === 58 ? 32 : 28;
+  const radius = overlap > 0 ? 32 : 28;
   const [height, setHeight] = useState<number>();
   const above = topOwned ? insets.top + DEMO_STRIP_HEIGHT : insets.top - topInset;
   useToastAnchor(height === undefined ? null : { top: above + height });
@@ -198,9 +206,15 @@ export function MoodHeader({
       <MoodFill surface="header" testID="mood-fill" />
       <View
         testID="mood-header-content"
-        style={{ maxWidth: 760, width: "100%", alignSelf: "center", paddingHorizontal: margin, gap: 12 }}
+        style={{
+          maxWidth: 760,
+          width: "100%",
+          alignSelf: "center",
+          paddingHorizontal: margin,
+          gap: band ? BAND_GAP : 12,
+        }}
       >
-        <View testID="mood-header-row" style={{ minHeight: ROW_HEIGHT, flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <View testID="mood-header-row" style={{ minHeight: band ? BAND_ROW_HEIGHT : ROW_HEIGHT, flexDirection: "row", alignItems: "center", gap: 12 }}>
           <View style={{ flex: 1 }}>
             {isText(meta) ? (
               <Text variant="label" style={{ color: palette.headerMeta, lineHeight: 18 }}>

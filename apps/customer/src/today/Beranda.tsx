@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   activePlans,
   dayLabel,
@@ -16,26 +17,22 @@ import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import {
   ConnectionBanner,
   FadeSwap,
-  fontFor,
   HeroPager,
   MoodHeader,
-  PhotoRing,
-  PressableScale,
   ReadError,
   Screen,
   Skeleton,
   SkeletonGroup,
   StateArt,
   Text,
-  themedStyles,
-  useColors,
   useMood,
   useMoodColors,
-  type MoodArcProps,
 } from "@catera/mobile-ui";
 import type { Mood } from "@catera/design-tokens";
 import { EmptyHome, EmptyHomeBody, EmptyHomeHeader, type HomeCatalog } from "./EmptyHome";
-import { HERO_OVERLAP, photoUri, Plate, sentences } from "./Plate";
+import { HERO_BAND_OVERLAP, HERO_BAND_RISE } from "./heroBand";
+import { Plate, sentences } from "./Plate";
+import { StatusStops, type StopInfo } from "./StatusStops";
 import { RecapCard } from "./RecapCard";
 import { StaleCopy } from "../staleCopy";
 import { WaitingList } from "./WaitingList";
@@ -45,6 +42,9 @@ import { TomorrowEntry } from "../tomorrow/TomorrowRow";
 import { BerandaSkeleton } from "../skeletons";
 import { usePullToRefresh } from "../refresh";
 import { forgetCachedCustomer, loadCachedCustomer, saveCachedCustomer } from "./offline";
+
+// The band's overlap lives in `heroBand.ts` so the skeleton can read it without importing this screen back.
+export { HERO_BAND_OVERLAP };
 
 /** A customer read; `savedAt` is set when it is the copy this phone kept, not a fresh answer. */
 type LoadedCustomer = { data: CustomerState; savedAt: string | null };
@@ -108,9 +108,6 @@ export function Beranda() {
 
 type Translate = (id: string, en: string) => string;
 
-/** The title's line height (`title`, 30/39): the loading headline holds its second line at this height. */
-const TITLE_LINE = 39;
-
 /**
  * Says "Memperbarui…" to VoiceOver. iOS has no live regions, so the word is announced; Android's TalkBack hears it
  * from the meta row's live region instead, so it is not announced twice. `os` is the running platform.
@@ -124,32 +121,33 @@ function openingFor(mood: Mood, t: Translate): string {
   return mood === "siang" ? t("Siang ini,", "Lunch today,") : t("Malam ini,", "Dinner tonight,");
 }
 
-/** The day arc's two ends; a null detail is a line still being read, held by a skeleton line of its height. */
-function arcFor(t: Translate, lunch: string | null, dinner: string | null): MoodArcProps {
-  return {
-    siang: { title: t("Siang", "Lunch"), label: t("Makan siang", "Lunch"), detail: lunch },
-    malam: { title: t("Malam", "Dinner"), label: t("Makan malam", "Dinner"), detail: dinner },
-  };
-}
-
 /**
- * Beranda's meta row: the date (or "Berikutnya …"), and while a kept copy is being refreshed, "· Memperbarui…" after it
- * in the same row. The row is 48 high whatever it holds (a long line wraps inside it), so the word comes and goes
- * without moving the header. The word sits in a polite live region mounted from the first frame and empty while there
- * is nothing to say, so TalkBack hears it once when it appears (a region that mounts already holding its text is not
- * reliably announced).
+ * Beranda's meta row: the sun or the moon of the chosen meal, the date (or "Berikutnya …"), and while a kept copy is being
+ * refreshed, "· Memperbarui…" after it in the same row. The row is 36 high whatever it holds (a long line wraps inside
+ * it), so the word comes and goes without moving the band. The word sits in a polite live region mounted from the first
+ * frame and empty while there is nothing to say, so TalkBack hears it once when it appears (a region that mounts
+ * already holding its text is not reliably announced).
  */
 function HomeMeta({ text, updating }: { text: string; updating: string | null }) {
   const palette = useMoodColors();
-  const line = { color: palette.headerMeta, lineHeight: 18, fontVariant: ["tabular-nums" as const] };
+  const { mood } = useMood();
+  const line = { color: palette.headerMeta, fontVariant: ["tabular-nums" as const] };
   return (
     <View testID="home-meta" style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center" }}>
-      <Text variant="label" style={line}>
+      <View
+        testID="home-meta-glyph"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{ marginRight: 6 }}
+      >
+        <Ionicons name={mood === "siang" ? "sunny" : "moon"} size={14} color={palette.headerMeta} />
+      </View>
+      <Text variant="meta" style={line}>
         {updating ? `${text} · ` : text}
       </Text>
       <View testID="home-refreshing-region" accessibilityLiveRegion="polite">
         {updating ? (
-          <Text testID="home-refreshing" variant="label" style={line}>
+          <Text testID="home-refreshing" variant="meta" style={line}>
             {updating}
           </Text>
         ) : null}
@@ -158,16 +156,16 @@ function HomeMeta({ text, updating }: { text: string; updating: string | null })
   );
 }
 
-/** What the loaded header says: the meta row, the two-line headline, each end's detail and whether a hero rides over. */
-type HomeHeading = { meta: string; headline: string; arc: MoodArcProps; hero: boolean; updating: string | null };
+/** What the loaded band says: the meta row, the one-line statement and whether a hero rides over it. */
+type HomeHeading = { meta: string; statement: string; hero: boolean; updating: string | null };
 
 /**
- * Beranda's mood header: the meta row, the headline and the day arc. While the first read is out (`loaded` absent) it
- * is laid out as the loaded header, so it keeps its height when the page lands: the date in the meta row (the phone
- * knows it), the meal's opening line with the second headline line held by a skeleton line of the title's height, and
- * the arc with each end's detail line held the same way. It then leaves the hero's 58, as the skeleton draws a hero.
- * The lines breathe with the data area's group, which names the wait; the header is chrome, never a progress bar. One
- * component for both, so the header (and its arc) stays mounted across the swap.
+ * Beranda's mood band: the date line (`meta`, with the sun or the moon) over the day statement in `section`. While the
+ * first read is out (`loaded` absent) it is laid out as the loaded band, so it keeps its height when the page lands: the
+ * date in the meta row (the phone knows it) and the meal's opening line with a skeleton line after it, one `section`
+ * line high like the statement. It leaves the same 104 for the hero as the skeleton draws one. The line breathes with
+ * the data area's group, which names the wait; the band is chrome, never a progress bar. One component for both, so the
+ * band stays mounted across the swap.
  */
 function HomeHeader({ loaded }: { loaded?: HomeHeading }) {
   const { t, locale } = useMobile();
@@ -176,22 +174,22 @@ function HomeHeader({ loaded }: { loaded?: HomeHeading }) {
   const today = jakartaDay(new Date());
   return (
     <MoodHeader
+      band
       meta={<HomeMeta text={loaded?.meta ?? dayLabel(today, today, locale)} updating={loaded?.updating ?? null} />}
-      arc={loaded?.arc ?? arcFor(t, null, null)}
-      overlap={!loaded || loaded.hero ? 58 : 0}
+      overlap={!loaded || loaded.hero ? HERO_BAND_OVERLAP : 0}
       title={
         loaded ? (
-          <Text testID="home-title" variant="title" accessibilityRole="header" style={{ color: palette.headerText }}>
-            {loaded.headline}
+          <Text testID="home-title" variant="section" accessibilityRole="header" style={{ color: palette.headerText }}>
+            {loaded.statement}
           </Text>
         ) : (
-          <View testID="home-title-loading">
-            <Text variant="title" accessibilityRole="header" style={{ color: palette.headerText }}>
+          <View testID="home-title-loading" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text variant="section" accessibilityRole="header" style={{ color: palette.headerText }}>
               {openingFor(mood, t)}
             </Text>
             <SkeletonGroup>
-              <View testID="home-title-placeholder" style={{ height: TITLE_LINE, justifyContent: "center" }}>
-                <Skeleton onMood width="58%" height={28} />
+              <View testID="home-title-placeholder" style={{ height: 26, flex: 1, justifyContent: "center" }}>
+                <Skeleton onMood width="58%" height={16} />
               </View>
             </SkeletonGroup>
           </View>
@@ -213,80 +211,39 @@ function headlineFor(plates: PlateData[], t: Translate): string {
   return `${plate.lead?.toLowerCase() ?? plate.packageName}.`;
 }
 
-/**
- * The line under one end of the day arc: when the meal's one delivery today comes (its window start, "11.00"), how
- * many come when there are several, or that none does. A window that does not start with a time falls back to the
- * count, so the line never shows a time the caterer did not set.
- */
-function arcDetail(plates: PlateData[], t: Translate): string {
-  if (!plates.length) return t("Tidak ada", "None");
-  const start = plates.length === 1 ? windowStart(plates[0].window) : null;
-  return start ?? t(`${plates.length} pengantaran`, plates.length === 1 ? "1 delivery" : `${plates.length} deliveries`);
-}
-
-/** "11.00" from a window such as "11.00–13.00"; null when the window does not start with a time. */
-function windowStart(window: string): string | null {
-  const m = /^\s*(\d{1,2})[.:](\d{2})\s*[–-]/.exec(window);
-  return m ? `${m[1].padStart(2, "0")}.${m[2]}` : null;
-}
-
 /** Plates that need the customer now. The mood must not hide them behind the other meal's hero. */
 const NEEDS_YOU: PlateData["state"][] = ["due", "on_the_way", "failed"];
 
+/** Plates being cooked, on their way, due or failed: their meal is "now" in the day. */
+const IN_PROGRESS: PlateData["state"][] = ["cooking", "on_the_way", "due", "arrived_unconfirmed", "failed"];
+
 /**
- * The compact row for the meal the mood is not on: its ring, when it comes ("Malam ini · 17.00–19.00") or how many
- * come ("Siang ini · 2 antaran"), and the first plate's main dish (the package name while its menu is not set, the
- * headline's rule). One tap switches to it. When a plate of that meal needs the customer (it should have arrived, is on
- * the way, or failed), its status sentence shows here too, so "needs you now" stays visible; the actions are one tap
- * away, on the hero.
+ * One stop of the status line. A meal with no plate says "Tidak ada". Otherwise its label carries the window of its one
+ * plate. The chosen meal's hero already says its own state and shows its dish, so its state line is the count of its
+ * deliveries. The other meal shows the first plate's main dish (the package name while its menu is not set, the
+ * headline's rule), or, when a plate of it needs the customer (it should have arrived, is on the way, or failed), its
+ * status sentence, so "needs you now" stays visible behind the mood. The actions are one tap away, on the hero.
  */
-function OtherMealRow({ plates, apiBase, onPress }: { plates: PlateData[]; apiBase: string; onPress: () => void }) {
-  const { t } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
-  const plate = plates[0];
-  const dinner = plate.meal === "dinner";
-  const label = dinner ? t("Malam ini", "Dinner tonight") : t("Siang ini", "Lunch today");
-  const when =
-    plates.length > 1 ? t(`${plates.length} pengantaran`, `${plates.length} deliveries`) : plate.window || "";
-  const dish = plate.lead ?? plate.packageName;
+function stopFor(plates: PlateData[], chosen: boolean, t: Translate): StopInfo {
+  if (!plates.length) return { window: null, state: t("Tidak ada", "None"), status: "none" };
+  const first = plates[0];
   const waiting = plates.find((p) => NEEDS_YOU.includes(p.state));
-  const status = waiting ? sentences(waiting, t)[0] : "";
-  return (
-    <PressableScale
-      testID="other-meal-row"
-      accessibilityRole="button"
-      haptic="select"
-      onPress={onPress}
-      style={styles.otherMeal}
-    >
-      {/* The row is the button and speaks for the ring. */}
-      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <PhotoRing
-          uri={photoUri(plate.image, apiBase)}
-          size={54}
-          ring={dinner ? "dinner" : "lunch"}
-          accessibilityLabel={dish}
-        />
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="label" style={{ lineHeight: 18, fontVariant: ["tabular-nums"] }}>
-          {when ? `${label} · ${when}` : label}
-        </Text>
-        <Text style={{ fontFamily: fontFor("700") }}>{dish}</Text>
-        {status ? (
-          <Text testID="other-meal-status" style={{ fontFamily: fontFor("700"), color: c.charcoal }}>
-            {status}
-          </Text>
-        ) : null}
-      </View>
-    </PressableScale>
-  );
+  const count = t(`${plates.length} pengantaran`, plates.length === 1 ? "1 delivery" : `${plates.length} deliveries`);
+  let state: string;
+  if (chosen) state = count;
+  else if (waiting) state = sentences(waiting, t)[0];
+  else state = plates.length > 1 ? count : (first.lead ?? first.packageName);
+  const status = plates.some((p) => IN_PROGRESS.includes(p.state))
+    ? "now"
+    : plates.every((p) => ["arrived", "reported"].includes(p.state))
+      ? "done"
+      : "next";
+  return { window: plates.length === 1 ? first.window || null : null, state, status };
 }
 
 function SignedInHome({ actorId }: { actorId: string }) {
   const { runtime, t, locale } = useMobile();
-  const { mood, setMood } = useMood();
+  const { mood } = useMood();
   // A launch paints the copy kept for this account first (`fromCache`); the fresh read replaces it.
   const home = useData(`home:customer`, () => loadCustomer(runtime, actorId), { cached: () => keptCustomer(actorId) });
   // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
@@ -379,8 +336,14 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const byMeal = mealPlates(plates);
   const heroPlates = byMeal[meal];
   const otherPlates = byMeal[meal === "lunch" ? "dinner" : "lunch"];
-  const headline = `${openingFor(mood, t)}\n${headlineFor(heroPlates, t)}`;
-  const arc = arcFor(t, arcDetail(byMeal.lunch, t), arcDetail(byMeal.dinner, t));
+  const statement = `${openingFor(mood, t)} ${headlineFor(heroPlates, t)}`;
+  const stops = {
+    lunch: stopFor(byMeal.lunch, meal === "lunch", t),
+    dinner: stopFor(byMeal.dinner, meal === "dinner", t),
+  };
+  // The status line sits in the hero's body when one plate leads, under the pager when several do, and alone under the
+  // band when none does.
+  const statusLine = (onHero: boolean) => <StatusStops lunch={stops.lunch} dinner={stops.dinner} onHero={onHero} />;
   const next = days[0];
   const nextLabel = next?.label ?? "";
   // "Berikutnya" names a later day, so it is only true when nothing else is left today.
@@ -397,7 +360,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
       refreshControl={pull}
       header={
         <HomeHeader
-          loaded={{ meta, headline, arc, hero: heroPlates.length > 0, updating: updating ? updatingText : null }}
+          loaded={{ meta, statement, hero: heroPlates.length > 0, updating: updating ? updatingText : null }}
         />
       }
     >
@@ -407,8 +370,9 @@ function SignedInHome({ actorId }: { actorId: string }) {
           parent's bounds (where a touch would not reach). */}
       <FadeSwap
         swapKey={savedAt ? "kept" : "fresh"}
-        style={[{ gap: 16 }, heroPlates.length ? { marginTop: HERO_OVERLAP } : null]}
+        style={[{ gap: 16 }, heroPlates.length ? { marginTop: HERO_BAND_RISE } : null]}
       >
+        {heroPlates.length ? null : statusLine(false)}
         {/* Nothing comes today and nothing is scheduled next: the resting mascot stands where a plate would, under the
             headline that says so. A day with a plate leads with its photo and never shows the mascot. Nothing else
             sits between the mascot and the Paket selesai recap here, so it stays out while the recap's food photo
@@ -456,8 +420,10 @@ function SignedInHome({ actorId }: { actorId: string }) {
             apiBase={runtime.apiBase}
             offline={!!savedAt}
             delivery={savedAt ? undefined : state.deliveries.find((d) => d.id === heroPlates[0].deliveryId)}
+            status={statusLine(true)}
           />
         ) : null}
+        {heroPlates.length > 1 ? statusLine(false) : null}
         {/* Mounted whatever the page shows: the banner reads the phone's connection itself and appears only offline,
             with the time of the copy on screen; when the phone is back it reads again. It follows the hero, which rides
             up over the header. */}
@@ -465,13 +431,6 @@ function SignedInHome({ actorId }: { actorId: string }) {
         {!savedAt && home.error ? <ReadError message={home.error} onRetry={() => void home.reload()} /> : null}
         {/* A copy kept while the phone is online means the read failed: say how old it is, never let it pass as current. */}
         <StaleCopy savedAt={savedAt} onRetry={home.reload} />
-        {otherPlates.length ? (
-          <OtherMealRow
-            plates={otherPlates}
-            apiBase={runtime.apiBase}
-            onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
-          />
-        ) : null}
         {recap}
         <WaitingList state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
         <TomorrowEntry state={state} now={now} />
@@ -483,7 +442,3 @@ function SignedInHome({ actorId }: { actorId: string }) {
     </Screen>
   );
 }
-
-const useStyles = themedStyles((c) => ({
-  otherMeal: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12 },
-}));

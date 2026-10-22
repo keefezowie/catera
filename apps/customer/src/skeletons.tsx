@@ -7,7 +7,9 @@ import { MoodFill, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui"
 import { DAY_CIRCLE, MonthFrame } from "./schedule/MonthGrid";
 import { MealSegment } from "./discover/MealSegment";
 import { PackageGrid, useGridCell } from "./discover/PackageGrid";
-import { HERO_OVERLAP } from "./today/Plate";
+import { HERO_BAND_RISE } from "./today/heroBand";
+import { HERO_RADIUS as BERANDA_HERO_RADIUS, heroPhotoFrame } from "./today/Plate";
+import { STATUS_LABEL_LINE, STATUS_META_LINE, STATUS_STRIP } from "./today/StatusStops";
 
 /**
  * One skeleton per screen (spec 2.1, 2.2): the data area's shape while its first read is out and nothing is kept on this
@@ -34,24 +36,67 @@ function HeroFrame({ testID, children }: { testID: string; children: ReactNode }
 }
 
 /**
- * Beranda's data area: the hero card (photo, dish line, caption), the other meal's row and two Berikutnya rows. Like the
- * loaded hero it rides up over the mood header by `HERO_OVERLAP` (the header leaves its 58 for it), so the skeleton
- * hero sits exactly where the loaded one lands and the swap does not jump. The hero is the loaded hero's card, fill and
- * shadow included, so only its contents change when the page arrives.
+ * The Beranda hero card while it loads, in the loaded hero's own frame: the 16 radius card with its mood fill and shadow
+ * (Siang, with Malam fading over it), the photo at 4:3 inside the 1.5 edge, and the body's 16 padding and 12 gap. The
+ * blocks read the hero's track (`onHero`), so they show on that fill in both themes and both moods.
+ */
+function BerandaHeroFrame({ children }: { children: ReactNode }) {
+  return (
+    <View testID="beranda-skeleton-hero" style={{ borderRadius: BERANDA_HERO_RADIUS, borderCurve: "continuous" }}>
+      <MoodFill surface="hero" testID="beranda-skeleton-hero-fill" radius={BERANDA_HERO_RADIUS} heroShadow />
+      {children}
+    </View>
+  );
+}
+
+/** One stop of the status line: the dot in its strip, the label line and the state line, at the loaded heights. */
+function StopPlaceholder() {
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ height: STATUS_STRIP, justifyContent: "center" }}>
+        <Skeleton onHero width={12} height={12} radius={6} />
+      </View>
+      <View style={{ height: STATUS_LABEL_LINE, justifyContent: "center" }}>
+        <Skeleton onHero width="62%" height={14} />
+      </View>
+      <View style={{ height: STATUS_META_LINE, justifyContent: "center" }}>
+        <Skeleton onHero width="44%" height={12} />
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Beranda's data area: the hero card (photo, meal line, dish line, the two-stop status line and the state line) and two
+ * Berikutnya rows. Like the loaded hero it rides up over the mood band by `HERO_BAND_RISE` (the band leaves its 104
+ * for it), so the skeleton hero sits exactly where the loaded one lands and the swap does not jump. The hero is the
+ * loaded hero's card, fill and shadow included, so only its contents change when the page arrives.
  */
 export function BerandaSkeleton() {
   const { t } = useMobile();
   return (
     <SkeletonGroup label={t("Memuat beranda", "Loading home")}>
-      <View testID="beranda-skeleton" style={{ gap: 16, marginTop: HERO_OVERLAP }}>
-        <HeroFrame testID="beranda-skeleton-hero">
-          <Skeleton onHero height={168} radius={20} />
-          <View style={{ gap: 8, paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8 }}>
-            <Skeleton onHero width="72%" height={22} />
-            <Skeleton onHero width="48%" height={14} />
+      <View testID="beranda-skeleton" style={{ gap: 16, marginTop: HERO_BAND_RISE }}>
+        <BerandaHeroFrame>
+          <View testID="beranda-skeleton-photo" style={heroPhotoFrame}>
+            <Skeleton onHero aspectRatio={nativeLayout.ratio.hero} radius={0} />
           </View>
-        </HeroFrame>
-        <SkeletonRow />
+          <View testID="beranda-skeleton-body" style={{ padding: nativeLayout.cardPadding, gap: nativeLayout.space.md }}>
+            <View style={{ height: 18, justifyContent: "center" }}>
+              <Skeleton onHero width="46%" height={12} />
+            </View>
+            <View style={{ height: 30, justifyContent: "center" }}>
+              <Skeleton onHero width="72%" height={22} />
+            </View>
+            <View testID="beranda-skeleton-stops" style={{ flexDirection: "row" }}>
+              <StopPlaceholder />
+              <StopPlaceholder />
+            </View>
+            <View style={{ height: 22, justifyContent: "center" }}>
+              <Skeleton onHero width="52%" height={14} />
+            </View>
+          </View>
+        </BerandaHeroFrame>
         <View style={{ gap: 10 }}>
           <SkeletonRow />
           <SkeletonRow />

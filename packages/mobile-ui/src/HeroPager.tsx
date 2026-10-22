@@ -9,14 +9,15 @@ import {
   type ViewStyle,
 } from "react-native";
 import { Text } from "./components";
+import { useScreenMargin } from "./layoutScale";
 import { useReduced } from "./motion";
 import { themedStyles } from "./theme";
 import { fonts } from "./type";
 
 /** The space between two cards. */
 const GAP = 12;
-/** Each card is the pager's width minus this, so the next card peeks in at the trailing edge. */
-const INSET = 64;
+/** How much of the next card peeks in at the trailing edge. */
+const PEEK = 32;
 /** Room under the cards for the hero shadow, which a scroll view would otherwise clip. */
 const SHADOW_ROOM = 32;
 /** Room above the cards, where the shadow is short. */
@@ -24,8 +25,9 @@ const TOP_ROOM = 12;
 
 /**
  * Equal cards side by side that snap one at a time, the next one peeking in, with dots and "{i} dari {n}" under them.
- * The pager reaches `bleed` past its parent's side padding on both sides, so the cards line up with the content and
- * peek at the screen edge. It uses the platform's own scroll physics (`snapToInterval`, `decelerationRate="fast"`).
+ * The pager reaches `bleed` past its parent's side padding on both sides (the screen's margin: 20, or 16 under the v2
+ * layout scale), so the cards line up with the content and peek at the screen edge. A card is the pager's width minus
+ * that margin, the gap and the peek, which is 64 at a 20 margin, as before. It uses the platform's own scroll physics (`snapToInterval`, `decelerationRate="fast"`).
  *
  * Screen readers get one adjustable control under the cards: its label is `accessibilityLabelFor(index)` ("Makan
  * siang") and its value `accessibilityValueFor(index)` ("1 dari 2, Dapur Senja", the visible counter by default). Its
@@ -40,7 +42,7 @@ export function HeroPager({
   accessibilityValueFor,
   counterLabel,
   onIndexChange,
-  bleed = 20,
+  bleed,
   style,
   testID = "hero-pager",
 }: {
@@ -54,12 +56,14 @@ export function HeroPager({
   counterLabel: (index: number) => string;
   /** Called when another card becomes the one in view. */
   onIndexChange?: (index: number) => void;
-  /** The parent's side padding the pager reaches past. */
+  /** The parent's side padding the pager reaches past; the screen's margin when omitted. */
   bleed?: number;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }) {
   const styles = useStyles();
+  const margin = useScreenMargin();
+  const edge = bleed ?? margin;
   const reduced = useReduced();
   const { width: windowWidth } = useWindowDimensions();
   const [frame, setFrame] = useState(0);
@@ -72,8 +76,8 @@ export function HeroPager({
   // counter never reads "3 dari 2". The effect below then brings the state down with it.
   const current = Math.min(index, last);
   // Until the pager has measured itself, the window stands in for its width (the body caps at 760 plus its padding).
-  const width = frame || Math.min(windowWidth, 760 + bleed * 2);
-  const page = Math.max(0, width - INSET);
+  const width = frame || Math.min(windowWidth, 760 + edge * 2);
+  const page = Math.max(0, width - (edge + GAP + PEEK));
   const interval = page + GAP;
 
   const show = (next: number) => {
@@ -109,7 +113,7 @@ export function HeroPager({
   return (
     <View testID={testID} style={style}>
       <View
-        style={{ marginHorizontal: -bleed }}
+        style={{ marginHorizontal: -edge }}
         onLayout={(e) => setFrame(Math.round(e.nativeEvent.layout.width))}
       >
         <ScrollView
@@ -126,7 +130,7 @@ export function HeroPager({
           onMomentumScrollEnd={onScroll}
           style={{ marginTop: -TOP_ROOM, marginBottom: -SHADOW_ROOM }}
           contentContainerStyle={{
-            paddingHorizontal: bleed,
+            paddingHorizontal: edge,
             paddingTop: TOP_ROOM,
             paddingBottom: SHADOW_ROOM,
             gap: GAP,

@@ -450,12 +450,18 @@ describe("tab roots", () => {
     const found = moodHeaders();
     expect(found.length).toBeGreaterThanOrEqual(4);
     const pads = new Set<unknown>();
+    const bands: unknown[] = [];
     for (const { row, content } of found) {
-      // A 48dp row on every root, first in the header, with the title straight after it at the same gap.
-      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48 });
+      // A row first in the header, with the title straight after it. Beranda's band (customer layout, v2) is the one
+      // exception: a 36 row and a 4 gap between its lines, under the same top inset; the other roots keep the 48 row and the 12 gap until
+      // their own screens are rebuilt on the layout scale.
+      const style = StyleSheet.flatten(row.props.style);
+      if (style.minHeight === 36) bands.push(row);
+      else expect(style).toMatchObject({ minHeight: 48 });
       expect(StyleSheet.flatten(content.props.style)).toMatchObject({ gap: 12 });
       pads.add(StyleSheet.flatten((content.parent as Host).props.style as never)?.paddingTop);
     }
+    expect(bands).toHaveLength(1);
     expect(pads.size).toBe(1);
   });
 
