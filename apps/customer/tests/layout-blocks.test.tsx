@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
-import { LayoutScaleProvider, Text } from "@catera/mobile-ui";
+import { Text } from "@catera/mobile-ui";
 import { nativeLayout, nativeThemes } from "@catera/design-tokens";
-import { GlyphRow, ListCard, MediaRow, SectionHeader, Thumb } from "../src/layout";
+import { BARE_GLYPH_INSET, GLYPH_INSET, GlyphRow, ListCard, MEDIA_INSET, MediaRow, SectionHeader, Thumb } from "../src/layout";
 
 const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props.style as never);
 
@@ -107,12 +107,44 @@ describe("layout blocks", () => {
     expect(screen.getByText("Jl. Mawar")).toBeTruthy();
   });
 
-  it("the blocks read their sizes from nativeLayout", () => {
-    render(
-      <LayoutScaleProvider value="v2">
-        <MediaRow testID="row" title="x" />
-      </LayoutScaleProvider>,
+  it("a 48 info row draws the bare 20 glyph, the 56 and 72 rows the 40 circle", () => {
+    const row = (minHeight: 56 | 72 | 48) => (
+      <GlyphRow testID="g" glyph={<Text>*</Text>} title="Alamat" minHeight={minHeight} />
     );
-    expect(flat(screen.getByTestId("row")).minHeight).toBe(nativeLayout.row.media);
+    const { rerender } = render(row(48));
+    expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 20, height: 20 });
+    expect(flat(screen.getByTestId("g-glyph")).backgroundColor).toBeUndefined();
+    rerender(row(56));
+    expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 40, height: 40, borderRadius: 20 });
+    rerender(row(72));
+    expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 40, height: 40 });
+  });
+
+  it("GlyphRow bare gives the 20 glyph at any height", () => {
+    render(<GlyphRow testID="g" bare glyph={<Text>*</Text>} title="Alamat" />);
+    expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 20, height: 20 });
+  });
+
+  it("the ListCard insets follow the thumb, the circle and the bare glyph plus the 12 gap", () => {
+    expect(MEDIA_INSET).toBe(nativeLayout.thumb.sm + nativeLayout.space.md);
+    expect(GLYPH_INSET).toBe(52);
+    expect(BARE_GLYPH_INSET).toBe(32);
+    render(
+      <ListCard inset={BARE_GLYPH_INSET}>
+        <Text>a</Text>
+        <Text>b</Text>
+      </ListCard>,
+    );
+    expect(flat(screen.getByTestId("list-card-separator")).marginLeft).toBe(32);
+  });
+
+  it("ListCard separates at the media inset by default", () => {
+    render(
+      <ListCard>
+        <Text>a</Text>
+        <Text>b</Text>
+      </ListCard>,
+    );
+    expect(flat(screen.getByTestId("list-card-separator")).marginLeft).toBe(MEDIA_INSET);
   });
 });

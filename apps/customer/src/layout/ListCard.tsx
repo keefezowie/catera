@@ -2,11 +2,14 @@ import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { themedStyles } from "@catera/mobile-ui";
+import { GLYPH_BARE, GLYPH_CIRCLE } from "./metrics";
 
 /** Where a `MediaRow` text column starts: its 56 thumb and the 12 gap. */
 export const MEDIA_INSET = nativeLayout.thumb.sm + nativeLayout.space.md;
 /** Where a `GlyphRow` text column starts: its 40 glyph circle and the 12 gap. */
-export const GLYPH_INSET = 40 + nativeLayout.space.md;
+export const GLYPH_INSET = GLYPH_CIRCLE + nativeLayout.space.md;
+/** Where a bare-glyph row (the 48 info row) text column starts: its 20 glyph and the 12 gap. */
+export const BARE_GLYPH_INSET = GLYPH_BARE + nativeLayout.space.md;
 
 /**
  * A surface card of rows: radius 16, 16 side padding, a 1px `line` between each pair of children, inset to the text

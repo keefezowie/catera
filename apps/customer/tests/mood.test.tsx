@@ -14,6 +14,7 @@ import {
   MoodLabelsProvider,
   MoodProvider,
   MoodToggle,
+  LayoutScaleProvider,
   Screen,
   statusBarStyle,
   Text,
@@ -382,6 +383,17 @@ describe("MoodHeader", () => {
     };
     const owned = top(true);
     expect(top(false)).toBe(owned + 30);
+  });
+
+  it("pads its content by the screen margin: 16 under v2, 20 classic", () => {
+    mount(<MoodHeader title="Halo" />);
+    expect(flat("mood-header-content").paddingHorizontal).toBe(20);
+    mount(
+      <LayoutScaleProvider value="v2">
+        <MoodHeader title="Halo" />
+      </LayoutScaleProvider>,
+    );
+    expect(flat("mood-header-content").paddingHorizontal).toBe(16);
   });
 
   it("caps its content at 760 and centres it", () => {

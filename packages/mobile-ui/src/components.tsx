@@ -300,7 +300,7 @@ export function Card({
   const scaled = useLayoutScale() === "v2";
   const cardTones = useCardTones();
   return (
-    <View testID={testID} style={[styles.card, scaled && v2.card, cardTones[tone], style]}>
+    <View testID={testID} style={[styles.card, scaled && v2.card, scaled && tone === "attention" && v2.cardAttention, cardTones[tone], style]}>
       {children}
     </View>
   );
@@ -631,7 +631,10 @@ const useV2Styles = themedStyles(() => ({
   segmented: { borderRadius: (nativeLayout.control.chip + 8) / 2 },
   segment: { minHeight: nativeLayout.control.chip, borderRadius: nativeLayout.control.chip / 2 },
   input: { minHeight: nativeLayout.control.field },
-  card: { borderRadius: nativeLayout.radius.card, padding: nativeLayout.cardPadding, gap: nativeLayout.groupGap },
+  // No 1px border: a card stands off the canvas by its tone. The attention tone keeps its warm edge, and its padding
+  // gives up that 1px so the content still sits 16 in.
+  card: { borderWidth: 0, borderRadius: nativeLayout.radius.card, padding: nativeLayout.cardPadding, gap: nativeLayout.groupGap },
+  cardAttention: { borderWidth: 1, padding: nativeLayout.cardPadding - 1 },
 }));
 
 const useStyles = themedStyles((c) => ({

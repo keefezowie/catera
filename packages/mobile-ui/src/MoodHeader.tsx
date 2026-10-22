@@ -8,6 +8,7 @@ import { MoodArc, type MoodArcProps } from "./brand/MoodArc";
 import { DEMO_STRIP_HEIGHT } from "./DemoStrip";
 import { useMoodProgress } from "./brand/useMoodProgress";
 import { Text } from "./components";
+import { useScreenMargin } from "./layoutScale";
 import { MoodFill } from "./MoodFill";
 import { statusBarStyle, useMood, useMoodColors, useMoodLabels } from "./mood";
 import { PressableScale } from "./motion";
@@ -169,6 +170,7 @@ export function MoodHeader({
 }) {
   const insets = useSafeAreaInsets();
   const topOwned = useTopInsetOwned();
+  const margin = useScreenMargin();
   const inScreenHeader = use(ScreenHeaderContext);
   const topInset = moodHeaderTopInset({ top: insets.top, topOwned, inScreenHeader });
   const palette = useMoodColors();
@@ -196,7 +198,7 @@ export function MoodHeader({
       <MoodFill surface="header" testID="mood-fill" />
       <View
         testID="mood-header-content"
-        style={{ maxWidth: 760, width: "100%", alignSelf: "center", paddingHorizontal: 20, gap: 12 }}
+        style={{ maxWidth: 760, width: "100%", alignSelf: "center", paddingHorizontal: margin, gap: 12 }}
       >
         <View testID="mood-header-row" style={{ minHeight: ROW_HEIGHT, flexDirection: "row", alignItems: "center", gap: 12 }}>
           <View style={{ flex: 1 }}>

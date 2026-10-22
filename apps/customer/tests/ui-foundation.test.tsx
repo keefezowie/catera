@@ -705,7 +705,28 @@ describe("layout scale", () => {
       </LayoutScaleProvider>,
     );
     expect(flat(screen.getByRole("button", { name: "Nanti" })).minHeight).toBe(50);
-    expect(flat(screen.getByTestId("card"))).toMatchObject({ borderRadius: 16, padding: 16, gap: 8 });
+    expect(flat(screen.getByTestId("card"))).toMatchObject({ borderRadius: 16, padding: 16, gap: 8, borderWidth: 0 });
+  });
+
+  it("v2 geometry: a card has no border, the attention tone keeps its edge and still sits 16 in", () => {
+    render(
+      <LayoutScaleProvider value="v2">
+        <Card testID="surface">
+          <Text>a</Text>
+        </Card>
+        <Card testID="sage" tone="sage">
+          <Text>b</Text>
+        </Card>
+        <Card testID="attention" tone="attention">
+          <Text>c</Text>
+        </Card>
+      </LayoutScaleProvider>,
+    );
+    expect(flat(screen.getByTestId("surface"))).toMatchObject({ borderWidth: 0, padding: 16 });
+    expect(flat(screen.getByTestId("sage"))).toMatchObject({ borderWidth: 0, padding: 16 });
+    const attention = flat(screen.getByTestId("attention"));
+    expect(attention.borderColor).toBe(nativeThemes.light.attentionBorder);
+    expect(attention.borderWidth + (attention.padding as number)).toBe(16);
   });
 
   it("v2 geometry: the screen body takes the 16 margin", () => {
@@ -759,7 +780,7 @@ describe("layout scale", () => {
     expect(chip.props.hitSlop).toBeUndefined();
     expect(flat(screen.getByRole("tab", { name: "Satu" })).minHeight).toBe(48);
     expect(flat(screen.getByLabelText("Nama"))).toMatchObject({ minHeight: 48, borderRadius: 9 });
-    expect(flat(screen.getByTestId("card"))).toMatchObject({ borderRadius: 16, padding: 16, gap: 10 });
+    expect(flat(screen.getByTestId("card"))).toMatchObject({ borderRadius: 16, padding: 16, gap: 10, borderWidth: 1 });
     expect(flat(screen.getByTestId("screen-body")).paddingHorizontal).toBe(20);
   });
 
