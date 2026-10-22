@@ -79,3 +79,4 @@ export * from "./ReadError";
 export * from "./CalendarSheet";
 export * from "./stackedLayout";
 export * from "./windowEdge";
+export * from "./layoutScale";

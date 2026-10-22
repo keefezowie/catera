@@ -20,7 +20,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { PaletteKey } from "@catera/design-tokens";
+import { nativeLayout } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
+import { useLayoutScale, useScreenMargin } from "./layoutScale";
 import { StatusBand } from "./StatusBand";
 import { themedStyles, useColors } from "./theme";
 import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
@@ -42,6 +44,14 @@ const textVariants = {
   label: { fontSize: 12, lineHeight: 23, fontWeight: "700" },
   caption: { fontSize: 11, lineHeight: 18, fontWeight: "400" },
   number: { fontSize: 40, fontWeight: "800", letterSpacing: -1, fontVariant: ["tabular-nums"] },
+  // The v2 type ladder (customer layout spec, section 2). The existing variants above keep their values so Dapur does not move.
+  largeTitle: { fontSize: 32, lineHeight: 40, fontWeight: "700", letterSpacing: -0.8 },
+  heroTitle: { fontSize: 24, lineHeight: 30, fontWeight: "700", letterSpacing: -0.4 },
+  section: { fontSize: 20, lineHeight: 26, fontWeight: "700", letterSpacing: -0.2 },
+  rowTitle: { fontSize: 17, lineHeight: 22, fontWeight: "600" },
+  bodyL: { fontSize: 15, lineHeight: 22, fontWeight: "400" },
+  bodyStrong: { fontSize: 15, lineHeight: 22, fontWeight: "600" },
+  meta: { fontSize: 13, lineHeight: 18, fontWeight: "400" },
 } satisfies Record<string, TextStyle>;
 
 /**
@@ -57,10 +67,24 @@ const variantColor: Record<keyof typeof textVariants, PaletteKey> = {
   label: "charcoal",
   caption: "muted",
   number: "charcoal",
+  largeTitle: "charcoal",
+  heroTitle: "charcoal",
+  section: "charcoal",
+  rowTitle: "charcoal",
+  bodyL: "charcoal",
+  bodyStrong: "charcoal",
+  meta: "muted",
 };
 
 /** The variants a screen reader hears as headings. */
-const headerVariants: ReadonlySet<keyof typeof textVariants> = new Set(["title", "heading", "outcome"]);
+const headerVariants: ReadonlySet<keyof typeof textVariants> = new Set([
+  "title",
+  "heading",
+  "outcome",
+  "largeTitle",
+  "heroTitle",
+  "section",
+]);
 
 export function Text({
   variant = "body",
@@ -142,6 +166,8 @@ export function Button({
   const primary = variant === "primary";
   const c = useColors();
   const styles = useStyles();
+  const v2 = useV2Styles();
+  const scaled = useLayoutScale() === "v2";
   const [spinning, setSpinning] = useState(false);
   useEffect(() => {
     if (!busy) {
@@ -169,6 +195,7 @@ export function Button({
         variant === "secondary" && styles.secondary,
         variant === "secondary" && edge !== undefined && { borderColor: edge },
         variant === "text" && styles.textButton,
+        scaled && v2.button,
         disabled && primary && styles.disabled,
         // A secondary or text button has no fill to grey out, so a disabled one fades instead.
         disabled && !primary && styles.disabledQuiet,
@@ -188,6 +215,8 @@ export function Button({
   );
 }
 
+const CHIP_HIT_SLOP = { top: (nativeLayout.control.icon - nativeLayout.control.chip) / 2, bottom: (nativeLayout.control.icon - nativeLayout.control.chip) / 2 };
+
 export function Chip({
   label,
   selected,
@@ -199,13 +228,17 @@ export function Chip({
 }) {
   const c = useColors();
   const styles = useStyles();
+  const v2 = useV2Styles();
+  const scaled = useLayoutScale() === "v2";
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityState={{ selected }}
       haptic="select"
       onPress={onPress}
-      style={[styles.chip, selected ? styles.chipOn : styles.chipOff]}
+      // A 34 chip keeps a 44 touch target through its hit area.
+      hitSlop={scaled ? CHIP_HIT_SLOP : undefined}
+      style={[styles.chip, scaled && v2.chip, selected ? styles.chipOn : styles.chipOff]}
     >
       <RNText style={[styles.chipLabel, { color: selected ? c.cream : c.charcoal }]}>
         {label}
@@ -225,8 +258,10 @@ export function Segmented<T extends string>({
 }) {
   const c = useColors();
   const styles = useStyles();
+  const v2 = useV2Styles();
+  const scaled = useLayoutScale() === "v2";
   return (
-    <View style={styles.segmented} accessibilityRole="tablist">
+    <View style={[styles.segmented, scaled && v2.segmented]} accessibilityRole="tablist">
       {options.map((o) => (
         <PressableScale
           key={o.value}
@@ -234,7 +269,8 @@ export function Segmented<T extends string>({
           accessibilityState={{ selected: o.value === value }}
           haptic="select"
           onPress={() => onChange(o.value)}
-          style={[styles.segment, o.value === value && styles.segmentOn]}
+          hitSlop={scaled ? CHIP_HIT_SLOP : undefined}
+          style={[styles.segment, scaled && v2.segment, o.value === value && styles.segmentOn]}
         >
           <RNText
             style={[styles.chipLabel, { color: o.value === value ? c.cream : c.charcoal }]}
@@ -251,15 +287,23 @@ export function Card({
   children,
   tone = "surface",
   style,
+  testID,
 }: {
   children: ReactNode;
+  testID?: string;
   /** No forest tone: direction K never fills a card in forest (rules 1, 2 and 6). */
   tone?: "surface" | "attention" | "sage";
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
+  const v2 = useV2Styles();
+  const scaled = useLayoutScale() === "v2";
   const cardTones = useCardTones();
-  return <View style={[styles.card, cardTones[tone], style]}>{children}</View>;
+  return (
+    <View testID={testID} style={[styles.card, scaled && v2.card, cardTones[tone], style]}>
+      {children}
+    </View>
+  );
 }
 
 export function Field({
@@ -272,6 +316,8 @@ export function Field({
 }: { label: string; hint?: string; error?: string; inputRef?: Ref<TextInput> } & TextInputProps) {
   const c = useColors();
   const styles = useStyles();
+  const v2 = useV2Styles();
+  const scaled = useLayoutScale() === "v2";
   return (
     <View style={{ gap: 6 }}>
       <RNText style={[styles.fieldLabel]}>{label}</RNText>
@@ -281,7 +327,7 @@ export function Field({
         accessibilityLabel={label}
         placeholderTextColor={c.muted}
         {...input}
-        style={[styles.input, !!error && { borderColor: c.danger }, style]}
+        style={[styles.input, scaled && v2.input, !!error && { borderColor: c.danger }, style]}
       />
       {error ? (
         <RNText selectable style={[styles.caption, { color: c.danger }]}>
@@ -386,6 +432,7 @@ export function Screen({
   refreshControl?: ReactElement<RefreshControlProps>;
 }) {
   const styles = useStyles();
+  const margin = useScreenMargin();
   const palette = useColors();
   // The demo strip owns the status-bar inset while it is shown, so the screen must not add a second one. A stack
   // header above the screen pays it too.
@@ -451,7 +498,7 @@ export function Screen({
   const lead = contentTitle ? (
     <View
       testID="screen-native-title"
-      style={styles.nativeTitle}
+      style={[styles.nativeTitle, { paddingHorizontal: margin }]}
       onLayout={(e) => {
         lineEnd.current = e.nativeEvent.layout.y + e.nativeEvent.layout.height;
       }}
@@ -462,7 +509,7 @@ export function Screen({
     </View>
   ) : null;
   const body = (
-    <View testID="screen-body" style={styles.screenBody}>
+    <View testID="screen-body" style={[styles.screenBody, { paddingHorizontal: margin }]}>
       {children}
     </View>
   );
@@ -576,6 +623,17 @@ const useCardTones = themedStyles((c) => ({
   sage: { backgroundColor: c.sage, borderColor: c.sage },
 }));
 
+/** The v2 overrides: laid over the classic styles by `useLayoutScale() === "v2"`, so Dapur never reads them. */
+const useV2Styles = themedStyles(() => ({
+  button: { minHeight: nativeLayout.control.button, borderRadius: nativeLayout.control.button / 2 },
+  chip: { minHeight: nativeLayout.control.chip, borderRadius: nativeLayout.control.chip / 2 },
+  // The 34 segment inside the 4 padding makes a 42 track, so the track rounds at 21.
+  segmented: { borderRadius: (nativeLayout.control.chip + 8) / 2 },
+  segment: { minHeight: nativeLayout.control.chip, borderRadius: nativeLayout.control.chip / 2 },
+  input: { minHeight: nativeLayout.control.field },
+  card: { borderRadius: nativeLayout.radius.card, padding: nativeLayout.cardPadding, gap: nativeLayout.groupGap },
+}));
+
 const useStyles = themedStyles((c) => ({
   round: {
     width: 48,
@@ -639,9 +697,9 @@ const useStyles = themedStyles((c) => ({
   stepGlyph: { fontSize: 22, color: c.forest }, // forest: action (the stepper's + and -)
   screen: { flex: 1, backgroundColor: c.canvas },
   keyboard: { flex: 1 },
-  screenBody: { paddingHorizontal: 20, paddingTop: 16, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
+  screenBody: { paddingTop: 16, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
   // Material 3 headline small; the bar's 56dp row already sits above it, so it starts close under the bar.
-  nativeTitle: { paddingHorizontal: 20, paddingTop: 4, maxWidth: 760, width: "100%", alignSelf: "center" },
+  nativeTitle: { paddingTop: 4, maxWidth: 760, width: "100%", alignSelf: "center" },
   nativeTitleText: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 32, letterSpacing: 0, color: c.charcoal },
   footer: {
     maxWidth: 760,

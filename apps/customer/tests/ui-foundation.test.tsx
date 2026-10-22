@@ -9,12 +9,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, ScrollView } from "react-native";
 import {
   Button,
+  Card,
   Chip,
   DemoStrip,
   Field,
   fontFor,
   fonts,
   HeroPager,
+  LayoutScaleProvider,
   moodHeaderTopInset,
   MoodHeader,
   PressableRow,
@@ -29,8 +31,9 @@ import {
   Text,
   ThemeProvider,
   TopInsetOwner,
+  useScreenMargin,
 } from "@catera/mobile-ui";
-import { nativeMood, nativeThemes } from "@catera/design-tokens";
+import { nativeLayout, nativeMood, nativeThemes } from "@catera/design-tokens";
 
 // The customer setup has no SecureStore mock, so this file keeps its own in-memory one for the dark theme cases.
 jest.mock("expo-secure-store", () => {
@@ -666,5 +669,115 @@ describe("dark theme", () => {
   it("Text forwards selectable", () => {
     render(<Text selectable>Salin</Text>);
     expect(screen.getByText("Salin").props.selectable).toBe(true);
+  });
+});
+
+describe("layout scale", () => {
+  const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props.style as never);
+  const sample = (
+    <>
+      <Button label="Lanjut" onPress={() => {}} />
+      <Chip label="Halal" selected={false} onPress={() => {}} />
+      <Segmented options={[{ value: "a", label: "Satu" }, { value: "b", label: "Dua" }]} value="a" onChange={() => {}} />
+      <Field label="Nama" />
+    </>
+  );
+
+  it("v2 geometry: button 50 and fully round, chip and segment 34, field 50", () => {
+    render(<LayoutScaleProvider value="v2">{sample}</LayoutScaleProvider>);
+    expect(flat(screen.getByRole("button", { name: "Lanjut" }))).toMatchObject({ minHeight: 50, borderRadius: 25 });
+    const chip = screen.getByRole("button", { name: "Halal" });
+    expect(flat(chip)).toMatchObject({ minHeight: 34, borderRadius: 17 });
+    expect(chip.props.hitSlop).toEqual({ top: 5, bottom: 5 });
+    const segment = screen.getByRole("tab", { name: "Satu" });
+    expect(flat(segment)).toMatchObject({ minHeight: 34, borderRadius: 17 });
+    expect(segment.props.hitSlop).toEqual({ top: 5, bottom: 5 });
+    expect(flat(screen.getByLabelText("Nama"))).toMatchObject({ minHeight: 50 });
+  });
+
+  it("v2 geometry: a text button is 50 tall, a card is radius 16 with padding 16 and gap 8", () => {
+    render(
+      <LayoutScaleProvider value="v2">
+        <Button label="Nanti" variant="text" onPress={() => {}} />
+        <Card testID="card">
+          <Text testID="in-card">Isi</Text>
+        </Card>
+      </LayoutScaleProvider>,
+    );
+    expect(flat(screen.getByRole("button", { name: "Nanti" })).minHeight).toBe(50);
+    expect(flat(screen.getByTestId("card"))).toMatchObject({ borderRadius: 16, padding: 16, gap: 8 });
+  });
+
+  it("v2 geometry: the screen body takes the 16 margin", () => {
+    render(
+      <LayoutScaleProvider value="v2">
+        <Screen>
+          <Text>Isi</Text>
+        </Screen>
+      </LayoutScaleProvider>,
+    );
+    expect(flat(screen.getByTestId("screen-body")).paddingHorizontal).toBe(16);
+  });
+
+  it("v2 geometry: the new type ladder", () => {
+    render(
+      <>
+        <Text variant="largeTitle">a</Text>
+        <Text variant="heroTitle">b</Text>
+        <Text variant="section">c</Text>
+        <Text variant="rowTitle">d</Text>
+        <Text variant="bodyL">e</Text>
+        <Text variant="bodyStrong">f</Text>
+        <Text variant="meta">g</Text>
+      </>,
+    );
+    const s = (name: string) => flat(screen.getByText(name));
+    expect(s("a")).toMatchObject({ fontSize: 32, lineHeight: 40, letterSpacing: -0.8, fontFamily: "Jakarta-Bold" });
+    expect(s("b")).toMatchObject({ fontSize: 24, lineHeight: 30, letterSpacing: -0.4, fontFamily: "Jakarta-Bold" });
+    expect(s("c")).toMatchObject({ fontSize: 20, lineHeight: 26, letterSpacing: -0.2, fontFamily: "Jakarta-Bold" });
+    expect(s("d")).toMatchObject({ fontSize: 17, lineHeight: 22, fontFamily: "Jakarta-SemiBold" });
+    expect(s("e")).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: "Jakarta" });
+    expect(s("f")).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: "Jakarta-SemiBold" });
+    expect(s("g")).toMatchObject({ fontSize: 13, lineHeight: 18, color: nativeThemes.light.muted });
+  });
+
+  it("classic geometry unchanged without a provider", () => {
+    render(
+      <>
+        {sample}
+        <Card testID="card">
+          <Text testID="in-card">Isi</Text>
+        </Card>
+        <Screen>
+          <Text>Isi</Text>
+        </Screen>
+      </>,
+    );
+    expect(flat(screen.getByRole("button", { name: "Lanjut" }))).toMatchObject({ minHeight: 48, borderRadius: 10 });
+    const chip = screen.getByRole("button", { name: "Halal" });
+    expect(flat(chip)).toMatchObject({ minHeight: 48, borderRadius: 9 });
+    expect(chip.props.hitSlop).toBeUndefined();
+    expect(flat(screen.getByRole("tab", { name: "Satu" })).minHeight).toBe(48);
+    expect(flat(screen.getByLabelText("Nama"))).toMatchObject({ minHeight: 48, borderRadius: 9 });
+    expect(flat(screen.getByTestId("card"))).toMatchObject({ borderRadius: 16, padding: 16, gap: 10 });
+    expect(flat(screen.getByTestId("screen-body")).paddingHorizontal).toBe(20);
+  });
+
+  it("the margin hook reads 16 under v2 and 20 otherwise", () => {
+    const Probe = () => <Text testID="margin">{String(useScreenMargin())}</Text>;
+    render(<Probe />);
+    expect(screen.getByTestId("margin").props.children).toBe("20");
+    render(
+      <LayoutScaleProvider value="v2">
+        <Probe />
+      </LayoutScaleProvider>,
+    );
+    expect(screen.getByTestId("margin").props.children).toBe("16");
+  });
+
+  it("nativeLayout carries the spec values", () => {
+    expect(nativeLayout.control).toEqual({ button: 50, field: 50, search: 44, chip: 34, icon: 44 });
+    expect(nativeLayout.row).toEqual({ single: 56, media: 72, keyValue: 40, info: 48 });
+    expect(nativeLayout.space).toEqual({ xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 });
   });
 });

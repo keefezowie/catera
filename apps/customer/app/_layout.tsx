@@ -11,6 +11,7 @@ import {
   DemoStrip,
   fontAssets,
   LaunchCover,
+  LayoutScaleProvider,
   MascotLoading,
   MoodLabelsProvider,
   MoodProvider,
@@ -195,26 +196,28 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <WindowEdge />
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
-        <MoodProvider>
-          <SplashReleased value={released}>
-            <AppProviders
-              runtime={runtime}
-              overlay={<Launch fontsDone={loaded || !!error} onReleased={markReleased} />}
-            >
-              {error ? (
-                <FontError />
-              ) : !loaded ? (
-                <FontWait />
-              ) : (
-                <ToastProvider>
-                  <NavigationColors>
-                    <Navigation />
-                  </NavigationColors>
-                </ToastProvider>
-              )}
-            </AppProviders>
-          </SplashReleased>
-        </MoodProvider>
+        <LayoutScaleProvider value="v2">
+          <MoodProvider>
+            <SplashReleased value={released}>
+              <AppProviders
+                runtime={runtime}
+                overlay={<Launch fontsDone={loaded || !!error} onReleased={markReleased} />}
+              >
+                {error ? (
+                  <FontError />
+                ) : !loaded ? (
+                  <FontWait />
+                ) : (
+                  <ToastProvider>
+                    <NavigationColors>
+                      <Navigation />
+                    </NavigationColors>
+                  </ToastProvider>
+                )}
+              </AppProviders>
+            </SplashReleased>
+          </MoodProvider>
+        </LayoutScaleProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
