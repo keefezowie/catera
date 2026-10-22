@@ -8,6 +8,9 @@ import { nativeLayout } from "@catera/design-tokens";
 export const SUMMARY_PAD = nativeLayout.space.md;
 export const SUMMARY_HEIGHT = nativeLayout.thumb.md + SUMMARY_PAD * 2;
 
+/** A row of three lines (meta, bodyStrong, meta: 18 + 22 + 18) keeps its 72 by padding the rest evenly. */
+export const THREE_LINE_PAD = (nativeLayout.row.media - (18 + 22 + 18)) / 2;
+
 /** Mulai, Lama paket, Porsi per hari, Diantar ke. */
 export const FIELD_ROWS = [nativeLayout.row.media, nativeLayout.row.single, nativeLayout.row.single, nativeLayout.row.media] as const;
 export const FIELDS_HEIGHT = FIELD_ROWS.reduce<number>((sum, h) => sum + h, 0) + (FIELD_ROWS.length - 1);
@@ -18,6 +21,6 @@ export const BREAKDOWN_PAD = nativeLayout.space.sm;
 export const BREAKDOWN_SKELETON_ROWS = 3;
 
 /** Below this effective width (width over font scale) the footer's amount and Bayar stack instead of sharing a row. */
-export const FOOTER_STACK_BELOW = 360;
+export const FOOTER_STACK_BELOW = 300;
 /** The primary button's width beside the amount. */
 export const PAY_MIN_WIDTH = 168;

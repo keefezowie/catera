@@ -776,6 +776,9 @@ describe("layout scale", () => {
     });
     expect(flat(screen.getByRole("button", { name: "Increase Porsi" }))).toMatchObject({ width: 44, height: 44 });
     expect(flat(screen.getByTestId("stepper")).minHeight).toBe(56);
+    // Forest marks selection and the one primary control only: the glyphs are ink.
+    expect(flat(screen.getByText("−")).color).toBe(nativeThemes.light.charcoal);
+    expect(flat(screen.getByText("+")).color).toBe(nativeThemes.light.charcoal);
     expect(within(screen.getByTestId("stepper")).getByText("Ikon")).toBeTruthy();
   });
 
@@ -796,6 +799,7 @@ describe("layout scale", () => {
     const less = flat(screen.getByRole("button", { name: "Decrease Porsi" }));
     expect(less).toMatchObject({ width: 48, height: 48 });
     expect(less.backgroundColor).toBeUndefined();
+    expect(flat(screen.getByText("−")).color).toBe(nativeThemes.light.forest);
   });
 
   it("v2 geometry: the new type ladder", () => {

@@ -258,7 +258,7 @@ export function BuyScreen({
       {error ? <FormError message={error} failureKey={failures} /> : null}
       <View testID="buy-footer-row" style={[styles.footer, stacked && styles.footerStacked]}>
         <View style={stacked ? undefined : styles.total}>
-          <Text variant="meta">Total</Text>
+          <Text variant="meta">{t("Total", "Total")}</Text>
           <Text variant="section" accessibilityRole="text" style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
             {shown ? currency(shown.total, locale) : "-"}
           </Text>
@@ -384,7 +384,7 @@ export function BuyScreen({
                       {t(`Paket ini masih berjalan sampai ${shortDate(running.endsOn, locale)}.`, `This package is still running until ${shortDate(running.endsOn, locale)}.`)}
                     </Text>
                     <Button
-                      variant="primary"
+                      variant="secondary"
                       label={t(`Mulai ${shortDate(running.start, locale)}`, `Start ${shortDate(running.start, locale)}`)}
                       onPress={() => setStart(running.start)}
                     />

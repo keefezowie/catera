@@ -9,7 +9,7 @@ import { packageHref } from "../hrefs";
 import { GlyphCircle, SectionHeader, Thumb } from "../layout";
 import { goToTab, leaveFor } from "../nav";
 import { photoUri } from "../today/photoUri";
-import { SUMMARY_PAD } from "./metrics";
+import { SUMMARY_PAD, THREE_LINE_PAD } from "./metrics";
 
 type T = (id: string, en: string) => string;
 
@@ -161,7 +161,7 @@ export function FieldGlyph({ id, icon }: { id: string; icon: keyof typeof Ionico
 
 /**
  * One row of the choices card: a 40 glyph circle, the text column (label in `meta` over the value in `bodyStrong`), and
- * a trailing action. 72 tall for a row of three lines (the 7 padding keeps three lines inside 72), 56 for two. `below`
+ * a trailing action. 72 tall for a row of three lines (`THREE_LINE_PAD` keeps three lines inside 72), 56 for two. `below`
  * is a control that needs the card's full width (the length options). The row grows with large text.
  */
 export function FieldRow({
@@ -182,7 +182,7 @@ export function FieldRow({
   const styles = useStyles();
   return (
     <View testID={`buy-row-${id}`} style={{ minHeight }}>
-      <View style={[styles.field, { minHeight, paddingVertical: minHeight === nativeLayout.row.media ? 7 : nativeLayout.space.sm }]}>
+      <View style={[styles.field, { minHeight, paddingVertical: minHeight === nativeLayout.row.media ? THREE_LINE_PAD : nativeLayout.space.sm }]}>
         <FieldGlyph id={id} icon={icon} />
         <View style={styles.fieldText}>{children}</View>
         {trailing}

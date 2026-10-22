@@ -1631,6 +1631,13 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("row");
   });
 
+  it("the footer keeps its row at 411dp and font scale 1.3, where the amount and Bayar still fit", async () => {
+    mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
+    wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("row");
+  });
+
   it("the footer's amount and Bayar stack at 360dp and font scale 1.3, and every row's words wrap", async () => {
     mockWindow = SMALL_LARGE_TEXT;
     wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
@@ -1643,7 +1650,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(within(screen.getByTestId("buy-summary")).getByText("Makan Siang Rumahan").props.numberOfLines).toBeUndefined();
   });
 
-  it("the footer stands off the canvas by tone and has no hairline, so a card scrolling under it stays cut by an edge", async () => {
+  it("the cards stand off the canvas-filled footer by tone, and the footer has no hairline", async () => {
     await open();
     const footer = flat(screen.getByTestId("screen-footer"));
     expect(footer).toMatchObject({ backgroundColor: nativeThemes.light.canvas, paddingBottom: 16, borderTopWidth: 0 });
@@ -1723,6 +1730,8 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(await screen.findByText("Paket ini masih berjalan sampai Kamis 15 Okt.")).toBeTruthy();
     const start = screen.getByRole("button", { name: /Mulai Jumat 16 Okt/ });
     expect(flat(start)).toMatchObject({ minHeight: 50 });
+    // Bayar is the one primary control: this offer is a secondary button (no forest fill).
+    expect(flat(start).backgroundColor).not.toBe(nativeThemes.light.forest);
     expect(screen.getByRole("header", { name: "Rincian" })).toBeTruthy();
   });
 });

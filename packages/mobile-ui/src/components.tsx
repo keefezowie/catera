@@ -383,7 +383,7 @@ export function Stepper({
         onPress={() => onChange(value - 1)}
         style={[styles.stepButton, scaled && v2.stepButton]}
       >
-        <RNText style={styles.stepGlyph}>−</RNText>
+        <RNText style={[styles.stepGlyph, scaled && v2.stepGlyph]}>−</RNText>
       </PressableScale>
       <RNText style={[styles.body, { width: 24, textAlign: "center", fontFamily: fontFor("800") }, scaled && v2.stepValue]}>
         {value}
@@ -397,7 +397,7 @@ export function Stepper({
         onPress={() => onChange(value + 1)}
         style={[styles.stepButton, scaled && v2.stepButton]}
       >
-        <RNText style={styles.stepGlyph}>+</RNText>
+        <RNText style={[styles.stepGlyph, scaled && v2.stepGlyph]}>+</RNText>
       </PressableScale>
     </View>
   );
@@ -661,6 +661,8 @@ const useV2Styles = themedStyles((c) => ({
   stepLabel: { fontSize: 15, lineHeight: 22, minWidth: 0 },
   stepButton: { width: nativeLayout.control.icon, height: nativeLayout.control.icon, borderRadius: nativeLayout.control.icon / 2, backgroundColor: c.sage },
   stepValue: { fontSize: 17, lineHeight: 22, width: 28 },
+  // Forest fills only the one primary control and marks selection (palette K): a stepper glyph is ink under v2.
+  stepGlyph: { color: c.charcoal },
 }));
 
 const useStyles = themedStyles((c) => ({
