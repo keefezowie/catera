@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { useWindowDimensions, View, type DimensionValue } from "react-native";
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
@@ -312,12 +312,14 @@ function Rows({ count }: { count: number }) {
 }
 
 /**
- * One delivery day while it loads (Hari, a sheet body under its title row): the 16:10 photo, the meal's meta line, the
+ * One delivery day while it loads (Hari, a sheet body under its handle): the 16:10 photo, the meal's meta line, the
  * dish's hero title line, the state line, the 56 address well and a row of 56 action circles with their labels. Every
- * size reads `dayMetrics` or the layout scale, as the loaded sheet does. The title row is chrome and keeps the day the
- * link carried.
+ * size reads `dayMetrics` or the layout scale, as the loaded sheet does.
+ * The sheet has no title row, so the skeleton's meta line is the screen reader's header from the first frame: with
+ * `header` (the day the link carried, or "Hari") it is a header that takes `focus`, as the loaded day's line does
+ * once the day lands. The progress bar names the wait for the photo's block; the blocks after it only pulse with it.
  */
-export function DaySkeleton() {
+export function DaySkeleton({ header, focus }: { header?: string; focus?: Ref<View> } = {}) {
   const { t } = useMobile();
   const { width } = useWindowDimensions();
   const photo = Math.round((width - 2 * sheetSidePadding()) / DAY_PHOTO_RATIO);
@@ -328,11 +330,22 @@ export function DaySkeleton() {
     </View>
   );
   return (
-    <SkeletonGroup label={t("Memuat pengantaran", "Loading delivery")}>
-      <View testID="day-skeleton" style={{ gap: DAY_GAP }}>
+    <View testID="day-skeleton" style={{ gap: DAY_GAP }}>
+      <SkeletonGroup label={t("Memuat pengantaran", "Loading delivery")}>
         <Skeleton testID="day-skeleton-photo" height={photo} radius={DAY_PHOTO_RADIUS} />
+      </SkeletonGroup>
+      <SkeletonGroup>
         <View testID="day-skeleton-meal" style={{ gap: DAY_MEAL_GAP }}>
-          {line(DAY_META_LINE, 12, "62%")}
+          <View
+            testID="day-skeleton-header"
+            ref={focus}
+            accessible={header !== undefined}
+            accessibilityRole={header !== undefined ? "header" : undefined}
+            accessibilityLabel={header}
+            style={{ height: DAY_META_LINE, justifyContent: "center" }}
+          >
+            <Skeleton width="62%" height={12} />
+          </View>
           {line(DAY_HERO_LINE, 22, "68%")}
           {line(DAY_META_LINE, 12, "74%")}
         </View>
@@ -345,8 +358,8 @@ export function DaySkeleton() {
             </View>
           ))}
         </View>
-      </View>
-    </SkeletonGroup>
+      </SkeletonGroup>
+    </View>
   );
 }
 

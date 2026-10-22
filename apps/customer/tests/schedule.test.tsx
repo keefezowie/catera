@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { ActivityIndicator, Image, Linking, ScrollView, StyleSheet } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Image, Linking, ScrollView, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { NavigationContext } from "expo-router/react-navigation";
 import * as Haptics from "expo-haptics";
@@ -13,6 +13,7 @@ import { Jadwal } from "../src/schedule/Jadwal";
 import { ChangeDaySheet } from "../src/schedule/ChangeDaySheet";
 import { DayScreen } from "../src/schedule/DayScreen";
 import { customerLink } from "../src/links";
+import { SHEET_FOCUS_FALLBACK_MS, SHEET_FOCUS_SETTLE_MS } from "@catera/mobile-ui";
 import { ACTION_CIRCLE, DAY_ACTION_GAP, DAY_ACTIONS_PAD, DAY_GAP, DAY_MEAL_GAP } from "../src/schedule/dayMetrics";
 import { delivery, offer, subscription } from "./fixtures";
 
@@ -1369,6 +1370,42 @@ describe("Hari", () => {
       expect(screen.getByTestId("day-state-lunch")).toHaveTextContent(/Gagal diantar/);
     });
 
+    it("a day read slower than the sheet's rise still gets the screen reader onto its header, after the loading header had it first", async () => {
+      const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
+      mockParams = { id: "d-next", title: "Kamis 8 Okt" };
+      let release!: (state: CustomerState) => void;
+      try {
+        const runtime = runtimeWith(() => new Promise<CustomerState>((resolve) => (release = resolve)));
+        renderV2(runtime, <DayScreen />);
+        // From the first frame the loading sheet has a header: the day the link carried.
+        expect(await screen.findByRole("header", { name: "Kamis 8 Okt" })).toBeTruthy();
+        // The day's own sheet is up (the session is read and the day is being asked for).
+        await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+        await act(async () => {});
+        // The sheet's focus window (the fallback and its settle) passes while the day is still being read.
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, SHEET_FOCUS_FALLBACK_MS + SHEET_FOCUS_SETTLE_MS + 100));
+        });
+        const early = focus.mock.calls.map(([target]) => (target as unknown as { props: Record<string, unknown> }).props.accessibilityLabel);
+        expect(early.length).toBeGreaterThan(0);
+        expect(early.every((label) => label === "Kamis 8 Okt")).toBe(true);
+        focus.mockClear();
+        // The day lands after that window: its header takes the focus now.
+        await act(async () => release(stateOf([open("d-next", "2026-10-08")])));
+        await screen.findByText("Ayam bakar madu");
+        await act(async () => {});
+        expect(focus).toHaveBeenCalled();
+        const [target, event] = focus.mock.calls.at(-1) as unknown as [{ props: Record<string, unknown> }, string];
+        expect(event).toBe("focus");
+        expect(target.props).toMatchObject({
+          accessibilityRole: "header",
+          accessibilityLabel: "Besok, Kamis 8 Okt, Makan siang, Dapur Contoh",
+        });
+      } finally {
+        focus.mockRestore();
+      }
+    });
+
     it("a day with lunch and dinner shows both meals, one block each, and one row of actions", async () => {
       const d = delivery("d-both", "2026-10-08", {}, {
         meals: [
@@ -1418,8 +1455,9 @@ describe("Hari", () => {
       let view = renderV2(runtimeWith(() => new Promise(() => undefined)), <DayScreen />);
       await act(async () => {});
       expect(screen.getByTestId("day-skeleton")).toBeTruthy();
+      // The carried day is only the screen reader's header while it loads; nothing on screen says it.
       expect(screen.queryByText("Senin 12 Okt")).toBeNull();
-      expect(screen.queryByRole("header")).toBeNull();
+      expect(screen.getByRole("header", { name: "Senin 12 Okt" })).toBeTruthy();
       view.unmount();
       // Not found.
       view = renderV2(runtimeWith(stateOf([open("d-next", "2026-10-08")])), <DayScreen />);

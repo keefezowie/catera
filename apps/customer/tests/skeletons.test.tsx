@@ -662,9 +662,10 @@ describe("the day sheet's skeleton", () => {
   it("is the loaded sheet's own frame: a 16:10 photo, a 56 address well and 56 action circles, from the same constants", async () => {
     mockParams = { id: "d-today" };
     renderWith(runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) }), <DayScreen />);
-    // No title row: the sheet is the handle and the skeleton.
+    // No title row: the sheet is the handle and the skeleton, whose meta line is a header for the screen reader
+    // ("Hari" when the link carried no day).
     expect(await screen.findByTestId("day-skeleton")).toBeTruthy();
-    expect(screen.queryByRole("header")).toBeNull();
+    expect(screen.getByRole("header", { name: "Hari" })).toBeTruthy();
     const photo = StyleSheet.flatten(screen.getByTestId("day-skeleton-photo").props.style) as { height: number; borderRadius: number };
     // 360 wide, less the sheet's 24 on each side (Android): 312 / (16 / 10).
     expect(photo.height).toBe(Math.round((360 - 2 * 24) / 1.6));

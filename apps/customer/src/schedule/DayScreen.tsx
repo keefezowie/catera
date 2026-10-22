@@ -1,5 +1,5 @@
-import type { ReactNode, RefObject } from "react";
-import { Image, type Text as RNText, View } from "react-native";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { AccessibilityInfo, Image, type Text as RNText, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { pushSheet } from "../nav";
@@ -19,6 +19,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   FadeSwap,
+  linkTitle,
   ReadError,
   SheetBody,
   SheetHandle,
@@ -51,16 +52,13 @@ import {
  * day's actions as visible circles. There is no title row: the sheet has no bar of its own.
  */
 export function DayScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; title?: string }>();
   const { id } = params;
   const { actor, ready, t } = useMobile();
   const c = useColors();
-  if (!ready)
-    return (
-      <Sheet swapKey="loading">
-        <DaySkeleton />
-      </Sheet>
-    );
+  // The day the link carried ("Senin 12 Okt") names the loading sheet to a screen reader, never the sheet's look.
+  const carried = linkTitle(params);
+  if (!ready) return <Sheet swapKey="loading">{loadingBody(carried, t)}</Sheet>;
   if (!actor)
     return (
       <Sheet swapKey="signin">
@@ -71,14 +69,26 @@ export function DayScreen() {
         />
       </Sheet>
     );
-  return <Day key={`${actor.id}:${id}`} id={id} />;
+  return <Day key={`${actor.id}:${id}`} id={id} carried={carried} />;
 }
+
+/**
+ * The body while the session or the day is read: the skeleton, with a header for the screen reader from the first frame
+ * (the day the link carried, else "Hari"). It is a body of the one `Sheet` the loaded day uses, not a sheet of its own,
+ * so the day swaps in as fresh content of the same sheet and the focus follows it (`Sheet` re-sends it on a swap).
+ */
+const loadingBody = (carried: string | undefined, t: (id: string, en: string) => string) =>
+  function Loading(focus: RefObject<RNText | null>) {
+    return <DaySkeleton header={carried ?? t("Hari", "Day")} focus={focus as unknown as RefObject<View>} />;
+  };
 
 /**
  * The sheet's frame: Android's drag handle (iOS draws the system grabber), then the scrolling body. The body sits in one
  * FadeSwap keyed by `swapKey`, so the day fades in from its skeleton as one block. The screen reader starts on the
- * element that takes `focus` (the day's line, once the day is read) when the sheet has risen, and the toast knows it
- * sits over a sheet, as a sheet header would tell it.
+ * element that takes `focus` when the sheet has risen (`useSheetTitleFocus`: the skeleton's header while the day is
+ * read, then the day's line), and the toast knows it sits over a sheet, as a sheet header would tell it. That focus is
+ * sent once, when the sheet rises; a day read slower than that lands its header after it, so the focus is sent again
+ * whenever the body swaps to fresh content.
  */
 function Sheet({
   swapKey,
@@ -89,6 +99,12 @@ function Sheet({
 }) {
   const focus = useSheetTitleFocus();
   useToastAnchor({});
+  const first = useRef(swapKey);
+  useEffect(() => {
+    // The first key's focus is the sheet's own (on present); only a swap to later content moves it again.
+    if (swapKey === first.current) return;
+    if (focus.current) AccessibilityInfo.sendAccessibilityEvent(focus.current, "focus");
+  }, [swapKey, focus]);
   const ios = process.env.EXPO_OS === "ios";
   return (
     <View style={{ flex: 1 }}>
@@ -102,7 +118,7 @@ function Sheet({
   );
 }
 
-function Day({ id }: { id: string }) {
+function Day({ id, carried }: { id: string; carried: string | undefined }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
@@ -111,9 +127,7 @@ function Day({ id }: { id: string }) {
 
   if (!d)
     return state.loading ? (
-      <Sheet swapKey="loading">
-        <DaySkeleton />
-      </Sheet>
+      <Sheet swapKey="loading">{loadingBody(carried, t)}</Sheet>
     ) : (
       <Sheet swapKey="missing">
         {/* A failed read leads with the puzzled mascot; a day that is not there is not a failure and has none. */}
