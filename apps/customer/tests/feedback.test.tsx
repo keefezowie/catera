@@ -511,7 +511,7 @@ describe("row motion", () => {
     expect(stayed.props.entering).toBeUndefined();
   });
 
-  it("a page from Lihat lebih banyak enters as one block, not as rows the customer inserted", async () => {
+  it("a page from Lihat lebih banyak joins the one grid and fades in tile by tile, not as rows the customer inserted", async () => {
     const item = (o: typeof cheap) => ({ packageId: o.id, savedAt: "2026-10-01T00:00:00Z", summary: {}, offer: o });
     const runtime = savedRuntime(["p-murah", "p-mahal"]);
     (runtime.api.savedPackages as jest.Mock).mockImplementation(async (cursor?: string) =>
@@ -524,15 +524,16 @@ describe("row motion", () => {
     await act(async () => {});
     fireEvent.press(screen.getByRole("button", { name: "Lihat lebih banyak" }));
     expect(await screen.findByText("Menu Sehat Premium")).toBeTruthy();
-    // A page is a load: none of its rows has an entrance of its own; the page fades in as one block.
-    for (const row of screen.getAllByTestId("saved-row")) expect(row.props.entering).toBeUndefined();
-    const pages = screen.getAllByTestId("saved-page");
-    expect(pages).toHaveLength(2);
-    expect(pages[0].props.entering).toBeUndefined();
-    expect(pages[1].props.entering).toBeDefined();
-    expect(within(pages[1]).getByText("Menu Sehat Premium")).toBeTruthy();
+    // One grid holds every page, so an odd page never leaves a hole mid-list; the new page's tiles fade in as the page
+    // lands, and the first page's tiles keep no entrance (the list's first load is one block).
+    expect(screen.getAllByTestId("package-grid")).toHaveLength(1);
+    const rows = screen.getAllByTestId("saved-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0].props.entering).toBeUndefined();
+    expect(rows[1].props.entering).toBeDefined();
+    expect(within(rows[1]).getByText("Menu Sehat Premium")).toBeTruthy();
     // Its rows still leave as rows when the customer removes one.
-    expect(within(pages[1]).getByTestId("saved-row").props.exiting).toBeDefined();
+    expect(rows[1].props.exiting).toBeDefined();
   });
 
   it("an insertion forgets its entrance once it has run, even when React renders twice before it commits", async () => {

@@ -7,6 +7,7 @@ import * as Haptics from "expo-haptics";
 import { currency, shortDate, startDates, type Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { topTags } from "../src/discover/categories";
@@ -187,7 +188,7 @@ describe("Jelajah", () => {
     expect(lastCatalogQuery(runtime)).toBe("?limit=100");
   });
 
-  it("every chip and the area control is 34 points tall with a 44 point hit area", async () => {
+  it("every control has a real 44 point target: the chips sit in a 44 tall row and the area and meal tabs are 44 tall", async () => {
     render(
       <LayoutScaleProvider value="v2">
         <MoodProvider now={SIANG_NOW}>
@@ -198,14 +199,19 @@ describe("Jelajah", () => {
       </LayoutScaleProvider>,
     );
     await screen.findByText("Menu Sehat Premium");
-    for (const name of ["Siang", "Malam", "Di bawah Rp30.000", "Bisa coba 1 hari", "Pilih area pengantaran"]) {
-      const role = name === "Siang" || name === "Malam" ? "tab" : "button";
-      const node = screen.getByRole(role, { name });
-      const style = StyleSheet.flatten(node.props.style);
-      expect(style.minHeight).toBe(34);
+    // A hitSlop never reaches past its parent, so the chip row's own content must be 44 tall for the chips' slop to count.
+    const row = screen.getByTestId("chip-row");
+    expect(flat({ props: { style: row.props.contentContainerStyle } }).minHeight).toBeGreaterThanOrEqual(44);
+    for (const name of ["Di bawah Rp30.000", "Bisa coba 1 hari"]) {
+      const node = screen.getByRole("button", { name });
+      expect(flat(node).minHeight).toBe(34);
       const slop = node.props.hitSlop as { top: number; bottom: number };
       expect(34 + slop.top + slop.bottom).toBeGreaterThanOrEqual(44);
     }
+    // The meal tabs and the area control are themselves 44 tall, with the 34 shape drawn inside.
+    for (const name of ["Siang", "Malam"]) expect(flat(screen.getByRole("tab", { name })).minHeight).toBe(44);
+    expect(flat(screen.getByRole("button", { name: "Pilih area pengantaran" })).minHeight).toBe(44);
+    expect(flat(screen.getByTestId("area-chip")).minHeight).toBe(34);
   });
 
   it("filter chips and the other meal tab give a selection haptic, the chosen tab stays quiet", async () => {
@@ -440,7 +446,7 @@ describe("Jelajah", () => {
 });
 
 describe("topTags", () => {
-  const tagged = (id: string, tags: string[], image = `${id}.jpg`) => offer({ id, tags, image });
+  const tagged = (id: string, tags: string[]) => offer({ id, tags });
 
   it("returns the six most frequent tags, most frequent first", () => {
     const offers = [
@@ -452,7 +458,7 @@ describe("topTags", () => {
       tagged("f", ["Sehat", "Rumahan"]),
       tagged("g", ["Sehat"]),
     ];
-    expect(topTags(offers, 6).map((x) => x.tag)).toEqual(["Sehat", "Rumahan", "Nabati", "Pedas", "Manis", "Gurih"]);
+    expect(topTags(offers, 6)).toEqual(["Sehat", "Rumahan", "Nabati", "Pedas", "Manis", "Gurih"]);
   });
 
   it("drops the meal tags", () => {
@@ -460,34 +466,16 @@ describe("topTags", () => {
       tagged("a", ["Makan siang", "Makan malam", "Siang & Malam", "Sehat"]),
       tagged("b", ["makan siang", "Sehat"]),
     ];
-    expect(topTags(offers, 6).map((x) => x.tag)).toEqual(["Sehat"]);
+    expect(topTags(offers, 6)).toEqual(["Sehat"]);
   });
 
   it("breaks ties alphabetically", () => {
     const offers = [tagged("a", ["Pedas", "Manis"]), tagged("b", ["Gurih", "Pedas", "Manis", "Asin"])];
-    expect(topTags(offers, 6).map((x) => x.tag)).toEqual(["Manis", "Pedas", "Asin", "Gurih"]);
-  });
-
-  it("takes the image from the first offer that carries the tag", () => {
-    const offers = [tagged("a", ["Sehat"], "a.jpg"), tagged("b", ["Sehat", "Pedas"], "b.jpg"), tagged("c", ["Pedas"], "c.jpg")];
-    expect(topTags(offers, 6)).toEqual([
-      { tag: "Pedas", image: "b.jpg" },
-      { tag: "Sehat", image: "a.jpg" },
-    ]);
-  });
-
-  it("takes the image from the first offer that carries the tag and has a photo", () => {
-    const offers = [tagged("a", ["Sehat"], ""), tagged("b", ["Sehat", "Pedas"], "b.jpg"), tagged("c", ["Pedas"], "")];
-    expect(topTags(offers, 6)).toEqual([
-      { tag: "Pedas", image: "b.jpg" },
-      { tag: "Sehat", image: "b.jpg" },
-    ]);
-    // A tag no photographed package carries keeps an empty image, as before.
-    expect(topTags([tagged("a", ["Sehat"], "")], 6)).toEqual([{ tag: "Sehat", image: "" }]);
+    expect(topTags(offers, 6)).toEqual(["Manis", "Pedas", "Asin", "Gurih"]);
   });
 
   it("counts a tag once per offer and returns nothing when no offer has tags", () => {
-    expect(topTags([tagged("a", ["Sehat", "Sehat"]), tagged("b", ["Pedas"])], 6)[0].tag).toBe("Pedas");
+    expect(topTags([tagged("a", ["Sehat", "Sehat"]), tagged("b", ["Pedas"])], 6)[0]).toBe("Pedas");
     expect(topTags([tagged("a", [])], 6)).toEqual([]);
     expect(topTags([], 6)).toEqual([]);
   });
@@ -548,11 +536,15 @@ describe("Jelajah mood header", () => {
     const segment = screen.getByTestId("meal-segment");
     expect(segment.props.accessibilityRole).toBe("tablist");
     expect(segment.props.accessibilityLabel).toBe("Waktu makan");
-    expect(flat(segment).height).toBe(34);
+    // A 44 row holding the 34 surface track, whose two pills are 30 tall (a 2 inset).
+    expect(flat(segment).height).toBe(44);
+    expect(flat(screen.getByTestId("meal-track"))).toMatchObject({ height: 34, borderRadius: 17 });
     for (const name of ["Siang", "Malam"]) {
       expect(within(segment).getByRole("tab", { name })).toBeTruthy();
-      expect(flat(screen.getByRole("tab", { name })).minHeight).toBe(34);
+      expect(flat(screen.getByRole("tab", { name })).minHeight).toBe(44);
     }
+    expect(flat(screen.getByTestId("meal-pill-siang")).height).toBe(30);
+    expect(flat(screen.getByTestId("meal-pill-malam")).height).toBe(30);
     expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(true);
     expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(false);
     fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
@@ -573,6 +565,9 @@ describe("Jelajah mood header", () => {
     await screen.findByText("Menu Sehat Premium");
     const row = screen.getByTestId("chip-row");
     expect(row.props.horizontal).toBe(true);
+    // It starts at the margin and runs to the right edge: a negative right margin and a matching content padding.
+    expect(flat(row)).toMatchObject({ marginVertical: -5, marginRight: -16 });
+    expect(flat({ props: { style: row.props.contentContainerStyle } })).toMatchObject({ paddingRight: 16, gap: 8 });
     // The segment's own two tabs are tabs, not buttons; the buttons after it are the filters, then the categories.
     expect(within(row).getByTestId("meal-segment")).toBeTruthy();
     const names = within(row)
@@ -656,15 +651,21 @@ describe("Jelajah mood header", () => {
     expect(flat(screen.getByTestId("mood-fill-malam")).backgroundColor).toBe(palette.header);
   });
 
-  it("draws the selected meal with a 1.5 forest ring and a forest label, and the idle one with no ring", async () => {
+  it("draws the selected meal with a 1.5 forest ring, a 700 forest label and its glyph, and the idle one with a 500 label and no ring", async () => {
     mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
-    const selected = screen.getByRole("tab", { name: "Malam" });
-    const idle = screen.getByRole("tab", { name: "Siang" });
+    const selected = screen.getByTestId("meal-pill-malam");
+    const idle = screen.getByTestId("meal-pill-siang");
     expect(flat(selected)).toMatchObject({ borderWidth: 1.5, borderColor: nativeThemes.light.forest });
-    expect(flat(within(selected).getByText("Malam")).color).toBe(nativeThemes.light.forest);
+    expect(flat(within(selected).getByText("Malam"))).toMatchObject({ color: nativeThemes.light.forest, fontFamily: "Jakarta-Bold" });
     expect(flat(idle).borderColor).toBe("transparent");
     expect(flat(within(idle).getByText("Siang")).color).not.toBe(nativeThemes.light.forest);
+    expect(flat(within(idle).getByText("Siang")).fontFamily).toBe("Jakarta-Medium");
+    // A sun before Siang and a moon before Malam.
+    expect(within(selected).UNSAFE_getByType(Ionicons).props.name).toBe("moon");
+    expect(within(idle).UNSAFE_getByType(Ionicons).props.name).toBe("sunny");
+    // The track is the surface colour.
+    expect(flat(screen.getByTestId("meal-track")).backgroundColor).toBe(nativeThemes.light.surface);
   });
 
   describe("category circles", () => {
@@ -825,6 +826,19 @@ describe("Jelajah mood header", () => {
       expect(flat(screen.getAllByText("/ makan")[0]).fontSize).toBe(13);
     });
 
+    it("groups the name with the caterer, then the price with its meta, 8 apart and 2 inside each", async () => {
+      mount(runtimeWith());
+      await screen.findByText("Menu Sehat Premium");
+      const tile = within(screen.getAllByTestId("package-tile")[1]);
+      expect(flat(tile.getByTestId("tile-body"))).toMatchObject({ gap: 8, paddingTop: 8 });
+      const [who, cost] = tile.getAllByTestId("tile-group");
+      expect(flat(who).gap).toBe(2);
+      expect(flat(cost).gap).toBe(2);
+      expect(within(who).getByText("Menu Sehat Premium")).toBeTruthy();
+      expect(within(who).getByText("Dapur Sehat")).toBeTruthy();
+      expect(within(cost).getByText("/ makan")).toBeTruthy();
+    });
+
     it("shows the calorie estimate and the one-day trial on one meta line", async () => {
       const full = { ...cheap, nutrition: { caloriesKcal: 610 } } as typeof cheap;
       mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [full, pricey], nextCursor: null })) }));
@@ -884,6 +898,11 @@ describe("Jelajah mood header", () => {
       expect(screen.getByTestId("jelajah-skeleton")).toBeTruthy();
       expect(screen.getByTestId("jelajah-skeleton-grid")).toBeTruthy();
       expect(screen.getAllByTestId("jelajah-skeleton-tile")).toHaveLength(4);
+      // The meal control is already there, and it works: it is the mood, which needs no catalogue.
+      expect(screen.getByTestId("meal-segment")).toBeTruthy();
+      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
       expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
       expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
       expect(title()).toBe("Makan malam minggu depan?");
@@ -1091,6 +1110,24 @@ describe("Disimpan", () => {
     for (const tile of tiles) expect(flat(tile)).toMatchObject({ flexBasis: "40%", flexGrow: 1 });
     expect((tiles[0].children[0] as unknown as { props: Record<string, unknown> }).props).toMatchObject({ aspectRatio: 4 / 3, radius: 12 });
     expect(screen.getByRole("progressbar", { name: "Memuat paket tersimpan" })).toBeTruthy();
+  });
+
+  it("an unavailable package takes the tile shape: a 4:3 sage block, then its name and why", async () => {
+    const server = savedServer(["p-murah", "p-gone"]);
+    const base = server.savedPackages;
+    server.savedPackages = jest.fn(async () => {
+      const page = await base();
+      return {
+        ...page,
+        items: [...page.items.slice(0, 1), { packageId: "p-gone", savedAt: "2026-10-01T00:00:00Z", summary: { name: "Paket Lama" }, offer: null }],
+      };
+    });
+    wrap(runtimeWith(customer, server), <SavedList />);
+    await screen.findByText("Paket Lama");
+    expect(flat(screen.getByTestId("saved-unavailable-photo"))).toMatchObject({ aspectRatio: 4 / 3, borderRadius: 12 });
+    expect(screen.getByText("Paket Lama").props.numberOfLines).toBe(2);
+    expect(screen.getByText("Paket ini tidak tersedia lagi.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Hapus Paket Lama dari simpanan" })).toBeTruthy();
   });
 
   it("keeps the package listed and says so when removing fails", async () => {

@@ -688,11 +688,12 @@ describe("finding 5: every screen's first read waits as its own skeleton", () =>
   it("Jelajah's catalogue wait is the loaded grid's shape: 34 point chips and four 4:3 tiles in the same grid", async () => {
     renderWith(runtimeWith({ catalog: jest.fn(() => pending()) }), <Jelajah />);
     const skeleton = await screen.findByTestId("jelajah-skeleton");
+    // The chip row is the loaded row's 44 tall, with the live meal segment first and two 34 placeholder chips after it.
     const chips = within(skeleton).getByTestId("jelajah-skeleton-chips");
-    // Each child is a Skeleton, so its own props carry the size.
-    const blocks = chips.children as unknown as { props: { height: number } }[];
-    expect(blocks).toHaveLength(3);
-    for (const block of blocks) expect(block.props.height).toBe(34);
+    expect(flat(chips)).toMatchObject({ minHeight: 44, marginVertical: -5 });
+    expect(within(chips).getByTestId("meal-segment")).toBeTruthy();
+    const placeholders = chips.findAll((n) => typeof n.type !== "string" && n.props.height === 34 && n.props.radius === 17, { deep: true });
+    expect(placeholders).toHaveLength(2);
     expect(flat(screen.getByTestId("jelajah-skeleton-grid"))).toMatchObject({ flexWrap: "wrap", columnGap: 12, rowGap: 20 });
     const tiles = screen.getAllByTestId("jelajah-skeleton-tile");
     expect(tiles).toHaveLength(4);

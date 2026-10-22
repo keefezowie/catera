@@ -56,25 +56,30 @@ export function PackageCard({
         ) : (
           <View testID="package-photo" style={styles.photo} />
         )}
-        <View style={styles.body}>
-          <Text variant="bodyStrong" numberOfLines={2}>
-            {offer.name}
-          </Text>
-          <Text variant="meta" numberOfLines={1}>
-            {catererLine(offer, locale)}
-          </Text>
-          <View style={styles.price}>
-            <Text variant="bodyStrong" style={{ fontWeight: "700", fontVariant: ["tabular-nums"] }}>
-              {currency(perMealPrice(offer), locale)}
+        <View testID="tile-body" style={styles.body}>
+          {/* Who it is, then what it costs: two groups 8 apart, 2 inside each. */}
+          <View testID="tile-group" style={styles.group}>
+            <Text variant="bodyStrong" numberOfLines={2}>
+              {offer.name}
             </Text>
-            <Text variant="meta">{t("/ makan", "/ meal")}</Text>
+            <Text variant="meta" numberOfLines={1}>
+              {catererLine(offer, locale)}
+            </Text>
           </View>
-          {note ? <Text variant="meta">{note}</Text> : null}
-          {meta ? (
-            <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
-              {meta}
-            </Text>
-          ) : null}
+          <View testID="tile-group" style={styles.group}>
+            <View style={styles.price}>
+              <Text variant="bodyStrong" style={{ fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+                {currency(perMealPrice(offer), locale)}
+              </Text>
+              <Text variant="meta">{t("/ makan", "/ meal")}</Text>
+            </View>
+            {note ? <Text variant="meta">{note}</Text> : null}
+            {meta ? (
+              <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
+                {meta}
+              </Text>
+            ) : null}
+          </View>
         </View>
       </PressableRow>
       <SaveHeart
@@ -97,6 +102,7 @@ const useStyles = themedStyles((c) => ({
     borderCurve: "continuous",
     backgroundColor: c.sage,
   },
-  body: { paddingTop: nativeLayout.space.sm, gap: nativeLayout.space.xs },
+  body: { paddingTop: nativeLayout.space.sm, gap: nativeLayout.space.sm },
+  group: { gap: 2 },
   price: { flexDirection: "row", alignItems: "baseline", gap: nativeLayout.space.xs },
 }));

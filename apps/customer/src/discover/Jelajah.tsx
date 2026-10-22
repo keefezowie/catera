@@ -20,6 +20,7 @@ import {
   useColors,
   useMood,
   useMoodColors,
+  useScreenMargin,
 } from "@catera/mobile-ui";
 import { topTags } from "./categories";
 import { FilterChip } from "./FilterChip";
@@ -37,11 +38,8 @@ const BUDGET = 30000;
 const centred = { textAlign: "center" } as const;
 /** The category chips after the two filters: the tags caterers used most in this area and meal. */
 const CATEGORIES = 6;
-/** A 34 control keeps a 44 touch target through its hit area, like every chip. */
-const CONTROL_HIT_SLOP = {
-  top: (nativeLayout.control.icon - nativeLayout.control.chip) / 2,
-  bottom: (nativeLayout.control.icon - nativeLayout.control.chip) / 2,
-};
+/** The room a 34 chip leaves in its 44 tall row, above and below. */
+const CHIP_ROW_SLOP = (nativeLayout.control.icon - nativeLayout.control.chip) / 2;
 
 /** The headline names the meal the mood is on, as one question on one line (it wraps only when the text is large). */
 function JelajahTitle() {
@@ -72,6 +70,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
   // The meal segment is the mood toggle, so the list always follows the mood, wherever it was changed.
   const meal = mood === "siang" ? "lunch" : "dinner";
   const cell = useGridCell();
+  const margin = useScreenMargin();
   const saved = useSaved("/jelajah");
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState("");
@@ -100,7 +99,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
   // A tag that left with an area or meal change no longer filters, so a list never hides behind a chip that is not on
   // screen.
   const tags = useMemo(() => topTags(inMeal, CATEGORIES), [inMeal]);
-  const activeTag = tags.some((x) => x.tag === tag) ? tag : "";
+  const activeTag = tags.includes(tag) ? tag : "";
   const mealWord = mood === "siang" ? "siang" : "malam";
   const mealWordEn = mood === "siang" ? "lunch" : "dinner";
   const items = useMemo(
@@ -138,37 +137,40 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               accessibilityLabel={t("Pilih area pengantaran", "Choose delivery area")}
               accessibilityValue={area === null ? undefined : { text: area || t("Belum dipilih", "Not chosen") }}
               haptic="none"
-              hitSlop={CONTROL_HIT_SLOP}
               onPress={() => router.push("/area" as never)}
-              style={{
-                alignSelf: "flex-start",
-                maxWidth: "100%",
-                minHeight: nativeLayout.control.chip,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                paddingHorizontal: 12,
-                borderRadius: nativeLayout.control.chip / 2,
-                borderCurve: "continuous",
-                backgroundColor: palette.toggleTrack,
-                borderWidth: 1.5,
-                borderColor: palette.markerIdle,
-              }}
+              // The target is 44 tall and the 34 chip is drawn inside it, so the hit area is the target itself.
+              style={{ alignSelf: "flex-start", maxWidth: "100%", minHeight: nativeLayout.control.icon, justifyContent: "center" }}
             >
-              <Ionicons name="location-outline" size={16} color={palette.headerMeta} />
-              {area === null ? (
-                // The kept area is still being read (a moment): its place waits rather than saying "Pilih area". It is
-                // part of the list's wait, so it breathes with the list's skeleton (mounted in the same commit), and
-                // that group names the wait for screen readers.
-                <SkeletonGroup>
-                  <Skeleton testID="jelajah-area-skeleton" onMood width={96} height={14} />
-                </SkeletonGroup>
-              ) : (
-                <Text variant="label" style={{ flexShrink: 1, fontSize: 13, color: palette.headerMeta }} numberOfLines={1}>
-                  {area || t("Pilih area", "Choose area")}
-                </Text>
-              )}
-              <Ionicons name="chevron-down" size={14} color={palette.headerMeta} />
+              <View
+                testID="area-chip"
+                style={{
+                  minHeight: nativeLayout.control.chip,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  borderRadius: nativeLayout.control.chip / 2,
+                  borderCurve: "continuous",
+                  backgroundColor: palette.toggleTrack,
+                  borderWidth: 1.5,
+                  borderColor: palette.markerIdle,
+                }}
+              >
+                <Ionicons name="location-outline" size={16} color={palette.headerMeta} />
+                {area === null ? (
+                  // The kept area is still being read (a moment): its place waits rather than saying "Pilih area". It is
+                  // part of the list's wait, so it breathes with the list's skeleton (mounted in the same commit), and
+                  // that group names the wait for screen readers.
+                  <SkeletonGroup>
+                    <Skeleton testID="jelajah-area-skeleton" onMood width={96} height={14} />
+                  </SkeletonGroup>
+                ) : (
+                  <Text variant="label" style={{ flexShrink: 1, fontSize: 13, color: palette.headerMeta }} numberOfLines={1}>
+                    {area || t("Pilih area", "Choose area")}
+                  </Text>
+                )}
+                <Ionicons name="chevron-down" size={14} color={palette.headerMeta} />
+              </View>
             </PressableScale>
           }
           trailing={
@@ -231,16 +233,25 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
         ) : (
           <>
             {/* One row: the meal, then the two filters, then what caterers tagged. */}
+            {/* The row starts at the margin and runs to the right edge of the screen. Its content is 44 tall (the chips are
+                34 inside it), so each chip's hit slop sits inside its parent and is real; the negative margin gives
+                the 5 above and below back to the layout. */}
             <ScrollView
               testID="chip-row"
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: nativeLayout.space.sm, alignItems: "center" }}
+              style={{ marginVertical: -CHIP_ROW_SLOP, marginRight: -margin }}
+              contentContainerStyle={{
+                gap: nativeLayout.space.sm,
+                alignItems: "center",
+                minHeight: nativeLayout.control.icon,
+                paddingRight: margin,
+              }}
             >
               <MealSegment />
               <FilterChip label={t("Di bawah Rp30.000", "Under Rp30,000")} selected={budget} onPress={() => setBudget(!budget)} />
               <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
-              {tags.map(({ tag: name }) => (
+              {tags.map((name) => (
                 <FilterChip
                   key={name}
                   label={name}

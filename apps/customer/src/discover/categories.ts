@@ -5,23 +5,18 @@ const MEAL_TAG = /makan siang|makan malam|siang & malam/i;
 
 /**
  * The Jelajah category chips come from what caterers really tagged, not from a list written here. The most frequent
- * tags across the loaded packages (a tag counts once per package), ties in alphabetical order, each carried with the
- * photo of the first package that carries it and has a photo (a package without one never blanks a circle).
+ * tags across the loaded packages (a tag counts once per package), ties in alphabetical order.
  */
-export function topTags(offers: Offer[], max: number): { tag: string; image: string }[] {
-  const found = new Map<string, { count: number; image: string }>();
+export function topTags(offers: Offer[], max: number): string[] {
+  const counts = new Map<string, number>();
   for (const offer of offers) {
     for (const tag of new Set(offer.tags)) {
       if (!tag || MEAL_TAG.test(tag)) continue;
-      const seen = found.get(tag);
-      if (seen) {
-        seen.count += 1;
-        if (!seen.image) seen.image = offer.image;
-      } else found.set(tag, { count: 1, image: offer.image });
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
   }
-  return [...found]
-    .sort(([a, x], [b, y]) => y.count - x.count || a.localeCompare(b))
+  return [...counts]
+    .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
     .slice(0, max)
-    .map(([tag, { image }]) => ({ tag, image }));
+    .map(([tag]) => tag);
 }

@@ -5,6 +5,7 @@ import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
 import { MoodFill, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
 import { DAY_CIRCLE, MonthFrame } from "./schedule/MonthGrid";
+import { MealSegment } from "./discover/MealSegment";
 import { PackageGrid, useGridCell } from "./discover/PackageGrid";
 import { HERO_OVERLAP } from "./today/Plate";
 
@@ -92,28 +93,42 @@ function TileSkeleton({ testID }: { testID: string }) {
 const GRID_SKELETON_TILES = 4;
 
 /**
- * Jelajah's data area: the chip row (the meal segment and two filter chips, 34 tall) and the tile grid, each tile a 4:3
+ * Jelajah's data area: the chip row (the live meal segment and two placeholder chips, 34 tall in a 44 row) and the tile grid, each tile a 4:3
  * photo over the name, caterer and price lines. It reads the loaded grid's own constants (the layout scale, the grid's
  * gaps and cell), so it is the shape of the loaded page.
  */
 export function JelajahSkeleton() {
   const { t } = useMobile();
   const chip = nativeLayout.control.chip;
+  const slop = (nativeLayout.control.icon - chip) / 2;
   return (
-    <SkeletonGroup label={t("Memuat paket", "Loading packages")}>
-      <View testID="jelajah-skeleton" style={{ gap: 16 }}>
-        <View testID="jelajah-skeleton-chips" style={{ flexDirection: "row", gap: nativeLayout.space.sm }}>
-          <Skeleton width={128} height={chip} radius={chip / 2} />
+    <View testID="jelajah-skeleton" style={{ gap: 16 }}>
+      {/* The meal segment is the real control (it is the mood, which needs no data), so it works from the first frame;
+          only the chips that need the catalogue are placeholders. The row has the loaded row's 44 height and margins. */}
+      <View
+        testID="jelajah-skeleton-chips"
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: nativeLayout.space.sm,
+          minHeight: nativeLayout.control.icon,
+          marginVertical: -slop,
+        }}
+      >
+        <MealSegment />
+        <SkeletonGroup>
           <Skeleton width={132} height={chip} radius={chip / 2} />
           <Skeleton width={112} height={chip} radius={chip / 2} />
-        </View>
+        </SkeletonGroup>
+      </View>
+      <SkeletonGroup label={t("Memuat paket", "Loading packages")}>
         <PackageGrid testID="jelajah-skeleton-grid">
           {Array.from({ length: GRID_SKELETON_TILES }, (_, i) => (
             <TileSkeleton key={i} testID="jelajah-skeleton-tile" />
           ))}
         </PackageGrid>
-      </View>
-    </SkeletonGroup>
+      </SkeletonGroup>
+    </View>
   );
 }
 

@@ -3,9 +3,9 @@ import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
+import { nativeLayout } from "@catera/design-tokens";
 import {
   Button,
-  Card,
   FadeSwap,
   FormError,
   ReadError,
@@ -46,7 +46,8 @@ function Saved() {
   const saved = useSaved("/disimpan");
   // A removal leaves and the rest close up; Urungkan brings the row back as one the customer inserted. The list's
   // first load enters as one block (Decision A), and so does each page "Lihat lebih banyak" loads: its rows are
-  // taken without an entrance of their own, and the page fades in as one block below the rows already shown.
+  // taken without an entrance of their own, and each tile of the page fades in as the page lands (one grid holds every
+  // page, so an odd page never leaves a hole in the middle of the list).
   const pagesDrawn = useRef(saved.pages.length);
   const pageArrived = saved.pages.length > pagesDrawn.current;
   useEffect(() => {
@@ -54,8 +55,14 @@ function Saved() {
   });
   const rowMotion = useListMotion(saved.loading ? null : saved.items.map((i) => i.packageId), pageArrived);
   const pageEnter = useBlockEnter();
-  const row = (item: (typeof saved.items)[number]) => (
-    <Animated.View key={item.packageId} testID="saved-row" style={cell} {...rowMotion(item.packageId)}>
+  const row = (item: (typeof saved.items)[number], page: number) => (
+    <Animated.View
+      key={item.packageId}
+      testID="saved-row"
+      style={cell}
+      {...rowMotion(item.packageId)}
+      {...(page ? { entering: pageEnter } : null)}
+    >
       {item.offer ? (
         <PackageCard
           layout="tile"
@@ -66,16 +73,31 @@ function Saved() {
           onToggleSaved={() => void saved.toggle(item.packageId)}
         />
       ) : (
-        <Card tone="sage">
-          <Text variant="heading">{item.summary.name}</Text>
-          <Text variant="caption">{t("Paket ini tidak tersedia lagi.", "This package is no longer available.")}</Text>
+        // A package that is gone takes the tile's shape: a 4:3 sage block, then its name and why, then the way to drop it.
+        <View testID="saved-unavailable">
+          <View
+            testID="saved-unavailable-photo"
+            style={{
+              width: "100%",
+              aspectRatio: nativeLayout.ratio.tile,
+              borderRadius: nativeLayout.radius.control,
+              borderCurve: "continuous",
+              backgroundColor: c.sage,
+            }}
+          />
+          <View style={{ paddingTop: nativeLayout.space.sm, gap: 2 }}>
+            <Text variant="bodyStrong" numberOfLines={2}>
+              {item.summary.name}
+            </Text>
+            <Text variant="meta">{t("Paket ini tidak tersedia lagi.", "This package is no longer available.")}</Text>
+          </View>
           <Button
             variant="text"
             label={t("Hapus dari simpanan", "Remove from saved")}
             accessibilityLabel={t(`Hapus ${item.summary.name} dari simpanan`, `Remove ${item.summary.name} from saved`)}
             onPress={() => void saved.toggle(item.packageId)}
           />
-        </Card>
+        </View>
       )}
     </Animated.View>
   );
@@ -100,13 +122,7 @@ function Saved() {
             <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
           </View>
         ) : (
-          saved.pages.map((page, n) =>
-            page.length ? (
-              <Animated.View key={n} testID="saved-page" entering={n ? pageEnter : undefined}>
-                <PackageGrid>{page.map(row)}</PackageGrid>
-              </Animated.View>
-            ) : null,
-          )
+          <PackageGrid>{saved.pages.flatMap((page, n) => page.map((item) => row(item, n)))}</PackageGrid>
         )}
       </FadeSwap>
       {saved.hasMore ? (
