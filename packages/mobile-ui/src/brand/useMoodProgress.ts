@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Easing, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { nativeMotion } from "@catera/design-tokens";
 import { useReduced } from "../motion";
-import { useMoodIntent } from "../mood";
+import { useMood } from "../mood";
 
 const ease = Easing.bezier(...nativeMotion.ease);
 
@@ -12,7 +12,7 @@ const ease = Easing.bezier(...nativeMotion.ease);
  * that the change is instant on both threads.
  */
 export function useMoodProgress(duration: number): { progress: SharedValue<number>; target: 0 | 1; reduced: boolean } {
-  const mood = useMoodIntent();
+  const { mood } = useMood();
   const reduced = useReduced();
   const target = mood === "malam" ? 1 : 0;
   const progress = useSharedValue<number>(target);

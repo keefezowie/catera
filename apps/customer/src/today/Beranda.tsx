@@ -469,7 +469,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
           <OtherMealRow
             plates={otherPlates}
             apiBase={runtime.apiBase}
-            onPress={() => setMood((m) => (m === "siang" ? "malam" : "siang"))}
+            onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
           />
         ) : null}
         {recap}

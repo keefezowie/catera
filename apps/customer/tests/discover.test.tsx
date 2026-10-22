@@ -1,6 +1,5 @@
 import * as ReactNative from "react-native";
 import { ActivityIndicator, ScrollView, StyleSheet } from "react-native";
-import { Suspense } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -17,12 +16,6 @@ import { SavedList } from "../src/discover/SavedList";
 import { AreaSheet } from "../src/discover/area";
 import { offer } from "./fixtures";
 import { SheetHost } from "./sheetHost";
-
-// Passes through; lets a test count how often the page reads the committed mood (once per render of a reader).
-jest.mock("@catera/mobile-ui", () => {
-  const actual = jest.requireActual("@catera/mobile-ui");
-  return { ...actual, useMood: jest.fn(actual.useMood) };
-});
 
 let mockParams: Record<string, string> = {};
 jest.mock("expo-router", () => ({
@@ -580,66 +573,6 @@ describe("Jelajah mood header", () => {
     act(() => setMoodOutside("siang"));
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
-  });
-
-  it("selects the pressed meal tab at once, while the list and title still show the committed meal", async () => {
-    let open = false;
-    let release: () => void = () => {};
-    const gate = new Promise<void>((r) => (release = r));
-    // A heavy sibling that cannot render Malam yet: the transition that commits the mood waits for it.
-    function Heavy() {
-      if (useMood().mood === "malam" && !open) throw gate;
-      return null;
-    }
-    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
-    render(
-      <ThemeProvider storageKey="jelajah-intent-test">
-        <MoodProvider now={SIANG_NOW}>
-          <Suspense fallback={null}>
-            <Heavy />
-          </Suspense>
-          <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
-            <Jelajah />
-          </MobileProvider>
-        </MoodProvider>
-      </ThemeProvider>,
-    );
-    await screen.findByText("Menu Sehat Premium");
-    fireEvent.press(header().getByRole("tab", { name: "Malam" }));
-    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
-    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
-    expect(title()).toBe("Makan siang\nminggu depan?");
-    open = true;
-    await act(async () => {
-      release();
-      await gate;
-    });
-    expect(title()).toBe("Makan malam\nminggu depan?");
-  });
-
-  it("an arc press while Jelajah is mounted renders the page once, in the transition", async () => {
-    const mobileUi = jest.requireMock("@catera/mobile-ui") as { useMood: jest.Mock; MoodArc: typeof import("@catera/mobile-ui").MoodArc };
-    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
-    const ends = {
-      siang: { title: "Siang", detail: "11.00", label: "Makan siang" },
-      malam: { title: "Malam", detail: "17.00", label: "Makan malam" },
-    };
-    render(
-      <ThemeProvider storageKey="jelajah-render-test">
-        <MoodProvider now={SIANG_NOW}>
-          <mobileUi.MoodArc {...ends} />
-          <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
-            <Jelajah />
-          </MobileProvider>
-        </MoodProvider>
-      </ThemeProvider>,
-    );
-    await screen.findByText("Menu Sehat Premium");
-    await act(async () => undefined);
-    // Jelajah's committed-mood readers: the page and its title.
-    mobileUi.useMood.mockClear();
-    fireEvent.press(screen.getByRole("tab", { name: "Makan malam, 17.00" }));
-    expect(mobileUi.useMood.mock.calls.length).toBe(2);
   });
 
   it("keeps a combined package under the Malam tab", async () => {

@@ -21,7 +21,6 @@ import {
   themedStyles,
   useColors,
   useMood,
-  useMoodIntent,
   useMoodColors,
 } from "@catera/mobile-ui";
 import { topTags } from "./categories";
@@ -56,17 +55,15 @@ function JelajahTitle() {
 function MealButton({
   label,
   icon,
-  value,
+  selected,
   onPress,
 }: {
   label: string;
   icon: "sunny" | "moon";
-  value: "siang" | "malam";
+  selected: boolean;
   onPress: () => void;
 }) {
   const palette = useMoodColors();
-  // Read here, not in the page: the tab answers the press in the urgent pass without re-rendering the list.
-  const selected = useMoodIntent() === value;
   const ink = selected ? palette.toggleActive : palette.headerMeta;
   return (
     <PressableScale
@@ -220,8 +217,8 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
           title={<JelajahTitle />}
         >
           <View accessibilityRole="tablist" accessibilityLabel={t("Waktu makan", "Meal time")} style={{ flexDirection: "row", gap: 10 }}>
-            <MealButton label={t("Siang", "Lunch")} icon="sunny" value="siang" onPress={() => setMood("siang")} />
-            <MealButton label={t("Malam", "Dinner")} icon="moon" value="malam" onPress={() => setMood("malam")} />
+            <MealButton label={t("Siang", "Lunch")} icon="sunny" selected={mood === "siang"} onPress={() => setMood("siang")} />
+            <MealButton label={t("Malam", "Dinner")} icon="moon" selected={mood === "malam"} onPress={() => setMood("malam")} />
           </View>
           <View
             style={{
@@ -316,7 +313,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
                 <Button
                   variant="secondary"
                   label={mood === "siang" ? t("Lihat makan malam", "See dinner") : t("Lihat makan siang", "See lunch")}
-                  onPress={() => setMood((m) => (m === "siang" ? "malam" : "siang"))}
+                  onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
                 />
               </View>
             ) : items.length === 0 ? (

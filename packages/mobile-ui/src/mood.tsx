@@ -1,4 +1,4 @@
-import { createContext, startTransition, use, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, use, useMemo, useState, type ReactNode } from "react";
 import { nativeMood, type Mood, type MoodPalette, type ThemeName } from "@catera/design-tokens";
 import { useThemePreference } from "./theme";
 
@@ -29,21 +29,12 @@ export function defaultMood(now: Date): Mood {
   return hour < MALAM_FROM_HOUR ? "siang" : "malam";
 }
 
-/** A mood, or a function from the mood last asked for to the next one (a toggle reads the latest ask, not the committed mood). */
-export type MoodSetter = (next: Mood | ((asked: Mood) => Mood)) => void;
-type MoodValue = { mood: Mood; setMood: MoodSetter };
+type MoodValue = { mood: Mood; setMood: (mood: Mood) => void };
 
 // Without a provider (isolated component tests, early boot) the app reads Siang and cannot change it.
 const MoodContext = createContext<MoodValue>({ mood: "siang", setMood: () => {} });
-// The mood last asked for; apart from MoodContext so only its readers render in the urgent lane of a press.
-const IntentContext = createContext<Mood>("siang");
 
-/**
- * One per app. The mood lives in memory only; every launch starts from the clock.
- * A switch lands in two steps. `intent` changes at once, in the press's own render, so the arc disc and the tab state
- * answer within a frame; `mood` (what the pages and fills read) changes in a transition, so the heavy re-render of the
- * page never holds the press back and a page that suspends keeps the old mood on screen instead of blanking.
- */
+/** One per app. The mood lives in memory only; every launch starts from the clock. */
 export function MoodProvider({
   children,
   now,
@@ -52,23 +43,9 @@ export function MoodProvider({
   /** The clock, for tests. */
   now?: () => Date;
 }) {
-  const [initial] = useState<Mood>(() => defaultMood((now ?? (() => new Date()))()));
-  const [intent, setIntent] = useState<Mood>(initial);
-  const [mood, setCommitted] = useState<Mood>(initial);
-  const asked = useRef<Mood>(initial);
-  const setMood = useCallback<MoodSetter>((next) => {
-    const to = typeof next === "function" ? next(asked.current) : next;
-    asked.current = to;
-    setIntent(to);
-    startTransition(() => setCommitted(to));
-  }, []);
-  // Only the transition changes this value, so only a transition re-renders the pages that read it.
-  const value = useMemo<MoodValue>(() => ({ mood, setMood }), [mood, setMood]);
-  return (
-    <MoodContext.Provider value={value}>
-      <IntentContext.Provider value={intent}>{children}</IntentContext.Provider>
-    </MoodContext.Provider>
-  );
+  const [mood, setMood] = useState<Mood>(() => defaultMood((now ?? (() => new Date()))()));
+  const value = useMemo<MoodValue>(() => ({ mood, setMood }), [mood]);
+  return <MoodContext.Provider value={value}>{children}</MoodContext.Provider>;
 }
 
 const MoodLabelsContext = createContext<MoodLabels>(DEFAULT_LABELS);
@@ -85,17 +62,9 @@ export function MoodLabelsProvider({ t, children }: { t: (id: string, en: string
   return <MoodLabelsContext.Provider value={value}>{children}</MoodLabelsContext.Provider>;
 }
 
-export function useMood(): { mood: Mood; setMood: MoodSetter } {
+export function useMood(): { mood: Mood; setMood: (mood: Mood) => void } {
   const { mood, setMood } = use(MoodContext);
   return { mood, setMood };
-}
-
-/**
- * The mood the person last asked for. It leads `useMood().mood` by a transition: the arc, the toggle and their
- * animations follow this, so a press is answered before the page behind it has re-rendered.
- */
-export function useMoodIntent(): Mood {
-  return use(IntentContext);
 }
 
 /** The toggle labels `MoodLabelsProvider` was given; "Siang" and "Malam" without one. */

@@ -4,7 +4,7 @@ import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Svg, { Path } from "react-native-svg";
 import { nativeMotion, type Mood } from "@catera/design-tokens";
-import { useMoodColors, useMoodIntent, useMood } from "../mood";
+import { useMood, useMoodColors } from "../mood";
 import { PressableScale } from "../motion";
 import { fontFor } from "../type";
 import { Skeleton, SkeletonGroup } from "../Skeleton";
@@ -74,8 +74,7 @@ const centred = { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, al
  */
 export function MoodArc({ siang, malam }: MoodArcProps) {
   const [width, setWidth] = useState(0);
-  const { setMood } = useMood();
-  const mood = useMoodIntent();
+  const { mood, setMood } = useMood();
   const palette = useMoodColors();
   const { progress, target, reduced } = useMoodProgress(nativeMotion.feature);
   const ends = { siang, malam };
