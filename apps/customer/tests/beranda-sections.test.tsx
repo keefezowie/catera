@@ -5,13 +5,14 @@ import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { addDays, currency, type CustomerActionItem, type CustomerState } from "@catera/domain";
+import { addDays, currency, upcomingDays, type CustomerActionItem, type CustomerState } from "@catera/domain";
 import { nativeThemes } from "@catera/design-tokens";
 import { LayoutScaleProvider, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { goToTab } from "../src/nav";
 import { Beranda } from "../src/today/Beranda";
 import { ReviewRoute } from "../src/today/ReviewSheet";
 import { PerluDiurus } from "../src/today/PerluDiurus";
+import { UpcomingDays } from "../src/today/UpcomingDays";
 import { customerLink } from "../src/links";
 import { SheetHost } from "./sheetHost";
 import * as offline from "../src/today/offline";
@@ -609,7 +610,10 @@ describe("the live slot", () => {
     const slot = within(await screen.findByTestId("live-slot"));
     // The order is the domain's: the soonest menu first.
     const row = slot.getByTestId("live-slot-row");
-    expect(row.props.accessibilityLabel).toBe("Pilih menu Selasa 13 Okt, Makan Siang Kantor · sebelum Senin 17.00, Pilih");
+    // A screen reader hears the rest too: the link is not only a touch target.
+    expect(row.props.accessibilityLabel).toBe(
+      "Pilih menu Selasa 13 Okt, Makan Siang Kantor · sebelum Senin 17.00, Pilih, 4 hal lainnya",
+    );
     expect(slot.getByText("Pilih menu Selasa 13 Okt")).toBeTruthy();
     expect(slot.getByTestId("waiting-action").props.children).toBe("Pilih");
     expect(slot.getByText("4 hal lainnya")).toBeTruthy();
@@ -630,15 +634,25 @@ describe("the live slot", () => {
   it("n hal lainnya opens the full list", async () => {
     const { state, actions } = fiveWaiting();
     mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
-    fireEvent.press(await screen.findByText("4 hal lainnya"));
+    const link = await screen.findByTestId("live-slot-more");
+    // Its own 44 target, a sibling of the row (not inside it), so a touch near it cannot run the row's action.
+    expect(StyleSheet.flatten(link.props.style).minHeight).toBeGreaterThanOrEqual(44);
+    expect(within(screen.getByTestId("live-slot-row")).queryByTestId("live-slot-more")).toBeNull();
+    fireEvent.press(link);
     expect(router.push).toHaveBeenLastCalledWith("/perlu-diurus");
     // The row's own action did not run with it.
     expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalledWith(expect.stringContaining("/pilih-menu"));
+    // And the row's own press does not open the list.
+    fireEvent.press(screen.getByTestId("live-slot-row"));
+    expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-kantor?date=2026-10-13&meal=lunch");
+    expect(router.push).toHaveBeenCalledTimes(2);
     // TalkBack reaches the same link as an action on the row.
     const row = screen.getByTestId("live-slot-row");
     expect(row.props.accessibilityActions).toEqual([{ name: "more", label: "4 hal lainnya" }]);
     fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: "more" } });
-    expect(router.push).toHaveBeenCalledTimes(2);
+    expect(router.push).toHaveBeenCalledTimes(3);
+    expect(router.push).toHaveBeenLastCalledWith("/perlu-diurus");
   });
 
   it("one waiting item has no n hal lainnya, and its action keeps its side effect", async () => {
@@ -800,6 +814,19 @@ describe("Berikutnya", () => {
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
     fireEvent.press(days.getByTestId("upcoming-row-d-s-1-2026-10-12-lunch"));
     expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-1-2026-10-12?title=Senin%2012%20Okt");
+  });
+
+  it("a tomorrow delivery the story does not list opens its day sheet, never story part 0", async () => {
+    const state = scheduled({ 1: 2 });
+    const days = upcomingDays(state, morningOf(DEMO_TODAY), 3, "id");
+    // The story knows only the second delivery; the first falls back to its own sheet.
+    const tomorrow = { date: addDays(DEMO_TODAY, 1), parts: [{ deliveryId: "d-s-2-2026-10-11", meal: "lunch" as const }] };
+    mount(runtimeWith(async () => state).runtime, { v2: true, node: <UpcomingDays days={days} apiBase="" tomorrow={tomorrow} /> });
+    const block = await daysBlock();
+    fireEvent.press(block.getByTestId("upcoming-tile-d-s-1-2026-10-11-lunch"));
+    expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-1-2026-10-11?title=Minggu%2011%20Okt");
+    fireEvent.press(block.getByTestId("upcoming-tile-d-s-2-2026-10-11-lunch"));
+    expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
   });
 
   it("Lihat jadwal goes to the Jadwal tab", async () => {
@@ -1091,6 +1118,16 @@ describe("Paket kamu", () => {
   });
 });
 
+/** WCAG contrast ratio of two #rrggbb colours. */
+function contrastOf(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 describe("the lower blocks in dark and at Malam", () => {
   it.each([
     ["light", "siang"],
@@ -1112,6 +1149,10 @@ describe("the lower blocks in dark and at Malam", () => {
     expect(color(within(slot).getByTestId("waiting-action"))).toBe(palette.charcoal);
     const days = await daysBlock();
     expect(StyleSheet.flatten(days.getByTestId("upcoming-none").props.style).backgroundColor).toBe(palette.line);
+    // Its words are ink on the line fill, at least 4.5:1 (muted there is 4.4).
+    const noneText = color(days.getByText("Malam tidak ada pengantaran"));
+    expect(noneText).toBe(palette.charcoal);
+    expect(contrastOf(noneText, palette.line)).toBeGreaterThanOrEqual(4.5);
     expect(color(days.getByText("Lihat jadwal"))).toBe(palette.forest);
     expect(color(days.getAllByTestId("upcoming-day-count")[0])).toBe(palette.muted);
     const plans = within(await screen.findByTestId("plans"));

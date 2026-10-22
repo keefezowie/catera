@@ -212,6 +212,7 @@ const useStyles = themedStyles((c) => ({
   fill: { width: "100%", height: "100%" },
   notSet: { borderWidth: 1.5, borderStyle: "dashed", borderColor: c.controlRing },
   none: { backgroundColor: c.line, padding: nativeLayout.space.md },
-  noneText: { textAlign: "center" },
+  // Ink, not muted: muted on the `line` fill is 4.4:1, under the 4.5 text needs.
+  noneText: { textAlign: "center", color: c.charcoal },
   more: { minHeight: 36, justifyContent: "center" },
 }));

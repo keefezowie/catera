@@ -12,14 +12,12 @@ import { statusBarStyle, ThemeProvider, TopInsetOwner } from "@catera/mobile-ui"
 import {
   addDays,
   shortDate,
-  tomorrowStory,
   type CustomerState,
   type Delivery,
   type Offer,
 } from "@catera/domain";
 import { nativeThemes } from "@catera/design-tokens";
 import { Beranda } from "../src/today/Beranda";
-import { TomorrowRow } from "../src/tomorrow/TomorrowRow";
 import { storyStripUnder, TomorrowStoryScreen } from "../src/tomorrow/TomorrowStory";
 import { customerLink } from "../src/links";
 import { leaveFor } from "../src/nav";
@@ -163,9 +161,6 @@ const wrap = (runtime: MobileRuntime, node: ReactNode) =>
 /** Lets the provider's session read and the seen-mark reads land inside act, so a test never ends mid-update. */
 const settle = () => act(async () => void (await new Promise((r) => setTimeout(r, 10))));
 
-const storyOf =(state: CustomerState, now: Date) => tomorrowStory(state, now, "id")!;
-const ringStyles = () => screen.getAllByTestId("photo-ring").map((r) => StyleSheet.flatten(r.props.style));
-const coveredCount = () => screen.queryAllByTestId("photo-ring-covered").length;
 const seenKey = (runtime: MobileRuntime, id: string, meal: string) => runtime.storageKey(`story.${id}.${meal}`);
 
 beforeEach(() => {
@@ -178,97 +173,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe("Menu besok row", () => {
-  it("before the cutoff shows one 60dp ring per part, lunch in ink and dinner in forest, none covered", async () => {
-    pinClock(BEFORE_CUTOFF);
-    const runtime = runtimeWith(async () => bothState());
-    wrap(runtime, <TomorrowRow story={storyOf(bothState(), BEFORE_CUTOFF)} />);
-    await settle();
-    expect(screen.getByText("Menu besok")).toBeTruthy();
-    expect(screen.getByText(shortDate(TOMORROW, "id"))).toBeTruthy();
-    expect(screen.getByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
-    const rings = ringStyles();
-    expect(rings).toHaveLength(2);
-    expect(rings.map((r) => r.width)).toEqual([60, 60]);
-    expect(rings.map((r) => r.borderColor)).toEqual([nativeThemes.light.controlRing, nativeThemes.light.charcoal]);
-    expect(coveredCount()).toBe(0);
-  });
-
-  it("after the cutoff says the day is closed and covers every ring until its part has been seen", async () => {
-    pinClock(AFTER_CUTOFF);
-    const runtime = runtimeWith(async () => bothState());
-    store().set(seenKey(runtime, "d-both", "dinner"), "seen");
-    wrap(runtime, <TomorrowRow story={storyOf(bothState(), AFTER_CUTOFF)} />);
-    expect(screen.getByText("Sudah tidak bisa diubah")).toBeTruthy();
-    expect(screen.queryByText(/Bisa diubah sampai/)).toBeNull();
-    // Dinner was seen, so only lunch stays covered once the stored marks have been read.
-    await waitFor(() => expect(coveredCount()).toBe(1));
-    expect(screen.UNSAFE_getAllByType(RingImage).some((i) => i.props.source?.uri === SATE_PHOTO)).toBe(true);
-    expect(screen.UNSAFE_getAllByType(RingImage).some((i) => i.props.source?.uri === AYAM_PHOTO)).toBe(false);
-  });
-
-  it("covers both rings after the cutoff when nothing was seen", async () => {
-    pinClock(AFTER_CUTOFF);
-    const runtime = runtimeWith(async () => bothState());
-    wrap(runtime, <TomorrowRow story={storyOf(bothState(), AFTER_CUTOFF)} />);
-    await waitFor(() =>
-      expect(SecureStore.getItemAsync).toHaveBeenCalledWith(seenKey(runtime, "d-both", "dinner")),
-    );
-    expect(coveredCount()).toBe(2);
-  });
-
-  it("before the cutoff, a plan whose days cannot move shows its dishes and no closed message", async () => {
-    pinClock(BEFORE_CUTOFF);
-    const runtime = runtimeWith(async () => fixedState());
-    wrap(runtime, <TomorrowRow story={storyOf(fixedState(), BEFORE_CUTOFF)} />);
-    await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalled());
-    expect(coveredCount()).toBe(0);
-    expect(screen.queryByText("Sudah tidak bisa diubah")).toBeNull();
-    expect(screen.queryByText(/Bisa diubah sampai/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Menu besok, makan siang, Ayam bakar madu" })).toBeTruthy();
-  });
-
-  it("after the cutoff, a plan whose days cannot move is closed and covered until seen like any other", async () => {
-    pinClock(AFTER_CUTOFF);
-    const runtime = runtimeWith(async () => fixedState());
-    wrap(runtime, <TomorrowRow story={storyOf(fixedState(), AFTER_CUTOFF)} />);
-    expect(screen.getByText("Sudah tidak bisa diubah")).toBeTruthy();
-    await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalled());
-    expect(coveredCount()).toBe(2);
-  });
-
-  it("names each ring by meal and dish, or says the menu is not set", async () => {
-    pinClock(BEFORE_CUTOFF);
-    const runtime = runtimeWith(async () => unsetDinnerState());
-    wrap(runtime, <TomorrowRow story={storyOf(unsetDinnerState(), BEFORE_CUTOFF)} />);
-    await settle();
-    expect(screen.getByRole("button", { name: "Menu besok, makan siang, Ayam bakar madu" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Menu besok, makan malam, Menu belum diisi" })).toBeTruthy();
-  });
-
-  it("does not name the dish on a covered ring, and names it once the part has been seen", async () => {
-    pinClock(AFTER_CUTOFF);
-    const runtime = runtimeWith(async () => bothState());
-    store().set(seenKey(runtime, "d-both", "dinner"), "seen");
-    wrap(runtime, <TomorrowRow story={storyOf(bothState(), AFTER_CUTOFF)} />);
-    expect(screen.getByRole("button", { name: "Menu besok, makan siang, tertutup, buka untuk melihat" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Ayam bakar madu/ })).toBeNull();
-    // Dinner was seen, so once the marks are read it is named again.
-    expect(await screen.findByRole("button", { name: "Menu besok, makan malam, Sate ayam madura" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Menu besok, makan siang, tertutup, buka untuk melihat" })).toBeTruthy();
-  });
-
-  it("opens the story at the pressed ring", async () => {
-    pinClock(BEFORE_CUTOFF);
-    const runtime = runtimeWith(async () => bothState());
-    wrap(runtime, <TomorrowRow story={storyOf(bothState(), BEFORE_CUTOFF)} />);
-    await settle();
-    fireEvent.press(screen.getByRole("button", { name: "Menu besok, makan malam, Sate ayam madura" }));
-    expect(router.push).toHaveBeenCalledWith("/tomorrow?part=1");
-    fireEvent.press(screen.getByRole("button", { name: "Menu besok, makan siang, Ayam bakar madu" }));
-    expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
-  });
-
+describe("Menu besok on Beranda", () => {
   it("is no longer a row on Beranda: tomorrow is a Berikutnya block that opens the story", async () => {
     pinClock(BEFORE_CUTOFF);
     const view = wrap(runtimeWith(async () => bothState()), <Beranda />);
@@ -286,14 +191,6 @@ describe("Menu besok row", () => {
     wrap(runtimeWith(async () => noTomorrowState()), <Beranda />);
     await screen.findByTestId("plans");
     expect(screen.queryByText(/^Besok, /)).toBeNull();
-  });
-
-  it("gives two lunches on one day one ring each", async () => {
-    pinClock(BEFORE_CUTOFF);
-    const state = twoLunchesState();
-    wrap(runtimeWith(async () => state), <TomorrowRow story={storyOf(state, BEFORE_CUTOFF)} />);
-    await settle();
-    expect(ringStyles().map((r) => r.borderColor)).toEqual([nativeThemes.light.controlRing, nativeThemes.light.controlRing]);
   });
 });
 
@@ -462,23 +359,6 @@ describe("Menu besok story", () => {
     expect(screen.queryByTestId("story-viewer")).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(router.back).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows the unveiled photo on the row after the story has been opened", async () => {
-    pinClock(AFTER_CUTOFF);
-    const runtime = runtimeWith(async () => bothState());
-    const view = wrap(
-      runtime,
-      <>
-        <TomorrowRow story={storyOf(bothState(), AFTER_CUTOFF)} />
-        <TomorrowStoryScreen />
-      </>,
-    );
-    await screen.findByTestId("story-viewer");
-    // Lunch was shown by the story, and the row, still mounted behind it, uncovers that ring.
-    await waitFor(() => expect(coveredCount()).toBe(1));
-    await settle();
-    view.unmount();
   });
 });
 

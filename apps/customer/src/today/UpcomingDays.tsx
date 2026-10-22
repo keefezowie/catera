@@ -42,11 +42,12 @@ export function UpcomingDays({
   const shown = days.slice(0, UPCOMING_DAYS);
   if (!shown.length) return null;
 
-  /** The story part a tomorrow delivery is, or null for any other day. */
-  const storyPart = (day: UpcomingDay, meal: UpcomingMeal) =>
-    tomorrow?.date === day.date
-      ? Math.max(0, tomorrow.parts.findIndex((p) => p.deliveryId === meal.deliveryId && p.meal === meal.meal))
-      : null;
+  /** The story part a tomorrow delivery is; null for any other day, or a delivery the story does not page through. */
+  const storyPart = (day: UpcomingDay, meal: UpcomingMeal) => {
+    if (tomorrow?.date !== day.date) return null;
+    const at = tomorrow.parts.findIndex((p) => p.deliveryId === meal.deliveryId && p.meal === meal.meal);
+    return at < 0 ? null : at;
+  };
   const open = (day: UpcomingDay, meal: UpcomingMeal) => {
     const part = storyPart(day, meal);
     router.push((part === null ? dayHref(meal.deliveryId, day.date, locale) : `/tomorrow?part=${part}`) as never);
