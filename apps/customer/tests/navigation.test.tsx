@@ -154,6 +154,28 @@ describe("each tab keeps its own stack", () => {
     }
   });
 
+  it("a day opens as a form sheet in its tab (three quarters, then full) and closing it returns to the page under it", () => {
+    for (const [group, href] of [
+      ["(index)", "/"],
+      ["(jadwal)", "/jadwal"],
+      ["(akun)", "/akun"],
+    ] as const) {
+      const app = mount(href);
+      act(() => router.push("/hari/d1"));
+      const day = (screen.UNSAFE_root.findAll((n) => n.type === "RNSScreen") as unknown as { props: Record<string, unknown> }[])
+        .filter((n) => String(n.props.screenId).startsWith("hari/[id]-"))
+        .at(-1)!;
+      expect(day.props.stackPresentation).toBe("formSheet");
+      expect(day.props.sheetAllowedDetents).toEqual([0.75, 1]);
+      // It stays in the tab's stack (not the root stack), so the tab bar and the tab's place are kept.
+      expect(stack(group).at(-1)).toBe("hari/[id]");
+      expect(root()).toEqual(["(tabs)"]);
+      act(() => router.back());
+      expect(stack(group)).not.toContain("hari/[id]");
+      app.unmount();
+    }
+  });
+
   it("a push tap on a cold start opens the screen inside Beranda with Back to Beranda", () => {
     for (const [href, route] of [
       ["/subscriptions/s1", "subscriptions/[id]"],

@@ -714,6 +714,9 @@ describe("sheets", () => {
     expect(ios).not.toHaveProperty("sheetCornerRadius");
     expect(sheetOptions({ detents: "form", palette, os: "ios" }).sheetAllowedDetents).toEqual([0.6, 1]);
     expect(sheetOptions({ detents: "form", palette, os: "android" }).sheetAllowedDetents).toEqual([0.6, 1]);
+    // The day sheet opens at three quarters and expands to the full height.
+    expect(sheetOptions({ detents: "day", palette, os: "ios" }).sheetAllowedDetents).toEqual([0.75, 1]);
+    expect(sheetOptions({ detents: "day", palette, os: "android" }).sheetAllowedDetents).toEqual([0.75, 1]);
   });
 
   it("SheetHeader shows Close on iOS and a drag handle on Android", () => {

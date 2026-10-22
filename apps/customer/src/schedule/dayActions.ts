@@ -14,6 +14,7 @@ import {
 import { useMobile } from "@catera/mobile-core";
 import { useActionSheet, type ActionSheetInput } from "@catera/mobile-ui";
 import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
+import type { DayActionKey } from "./DayActionRow";
 import { photoUri } from "../today/photoUri";
 
 type Meal = "lunch" | "dinner";
@@ -106,4 +107,58 @@ export function useDayActions(delivery: Delivery | null | undefined, meal?: Meal
     else if (key === "chat") openCatererChat(catererPhoneOf(delivery));
     else if (key === "lapor") pushSheet(`/masalah/${id}?meal=${target}` as never);
   }, [delivery, meal, t, locale, runtime.apiBase, ask]);
+}
+
+/** Whether a meal has a report that is still open (a resolved one can be followed by a new report). */
+const hasOpenReport = (d: Delivery, meal: Meal) =>
+  (d.meals ?? []).some((m) => m.meal === meal && !!m.issue && m.issue.status !== "resolved");
+
+/** A day nothing more can happen on: cancelled, or every meal still on has been delivered. */
+export function dayClosed(d: Delivery): boolean {
+  const meals = (d.meals ?? []).filter((m) => m.status !== "cancelled");
+  return d.status === "cancelled" || meals.every((m) => m.status === "delivered");
+}
+
+/** The meal Ada masalah opens for: the first due or past meal that has no open report yet. */
+export function reportTargetOf(d: Delivery, now: Date): Meal | undefined {
+  return reportableMeals(d, now).find((meal) => !hasOpenReport(d, meal));
+}
+
+/**
+ * What the day sheet offers as visible circles at `now`, in the order they show. Each keeps the condition of its old
+ * entry in the day's "…" and footer:
+ * - "Ubah hari": the day can move (`canChangeDay.date`: before the cutoff, on a plan whose days can move) and is not closed.
+ * - "Pilih menu": a pick-your-own package (its menu choice stays open on a closed day, as before); "Lihat menu" when the
+ *   caterer picks and a menu is set for a meal the day serves; neither otherwise.
+ * - "Ada masalah": a meal is due or past with no open report.
+ * - "Chat": the read carries the caterer's verified number.
+ * - "Ganti alamat": before the cutoff on a day still scheduled (`canChangeDay.address`), not closed.
+ * `menu` and `report` name the meal they act on.
+ */
+export function dayVisibleActions(
+  d: Delivery,
+  now: Date,
+  t: Translate,
+): { key: DayActionKey; label: string; meal: Meal }[] {
+  const served = (d.meals ?? []).filter((m) => m.status !== "cancelled").map((m) => m.meal);
+  const first: Meal = served[0] ?? "lunch";
+  const can = canChangeDay(d, now);
+  const closed = dayClosed(d);
+  const picks = d.offer.menuSelectionMode === "customer";
+  const menuSet = served.some((meal) => {
+    const menu = d.offer.menus?.find((m) => m.meal === meal);
+    return !!menu && menuIsSet(menu);
+  });
+  const target = reportTargetOf(d, now);
+  return [
+    ...(!closed && can.date ? [{ key: "change" as const, label: t("Ubah hari", "Change day"), meal: first }] : []),
+    ...(picks
+      ? [{ key: "menu" as const, label: t("Pilih menu", "Choose menu"), meal: first }]
+      : menuSet
+        ? [{ key: "menu" as const, label: t("Lihat menu", "See menu"), meal: first }]
+        : []),
+    ...(target ? [{ key: "report" as const, label: t("Ada masalah", "Report a problem"), meal: target }] : []),
+    ...(catererPhoneOf(d) ? [{ key: "chat" as const, label: t("Chat", "Chat"), meal: first }] : []),
+    ...(!closed && can.address ? [{ key: "address" as const, label: t("Ganti alamat", "Change address"), meal: first }] : []),
+  ];
 }

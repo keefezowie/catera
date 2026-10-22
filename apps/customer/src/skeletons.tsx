@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { MoodFill, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
+import { MoodFill, sheetSidePadding, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
+import { ACTION_CIRCLE } from "./schedule/DayActionRow";
+import { DAY_PHOTO_RADIUS, DAY_PHOTO_RATIO, DAY_WELL_MIN, DAY_WELL_RADIUS } from "./schedule/dayMetrics";
 import { DAY_CIRCLE, MonthFrame } from "./schedule/MonthGrid";
 import { MealSegment } from "./discover/MealSegment";
 import { PackageGrid, useGridCell } from "./discover/PackageGrid";
@@ -299,21 +301,32 @@ function Rows({ count }: { count: number }) {
 }
 
 /**
- * One delivery day (Hari, and Ada masalah before its day is known): the 180 photo, the package line, a card per meal
- * (two) and the address. The bar title is chrome and keeps the day the link carried.
+ * One delivery day while it loads (Hari, a sheet body under its title row): the 16:10 photo, the meal's meta line, the
+ * dish's hero title line, the state line, the 56 address well and a row of 56 action circles with their labels. Every
+ * size reads `dayMetrics` or the layout scale, as the loaded sheet does. The title row is chrome and keeps the day the
+ * link carried.
  */
 export function DaySkeleton() {
   const { t } = useMobile();
+  const { width } = useWindowDimensions();
+  const photo = Math.round((width - 2 * sheetSidePadding()) / DAY_PHOTO_RATIO);
   return (
     <SkeletonGroup label={t("Memuat pengantaran", "Loading delivery")}>
       <View testID="day-skeleton" style={{ gap: 16 }}>
-        <Skeleton height={180} radius={16} />
-        <Skeleton width="58%" height={14} />
-        <Skeleton height={72} radius={16} />
-        <Skeleton height={72} radius={16} />
+        <Skeleton testID="day-skeleton-photo" height={photo} radius={DAY_PHOTO_RADIUS} />
         <View style={{ gap: 8 }}>
-          <Skeleton width="30%" height={12} />
-          <Skeleton width="76%" height={16} />
+          <Skeleton width="44%" height={12} />
+          <Skeleton width="68%" height={24} />
+          <Skeleton width="62%" height={12} />
+        </View>
+        <Skeleton testID="day-skeleton-address" height={DAY_WELL_MIN} radius={DAY_WELL_RADIUS} />
+        <View style={{ flexDirection: "row", gap: 16 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ alignItems: "center", gap: 8 }}>
+              <Skeleton width={ACTION_CIRCLE} height={ACTION_CIRCLE} radius={ACTION_CIRCLE / 2} />
+              <Skeleton width={48} height={12} />
+            </View>
+          ))}
         </View>
       </View>
     </SkeletonGroup>

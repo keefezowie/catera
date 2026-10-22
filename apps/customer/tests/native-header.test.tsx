@@ -319,10 +319,22 @@ describe("plan titles", () => {
     expect(screen.queryByText("Paket")).toBeNull();
     // The route's own title (iOS's large title) is the carried name too.
     expect(contentTitled(linkTitle({ title: LONG }) ?? "Paket", "ios")).toEqual({ title: LONG });
-    // Every link that knows the name carries it; Hari carries its day, never "Hari".
+    // Every link that knows the name carries it; Hari carries its day, never "Hari" (the day sheet's title row).
     expect(planHref("s1", LONG)).toBe(`/subscriptions/s1?title=${encodeURIComponent(LONG)}`);
     expect(packageHref("p1", "Nasi Box")).toBe("/paket/p1?title=Nasi%20Box");
     expect(dayHref("d1", "2026-10-12", "id")).toBe(`/hari/d1?title=${encodeURIComponent("Senin 12 Okt")}`);
+  });
+});
+
+describe("the day sheet", () => {
+  it("is a form sheet that draws its own title row: no stack header, no native bar title", async () => {
+    mockSession.actor = { id: "u1", role: "customer", name: "Rani Contoh" };
+    await mount("/");
+    await go(() => router.push(dayHref("d1", "2026-10-12", "id")));
+    const day = screenOf("hari/[id]");
+    expect(day.props.stackPresentation).toBe("formSheet");
+    expect(day.props.sheetAllowedDetents).toEqual([0.75, 1]);
+    expect(headerOf("hari/[id]").props.hidden).toBe(true);
   });
 });
 

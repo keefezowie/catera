@@ -1140,191 +1140,319 @@ describe("Ubah hari sheet", () => {
   });
 });
 
+/** The day sheet as the app draws it: the customer root provides the v2 layout scale. */
+const showDay = async (d: Delivery, wait: RegExp | string = "Ayam bakar madu", state: CustomerState = stateOf([d])) => {
+  mockParams = { id: d.id };
+  const view = renderV2(runtimeWith(state), <DayScreen />);
+  await screen.findByText(wait);
+  return view;
+};
+const circleOf = (key: string) => screen.queryByTestId(`day-action-circle-${key}`);
+const actionKeys = () =>
+  ["change", "menu", "report", "chat", "address"].filter((key) => circleOf(key) !== null);
+
 describe("Hari", () => {
-  it("opens the change sheet from the day", async () => {
-    mockParams = { id: "d-next" };
-    const d = open("d-next", "2026-10-08");
-    // The screen's own stack entry: the day is the native bar's title, never "Hari", and the body does not repeat it.
-    const setOptions = jest.fn();
-    const navigation = { setOptions, isFocused: () => true, addListener: () => () => undefined };
-    renderWith(
-      runtimeWith(stateOf([d])),
-      <NavigationContext.Provider value={navigation as never}>
-        <DayScreen />
-      </NavigationContext.Provider>,
-    );
-    expect(await screen.findByText(/Makan Siang Rumahan/)).toBeTruthy();
-    expect(setOptions).toHaveBeenLastCalledWith({ title: "Kamis 8 Okt" });
-    expect(screen.queryByText(/Kamis 8 Okt/)).toBeNull();
-    expect(screen.queryByText("Hari")).toBeNull();
-    // Ubah hari is a native form sheet route over this day.
-    fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
-    expect(router.push).toHaveBeenCalledWith("/ubah-hari/d-next");
-  });
-
-  it("a day the read does not hold, or a failed read, is titled Hari, never the day its link carried", async () => {
-    const navigation = (setOptions: jest.Mock) => ({ setOptions, isFocused: () => true, addListener: () => () => undefined });
-    const show = (state: Parameters<typeof runtimeWith>[0], setOptions: jest.Mock) =>
-      renderWith(
-        runtimeWith(state),
-        <NavigationContext.Provider value={navigation(setOptions) as never}>
-          <DayScreen />
-        </NavigationContext.Provider>,
-      );
-    mockParams = { id: "d-palsu", title: "Senin 12 Okt" };
-    // Loading: the bar keeps the carried day from the layout, and the screen sets no title of its own.
-    let setOptions = jest.fn();
-    let view = show(() => new Promise(() => undefined), setOptions);
-    await act(async () => {});
-    expect(setOptions).not.toHaveBeenCalledWith(expect.objectContaining({ title: expect.anything() }));
-    view.unmount();
-    // Not found.
-    setOptions = jest.fn();
-    view = show(stateOf([open("d-next", "2026-10-08")]), setOptions);
-    expect(await screen.findByText("Pengantaran tidak ditemukan.")).toBeTruthy();
-    expect(setOptions).toHaveBeenLastCalledWith({ title: "Hari" });
-    view.unmount();
-    // A failed read.
-    setOptions = jest.fn();
-    show(async () => {
-      throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
-    }, setOptions);
-    expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
-    expect(setOptions).toHaveBeenLastCalledWith({ title: "Hari" });
-  });
-});
-
-describe("Hari: Ada masalah", () => {
-  // NOW is Wednesday 7 Oct, 10.00 in Jakarta; the lunch window opens at 11.00.
-  const report = () => screen.queryByRole("button", { name: "Ada masalah" });
-  const show = async (d: Delivery) => {
-    mockParams = { id: d.id };
-    const view = renderWith(runtimeWith(stateOf([d])), <DayScreen />);
-    await screen.findByText(/Makan Siang Rumahan/);
-    return view;
-  };
-
-  it("is not offered for a future day", async () => {
-    await show(open("d-next", "2026-10-18"));
-    expect(report()).toBeNull();
-  });
-
-  it("is not offered today before the window opens", async () => {
-    await show(open("d-today", "2026-10-07"));
-    expect(report()).toBeNull();
-  });
-
-  it("is not offered for a cancelled meal", async () => {
-    const d = delivery("d-today", "2026-10-07", {}, {
-      meals: [
-        { meal: "lunch", status: "cancelled" },
-        { meal: "dinner", status: "scheduled" },
-      ],
-      offer: offer({ windows: { lunch: "08.00–09.00", dinner: "17.00–19.00" } }),
-    });
-    await show(d);
-    expect(report()).toBeNull();
-  });
-
-  it("is offered today once the meal is on its way, and opens the report for that meal", async () => {
-    await show(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }));
-    fireEvent.press(report()!);
-    expect(router.push).toHaveBeenCalledWith("/masalah/d-today?meal=lunch");
-  });
-
-  it("says a meal the kitchen marked arrived is marked arrived, the same state Beranda reads, never on the way", async () => {
-    await show(
-      delivery("d-today", "2026-10-07", {}, {
-        meals: [
-          {
-            meal: "lunch",
-            status: "out_for_delivery",
-            departed_at: "2026-10-07T03:00:00Z",
-            arrived_at: "2026-10-07T03:20:00Z",
-          },
-        ],
-      }),
-    );
-    expect(screen.getByText(/Ditandai sampai/)).toBeTruthy();
-    expect(screen.queryByText(/Sedang diantar/)).toBeNull();
-  });
-
-  it("keeps Gagal diantar for a failed meal even when it has departed and arrived stamps", async () => {
-    await show(
-      delivery("d-today", "2026-10-07", {}, {
-        meals: [
-          {
-            meal: "lunch",
-            status: "issue",
-            departed_at: "2026-10-07T03:00:00Z",
-            arrived_at: "2026-10-07T03:20:00Z",
-          },
-        ],
-      }),
-    );
-    expect(screen.getByText(/Gagal diantar/)).toBeTruthy();
-  });
-
-  it("still says on the way for a meal that left and was not marked arrived", async () => {
-    await show(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }));
-    expect(screen.getByText(/Sedang diantar/)).toBeTruthy();
-  });
-
-  it("is offered today once the window has started", async () => {
-    await show(open("d-today", "2026-10-07", { offer: offer({ windows: { lunch: "09.30–11.00", dinner: "17.00–19.00" } }) }));
-    expect(report()).toBeTruthy();
-  });
-
-  it("opens the meal that has no open report yet, and hides when every meal has one", async () => {
-    const both = (lunchIssue: string | null, dinnerIssue: string | null) =>
-      delivery("d-today", "2026-10-07", {}, {
-        meals: [
-          { meal: "lunch", status: "out_for_delivery", issue: lunchIssue ? { id: "i-1", status: lunchIssue } : null },
-          { meal: "dinner", status: "out_for_delivery", issue: dinnerIssue ? { id: "i-2", status: dinnerIssue } : null },
-        ],
-      });
-    let view = await show(both("open", null));
-    fireEvent.press(report()!);
-    expect(router.push).toHaveBeenLastCalledWith("/masalah/d-today?meal=dinner");
-    view.unmount();
-    // A resolved report can be followed by a new one.
-    view = await show(both("responded", "resolved"));
-    fireEvent.press(report()!);
-    expect(router.push).toHaveBeenLastCalledWith("/masalah/d-today?meal=dinner");
-    view.unmount();
-    await show(both("open", "escalated"));
-    expect(report()).toBeNull();
-  });
-
-  it("is offered for yesterday's delivered meal", async () => {
-    await show(delivery("d-past", "2026-10-06", { status: "delivered" }));
-    expect(report()).toBeTruthy();
-  });
-});
-
-describe("Hari without a meals list", () => {
-  it("still shows the day", async () => {
-    mockParams = { id: "d-bare" };
-    const bare = { ...open("d-bare", "2026-10-08"), meals: null } as unknown as Delivery;
-    renderWith(runtimeWith(stateOf([bare])), <DayScreen />);
-    expect(await screen.findByText(/Makan Siang Rumahan/)).toBeTruthy();
-  });
-});
-
-describe("Hari Chat katering", () => {
-  it("opens WhatsApp from the day, and hides the chat without a number", async () => {
-    mockParams = { id: "d-next" };
-    const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  it("is a sheet body: the date under the handle, a 16:10 photo, the dish as hero title, the state line with its cut-off, the address well", async () => {
     const d = open("d-next", "2026-10-08", { catererPhone: "+6281200000001" } as Partial<Delivery>);
-    const view = renderWith(runtimeWith(stateOf([d])), <DayScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Chat katering" }));
-    expect(openUrl).toHaveBeenCalledWith("https://wa.me/6281200000001?text=");
-    view.unmount();
-    renderWith(runtimeWith(stateOf([open("d-next", "2026-10-08")])), <DayScreen />);
-    await screen.findByText(/Makan Siang Rumahan/);
-    expect(screen.queryByRole("button", { name: "Chat katering" })).toBeNull();
+    await showDay(d);
+    // The sheet's own title row names the day; the package under it. The body does not repeat the date.
+    expect(screen.getByRole("header", { name: "Kamis 8 Okt" })).toBeTruthy();
+    expect(screen.getByText("Makan Siang Rumahan")).toBeTruthy();
+    // Photo 16:10, radius 16.
+    const photo = screen.getByTestId("day-photo");
+    expect(flat(photo)).toMatchObject({ aspectRatio: 16 / 10, borderRadius: 16 });
+    // Meal and caterer on the meta line; the dish in heroTitle (24/30); the sides under it.
+    expect(screen.getByText("Makan siang · Dapur Contoh")).toBeTruthy();
+    expect(flat(screen.getByText("Ayam bakar madu"))).toMatchObject({ fontSize: 24, lineHeight: 30 });
+    expect(screen.getByText("Sayur asem")).toBeTruthy();
+    // The state line: the status, the window and until when the day can change (cut-off 17.00 today).
+    expect(screen.getByTestId("day-state-lunch")).toHaveTextContent("Terjadwal 11.00–13.00 · bisa diubah sampai hari ini 17.00");
+    // The address row is a 56 well in the canvas tone.
+    const well = screen.getByTestId("day-address");
+    expect(flat(well)).toMatchObject({ minHeight: 56, borderRadius: 12, backgroundColor: nativeThemes.light.canvas });
+    expect(within(well).getByText("Kantor · Jl. Contoh No. 1 · Tebet")).toBeTruthy();
+  });
+
+  it("has no per-meal ⋮, no pinned Ubah hari footer and no text link: the actions are circles in the body", async () => {
+    await showDay(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }, { catererPhone: "+6281200000001" } as Partial<Delivery>));
+    expect(screen.queryByRole("button", { name: /^Pilihan untuk / })).toBeNull();
+    expect(screen.queryByTestId("header-more")).toBeNull();
+    expect(screen.queryByTestId("sheet-footer")).toBeNull();
+    expect(screen.queryByText("Lihat atau pilih menu")).toBeNull();
+    expect(screen.queryByText("Chat katering")).toBeNull();
+    // Ada masalah is a labelled circle, not a text button.
+    expect(circleOf("report")).toBeTruthy();
+    expect(within(screen.getByTestId("day-actions")).getByText("Ada masalah")).toBeTruthy();
+  });
+
+  it("draws every action as a 56 circle with its label beneath", async () => {
+    // Before the cutoff, today, on its way, with the caterer's number and a menu: all five can show except none hidden.
+    const d = delivery("d-today", "2026-10-07", { status: "out_for_delivery" }, {
+      catererPhone: "+6281200000001",
+      cutoff_at: "2026-10-07T10:00:00Z",
+    } as Partial<Delivery>);
+    // 10.00 WIB: the cut-off at 17.00 WIB has not passed, so change and address are open too.
+    await showDay(d);
+    expect(actionKeys()).toEqual(["change", "menu", "report", "chat", "address"]);
+    for (const key of actionKeys()) {
+      expect(flat(circleOf(key)!)).toMatchObject({ width: 56, height: 56, borderRadius: 28 });
+    }
+    const row = within(screen.getByTestId("day-actions"));
+    for (const label of ["Ubah hari", "Lihat menu", "Ada masalah", "Chat", "Ganti alamat"]) expect(row.getByText(label)).toBeTruthy();
+    expect(flat(row.getByText("Ubah hari"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+  });
+
+  describe("each action keeps its condition", () => {
+    it("Ubah hari opens the change sheet; Ganti alamat opens it on the address side", async () => {
+      await showDay(open("d-next", "2026-10-08"));
+      fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
+      expect(router.push).toHaveBeenLastCalledWith("/ubah-hari/d-next");
+      fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+      expect(router.push).toHaveBeenLastCalledWith("/ubah-hari/d-next?mode=address");
+    });
+
+    it("a closed day (every meal delivered) hides Ubah hari and Ganti alamat", async () => {
+      await showDay(delivery("d-past", "2026-10-06", { status: "delivered" }, { catererPhone: "+6281200000001" } as Partial<Delivery>));
+      expect(circleOf("change")).toBeNull();
+      expect(circleOf("address")).toBeNull();
+      // The rest still shows: the menu, the report of yesterday's meal and the chat.
+      expect(actionKeys()).toEqual(["menu", "report", "chat"]);
+    });
+
+    it("a cancelled day hides Ubah hari and Ganti alamat", async () => {
+      const d = delivery("d-gone", "2026-10-08", { status: "cancelled" }, { status: "cancelled" } as Partial<Delivery>);
+      mockParams = { id: d.id };
+      renderV2(runtimeWith(stateOf([d])), <DayScreen />);
+      await screen.findByText("Makan Siang Rumahan");
+      expect(circleOf("change")).toBeNull();
+      expect(circleOf("address")).toBeNull();
+    });
+
+    it("after the cut-off Ubah hari and Ganti alamat are hidden and the state line says so", async () => {
+      // 06.00 on the 7th in Jakarta was the cutoff of the 7th's service: 2026-10-06T10:00Z has passed at 10.00 WIB on the 7th.
+      const d = delivery("d-today", "2026-10-07", {}, { cutoff_at: "2026-10-06T10:00:00Z" });
+      await showDay(d);
+      expect(circleOf("change")).toBeNull();
+      expect(circleOf("address")).toBeNull();
+      expect(screen.getByTestId("day-state-lunch")).toHaveTextContent("Terjadwal 11.00–13.00 · sudah tidak bisa diubah");
+    });
+
+    it("a fixed plan (days cannot move) hides Ubah hari but keeps Ganti alamat", async () => {
+      await showDay(open("d-next", "2026-10-08", { canChange: false }));
+      expect(circleOf("change")).toBeNull();
+      expect(circleOf("address")).toBeTruthy();
+    });
+
+    it("Chat is hidden without the caterer's number and opens WhatsApp with it", async () => {
+      const view = await showDay(open("d-next", "2026-10-08"));
+      expect(circleOf("chat")).toBeNull();
+      view.unmount();
+      const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+      await showDay(open("d-next", "2026-10-08", { catererPhone: "+6281200000001" } as Partial<Delivery>));
+      fireEvent.press(screen.getByRole("button", { name: "Chat" }));
+      expect(openUrl).toHaveBeenCalledWith("https://wa.me/6281200000001?text=");
+    });
+
+    it("Pilih menu in a pick-your-own package opens the menu choice for the day's first meal; Lihat menu otherwise", async () => {
+      const picks = open("d-next", "2026-10-08", { offer: offer({ menuSelectionMode: "customer" } as Partial<Offer>) });
+      const view = await showDay(picks);
+      expect(screen.getByRole("button", { name: "Pilih menu" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Lihat menu" })).toBeNull();
+      fireEvent.press(screen.getByRole("button", { name: "Pilih menu" }));
+      expect(router.push).toHaveBeenLastCalledWith("/subscriptions/s-1/menu?date=2026-10-08&meal=lunch");
+      view.unmount();
+      // The caterer picks and the menu is set: Lihat menu opens the package.
+      await showDay(open("d-next", "2026-10-08"));
+      expect(screen.queryByRole("button", { name: "Pilih menu" })).toBeNull();
+      fireEvent.press(screen.getByRole("button", { name: "Lihat menu" }));
+      expect(router.push).toHaveBeenLastCalledWith(`/paket/p-rumahan?title=${encodeURIComponent("Makan Siang Rumahan")}`);
+    });
+
+    it("the menu circle is hidden when the caterer picks and no menu is set yet", async () => {
+      await showDay(open("d-next", "2026-10-08", { offer: offer({ menus: [] }) }), "Menu belum diisi");
+      expect(circleOf("menu")).toBeNull();
+    });
+
+    it("Ada masalah is hidden for a future day, before the window, for a cancelled meal and when every meal has a report", async () => {
+      let view = await showDay(open("d-next", "2026-10-18"));
+      expect(circleOf("report")).toBeNull();
+      view.unmount();
+      view = await showDay(open("d-today", "2026-10-07"));
+      expect(circleOf("report")).toBeNull();
+      view.unmount();
+      const reported = delivery("d-today", "2026-10-07", {}, {
+        meals: [{ meal: "lunch", status: "out_for_delivery", issue: { id: "i-1", status: "open" } }],
+      } as unknown as Partial<Delivery>);
+      view = await showDay(reported);
+      expect(circleOf("report")).toBeNull();
+    });
+
+    it("Ada masalah opens the report for the meal that has no open report yet", async () => {
+      const both = (lunchIssue: string | null, dinnerIssue: string | null) =>
+        delivery("d-today", "2026-10-07", {}, {
+          meals: [
+            { meal: "lunch", status: "out_for_delivery", issue: lunchIssue ? { id: "i-1", status: lunchIssue } : null },
+            { meal: "dinner", status: "out_for_delivery", issue: dinnerIssue ? { id: "i-2", status: dinnerIssue } : null },
+          ],
+        } as unknown as Partial<Delivery>);
+      let view = await showDay(both("open", null));
+      fireEvent.press(screen.getByRole("button", { name: "Ada masalah" }));
+      expect(router.push).toHaveBeenLastCalledWith("/masalah/d-today?meal=dinner");
+      view.unmount();
+      // A resolved report can be followed by a new one.
+      view = await showDay(both("responded", "resolved"));
+      fireEvent.press(screen.getByRole("button", { name: "Ada masalah" }));
+      expect(router.push).toHaveBeenLastCalledWith("/masalah/d-today?meal=dinner");
+      view.unmount();
+      await showDay(both("open", "escalated"));
+      expect(circleOf("report")).toBeNull();
+    });
+
+    it("Ada masalah for a meal the kitchen is on the way with, and yesterday's delivered meal", async () => {
+      const view = await showDay(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }));
+      fireEvent.press(screen.getByRole("button", { name: "Ada masalah" }));
+      expect(router.push).toHaveBeenLastCalledWith("/masalah/d-today?meal=lunch");
+      view.unmount();
+      await showDay(delivery("d-past", "2026-10-06", { status: "delivered" }));
+      expect(circleOf("report")).toBeTruthy();
+    });
+  });
+
+  describe("meals and states", () => {
+    it("says on the way, arrived and failed in the state line, as Beranda reads them", async () => {
+      let view = await showDay(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }));
+      expect(screen.getByTestId("day-state-lunch")).toHaveTextContent(/Sedang diantar/);
+      view.unmount();
+      view = await showDay(
+        delivery("d-today", "2026-10-07", {}, {
+          meals: [{ meal: "lunch", status: "out_for_delivery", departed_at: "2026-10-07T03:00:00Z", arrived_at: "2026-10-07T03:20:00Z" }],
+        } as unknown as Partial<Delivery>),
+      );
+      expect(screen.getByTestId("day-state-lunch")).toHaveTextContent(/Ditandai sampai/);
+      expect(screen.queryByText(/Sedang diantar/)).toBeNull();
+      view.unmount();
+      await showDay(
+        delivery("d-today", "2026-10-07", {}, {
+          meals: [{ meal: "lunch", status: "issue", departed_at: "2026-10-07T03:00:00Z", arrived_at: "2026-10-07T03:20:00Z" }],
+        } as unknown as Partial<Delivery>),
+      );
+      expect(screen.getByTestId("day-state-lunch")).toHaveTextContent(/Gagal diantar/);
+    });
+
+    it("a day with lunch and dinner shows both meals, one block each, and one row of actions", async () => {
+      const d = delivery("d-both", "2026-10-08", {}, {
+        meals: [
+          { meal: "lunch", status: "scheduled" },
+          { meal: "dinner", status: "scheduled" },
+        ],
+        offer: offer({
+          meal: "both",
+          menus: [
+            menuOf("lunch", "", [{ id: "l-1", name: "Ayam bakar madu" }]),
+            menuOf("dinner", "", [{ id: "d-1", name: "Soto betawi" }]),
+          ],
+        }),
+      } as unknown as Partial<Delivery>);
+      await showDay(d);
+      expect(screen.getByText("Soto betawi")).toBeTruthy();
+      expect(screen.getByText("Makan siang · Dapur Contoh")).toBeTruthy();
+      expect(screen.getByText("Makan malam · Dapur Contoh")).toBeTruthy();
+      expect(screen.getByTestId("day-state-lunch")).toHaveTextContent(/^Terjadwal 11\.00–13\.00/);
+      expect(screen.getByTestId("day-state-dinner")).toHaveTextContent(/^Terjadwal 17\.00–19\.00/);
+      expect(screen.getAllByTestId("day-actions")).toHaveLength(1);
+    });
+
+    it("a day without a meals list still shows the day", async () => {
+      const bare = { ...open("d-bare", "2026-10-08"), meals: null } as unknown as Delivery;
+      mockParams = { id: "d-bare" };
+      renderV2(runtimeWith(stateOf([bare])), <DayScreen />);
+      expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    });
+
+    it("signed out, the sheet asks to sign in and comes back to this day", async () => {
+      mockParams = { id: "d-next" };
+      const runtime = runtimeWith(stateOf([open("d-next", "2026-10-08")]));
+      (runtime.api.me as jest.Mock).mockResolvedValue({ actor: null, demo: false });
+      renderV2(runtime, <DayScreen />);
+      fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
+      expect(router.push).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/hari/d-next" } });
+      expect(runtime.api.customer).not.toHaveBeenCalled();
+    });
+
+    it("a day the read does not hold, or a failed read, is titled Hari, never the day its link carried", async () => {
+      mockParams = { id: "d-palsu", title: "Senin 12 Okt" };
+      // Loading: the title row keeps the day the link carried.
+      let view = renderV2(runtimeWith(() => new Promise(() => undefined)), <DayScreen />);
+      await act(async () => {});
+      expect(screen.getByRole("header", { name: "Senin 12 Okt" })).toBeTruthy();
+      view.unmount();
+      // Not found.
+      view = renderV2(runtimeWith(stateOf([open("d-next", "2026-10-08")])), <DayScreen />);
+      expect(await screen.findByText("Pengantaran tidak ditemukan.")).toBeTruthy();
+      expect(screen.getByRole("header", { name: "Hari" })).toBeTruthy();
+      view.unmount();
+      // A failed read (offline without a copy).
+      renderV2(
+        runtimeWith(async () => {
+          throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+        }),
+        <DayScreen />,
+      );
+      expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
+      expect(screen.getByRole("header", { name: "Hari" })).toBeTruthy();
+    });
+  });
+
+  describe("the action row at large text and 360dp", () => {
+    const four = () => open("d-next", "2026-10-08", { catererPhone: "+6281200000001" } as Partial<Delivery>);
+
+    it("stays on one row at 412dp and normal text", async () => {
+      mockWidth = 412;
+      await showDay(four());
+      expect(actionKeys()).toEqual(["change", "menu", "chat", "address"]);
+      expect(flat(screen.getByTestId("day-actions"))).toMatchObject({ flexDirection: "row", flexWrap: "nowrap" });
+    });
+
+    it("wraps to two lines at 360dp: two circles per line, every label whole", async () => {
+      mockWidth = 360;
+      await showDay(four());
+      expect(flat(screen.getByTestId("day-actions"))).toMatchObject({ flexDirection: "row", flexWrap: "wrap" });
+      for (const key of actionKeys()) expect(flat(screen.getByTestId(`day-action-${key}`))).toMatchObject({ width: "50%" });
+      for (const label of ["Ubah hari", "Lihat menu", "Chat", "Ganti alamat"]) {
+        expect(screen.getByText(label).props.numberOfLines).toBeUndefined();
+      }
+    });
+
+    it("wraps at font scale 1.3 and keeps the circles 56", async () => {
+      mockWidth = 412;
+      mockFontScale = 1.3;
+      await showDay(four());
+      expect(flat(screen.getByTestId("day-actions"))).toMatchObject({ flexWrap: "wrap" });
+      for (const key of actionKeys()) expect(flat(circleOf(key)!)).toMatchObject({ width: 56, height: 56 });
+    });
+  });
+
+  describe("dark theme", () => {
+    it("draws the circles on the dark tone and the well on the dark canvas", async () => {
+      const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+      mockParams = { id: "d-next" };
+      try {
+        renderV2(
+          runtimeWith(stateOf([open("d-next", "2026-10-08")])),
+          <ThemeProvider storageKey="hari-dark">
+            <DayScreen />
+          </ThemeProvider>,
+        );
+        await screen.findByText("Ayam bakar madu");
+        expect(flat(circleOf("change")!)).toMatchObject({ backgroundColor: nativeThemes.dark.sage });
+        expect(flat(screen.getByTestId("day-address"))).toMatchObject({ backgroundColor: nativeThemes.dark.canvas });
+      } finally {
+        scheme.mockRestore();
+      }
+    });
   });
 });
+
 
 describe("signed out", () => {
   it("Jadwal asks to sign in and comes back to /jadwal", async () => {

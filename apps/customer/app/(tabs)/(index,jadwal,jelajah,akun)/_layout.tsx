@@ -36,8 +36,10 @@ export default function TabStack({ segment }: { segment: string }) {
       />
       <Stack.Screen name="subscriptions/[id]/menu" options={{ headerShown: false }} />
       <Stack.Screen name="pilih-menu/[id]" options={{ title: t("Pilih menu", "Choose menus") }} />
-      {/* The day itself ("Senin 12 Okt") is the title; until it is known the bar stays empty, never "Hari". */}
-      <Stack.Screen name="hari/[id]" options={({ route }) => ({ title: linkTitle(route.params) ?? "" })} />
+      {/* The day is a form sheet over the page that opened it (spec 3.2 item 3), opening at three quarters and
+          expanding. It draws its own title row ("Senin 12 Okt"), so the stack header is hidden; the sheet stays in the
+          tab's stack, so its URL, the cold-link back stack and the tab bar are unchanged. */}
+      <Stack.Screen name="hari/[id]" options={sheetOptions({ detents: "day", palette })} />
       <Stack.Screen
         name="paket/[id]"
         options={({ route }) => contentTitled(linkTitle(route.params) ?? t("Paket", "Package"))}

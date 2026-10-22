@@ -78,7 +78,24 @@ jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
 }));
 const mockStub = (name: string) => () => createElement(Text, { testID: "screen" }, name);
-jest.mock("../src/today/Beranda", () => ({ Beranda: mockStub("Beranda") }));
+/**
+ * Beranda: the screen's stand-in, with the "…" of the day in `mockHomeDay` (the hero photo's corner draws it in the app).
+ * Hari draws its actions as visible circles, so the day's action sheet (`/aksi`) is reached from this entry.
+ */
+let mockHomeDay: import("@catera/domain").Delivery | null = null;
+jest.mock("../src/today/Beranda", () => ({
+  Beranda: () => {
+    const { createElement: h } = require("react");
+    const { Text: T, View: V } = require("react-native");
+    const { DayMore } = require("../src/schedule/DayMore");
+    return h(
+      V,
+      null,
+      h(T, { testID: "screen" }, "Beranda"),
+      mockHomeDay ? h(DayMore, { delivery: mockHomeDay, meal: "lunch" }) : null,
+    );
+  },
+}));
 jest.mock("../src/discover/Jelajah", () => ({ Jelajah: mockStub("Jelajah") }));
 jest.mock("../src/help/ReportList", () => ({ ReportList: mockStub("Bantuan") }));
 /** Beli: buttons that ask its choice sheets the way BuyScreen does, and the answer it got. */
@@ -172,6 +189,11 @@ const overDay = (sheet: string) => {
   expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
   expect(root()).toEqual(["(tabs)", sheet]);
 };
+/** A form sheet opened from the day's "…" on Beranda: over Beranda itself, no Hari between. */
+const overHome = (sheet: string) => {
+  expect(stack("(index)")).toEqual(["index"]);
+  expect(root()).toEqual(["(tabs)", sheet]);
+};
 const overAlamat = () => {
   expect(stack("(index)")).toEqual(["index", "alamat"]);
   expect(root()).toEqual(["(tabs)", "alamat-form"]);
@@ -200,12 +222,12 @@ function hardwareBack() {
 }
 
 /** The form-sheet and fit-sheet options react-native-screens gets ([-1] is fitToContents). */
-const expectSheet = (route: string, detents: "form" | "fit" | "large") => {
+const expectSheet = (route: string, detents: "form" | "fit" | "large" | "day") => {
   const s = screenOf(route);
   expect({ route, presentation: s.props.stackPresentation }).toEqual({ route, presentation: "formSheet" });
   expect({ route, detents: s.props.sheetAllowedDetents }).toEqual({
     route,
-    detents: detents === "form" ? [0.6, 1] : detents === "large" ? [1] : [-1],
+    detents: detents === "form" ? [0.6, 1] : detents === "day" ? [0.75, 1] : detents === "large" ? [1] : [-1],
   });
   expect(s.props.sheetGrabberVisible).toBe(true);
   expect(s.props.sheetCornerRadius).toBe(28);
@@ -304,6 +326,7 @@ beforeEach(() => {
   mockReduced = false;
   mockSheetOs = undefined;
   mockFontScale = 1;
+  mockHomeDay = null;
   mockSession.actor = { id: "u-c1", role: "customer", name: "Rani Contoh" };
   (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
 });
@@ -391,10 +414,50 @@ describe("routes", () => {
 });
 
 describe("the day's actions", () => {
+  it("Hari is a form sheet in its tab's stack that opens at three quarters and expands, over the page that opened it", async () => {
+    answer("day:d1", stateWith([open("d1", addDays(TODAY, 2))]));
+    const app = await mount("/hari/d1");
+    // A cold link keeps the tab root behind the day, as before; only the presentation changed.
+    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    expect(root()).toEqual(["(tabs)"]);
+    expectSheet("hari/[id]", "day");
+    // It draws its own title row, so no stack header sits over it.
+    expect(screen.getByRole("header", { name: shortDate(addDays(TODAY, 2), "id") })).toBeTruthy();
+    expect(screenOf("hari/[id]").props.headerShown ?? false).toBe(false);
+    app.unmount();
+  });
+
+  it("the circles open Ubah hari, Ganti alamat and Ada masalah over the day, each on its own side", async () => {
+    // Today, before the cutoff, on its way, with the caterer's number: every circle shows.
+    const d = open("d1", TODAY, {}, { status: "out_for_delivery", catererPhone: "+6281200000001" } as never);
+    const fresh = { ...d, cutoff_at: new Date(Date.now() + 3600_000).toISOString() };
+    answer("day:d1", stateWith([fresh]));
+    answer("ubah-hari:d1", stateWith([fresh]));
+    let app = await mount("/hari/d1");
+    expect(["Ubah hari", "Lihat menu", "Ada masalah", "Chat", "Ganti alamat"].filter((name) => screen.queryByRole("button", { name }))).toEqual([
+      "Ubah hari",
+      "Lihat menu",
+      "Ada masalah",
+      "Chat",
+      "Ganti alamat",
+    ]);
+    // No ⋮ and no per-meal options.
+    expect(screen.queryByRole("button", { name: /^Pilihan untuk / })).toBeNull();
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ada masalah" })));
+    overDay("masalah/[id]");
+    app.unmount();
+    app = await mount("/hari/d1");
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
+    overDay("ubah-hari/[id]");
+    expect(screen.getByRole("tab", { name: "Ganti alamat" }).props.accessibilityState.selected).toBe(true);
+    app.unmount();
+  });
+
   it("the day's … sheet lists only allowed actions, report last", async () => {
     // Before the cutoff, today, on its way, with the caterer's number: every action, the report last.
-    answer("day:d1", stateWith([open("d1", TODAY, {}, { status: "out_for_delivery" })]));
-    let app = await mount("/hari/d1");
+    mockHomeDay = open("d1", TODAY, {}, { status: "out_for_delivery" });
+    answer("day:d1", stateWith([mockHomeDay]));
+    let app = await mount("/");
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
     expect(root()).toEqual(["(tabs)", "aksi"]);
     expect(rowLabels()).toEqual(["Pindah tanggal", "Ganti alamat pengantaran ini", "Chat Dapur Contoh", "Laporkan masalah"]);
@@ -405,12 +468,13 @@ describe("the day's actions", () => {
     expect(context.getByText(/^Bisa diubah sampai /)).toBeTruthy();
     // Laporkan masalah opens Ada masalah for that meal over Hari.
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Laporkan masalah" })));
-    overDay("masalah/[id]");
+    overHome("masalah/[id]");
     app.unmount();
 
     // After the cutoff: no Pindah tanggal, no Ganti alamat pengantaran ini.
-    answer("day:d1", stateWith([past("d1", TODAY, {}, { status: "out_for_delivery" })]));
-    app = await mount("/hari/d1");
+    mockHomeDay = past("d1", TODAY, {}, { status: "out_for_delivery" });
+    answer("day:d1", stateWith([mockHomeDay]));
+    app = await mount("/");
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
     expect(rowLabels()).toEqual(["Chat Dapur Contoh", "Laporkan masalah"]);
     expect(within(screen.getByTestId("action-context")).getByText("Sudah tidak bisa diubah")).toBeTruthy();
@@ -420,13 +484,14 @@ describe("the day's actions", () => {
 
   it("Pindah tanggal and Ganti alamat open Ubah hari on their side over the day", async () => {
     const d = open("d1", addDays(TODAY, 2));
+    mockHomeDay = d;
     answer("day:d1", stateWith([d]));
     answer("ubah-hari:d1", stateWith([d]));
-    const app = await mount("/hari/d1");
+    const app = await mount("/");
     const more = () => screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(d.service_date, "id")}` });
     await go(() => fireEvent.press(more()));
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat pengantaran ini" })));
-    overDay("ubah-hari/[id]");
+    overHome("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Ganti alamat" }).props.accessibilityState.selected).toBe(true);
     app.unmount();
   });
@@ -585,16 +650,17 @@ describe("handing off once a sheet has closed", () => {
   it("on iOS the day's … opens Pindah tanggal only once /aksi has finished sliding away", async () => {
     mockSheetOs = "ios";
     const d = open("d1", addDays(TODAY, 2));
+    mockHomeDay = d;
     answer("day:d1", stateWith([d]));
     answer("ubah-hari:d1", stateWith([d]));
-    const app = await mount("/hari/d1");
+    const app = await mount("/");
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(d.service_date, "id")}` })));
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" })));
     // /aksi has left the stack and is still sliding away: UIKit would refuse a sheet presented over it now.
     expect(root()).toEqual(["(tabs)"]);
-    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    expect(stack("(index)")).toEqual(["index"]);
     await sheetClosed();
-    overDay("ubah-hari/[id]");
+    overHome("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Pindah tanggal" }).props.accessibilityState.selected).toBe(true);
     app.unmount();
   });
@@ -647,6 +713,7 @@ describe("handing off once a sheet has closed", () => {
 
   it("on Android the asker hears the answer only after /aksi has left the stack", async () => {
     const d = open("d1", TODAY, {}, { status: "out_for_delivery" });
+    mockHomeDay = d;
     answer("day:d1", stateWith([d]));
     const original = router.push.bind(router);
     const push = jest.spyOn(router, "push");
@@ -656,14 +723,14 @@ describe("handing off once a sheet has closed", () => {
       return original(...args);
     }) as never);
     try {
-      const app = await mount("/hari/d1");
+      const app = await mount("/");
       push.mockClear();
       atPush.length = 0;
       await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
       atPush.length = 0;
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Laporkan masalah" })));
       expect(atPush).toEqual([["(tabs)"]]);
-      overDay("masalah/[id]");
+      overHome("masalah/[id]");
       app.unmount();
     } finally {
       push.mockRestore();
@@ -751,10 +818,11 @@ describe("Jelajah's area", () => {
 describe("every fit sheet scrolls once it outgrows the screen", () => {
   it("the action and confirm sheets keep their last row and their buttons reachable at a larger font", async () => {
     mockFontScale = 1.3;
-    answer("day:d1", stateWith([open("d1", TODAY, {}, { status: "out_for_delivery" })]));
+    mockHomeDay = open("d1", TODAY, {}, { status: "out_for_delivery" });
+    answer("day:d1", stateWith([mockHomeDay]));
     answer("alamat:customer", stateWith([]));
     answer("alamat-form:a-2", stateWith([]));
-    let app = await mount("/hari/d1");
+    let app = await mount("/");
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
     const action = within(screenOf("aksi") as never);
     expectFitScrolls("aksi", [action.getByRole("button", { name: "Pindah tanggal" }), action.getByRole("button", { name: "Laporkan masalah" })]);
@@ -830,8 +898,9 @@ describe("states", () => {
         });
       }
     };
-    answer("day:d1", stateWith([open("d1", TODAY, {}, { status: "out_for_delivery" })]));
-    let app = await mount("/hari/d1");
+    mockHomeDay = open("d1", TODAY, {}, { status: "out_for_delivery" });
+    answer("day:d1", stateWith([mockHomeDay]));
+    let app = await mount("/");
     // The day's action sheet.
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
     expectGrows("aksi");

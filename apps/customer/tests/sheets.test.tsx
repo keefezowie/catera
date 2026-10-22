@@ -218,6 +218,21 @@ describe("sheet routes", () => {
     expect(tabLayout).toContain('name="area"');
   });
 
+  it("Hari is a day sheet declared by its tab's stack (three quarters, then full), never the root layout", async () => {
+    const rootLayout = readFileSync(join(APP, "_layout.tsx"), "utf8");
+    const tabLayout = readFileSync(join(APP, "(tabs)", "(index,jadwal,jelajah,akun)", "_layout.tsx"), "utf8");
+    expect(tabLayout).toContain('name="hari/[id]" options={sheetOptions({ detents: "day"');
+    expect(rootLayout).not.toContain('name="hari/[id]"');
+    // The deep link keeps its place in the tab: the tab root behind the day, the day a form sheet.
+    const app = await mount("/hari/d-today");
+    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    const day = screenOf("hari/[id]");
+    expect(day.props.stackPresentation).toBe("formSheet");
+    expect(day.props.sheetAllowedDetents).toEqual([0.75, 1]);
+    expect(day.props.sheetGrabberVisible).toBe(true);
+    app.unmount();
+  });
+
   it("a root-stack Ada masalah still sends the screen reader to its title, after the present and again after the settle", async () => {
     const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
     try {

@@ -658,6 +658,22 @@ describe("finding 3: Bayar while the payment is checked", () => {
   });
 });
 
+describe("the day sheet's skeleton", () => {
+  it("is the loaded sheet's own frame: a 16:10 photo, a 56 address well and 56 action circles, from the same constants", async () => {
+    mockParams = { id: "d-today" };
+    renderWith(runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) }), <DayScreen />);
+    // The sheet's title row is already there, holding its context line as a skeleton.
+    expect(await screen.findByRole("header", { name: "Hari" })).toBeTruthy();
+    const photo = StyleSheet.flatten(screen.getByTestId("day-skeleton-photo").props.style) as { height: number; borderRadius: number };
+    // 360 wide, less the sheet's 24 on each side (Android): 312 / (16 / 10).
+    expect(photo.height).toBe(Math.round((360 - 2 * 24) / 1.6));
+    expect(photo.borderRadius).toBe(16);
+    expect((StyleSheet.flatten(screen.getByTestId("day-skeleton-address").props.style) as { height: number }).height).toBe(56);
+    // One progress bar names the wait.
+    expect(screen.getAllByRole("progressbar", { name: "Memuat pengantaran" })).toHaveLength(1);
+  });
+});
+
 describe("finding 5: every screen's first read waits as its own skeleton", () => {
   const pending = () => new Promise<never>(() => undefined);
   const cases: [string, () => React.ReactElement, string, Record<string, unknown>, Record<string, string>][] = [
