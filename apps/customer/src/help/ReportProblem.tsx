@@ -44,7 +44,10 @@ const WITHOUT_NOTE = "Tanpa catatan tambahan.";
  */
 const drafts = new Map<string, string>();
 
-/** Opens Bantuan from the sheet: the sheet closes, and Bantuan opens over the page it sat on (Hari). */
+/**
+ * Opens Bantuan from the sheet: every sheet above the tabs closes (this one and the day sheet under it, if it sat over
+ * one), and Bantuan opens in the tab beneath them.
+ */
 function toBantuan() {
   closeSheetFor("/bantuan");
 }
@@ -167,7 +170,9 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
     closed.current = true;
     toast.show({
       message: t("Laporan terkirim", "Report sent"),
-      action: { label: t("Lihat", "View"), onPress: () => router.push("/bantuan" as never) },
+      // The toast outlives the sheet, and a day sheet may be on top by the time it is tapped: Bantuan is a page of the tab,
+      // so the sheets close and it opens there, never behind a sheet or in a second tabs instance.
+      action: { label: t("Lihat", "View"), onPress: toBantuan },
       tone: "success",
     });
     router.back();

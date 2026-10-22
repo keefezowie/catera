@@ -782,6 +782,17 @@ describe("legacy paths and the screens above the tabs", () => {
     dayOver("(index)");
   });
 
+  it("back from Masuk with a malformed id in the link does not throw: the sheets close and nothing reopens over a day it cannot match", () => {
+    mount("/");
+    act(() => router.push("/hari/d1"));
+    act(() => router.push({ pathname: "/login", params: { next: "/masalah/%E0%A4%A?meal=lunch" } }));
+    expect(root()).toEqual(["(tabs)", "hari/[id]", "login"]);
+    expect(() => act(() => leaveFor("/masalah/%E0%A4%A?meal=lunch"))).not.toThrow();
+    // No open day carries that id, so the sheet is not opened over another: the screens above the tabs just close.
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(index)")).toEqual(["index"]);
+  });
+
   it("back from Masuk opens a form sheet again only over the page that opened it, never a new page over Beranda", () => {
     mount("/");
     act(() => leaveFor("/masalah/d1?meal=lunch"));

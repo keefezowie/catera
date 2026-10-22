@@ -330,7 +330,13 @@ function parentOpen(found: { tabs: State }, path: string): boolean {
   if (!parent) return true;
   // The day sheet is a root route: it is "open" while it is anywhere in the root stack (Masuk sits above it).
   if (isDaySheet(parent)) {
-    const id = decodeURIComponent(pathname(parent).split("/")[2] ?? "");
+    const raw = pathname(parent).split("/")[2] ?? "";
+    let id = raw;
+    try {
+      id = decodeURIComponent(raw);
+    } catch {
+      // A malformed escape names the id as written, as in `onTop`.
+    }
     return !!appStack()?.routes.some((r) => r.name === "hari/[id]" && (r as Route & { params?: { id?: unknown } }).params?.id === id);
   }
   const group = found.tabs.routes[found.tabs.index]?.name ?? "(index)";

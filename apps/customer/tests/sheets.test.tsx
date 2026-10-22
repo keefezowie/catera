@@ -768,6 +768,23 @@ describe("Ada masalah as a sheet", () => {
   });
 });
 
+describe("the sent report's toast", () => {
+  it("Lihat closes the day sheet and opens Bantuan in the tab: one tabs navigator, nothing behind a sheet", async () => {
+    const app = await mountDay("d-today");
+    await go(() => router.push("/masalah/d-today?meal=lunch"));
+    fireEvent.press(screen.getByRole("radio", { name: "Belum sampai" }));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim laporan" })));
+    await act(async () => {});
+    // The report closed; the day sheet it sat over is still up, and the toast waits.
+    atHari();
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Lihat" })));
+    // Bantuan is a page of the tab beneath the sheets: they are gone, and there is still one tabs route.
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(index)")).toEqual(["index", "bantuan"]);
+    app.unmount();
+  });
+});
+
 // The harness components are referenced through the mock factories only.
 void Pressable;
 void View;

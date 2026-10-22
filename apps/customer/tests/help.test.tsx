@@ -197,8 +197,12 @@ describe("Ada masalah", () => {
     expect(await screen.findByText("Laporan terkirim")).toBeTruthy();
     // The old full "sent" page is gone.
     expect(screen.queryByText(/^Sekarang:/)).toBeNull();
+    // The toast's action closes the sheets above the tabs and opens Bantuan in the tab: never a push behind a sheet.
+    const close = jest.spyOn(nav, "closeSheetFor").mockImplementation(() => {});
     fireEvent.press(screen.getByRole("button", { name: "Lihat" }));
-    expect(router.push).toHaveBeenCalledWith("/bantuan");
+    expect(close).toHaveBeenCalledWith("/bantuan");
+    expect(router.push).not.toHaveBeenCalledWith("/bantuan");
+    close.mockRestore();
   });
 
   it("a CONFLICT stays in the sheet with its message", async () => {
