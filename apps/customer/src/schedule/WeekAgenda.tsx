@@ -7,8 +7,8 @@ import {
   storyDishes,
   MEALS,
   weekdayName,
+  windowStart,
   windowStartMinutes,
-  type CalendarDay,
   type Delivery,
   type Locale,
 } from "@catera/domain";
@@ -58,8 +58,8 @@ export function WeekAgenda({
   week,
   next,
   today,
+  now,
   deliveries,
-  days,
   apiBase,
   locale,
   onOpenWeek,
@@ -67,8 +67,9 @@ export function WeekAgenda({
   week: string[];
   next: string[];
   today: string;
+  /** The clock Beranda's plate reads, so a meal past its window is "due" on both screens. */
+  now: Date;
   deliveries: Delivery[];
-  days: ReadonlyMap<string, CalendarDay>;
   apiBase: string;
   locale: Locale;
   onOpenWeek: (firstDay: string) => void;
@@ -106,13 +107,16 @@ export function WeekAgenda({
       : t(`${nameList(empty, "id")} tidak ada pengantaran`, `No deliveries on ${nameList(empty, "en")}`);
 
   const mealRow = ({ d, m }: Item, date: string) => {
-    const set = days.get(date)?.[m.meal]?.menuSet;
-    const notSet = set === false;
     const image = d.offer.menus?.find((x) => x.meal === m.meal)?.image || d.offer.image;
     // The words the screen already uses for a meal's stage (Plate's state line, the day sheet), so the agenda never coins
     // its own: scheduled, cooking, on the way, arrived, delivered, not delivered. A past meal nobody updated is "Belum
     // sampai" there.
     const journey = mealJourney(m);
+    // Beranda's rule (plateState): a meal nobody has sent out whose window has opened is due, and a report outranks it.
+    const reported = !!m.issue && m.issue.status !== "resolved";
+    const due =
+      !reported &&
+      (date < today || (date === today && windowStart(date, d.offer, m.meal) <= now.getTime()));
     const state = failed(m.status)
       ? t("Gagal diantar", "Not delivered")
       : journey.stage === "delivered"
@@ -121,10 +125,10 @@ export function WeekAgenda({
           ? statusLabel("arrived", locale)
           : journey.stage === "out_for_delivery"
             ? t("Sedang diantar", "On the way")
-            : journey.stage === "preparing"
-              ? t("Sedang dimasak", "Being cooked")
-              : date < today
-                ? t("Belum sampai", "Not here yet")
+            : due
+              ? t("Belum sampai", "Not here yet")
+              : journey.stage === "preparing"
+                ? t("Sedang dimasak", "Being cooked")
                 : t("Terjadwal", "Scheduled");
     const label = m.meal === "dinner" ? t("Malam", "Dinner") : t("Siang", "Lunch");
     const window = d.offer.windows?.[m.meal];
@@ -132,6 +136,8 @@ export function WeekAgenda({
     // The row's title is the meal's lead dish, as the day sheet's is; a menu not set says so instead of naming the package.
     const menu = d.offer.menus?.find((x) => x.meal === m.meal);
     const lead = menu && menuIsSet(menu) ? storyDishes(menu).title : null;
+    // The thumb and the title read the same menu: a photo never sits beside "Menu belum diisi".
+    const notSet = !lead;
     const title = lead || t("Menu belum diisi", "Menu not set yet");
     return (
       <MediaRow

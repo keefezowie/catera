@@ -23,7 +23,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { ReactNode } from "react";
 import { Beranda } from "../src/today/Beranda";
 import { PerluDiurus } from "../src/today/PerluDiurus";
-import { sentences } from "../src/today/Plate";
+import { heroDetail, sentences } from "../src/today/Plate";
 import { customerLink } from "../src/links";
 import { Masuk } from "../src/account/Masuk";
 import * as offline from "../src/today/offline";
@@ -117,7 +117,7 @@ it("shows the on-the-way plate and confirms arrival", async () => {
     );
     renderHome(runtime);
     expect(await screen.findByText("Sedang diantar")).toBeTruthy();
-    expect(screen.getByText("tiba sekitar 11.00–13.00")).toBeTruthy();
+    expect(screen.getByText("Tiba sekitar 11.00–13.00")).toBeTruthy();
     expect(screen.getByText("Berangkat 10.42")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Sudah sampai" }));
     await waitFor(() =>
@@ -165,7 +165,7 @@ it("offers a private reaction after arrival", async () => {
   );
   renderHome(runtime);
   expect(await screen.findByText("Sudah sampai")).toBeTruthy();
-  expect(screen.getByText("pukul 11.48")).toBeTruthy();
+  expect(screen.getByText("Pukul 11.48")).toBeTruthy();
   fireEvent.press(screen.getByRole("button", { name: "Enak" }));
   await waitFor(() =>
     expect(runtime.api.command).toHaveBeenCalledWith(
@@ -514,7 +514,7 @@ describe("design tokens", () => {
     // The stop's label is bodyStrong, its state line and the body's detail are meta, and the time is tabular.
     const label = StyleSheet.flatten((await screen.findByTestId("status-stop-lunch-label")).props.style);
     expect(label).toMatchObject({ fontSize: 15, lineHeight: 22 });
-    const detail = StyleSheet.flatten(screen.getByText("pukul 11.48").props.style);
+    const detail = StyleSheet.flatten(screen.getByText("Pukul 11.48").props.style);
     expect(detail).toMatchObject({ fontSize: 13, lineHeight: 18 });
     expect(detail.fontVariant).toContain("tabular-nums");
   });
@@ -612,7 +612,7 @@ describe("fixed surfaces in the dark theme", () => {
     );
     const ink = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never).color;
     expect(ink(await screen.findByTestId("plate-dishes"))).toBe(nativeMood.dark.siang.heroText);
-    expect(ink(screen.getByText("tiba sekitar 11.00–13.00"))).toBe(nativeMood.dark.siang.heroMeta);
+    expect(ink(screen.getByText("Tiba sekitar 11.00–13.00"))).toBe(nativeMood.dark.siang.heroMeta);
     expect(ink(screen.getByText("Berangkat 10.42"))).toBe(nativeMood.dark.siang.heroText);
     expect(ink(screen.getByText("Sudah sampai"))).toBe(nativeThemes.dark.cream);
     // Control: the fixed inks above would read the same in light, so prove the dark theme was in force.
@@ -1061,7 +1061,7 @@ describe("Beranda mood", () => {
       mount(runtimeWith(async () => lunchToday({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` })));
       const h = await hero();
       expect(label()).toBe("Sedang diantar");
-      expect(detail()).toBe(`tiba sekitar ${NOT_YET}`);
+      expect(detail()).toBe(`Tiba sekitar ${NOT_YET}`);
       expect(screen.queryByTestId("plate-sentence")).toBeNull();
     });
 
@@ -1114,8 +1114,9 @@ describe("Beranda mood", () => {
       mount(runtimeWith(async () => lunchToday({ status: "out_for_delivery" }, { offer: offer(noWindow) })));
       const h = await hero();
       expect(label()).toBe("Sedang diantar");
-      expect(h.getByText("tiba sekitar")).toBeTruthy();
-      expect(h.queryByText(/^Tiba sekitar/)).toBeNull();
+      // The line stays the detail, capitalised, under the status; it is not promoted into the header.
+      expect(detail()).toBe("Tiba sekitar ");
+      expect(h.getAllByText(/^Tiba sekitar/)).toHaveLength(1);
     });
 
     it("keeps both original lines instead of promoting 'Diantar  ke' when a scheduled meal has no window or no address", async () => {
@@ -1133,7 +1134,8 @@ describe("Beranda mood", () => {
       mount(runtimeWith(async () => dinner({})), { now: MALAM_NOW });
       const noWindowHero = await hero();
       expect(label("dinner")).toBe("Terjadwal");
-      expect(noWindowHero.queryByText(/^Diantar /)).toBeNull();
+      expect(detail()).toBe("Diantar  ke Kantor");
+      expect(noWindowHero.getAllByText(/^Diantar /)).toHaveLength(1);
       screen.unmount();
 
       const address = { ...delivery("a", TODAY).address, label: "", line: "" };
@@ -1148,7 +1150,8 @@ describe("Beranda mood", () => {
       mount(runtimeWith(async () => withWindow), { now: MALAM_NOW });
       const noAddressHero = await hero();
       expect(label("dinner")).toBe("Terjadwal");
-      expect(noAddressHero.queryByText(/^Diantar /)).toBeNull();
+      expect(detail()).toBe(`Diantar ${NOT_YET} ke `);
+      expect(noAddressHero.getAllByText(/^Diantar /)).toHaveLength(1);
     });
 
     it.each([
@@ -1261,6 +1264,15 @@ describe("Beranda mood", () => {
       expect(h.getAllByText("Marked as arrived automatically")).toHaveLength(1);
     });
 
+    it("capitalises the hero's detail line, which stands alone under the status", () => {
+      const now = new Date(`${TODAY}T05:00:00Z`);
+      const [cooking] = todayPlates(lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` }), now);
+      expect(heroDetail(cooking, (id) => id, false)).toBe("Diantar 23.59–23.59 ke Kantor");
+      const [arrived] = todayPlates(lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }), now);
+      expect(heroDetail(arrived, (id) => id, false)).toBe("Pukul 11.48");
+      expect(heroDetail(arrived, (_id, en) => en, false)).toBe("At 11.48");
+    });
+
     it("keeps both lines for a card and the other-meal row: Ditandai sampai otomatis, then the time", () => {
       const now = new Date(`${TODAY}T05:00:00Z`);
       const [plate] = todayPlates(
@@ -1284,7 +1296,7 @@ describe("Beranda mood", () => {
       );
       const h = await hero();
       expect(label()).toBe("Sudah sampai");
-      expect(h.getByText("pukul 11.48")).toBeTruthy();
+      expect(h.getByText("Pukul 11.48")).toBeTruthy();
     });
 
     it("says Sampai when the customer confirmed", async () => {

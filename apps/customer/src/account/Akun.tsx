@@ -150,7 +150,12 @@ function Account() {
           testID="akun-header"
           meta={
             <View style={styles.identity}>
-              <View testID="akun-avatar" style={[styles.avatar, { backgroundColor: c.surface }]}>
+              <View
+                testID="akun-avatar"
+                accessible={false}
+                importantForAccessibility="no-hide-descendants"
+                style={[styles.avatar, { backgroundColor: c.surface }]}
+              >
                 <Text variant="rowTitle" style={{ fontFamily: fonts.bold }}>
                   {initialsOf(name)}
                 </Text>

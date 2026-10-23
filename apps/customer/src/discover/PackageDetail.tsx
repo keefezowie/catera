@@ -15,10 +15,12 @@ import {
   compositionPreview,
   currency,
   mealLabel,
+  menuSourceLabel,
   perMealPrice,
   priceUnitLabel,
   shortDate,
   startDates,
+  type Locale,
   type Offer,
 } from "@catera/domain";
 import { nativeLayout, nativeThemes } from "@catera/design-tokens";
@@ -122,6 +124,13 @@ function PhotoHeart({ id, name }: { id: string; name: string }) {
       onToggle={() => void saved.toggle(id)}
     />
   );
+}
+
+/** The row's meta: where the menu comes from, then what it holds, unless the preview already says just that. */
+function mealMeta(m: Offer["menus"][number], type: Offer["packageType"], locale: Locale): string {
+  const source = menuSourceLabel(m, locale);
+  const preview = compositionPreview(m, type, locale);
+  return preview && preview !== source ? `${source} · ${preview}` : source;
 }
 
 /** Paket: one package in full, with the way into Pilih jadwal (or a one-day trial). */
@@ -355,7 +364,7 @@ export function PackageDetail() {
                 tone={m.meal === "dinner" ? malam : siang}
                 glyph={<DecorativeIcon name={m.meal === "dinner" ? "moon-outline" : "sunny-outline"} size={GLYPH_BARE} color={c.charcoal} />}
                 title={mealLabel(m.meal, locale)}
-                meta={compositionPreview(m, o.packageType, locale)}
+                meta={mealMeta(m, o.packageType, locale)}
               />
             ))}
           </ListCard>

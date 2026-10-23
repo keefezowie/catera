@@ -591,7 +591,7 @@ describe("Beranda statement and stops", () => {
     expect(within(screen.getByTestId("status-stop-lunch")).getByText("Sedang diantar")).toBeTruthy();
     expect(screen.queryByTestId("plate-sentence")).toBeNull();
     // The body keeps its second line: when the meal is due, as meta.
-    expect(screen.getByTestId("plate-detail").props.children).toBe("tiba sekitar 11.00–13.00");
+    expect(screen.getByTestId("plate-detail").props.children).toBe("Tiba sekitar 11.00–13.00");
     // The state label is on the band's stop once and is not repeated in the hero body (the tracker has its own words).
     expect(within(screen.getByTestId("status-stops")).getAllByText("Sedang diantar")).toHaveLength(1);
     expect(within(screen.getByTestId("plate-body")).queryByText("Sedang diantar")).toBeNull();
@@ -679,7 +679,7 @@ describe("every Plate state under the food-led hero", () => {
       "now",
       "Sedang dimasak",
       "Makan siang sedang dimasak.",
-      "diantar 23.59–23.59 ke Kantor",
+      "Diantar 23.59–23.59 ke Kantor",
     ],
     [
       "on_the_way",
@@ -688,7 +688,7 @@ describe("every Plate state under the food-led hero", () => {
       "now",
       "Sedang diantar",
       "Makan siang sedang diantar.",
-      "tiba sekitar 23.59–23.59",
+      "Tiba sekitar 23.59–23.59",
     ],
     ["due", { status: "scheduled" }, EARLY, "now", "Belum sampai", "Makan siang belum sampai.", `${EARLY} · belum ada kabar dari dapur`],
     [
@@ -700,7 +700,7 @@ describe("every Plate state under the food-led hero", () => {
       "Dapur menandai makan siang sudah sampai.",
       "",
     ],
-    ["arrived", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }, NOT_YET, "done", "Sudah sampai", "Makan siang sudah sampai.", "pukul 11.48"],
+    ["arrived", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }, NOT_YET, "done", "Sudah sampai", "Makan siang sudah sampai.", "Pukul 11.48"],
     ["failed", { status: "issue" }, NOT_YET, "now", "Gagal diantar", "Makan siang gagal diantar.", ""],
     [
       "reported",

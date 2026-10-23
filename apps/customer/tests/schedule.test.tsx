@@ -8,7 +8,8 @@ import * as Haptics from "expo-haptics";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { LayoutScaleProvider, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
-import type { Address, CustomerState, Delivery, Offer } from "@catera/domain";
+import { todayPlates, type Address, type CustomerState, type Delivery, type Offer } from "@catera/domain";
+import { stateLabel } from "../src/today/Plate";
 import { Jadwal } from "../src/schedule/Jadwal";
 import { ChangeDaySheet } from "../src/schedule/ChangeDaySheet";
 import { DayScreen } from "../src/schedule/DayScreen";
@@ -505,6 +506,44 @@ describe("Jadwal", () => {
       expect(within(screen.getByTestId("agenda-row-d-done-lunch")).getByText("Siang 11.00–13.00 · Sudah sampai")).toBeTruthy();
       // A past day nobody updated is not "scheduled" any more.
       expect(within(screen.getByTestId("agenda-row-d-old-lunch")).getByText("Siang 11.00–13.00 · Belum sampai")).toBeTruthy();
+    });
+
+    it("says today's unmarked meal past its window what Beranda says for it, and leaves one still ahead Terjadwal", async () => {
+      // It is 10.00 in Jakarta: the 08.00 lunch has started and nobody tapped it; the 17.00 dinner is still ahead.
+      const early = offer({ windows: { lunch: "08.00–10.00", dinner: "17.00–19.00" } });
+      const state = stateOf([
+        delivery("d-late", "2026-10-07", {}, { offer: early }),
+        delivery("d-ahead", "2026-10-07", {}, { meals: [{ meal: "dinner", status: "scheduled" }] }),
+      ]);
+      renderV2(runtimeWith(state), <Jadwal />);
+      await gridReady();
+      const [late, ahead] = todayPlates(state, NOW);
+      expect(late.state).toBe("due");
+      expect(within(screen.getByTestId("agenda-row-d-late-lunch")).getByText(`Siang 08.00–10.00 · ${stateLabel(late, (id) => id)}`)).toBeTruthy();
+      expect(stateLabel(late, (id) => id)).toBe("Belum sampai");
+      expect(within(screen.getByTestId("agenda-row-d-ahead-dinner")).getByText(`Malam 17.00–19.00 · ${stateLabel(ahead, (id) => id)}`)).toBeTruthy();
+      expect(stateLabel(ahead, (id) => id)).toBe("Terjadwal");
+    });
+
+    it("draws a row's thumb from the row's own menu, never from the day's merged one", async () => {
+      // Two caterers serve lunch on the 8th: one menu set, one not. The calendar merges them to "not set"; each row is its own.
+      const unsetOffer = offer({
+        id: "p-kosong",
+        name: "Paket Kosong",
+        image: PACKAGE_PHOTO,
+        menus: [{ ...menuOf("lunch", "", []), contentModel: "slots" } as Offer["menus"][number]],
+      });
+      renderV2(
+        runtimeWith(stateOf([delivery("d-set", "2026-10-08", {}), delivery("d-blank", "2026-10-08", {}, { offer: unsetOffer })])),
+        <Jadwal />,
+      );
+      await gridReady();
+      const set = screen.getByTestId("agenda-row-d-set-lunch");
+      expect(within(set).getByText("Ayam bakar madu")).toBeTruthy();
+      expect(within(set).queryByTestId("agenda-row-d-set-lunch-thumb-not-set")).toBeNull();
+      const blank = screen.getByTestId("agenda-row-d-blank-lunch");
+      expect(within(blank).getByText("Menu belum diisi")).toBeTruthy();
+      expect(within(blank).getByTestId("agenda-row-d-blank-lunch-thumb-not-set")).toBeTruthy();
     });
 
     it("reads a scheduled meal in English as Scheduled", async () => {

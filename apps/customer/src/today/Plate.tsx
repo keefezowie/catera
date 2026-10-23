@@ -135,7 +135,7 @@ export function heroDetail(p: PlateData, t: Translate, trackShown: boolean): str
   const [headline, line] = heroSentences(p, t, trackShown);
   const [, second] = sentences(p, t);
   const detail = line || (second && headline === capitalise(second) ? headline : "");
-  return detail === stateLabel(p, t) ? "" : detail;
+  return detail === stateLabel(p, t) ? "" : capitalise(detail);
 }
 
 /**

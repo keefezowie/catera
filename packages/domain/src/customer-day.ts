@@ -90,7 +90,8 @@ const ADDRESS_LABEL_LENGTH = 24;
 
 const mealsOf = (d: Delivery): DeliveryMeal[] => d.meals ?? [];
 
-function windowStart(date: string, offer: Offer, meal: "lunch" | "dinner"): number {
+/** When a meal's delivery window opens on a date, as a timestamp: the moment a still-unmarked meal turns "due". */
+export function windowStart(date: string, offer: Offer, meal: "lunch" | "dinner"): number {
   const minutes = windowStartMinutes(offer, meal);
   const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
   const mm = String(minutes % 60).padStart(2, "0");

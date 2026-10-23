@@ -84,7 +84,8 @@ export function Jadwal() {
 function SignedInJadwal() {
   const { runtime, t, locale } = useMobile();
   const mood = useMoodColors();
-  const today = jakartaDay(new Date());
+  const now = new Date();
+  const today = jakartaDay(now);
   const [month, setMonth] = useState(monthOf(today));
   const [selected, setSelected] = useState(today);
   // Whole weeks: from the Monday of the month's first week to the Sunday of its last, so the agenda for a week that
@@ -200,8 +201,8 @@ function SignedInJadwal() {
               week={week}
               next={next}
               today={today}
+              now={now}
               deliveries={deliveries}
-              days={days}
               apiBase={runtime.apiBase}
               locale={locale}
               onOpenWeek={openWeek}

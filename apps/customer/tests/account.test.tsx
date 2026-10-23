@@ -160,9 +160,9 @@ describe("Akun", () => {
   it("opens with the initials avatar and the name in heroTitle, with the phone under it and no settings gear", async () => {
     renderWith(runtimeWith({}, { phone: "6281234567890" }), <Akun />);
     const header = await screen.findByTestId("akun-header");
-    const avatar = within(header).getByTestId("akun-avatar");
+    const avatar = within(header).getByTestId("akun-avatar", { includeHiddenElements: true });
     expect(flat(avatar)).toMatchObject({ width: 56, height: 56, borderRadius: 28 });
-    expect(within(avatar).getByText("RC")).toBeTruthy();
+    expect(within(avatar).getByText("RC", { includeHiddenElements: true })).toBeTruthy();
     const name = within(header).getByText("Rani Contoh");
     expect(name.props.accessibilityRole).toBe("header");
     expect(flat(name)).toMatchObject({ fontSize: 24, lineHeight: 30 });
@@ -170,9 +170,18 @@ describe("Akun", () => {
     expect(within(header).queryByRole("button")).toBeNull();
   });
 
+  it("hides the initials avatar from a screen reader, so the name is the first thing it reads", async () => {
+    renderWith(runtimeWith({}, { phone: "6281234567890" }), <Akun />);
+    const avatar = await screen.findByTestId("akun-avatar", { includeHiddenElements: true });
+    expect(avatar.props.accessible).toBe(false);
+    expect(avatar.props.importantForAccessibility).toBe("no-hide-descendants");
+    expect(screen.queryByText("RC")).toBeNull();
+    expect(screen.getByText("Rani Contoh")).toBeTruthy();
+  });
+
   it("takes one initial for a one-word name", async () => {
     renderWith(runtimeWith({}, { actor: { id: "u-2", role: "customer", name: "Rani" } }), <Akun />);
-    expect(within(await screen.findByTestId("akun-avatar")).getByText("R")).toBeTruthy();
+    expect(within(await screen.findByTestId("akun-avatar", { includeHiddenElements: true })).getByText("R", { includeHiddenElements: true })).toBeTruthy();
   });
 
   it("shows three shortcut tiles, each with its label over its count, that open Paket saya, Alamat and Riwayat", async () => {

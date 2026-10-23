@@ -1239,8 +1239,8 @@ describe("Paket on the layout scale (v2)", () => {
     expect(flat(screen.getByTestId("paket-meal-lunch-glyph", { includeHiddenElements: true }))).toMatchObject({ width: 40, height: 40, borderRadius: 20, backgroundColor: nativeMood.light.siang.header });
     expect(flat(screen.getByTestId("paket-meal-dinner-glyph", { includeHiddenElements: true })).backgroundColor).toBe(nativeMood.light.malam.header);
     expect(flat(screen.getByText("Makan siang"))).toMatchObject({ fontSize: 17, lineHeight: 22, fontFamily: fonts.semibold });
-    expect(flat(screen.getByText("1 Nasi · 1 Lauk"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
-    expect(screen.getByText("1 Nasi · 2 Lauk")).toBeTruthy();
+    expect(flat(screen.getByText("Menu contoh · 1 Nasi · 1 Lauk"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(screen.getByText("Menu contoh · 1 Nasi · 2 Lauk")).toBeTruthy();
     // One card, no per-meal boxes with borders.
     expect(screen.getAllByTestId("list-card")).toHaveLength(1);
     expect(flat(rows[0]).borderWidth).toBeUndefined();
@@ -1249,6 +1249,23 @@ describe("Paket on the layout scale (v2)", () => {
   it("a one-meal package has one row", async () => {
     await open(offer({ id: "p-satu", name: "Nasi Ayam", nutrition: null }));
     expect(screen.getAllByTestId(/^paket-meal-(lunch|dinner)$/)).toHaveLength(1);
+  });
+
+  it("a row says where its menu comes from, so a sample menu's dishes never read as the real menu", async () => {
+    const menu = (meal: string, extra: Record<string, unknown>) =>
+      ({ meal, name: "Ayam bakar", description: "", image: "", items: [{ id: `${meal}-1`, name: "Ayam bakar madu" }], ...extra });
+    await open(
+      offer({
+        id: "p-sumber",
+        name: "Paket Sumber",
+        meal: "both",
+        nutrition: null,
+        menus: [menu("lunch", {}), menu("dinner", { selectionStatus: "caterer_choice" })] as unknown as Offer["menus"],
+      }),
+    );
+    expect(within(screen.getByTestId("paket-meal-lunch")).getByText("Menu contoh · Ayam bakar madu")).toBeTruthy();
+    // A state that is already the whole line is not said twice.
+    expect(within(screen.getByTestId("paket-meal-dinner")).getByText("Katering memilih")).toBeTruthy();
   });
 
   it("Pengantaran is a section of 48 icon rows set in bodyL", async () => {
