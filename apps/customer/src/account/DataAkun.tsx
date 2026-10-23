@@ -53,8 +53,13 @@ function useSessionInfo() {
     let live = true;
     void runtime.supabase.auth
       .getSession()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (!live) return;
+        // An expired token that cannot refresh (usually offline) resolves with an error and no session.
+        if (error) {
+          setStatus("failed");
+          return;
+        }
         const user = data.session?.user;
         if (user)
           setInfo({ phone: user.phone ?? "", email: user.email ?? "", provider: String(user.app_metadata?.provider ?? "") });
@@ -129,7 +134,7 @@ function Details() {
       <SettingsSection>
         <SettingsRow label={t("Nama", "Name")} value={actor?.name ?? ""} expanded={open === "nama"} onPress={() => toggle("nama")} />
         {status === "loading" ? (
-          <ListSkeleton rows={3} label={t("Memuat data akun", "Loading account details")} />
+          <ListSkeleton rows={demo ? 3 : 2} label={t("Memuat data akun", "Loading account details")} />
         ) : status === "failed" ? (
           <View style={{ padding: 16 }}>
             <ReadError

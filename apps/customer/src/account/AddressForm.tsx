@@ -164,6 +164,11 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
   if (draft.line.trim().length < 5) missing.push(["jalan", "street"]);
   if (!draft.city.trim()) missing.push(["kota", "city"]);
 
+  const missingText = t(
+    `Isi dulu: ${missing.map((m) => m[0]).join(", ")}.`,
+    `Fill in first: ${missing.map((m) => m[1]).join(", ")}.`,
+  );
+
   async function save() {
     if (busy) return;
     setBusy(true);
@@ -196,11 +201,12 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
           {error ? <FormError message={error} failureKey={failures} testID="address-error" /> : null}
           {missing.length ? (
             <Text variant="caption" style={{ color: c.muted }}>
-              {t(`Isi dulu: ${missing.map((m) => m[0]).join(", ")}.`, `Fill in first: ${missing.map((m) => m[1]).join(", ")}.`)}
+              {missingText}
             </Text>
           ) : null}
           <Button
             label={t("Simpan alamat", "Save address")}
+            accessibilityHint={missing.length ? missingText : undefined}
             busy={busy}
             disabled={missing.length > 0}
             onPress={() => void save()}
@@ -213,7 +219,7 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
         label={t("Jalan, nomor, detail", "Street, number, details")}
         hint={
           draft.line.trim().length > 0 && draft.line.trim().length < 5
-            ? t("Tulis jalan dan nomornya, minimal 5 huruf.", "Write the street and number, at least 5 characters.")
+            ? t("Tulis jalan dan nomornya, minimal 5 karakter.", "Write the street and number, at least 5 characters.")
             : undefined
         }
         value={draft.line}

@@ -323,7 +323,7 @@ describe("Data akun reads", () => {
     renderWith(runtime, <DataAkun />);
     expect(await screen.findByRole("button", { name: /^Nama, / })).toBeTruthy();
     expect(screen.getByLabelText("Memuat data akun")).toBeTruthy();
-    expect(screen.getAllByTestId("list-skeleton-row")).toHaveLength(3);
+    expect(screen.getAllByTestId("list-skeleton-row")).toHaveLength(2);
     expect(screen.queryByText("Belum ada")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Nomor HP/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Hapus akun" })).toBeTruthy();
@@ -339,6 +339,16 @@ describe("Data akun reads", () => {
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByRole("button", { name: /^Nomor HP, 0812-3456-7890/ })).toBeTruthy();
     expect(screen.queryByText(/^Belum bisa memuat nomor HP/)).toBeNull();
+  });
+
+  it("a session read that resolves with an error (expired token, offline) is a failure, not 'Belum ada'", async () => {
+    const { runtime, auth } = runtimeWith({ user: phoneUser });
+    auth.getSession.mockResolvedValueOnce({ data: { session: null }, error: new Error("fetch failed") });
+    renderWith(runtime, <DataAkun />);
+    expect(await screen.findByText(/^Belum bisa memuat nomor HP dan email/)).toBeTruthy();
+    expect(screen.queryByText("Belum ada")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByRole("button", { name: /^Nomor HP, 0812-3456-7890/ })).toBeTruthy();
   });
 
   it("a person with no phone or email still reads 'Belum ada' once the session answered", async () => {
