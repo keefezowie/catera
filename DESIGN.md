@@ -1446,3 +1446,158 @@ Where an earlier section quotes the left column, the right column is what the ap
 Covered by Jest, Vitest and typecheck at `92ca26b5` (`npm test` 1043, customer Jest 1462, Dapur Jest 616, typecheck with 0 errors), `npm run build` and `npm run test:postgres` with the new scenarios (arrive against confirm, arrive against a report, double arrive, auto-confirm against a late report, overlapping departures, address delete against checkout, address replace against cook), including `tests/native-contrast.test.ts`, `tests/native-theme-guard.test.ts`, `tests/native-motion-tokens.test.ts`, `tests/copy-scan.test.ts` and `tests/app-config.test.ts`. On the Android emulator (API 36, Expo Go, demo backend; light and dark, 360dp at font scale 1.0 and 1.3) the gates passed the tracker, the calendar, selection and proof photos with camera and upload, the arrived-unconfirmed hero, the banner, `ReadError`, `FormError`, Data akun, address delete and move, the form sheets in every state listed above (g-c-11 ALL PASS), live reduced motion, and TalkBack on the sheet titles and the action sheet backdrop (the backdrop on a debugOptimized build). Gates g-c-12 to g-c-14 added the mascot crop and size, the Sparkle colour, the Malam mood in dark, reduced motion, flight mode, the LaunchCover and tracker pace, the macro grid's first frame, Hari ini's state across stages and the banner above its swap.
 
 **Not verified on a device:** everything on iOS (no Mac); real push delivery (needs a development build with FCM V1 and APNs); real SMS for the phone change; the hosted scheduler and so the two-hour auto-confirm on the hosted project; the production proof photo path through `/api/proof`'s redirect; Coba lagi on a busy button; some English plurals (proof, import, review counts); the mascot's pose-change dissolve; Mulai masak on Hari ini since GC-F18. **Known limits:** the Siang/Malam switch takes 0.22-0.35s on production JS, because Beranda redraws and remounts its hero; PackageDetail starts its fade in the loading layout and then jumps to the bleed layout, and its footer pops in; Beranda's cold load and the Jadwal month change swap with no fade; the first Desember mascot still appears a beat after its month; an identical `FormError` shown twice does not scroll the inline footer again; after a failed submit, keyboard focus can land on an earlier chip; the inline footer remount loses TalkBack focus on the pinned and inline switch; the tab-stack sheet's keyboard fit is empirical. The hosted UAT backend lacks the Phase G migrations, so the UAT APKs cannot show these flows end to end (RUNBOOK section 15). This is not a device or release approval.
+
+## Customer deep pages (October 2026)
+
+The deep-pages phase fixed six bugs (B1 to B6) and built ten recommendations (R1 to R10) from the Mobbin comparison in [research/2026-10-24-customer-deep-pages.md](docs/superpowers/research/2026-10-24-customer-deep-pages.md), as ruled in the [spec](docs/superpowers/specs/2026-10-24-customer-deep-pages-design.md). Tasks T1 to T8 merged into v2 from `3d64e509` to `4931c5a7`; attempts and reviews are in `.superpowers/sdd/2026-10-24-deep-pages/progress.md`. The section Customer layout scale (October 2026) still holds; where a recommendation would reverse it, the spec took the smallest change and kept the approved layout. No schema or API changed. File references are under `apps/customer/src/` unless the path says otherwise.
+
+Shared `packages/mobile-ui` changes are either additive (a new prop or variant) or gated on `useLayoutScale() === "v2"`, never on the customer app. Dapur keeps its classic look today, and `layout-classic.test.tsx` pins it. Once Dapur opts into v2, the v2-gated changes (Segmented stacking and the grouped settings cards) apply to Dapur too. The hidden push section on Pengaturan and the Button `danger` variant already apply to both apps.
+
+### Hari actions
+
+- The day sheet's actions keep the one-line circle row where it fits. Below an effective width of 380 (width divided by font scale: a 360 phone, or 412 at font 1.3) they stack as full-width rows instead of wrapping into two lines of circles. `schedule/DayActionRow.tsx:16-23, 40`.
+- A stacked row: minimum height 48, vertical padding 8, a 24 charcoal icon, gap 12, the label in `body`. A hairline `line` divides the rows, inset 36 (icon plus gap) so it starts at the label. iOS adds a 20 muted chevron; Android draws none. `DayActionRow.tsx:87-93, 117-120`.
+- The order (`dayVisibleActions`) and the test ids `day-action-<key>` are unchanged.
+- The bottom inset is paid once, by `SheetBody` on the root route: `insets.bottom + 24` when the sheet has no footer. `packages/mobile-ui/src/SheetHeader.tsx:476`.
+- Reason (B1, B2, R2): the second row of circles wrapped under the gesture bar on narrow screens and at large text.
+
+### Jadwal agenda states
+
+- "Belum sampai" shows only for today's meal whose window has opened. A past meal still at scheduled or cooking, with no open report, reads "Sudah sampai", the same as an explicit delivered. A meal with an open report reads "Laporan terkirim" on any day, and a failed one "Gagal diantar". `schedule/WeekAgenda.tsx:110-131`.
+- Reason (B3): the server's `auto_deliver` treats silence as delivered, so a past day with no update was delivered.
+- An unpicked pick-your-own meal, today or later, gets a trailing "Pilih menu" text action: `bodyStrong` forest, minimum height 44, `flexShrink: 0`, to `/pilih-menu/{subscriptionId}?date&meal`. `WeekAgenda.tsx:144, 160-175, 238`.
+
+### Beranda day blocks and the hero deadline
+
+- In `DayBlocks` (two or more deliveries on a day), unpicked deliveries no longer each get a dashed "Menu belum diisi" tile. They collapse into one row, `day-unpicked-row`: a 44 by 44 utensil tile on the `line` fill at radius 12, the text "{n} pengantaran belum ada menu" (one delivery: "Menu belum dipilih"), and a forest `bodyStrong` "Pilih menu" with a 44 target. Row minimum 48, gap 12. `today/DayBlocks.tsx:66-128, 212-235, 280-290`.
+- "Pilih menu" appears only for pick-your-own menus (`UpcomingMeal.pickable`, `menuSelectionMode === "customer"`) while one of them is before its cutoff. A caterer-chosen menu that is not out yet gets `day-unannounced-row`, "Menu belum diumumkan" or "{n} menu belum diumumkan", with no action. `DayBlocks.tsx:73-76, 129-136`; `packages/domain/src/home.ts:33, 69`.
+- Picked deliveries keep their photo tiles. `DayRow` (one delivery on a day) keeps its dashed thumb.
+- The hero adds `plate-deadline`, "Bisa diubah sampai {hari, jam}" from `cutoff_at`, in `meta` with the hero's quiet ink and tabular figures. It shows only on a fresh read (not offline) while `canChangeDay` still allows a date or address change. `today/Plate.tsx:138-141, 350, 454-458`.
+
+### Ulasan
+
+- The review sheet starts with no stars. Kirim stays disabled with the `meta` hint "Pilih bintang dulu." until a rating is picked. `today/ReviewSheet.tsx:238-248`.
+- Once the overall rating is picked, three rows appear: Rasa, Pengantaran and Harga. Each starts at the overall rating and follows it until changed, with 44 targets and 22 glyphs. Below an effective width of 340 the stars stack under the label. `ReviewSheet.tsx:34, 158, 199-215, 272-300`.
+- `review.save` sends `food`, `delivery` and `value` separately (B5).
+
+### Pilih menu
+
+- Dish options are photo cards in a two-column grid, column gap 12 and row gap 16, two columns even at 360dp and font 1.3. `schedule/ChooseMenu.tsx:462-480, 573`.
+- The cell: `flexBasis` 40%, grow 1, `maxWidth` 50%. The card: a 2dp ring (clear, or forest when selected), radius 16, padding 4. The photo is 4:3 at radius 12; with no photo, a `fill` tile with a `controlRing` restaurant glyph at 28. The check is a 24 forest circle with a cream checkmark, 8 in from the photo's top-right corner. The name is `bodyStrong` on up to two lines, the serving `meta`. Test ids `dish-cell-`, `dish-card-`, `dish-photo-`, `dish-fallback-`, `dish-check-{id}`. `schedule/DishCard.tsx:7, 37-60, 79-107`.
+- After a passed cutoff the cards are disabled at opacity 0.45. The outer editor card is gone, so no card sits inside a card. The selected dish's photo per slot shows only in the review step.
+- The deadline `menu-deadline` reads "Pilih sebelum {hari, jam}" for the earliest cutoff among the draft days. Under 24 hours (`SOON_MS`) it is an `attention` Card with a charcoal time icon and `bodyStrong` text; otherwise a caption with a muted time icon. It hides once any cutoff has passed, and FormError takes over. `ChooseMenu.tsx:47, 284-299, 436-442`.
+- The count `menu-count`, "{x} dari {n} hari sudah dipilih", sits under the month bar as a centered caption in tabular figures. It counts the month's saved days out of all its days. `ChooseMenu.tsx:367-369`.
+- The footer is one pinned `StickyAction`: "Tinjau pilihan" while choosing, "Simpan menu" while reviewing, with the replace notice as its caption. `ChooseMenu.tsx:301-327`.
+
+### Beli and Perpanjang footer and reasons
+
+- The navigation title is "Beli" (Renew: "Perpanjang"). The package name appears once, in the summary card. `buy/BuyScreen.tsx:245, 322`.
+- The pay button reads "Bayar {amount}" once a quote is ready, else "Bayar". The Total row reads "Menghitung…" while the first quote loads. `BuyScreen.tsx:284-287`.
+- When the button is disabled, one `meta` line `buy-pay-reason` above the footer row says why, using the first reason that holds: a read or the quote still loading, "Menghitung total…"; no address, "Pilih alamat dulu." ("Tambahkan alamat dulu." with no saved address); no start date, "Pilih tanggal mulai dulu."; a pending checkout, "Ada pembayaran yang belum selesai."; then the quote error, then the blocked message as the last fallback. After a failed read the line is empty, since the page already shows its Retry. The reason is also the button's `accessibilityHint`. `BuyScreen.tsx:263-309`.
+- The amount and the button share a row while both fit whole. The row stacks below an effective width of 340 (`FOOTER_STACK_BELOW`), or when `footerFits` estimates that the label and amount will not fit `min(width, 760)` minus both margins. `buy/metrics.ts:27-45`; `BuyScreen.tsx:59, 289-290`.
+- "Bayar dengan" stays a section (spec 3.7). On Beli the method is a plain `ListCard` row `buy-pay-method`: minimum 56, no border, the method in `bodyStrong`, how to pay in `meta`, and a trailing "Ganti" text action that switches to the other method (a11y "Ganti ke {method}"). The Bayar page keeps its bordered card. `buy/BuyParts.tsx:80-125, 259-266`.
+- Reason (R1): the button named no amount and gave no reason when it waited, and the method box read as an input.
+
+### Paket "Isi paket" preview
+
+- When the package's menus list dishes, "Isi paket" starts with a horizontal row `paket-dishes` of up to six dishes, each name once, in menu order. Each is a 96 square photo at radius 8 (or a 96 `surface` tile with the restaurant glyph) over its name in `meta` charcoal on up to two lines. The row runs edge to edge, above the per-meal rows. `discover/PackageDetail.tsx:138-187, 317, 405-409, 516-519`.
+- Kept as approved: the three-cell stat strip and the pinned footer (see Owner rulings and deviations).
+
+### Alamat and the address form
+
+- Alamat drops the heading "Makanan diantar ke mana?"; the title already says it.
+- Each address is one `PressableRow` (minimum 48) around its card, with a decorative 20 muted pencil at the end edge. A screen reader hears "{label}, {line}, {area}, {city}" with the hint "Ubah alamat". `account/Addresses.tsx:76-105`.
+- The form's label is three chips under "Simpan sebagai": Rumah, Kantor, Lainnya. Lainnya shows the "Label alamat" field, and a custom label opens as Lainnya with its text. A chip alone does not trigger the unsaved-changes guard. `account/AddressForm.tsx:27-39, 273-296`.
+- "Petunjuk pengantaran" has the hint "Contoh: pagar hitam, titip satpam". `AddressForm.tsx:319`.
+- "Hapus alamat" is a danger-ink text button at the bottom of the edit form only. It runs `useAddressRemoval` with its confirm, and the form closes after a delete. The confirm's "Tambah alamat baru" replaces the edit form with a new one. Simpan and Hapus disable each other while either runs. `AddressForm.tsx:173, 267, 333`; `account/addressRemoval.ts:68`.
+
+### The pick sheet
+
+- The purchase's address sheet offers "Tambah alamat" (opens `/pembelian/alamat-form`) and "Kelola alamat" as secondary buttons. `ChoiceRoute` takes `extras: ChoiceExtra[]`. `choice.tsx:30-37, 55-87`; `buy/BuyScreen.tsx:187-190`.
+- The two sit side by side at font scale 1 and each take the full width above it.
+
+### Bantuan and Masalah
+
+- In Bantuan-form the topic is radio rows under "Soal apa?", each with a one-line example: Pembatalan "Batalkan paket atau sisa harinya", Pembayaran "Sudah bayar, tapi paket belum aktif", Lainnya "Pertanyaan lain soal paket atau pengantaran". The rows run to the sheet's edges through `sheetSidePadding`. `help/HelpForm.tsx:29-46, 313-320`.
+- The eight package chips became one Paket row, minimum 72: "Paket" over the package name. With several packages it opens inline radio rows under it, and a choice closes them; with one package it only names it. `?paket=` preselects. `HelpForm.tsx:170-245, 253-254`.
+- Masalah opens with `delivery-card`: "{day} · {meal}" as a heading and the caterer in muted on up to two lines. The meal ("Makan yang mana?") and kind ("Apa yang terjadi?") choices are `ChoiceList` radio rows, not filled forest pills. `help/ReportProblem.tsx:260-300`.
+- The empty Bantuan shows `StateArt` (tidur), "Belum ada laporan", the line "Kalau ada yang salah dengan pengantaran, laporkan dari harinya di Jadwal.", and "Minta bantuan" when the customer has a plan. `help/ReportList.tsx:155-175`.
+
+### Shared Segmented stacking
+
+- Under v2, with three or more options and `useStackedLayout(360)` true, `Segmented` renders as a column of full-width rows: minimum 48, padding 12 by 8, row radius 12 inside a track of radius 16. Labels wrap and never shrink. Two options stay a row, and classic is unchanged. Test id `segmented`. `packages/mobile-ui/src/components.tsx:263-305, 727-740`.
+- No customer screen uses three or more options now. Reason (B4): three labels in a row squeezed until words split; the Bantuan topics became radio rows, and the guard covers any later use.
+
+### Pengaturan and grouped settings cards
+
+- Under v2, on both platforms, each settings section is one card: `fill` ground, the card edge (light only, via `cardEdge`), radius 16, rows and dividers inset 16, the section label 8 above the card. Each row shows its value at the trailing edge, on Android too ("Bahasa: Indonesia", "Tampilan: Ikuti sistem"). The iOS pressed tint is `line` under v2 and `sage` in classic. `packages/mobile-ui/src/settings/SettingsRows.tsx:17-32, 64-85, 266`.
+- Data akun gets the same cards through `SettingsSection`.
+- When push is unavailable (Expo Go), the Notifikasi section is not rendered, in both apps, and "Tidak tersedia di versi aplikasi ini" is gone (B6). `packages/mobile-ui/src/settings/Pengaturan.tsx:29`.
+
+### Notifikasi
+
+- The "Baru" label is gone. An unread update keeps its dot and a 700 body. `account/Notifications.tsx:140`.
+- Updates group under "Hari ini", "Kemarin" and "Sebelumnya". The first two show the time only, Sebelumnya the date and time. `Notifications.tsx:91-93`.
+- "Tandai semua dibaca" is an end-aligned text button above the groups. It sends `notification.read` for each unread item in order (`useBusy`), then reloads, and it hides when nothing is unread. A failed pass toasts "Belum semua ditandai dibaca. Coba lagi." and leaves the rest unread. `Notifications.tsx:76-87, 108-116`.
+
+### Pembayaran status tags
+
+- Each payment row carries a `StatusTag`: `fill` ground, radius 8, padding 8 by 2, caption at 600. The ink is forest for Lunas, danger for Kedaluwarsa and Gagal, and charcoal for Menunggu and Diproses. It wraps with the caption in `payment-status-line`, and the row's a11y label includes the status. `account/Row.tsx:13-25, 61-62, 88`.
+- A paid plan's caption reads "Mulai {tanggal} · {katering}". The Menunggu caption no longer repeats "Menunggu pembayaran". A failed payment shows "Gagal". `account/Payments.tsx:95, 123, 147-148, 179-181`.
+
+### Hapus akun
+
+- With running plans, a callout `hapus-akun-plans` replaces the list of plan names: `fill` card, radius 16, padding 16, gap 8, `bodyStrong` "{n} paket masih berjalan", then three bulleted lines: "Pengantaran yang belum lewat dibatalkan.", "Riwayat dan alamat dihapus.", and the existing sentence about the Catera team settling the plan, unchanged. No new number or timeframe. `account/HapusAkun.tsx:113-125`.
+- The send button uses the `danger` variant. `HapusAkun.tsx:170`.
+
+### Button danger variant
+
+- `Button` takes `variant="danger"`: filled in `danger` with a cream label, and disabled like primary (muted label on the disabled fill). There is no `onDanger` token; ConfirmSheet already used cream on danger. The variant is additive, so both apps have it. `packages/mobile-ui/src/components.tsx:151-152, 170-172, 186, 201`.
+
+### Masuk code input
+
+- The SMS code is six slots over one hidden `TextInput`: digits only, `textContentType="oneTimeCode"`, `autoComplete="sms-otp"`. Slot width is `min(48, (W - 32 - 40) / 6)` and minimum height 56 (it grows with text), with a 2px border at radius 9 on `inputFill` and 22/28 bold tabular digits. The current slot has the forest ring, an invalid code the danger edge, otherwise `fieldBorder`. `account/CodeInput.tsx:6-13, 80-110`.
+- It submits on the sixth digit, and a ref lock stops a double submit. A wrong code clears the slots and keeps the danger edge until typing. The manual "Masuk" button stays. `account/Masuk.tsx:37-59, 134-160`.
+- "Kirim ulang kode" waits 60 seconds as a muted, disabled "Kirim ulang dalam 0:42", then calls `sendPhoneOtp` again. It sits beside "Ganti nomor" under the slots and wraps. `CodeInput.tsx:125-160`.
+
+### Cek emailmu and AuthCallback
+
+- Register and Recover share one "Cek emailmu" view: the membaca `StateArt` left-aligned (120, or 96 at 360dp and font 1.3), the display title, an intro with the typed address in bold, the muted line "Buka tautannya di HP ini. Cek juga folder spam.", a primary "Buka aplikasi email" (`mailto:`, best effort), "Kirim ulang tautan" with the same 60-second countdown, and "Ubah email". After a resend it says "Terkirim lagi. Cek emailmu." `account/CheckEmail.tsx:8-66`; `Register.tsx:61`; `Recover.tsx:47`; `packages/mobile-ui/src/brand/StateArt.tsx:11-13`.
+- AuthCallback renders on `AuthScreen` and `AuthHeading` like the other auth pages. While checking, the subtitle reads "Memeriksa tautan…". The recovery fields are `PasswordField` with show and hide. `account/AuthCallback.tsx:77-132`.
+
+### Owner rulings and deviations
+
+The spec kept the approved layout in these places (controller rulings on the owner's behalf, spec §2):
+
+- Jadwal keeps the month grid in the band with the "Minggu ini" agenda. The research's week strip leading Jadwal, with the month behind a toggle, was rejected because it reverses the approved band layout.
+- Paket keeps the three-cell stat strip with carbs and fat on the meta line (spec 3.4), and its pinned footer.
+- The tab bar stays on Paket. HIG keeps the tab bar on drill-down within a tab, and native tabs have no per-route hide.
+- "Bayar dengan" stays a section on Beli (spec 3.7); only its row changed.
+- Hari keeps the one-line circle row on wide screens (spec 3.2.3); only the wrapping case became rows.
+
+Builders' recorded deviations:
+
+- Bantuan's Paket row expands inline radio rows instead of opening a choice sheet. A sheet route over a form sheet on Android was untested, and inline rows were the smaller change (T6).
+- "Tandai semua dibaca" sits in the content, end-aligned above the groups, not in the native header (T7).
+- Selection uses forest, not an accent ring. There is no accent token, and in palette K forest marks selection (Pilih menu cards and the code slots, T3 and T8).
+- The Bantuan topic examples differ from the spec: Pembatalan "Batalkan paket atau sisa harinya", Pembayaran "Sudah bayar, tapi paket belum aktif" (T6).
+- Pembayaran adds a "Gagal" tag for a failed payment, and the Menunggu caption drops "Menunggu pembayaran" (T7).
+
+### Deferred
+
+These need a schema, an API or owner input (spec §4):
+
+- A default-address field and its marker on Alamat.
+- The paid date on Pembayaran. The customer read has no `paid_at`, so the caption shows the start date.
+- A bulk `notification.readAll`. The client loops over unread items.
+- A Catera support WhatsApp number and reply time. None is in config, and none is invented.
+- Photo upload on Masalah.
+- Email code login. Email auth is link-based.
+
+### Follow-ups
+
+- After "Tambah alamat" from the pick sheet, Beli does not preselect the new address (T5).
+- While only the payment methods are loading, the footer says "Menghitung total…" although the button already shows the amount (T4).
+- `footerFits` estimates per-character widths for the current font, so a font change needs new numbers. Its gate case is a 6-digit total at 360dp and font 1.0, estimated at 325 against 328 available (T4).
+- The Jadwal agenda offers "Pilih menu" on any unpicked pick-your-own meal from today on, while Beranda's day block also checks the cutoff. In Jadwal a meal past its cutoff still shows the action, and Pilih menu then reports the passed cutoff. `schedule/WeekAgenda.tsx:144`.
+- iOS was not checked on a device (no Mac), including the stacked Hari rows' chevron and the v2 settings pressed tint.
