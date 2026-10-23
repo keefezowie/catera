@@ -1,8 +1,10 @@
 import { View } from "react-native";
 import {
   mealJourney,
+  menuIsSet,
   monthName,
   statusLabel,
+  storyDishes,
   MEALS,
   weekdayName,
   windowStartMinutes,
@@ -107,25 +109,39 @@ export function WeekAgenda({
     const set = days.get(date)?.[m.meal]?.menuSet;
     const notSet = set === false;
     const image = d.offer.menus?.find((x) => x.meal === m.meal)?.image || d.offer.image;
-    const state =
-      m.status === "delivered"
+    // The words the screen already uses for a meal's stage (Plate's state line, the day sheet), so the agenda never coins
+    // its own: scheduled, cooking, on the way, arrived, delivered, not delivered. A past meal nobody updated is "Belum
+    // sampai" there.
+    const journey = mealJourney(m);
+    const state = failed(m.status)
+      ? t("Gagal diantar", "Not delivered")
+      : journey.stage === "delivered"
         ? t("Sudah sampai", "Arrived")
-        : mealJourney(m).stage === "arrived"
+        : journey.stage === "arrived"
           ? statusLabel("arrived", locale)
-          : failed(m.status)
-            ? t("Gagal diantar", "Not delivered")
-            : "";
+          : journey.stage === "out_for_delivery"
+            ? t("Sedang diantar", "On the way")
+            : journey.stage === "preparing"
+              ? t("Sedang dimasak", "Being cooked")
+              : date < today
+                ? t("Belum sampai", "Not here yet")
+                : t("Terjadwal", "Scheduled");
     const label = m.meal === "dinner" ? t("Malam", "Dinner") : t("Siang", "Lunch");
     const window = d.offer.windows?.[m.meal];
     const sub = [window ? `${label} ${window}` : label, state].filter(Boolean).join(" · ");
+    // The row's title is the meal's lead dish, as the day sheet's is; a menu not set says so instead of naming the package.
+    const menu = d.offer.menus?.find((x) => x.meal === m.meal);
+    const lead = menu && menuIsSet(menu) ? storyDishes(menu).title : null;
+    const title = lead || t("Menu belum diisi", "Menu not set yet");
     return (
       <MediaRow
         key={`${d.id}:${m.meal}`}
         testID={`agenda-row-${d.id}-${m.meal}`}
         image={image && !notSet ? photoUri(image, apiBase) : null}
         notSet={notSet}
-        title={d.offer.name}
+        title={title}
         meta={sub}
+        accessibilityLabel={[title, sub].filter(Boolean).join(", ")}
         trailing="chevron"
         wrap
         onPress={() => router.push(dayHref(d.id, d.service_date, locale) as never)}

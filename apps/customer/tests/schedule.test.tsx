@@ -412,7 +412,7 @@ describe("Jadwal", () => {
       renderV2(runtimeWith(failed), <Jadwal />);
       await gridReady();
       fireEvent.press(dayButton("Selasa 6 Oktober"));
-      expect(within(screen.getByRole("button", { name: /Makan Siang Rumahan/ })).getByText(/Gagal diantar/)).toBeTruthy();
+      expect(within(screen.getByRole("button", { name: /Ayam bakar madu/ })).getByText(/Gagal diantar/)).toBeTruthy();
       // The day looks like a day without deliveries: no coverage in its label, no dot, no ring.
       expect(dayButton("Selasa 6 Oktober").props.accessibilityLabel).toBe("Selasa 6 Oktober");
       expect(dayButton("Selasa 6 Oktober").props.accessibilityState.selected).toBe(true);
@@ -467,13 +467,62 @@ describe("Jadwal", () => {
       const row = screen.getByTestId("agenda-row-d-today-lunch");
       expect(flat(row).minHeight).toBe(72);
       expect(flat(within(row).getByTestId("agenda-row-d-today-lunch-thumb"))).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
-      expect(within(row).getByText("Makan Siang Rumahan")).toBeTruthy();
-      expect(flat(within(row).getByText("Makan Siang Rumahan"))).toMatchObject({ fontSize: 17 });
+      expect(within(row).getByText("Nasi putih")).toBeTruthy();
+      expect(flat(within(row).getByText("Nasi putih"))).toMatchObject({ fontSize: 17 });
       expect(within(row).getByText("Siang 11.00–13.00 · Sudah sampai")).toBeTruthy();
       expect(flat(within(row).getByText("Siang 11.00–13.00 · Sudah sampai")).fontSize).toBe(13);
       expect(within(row).getByTestId("agenda-row-d-today-lunch-chevron")).toBeTruthy();
       // A day's rows share one card.
       expect(within(agendaDay("2026-10-09")!).getAllByTestId("list-card")).toHaveLength(1);
+    });
+
+    it("titles a row with the meal's lead dish, never the package name, and 'Menu belum diisi' when the menu is not set", async () => {
+      renderV2(runtimeWith(coverage), <Jadwal />);
+      await gridReady();
+      // The 7th's lunch menu is set (Nasi putih); the package is "Makan Siang Rumahan".
+      expect(within(screen.getByTestId("agenda-row-d-today-lunch")).queryByText("Makan Siang Rumahan")).toBeNull();
+      // The 8th has a slot menu with no dishes: the row says so, in the day sheet's words.
+      const unset = screen.getByTestId("agenda-row-d-unset-lunch");
+      expect(within(unset).getByText("Menu belum diisi")).toBeTruthy();
+      expect(within(unset).queryByText("Makan Siang Rumahan")).toBeNull();
+      // The 9th's both meals are set: lunch and dinner each name their own lead dish.
+      expect(within(screen.getByTestId("agenda-row-d-both-lunch")).getByText("Nasi putih")).toBeTruthy();
+    });
+
+    it("says the meal's state after the window: terjadwal, sedang diantar, sudah sampai", async () => {
+      const mixed = stateOf([
+        delivery("d-sched", "2026-10-08", {}),
+        delivery("d-road", "2026-10-07", { status: "out_for_delivery" }),
+        delivery("d-cook", "2026-10-09", { status: "preparing" }),
+        delivery("d-done", "2026-10-05", { status: "delivered" }),
+        delivery("d-old", "2026-10-06", {}),
+      ]);
+      renderV2(runtimeWith(mixed), <Jadwal />);
+      await gridReady();
+      expect(within(screen.getByTestId("agenda-row-d-sched-lunch")).getByText("Siang 11.00–13.00 · Terjadwal")).toBeTruthy();
+      expect(within(screen.getByTestId("agenda-row-d-road-lunch")).getByText("Siang 11.00–13.00 · Sedang diantar")).toBeTruthy();
+      expect(within(screen.getByTestId("agenda-row-d-cook-lunch")).getByText("Siang 11.00–13.00 · Sedang dimasak")).toBeTruthy();
+      expect(within(screen.getByTestId("agenda-row-d-done-lunch")).getByText("Siang 11.00–13.00 · Sudah sampai")).toBeTruthy();
+      // A past day nobody updated is not "scheduled" any more.
+      expect(within(screen.getByTestId("agenda-row-d-old-lunch")).getByText("Siang 11.00–13.00 · Belum sampai")).toBeTruthy();
+    });
+
+    it("reads a scheduled meal in English as Scheduled", async () => {
+      (require("expo-secure-store") as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+      renderV2(runtimeWith(stateOf([delivery("d-sched", "2026-10-08", {})])), <Jadwal />);
+      expect(await screen.findByText("Lunch 11.00–13.00 · Scheduled")).toBeTruthy();
+    });
+
+    it("labels a row for a screen reader from its non-empty parts only, with no stray commas", async () => {
+      renderV2(runtimeWith(coverage), <Jadwal />);
+      await gridReady();
+      expect(screen.getByTestId("agenda-row-d-today-lunch").props.accessibilityLabel).toBe("Nasi putih, Siang 11.00–13.00 · Sudah sampai");
+      for (const row of screen.getAllByTestId(/^agenda-row-[^-]+-[^-]+-(lunch|dinner)$/)) {
+        const label = row.props.accessibilityLabel as string;
+        expect(label).not.toMatch(/^[s,]|[s,]$|,s*,/);
+      }
+      // A row with no window still reads without a gap.
+      expect(screen.getByTestId("agenda-row-d-unset-lunch").props.accessibilityLabel).toBe("Menu belum diisi, Siang 11.00–13.00 · Terjadwal");
     });
 
     it("lists lunch before dinner on a day with both", async () => {
@@ -574,7 +623,7 @@ describe("Jadwal", () => {
       expect(within(heading).queryByText(/^Minggu /)).toBeNull();
       expect(screen.getAllByTestId(/^agenda-day-/).map((n) => n.props.testID)).toEqual(["agenda-day-2026-10-30", "agenda-day-2026-11-01"]);
       expect(within(agendaDay("2026-11-01")!).getByText("Minggu 1 Nov")).toBeTruthy();
-      expect(within(screen.getByTestId("agenda-row-d-nov1-lunch")).getByText("Nasi Uduk Minggu")).toBeTruthy();
+      expect(within(screen.getByTestId("agenda-row-d-nov1-lunch")).getByText("Ayam bakar madu")).toBeTruthy();
       // Friday and Sunday have meals, so the empty line names only the other days.
       expect(screen.getByText("Senin, Selasa, Rabu, Kamis, dan Sabtu tidak ada pengantaran")).toBeTruthy();
       // The grid still draws only October's own days.
@@ -632,7 +681,7 @@ describe("Jadwal", () => {
     it("opens a meal on its day: the row pushes the day screen", async () => {
       renderV2(runtimeWith(month), <Jadwal />);
       await gridReady();
-      fireEvent.press(within(agendaDay("2026-10-08")!).getByRole("button", { name: /Makan Siang Rumahan/ }));
+      fireEvent.press(within(agendaDay("2026-10-08")!).getByRole("button", { name: /Ayam bakar madu/ }));
       expect(router.push).toHaveBeenCalledWith("/hari/d-next?title=Kamis%208%20Okt");
     });
 
@@ -653,7 +702,7 @@ describe("Jadwal", () => {
       await gridReady();
       const row = screen.getByTestId("agenda-row-d-today-lunch");
       // The dish and the line with "Sudah sampai" wrap; a one-line cap hid the state at this size.
-      expect(within(row).getByText("Makan Siang Rumahan").props.numberOfLines).toBeUndefined();
+      expect(within(row).getByText("Nasi putih").props.numberOfLines).toBeUndefined();
       expect(within(row).getByText(/Sudah sampai/).props.numberOfLines).toBeUndefined();
       expect(within(screen.getByTestId("agenda-empty-days")).getByText(/tidak ada pengantaran/).props.numberOfLines).toBeUndefined();
       expect(within(screen.getByRole("button", { name: /^Minggu depan/ })).getByText(/Minggu depan/).props.numberOfLines).toBeUndefined();
@@ -674,7 +723,7 @@ describe("Jadwal", () => {
       const marked = stateOf([delivery("d-marked", "2026-10-06", {}, { meals: [meal("out_for_delivery")] })]);
       renderV2(runtimeWith(marked), <Jadwal />);
       await gridReady();
-      expect(within(screen.getByRole("button", { name: /Makan Siang Rumahan/ })).getByText(/Ditandai sampai/)).toBeTruthy();
+      expect(within(screen.getByRole("button", { name: /Ayam bakar madu/ })).getByText(/Ditandai sampai/)).toBeTruthy();
     });
 
     it("keeps Gagal diantar on the row of a failed meal that carries arrived stamps", async () => {
@@ -682,7 +731,7 @@ describe("Jadwal", () => {
       const failedRow = stateOf([delivery("d-failed2", "2026-10-06", {}, { meals: [meal] })]);
       renderV2(runtimeWith(failedRow), <Jadwal />);
       await gridReady();
-      const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
+      const row = screen.getByRole("button", { name: /Ayam bakar madu/ });
       expect(within(row).getByText(/Gagal diantar/)).toBeTruthy();
       expect(within(row).queryByText(/Ditandai sampai/)).toBeNull();
     });
