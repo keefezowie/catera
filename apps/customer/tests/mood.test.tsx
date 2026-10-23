@@ -286,10 +286,27 @@ describe("MoodHeader", () => {
     expect(StyleSheet.flatten(screen.getByText("Halo").props.style)).toMatchObject({ fontSize: 34, lineHeight: 40 });
   });
 
-  it("keeps a 48dp top row whether it holds a meta line, a trailing control, the toggle or nothing", () => {
+  it("drops the empty top row: no meta, toggle or trailing renders no row, a shorter band, and the title stays a header", () => {
+    for (const ui of [
+      <MoodHeader key="none" title="Halo" />,
+      <MoodHeader key="blank" title="Halo" meta="" trailing={null} />,
+      <MoodHeader key="off" title="Halo" toggle={false} />,
+    ]) {
+      mount(ui);
+      expect(screen.queryByTestId("mood-header-row")).toBeNull();
+      expect(screen.getByTestId("mood-header-content").children).toHaveLength(1);
+      expect(screen.getByRole("header", { name: "Halo" })).toBeTruthy();
+      // The title starts 8 under the top padding instead of 12 plus a 48 row and a 12 gap.
+      expect(StyleSheet.flatten(screen.getByTestId("mood-header").props.style)).toMatchObject({ paddingTop: 8, paddingBottom: 16 });
+      screen.unmount();
+    }
+    mount(<MoodHeader title="Halo" meta="Jumat" />);
+    expect(StyleSheet.flatten(screen.getByTestId("mood-header").props.style)).toMatchObject({ paddingTop: 12, paddingBottom: 16 });
+  });
+
+  it("keeps a 48dp top row whenever it holds a meta line, a trailing control or the toggle", () => {
     // Pushed screens take the native header, so a mood header never carries a back button.
     for (const ui of [
-      <MoodHeader key="empty" title="Halo" />,
       <MoodHeader key="meta" title="Halo" meta="Jumat" />,
       <MoodHeader key="trailing" title="Halo" trailing={<RNText>Aksi</RNText>} />,
       <MoodHeader key="toggle" title="Halo" toggle />,
