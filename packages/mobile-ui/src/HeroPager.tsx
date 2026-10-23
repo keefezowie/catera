@@ -139,7 +139,7 @@ export function HeroPager({
           }}
         >
           {pages.slice(0, last + 1).map((child, i) => (
-            <View key={i} testID="hero-page" style={{ width: page }}>
+            <View key={i} testID="hero-page" style={{ width: page, alignSelf: "flex-start" }}>
               {child}
             </View>
           ))}

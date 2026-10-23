@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { currency, mealLabel, perMealPrice, priceUnitLabel, type DirectPaymentMethod, type Locale, type Offer, type PaymentAvailability } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, Card, fontFor, FormError, ReadError, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, fontFor, FormError, PressableRow, ReadError, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { packageHref } from "../hrefs";
 import { DecorativeIcon, GlyphCircle, SectionHeader, Thumb } from "../layout";
 import { goToTab, leaveFor } from "../nav";
@@ -196,13 +196,18 @@ export function FieldRow({
 export function Terms({ apiBase, t }: { apiBase: string; t: T }) {
   const styles = useStyles();
   return (
-    <Text variant="meta">
-      {t("Dengan membayar, kamu setuju dengan ", "By paying, you agree to the ")}
-      <RNText accessibilityRole="link" style={styles.link} onPress={() => void Linking.openURL(`${apiBase}/syarat-dan-privasi#syarat`)}>
-        {t("Ketentuan Catera", "Catera Terms")}
-      </RNText>
-      .
-    </Text>
+    // The whole sentence is the target: a nested Text takes no hit slop on Android, and its inline line is 18 tall.
+    <PressableRow
+      testID="buy-terms"
+      accessibilityRole="link"
+      onPress={() => void Linking.openURL(`${apiBase}/syarat-dan-privasi#syarat`)}
+      style={styles.terms}
+    >
+      <Text variant="meta">
+        {t("Dengan membayar, kamu setuju dengan ", "By paying, you agree to the ")}
+        <RNText style={styles.link}>{t("Ketentuan Catera", "Catera Terms")}</RNText>.
+      </Text>
+    </PressableRow>
   );
 }
 
@@ -221,5 +226,6 @@ const useStyles = themedStyles((c) => ({
   below: { paddingBottom: nativeLayout.space.md },
   strong: { fontFamily: fontFor("800"), color: c.charcoal },
   method: { borderColor: c.forest, borderWidth: 1.5, gap: 4 },
+  terms: { minHeight: nativeLayout.control.icon, justifyContent: "center" },
   link: { color: c.forest, fontFamily: fontFor("700"), textDecorationLine: "underline" }, // forest: action
 }));

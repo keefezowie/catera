@@ -1,4 +1,4 @@
-import { ScrollView, View } from "react-native";
+import { ScrollView, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { addDays, planLabel, type Subscription } from "@catera/domain";
@@ -10,8 +10,15 @@ import { ListCard, MediaRow, SectionHeader } from "../layout";
 import { photoUri } from "./photoUri";
 import { SECTION_LEAD } from "./sectionGap";
 
-/** A rail card's width: two and a bit fit a phone, so the next one peeks and says there are more. */
+/** A rail card's widest width: two and a bit fit a phone, so the next one peeks and says there are more. */
 export const PLAN_CARD_WIDTH = 168;
+/** How much of the third card always shows at the screen's edge, so the rail reads as scrolling. */
+const PEEK = 28;
+
+/** 168, or less on a narrow phone: the margin, two cards, their gaps and the peek always fit the screen. */
+export function planCardWidth(screenWidth: number, margin: number): number {
+  return Math.min(PLAN_CARD_WIDTH, (screenWidth - margin - 2 * nativeLayout.groupGap - PEEK) / 2);
+}
 
 type Translate = (id: string, en: string) => string;
 
@@ -41,6 +48,8 @@ export function PlansRow({
   const { t, locale } = useMobile();
   const styles = useStyles();
   const margin = useScreenMargin();
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = planCardWidth(screenWidth, margin);
   const active = subscriptions
     .filter((s) => s.status === "active")
     .sort(
@@ -101,7 +110,7 @@ export function PlansRow({
                 accessibilityRole="button"
                 accessibilityLabel={`${label(s)}, ${line(s)}`}
                 onPress={() => open(s)}
-                style={styles.card}
+                style={[styles.card, { width: cardWidth }]}
               >
                 <View testID={`${id}-photo`} style={styles.photo}>
                   {image ? (

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { ActivityIndicator, AppState, BackHandler, StyleSheet } from "react-native";
+import { ActivityIndicator, AppState, BackHandler, Linking, StyleSheet } from "react-native";
+import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
@@ -1616,6 +1617,39 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(screen.getByText("QRIS")).toBeTruthy();
     const terms = screen.getByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.");
     expect(flat(terms)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+  });
+
+  it("the terms link is a 44 tall target that opens the terms on the web origin", async () => {
+    const opened = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined as never);
+    await open();
+    const link = screen.getByTestId("buy-terms");
+    expect(link.props.accessibilityRole).toBe("link");
+    expect(flat(link).minHeight).toBe(44);
+    fireEvent.press(link);
+    expect(opened).toHaveBeenCalledWith("https://api.example.test/syarat-dan-privasi#syarat");
+    opened.mockRestore();
+  });
+
+  it("under v2 the full-screen footer clears the system navigation bar; a classic footer is unchanged", async () => {
+    const inset = { top: 0, left: 0, right: 0, bottom: 48 };
+    mockWindow = PHONE;
+    const v2 = wrapV2(
+      server(),
+      <SafeAreaInsetsContext.Provider value={inset}>
+        <BuyScreen packageId="p-rumahan" />
+      </SafeAreaInsetsContext.Provider>,
+    );
+    await bayarReady();
+    expect(flat(screen.getByTestId("screen-footer")).paddingBottom).toBe(16 + 48);
+    v2.unmount();
+    wrap(
+      server(),
+      <SafeAreaInsetsContext.Provider value={inset}>
+        <BuyScreen packageId="p-rumahan" />
+      </SafeAreaInsetsContext.Provider>,
+    );
+    await bayarReady();
+    expect(flat(screen.getByTestId("screen-footer")).paddingBottom).toBe(20);
   });
 
   it("the footer shows Total in meta over the amount in section 800 and a 50 round Bayar at the right", async () => {

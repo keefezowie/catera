@@ -214,6 +214,24 @@ describe("the hero pager", () => {
     expect(screen.getByText("2 dari 2")).toBeTruthy();
   });
 
+  it("each page keeps its own content height: nothing stretches or grows a card to the tallest page", async () => {
+    mount(demo().runtime);
+    const pager = await screen.findByTestId("hero-pager");
+    // Top-aligned pages in the scroll's content, so a shorter card is not stretched.
+    const content = StyleSheet.flatten(screen.getByTestId("hero-pager-scroll").props.contentContainerStyle);
+    expect(content.alignItems).toBe("flex-start");
+    for (const page of within(pager).getAllByTestId("hero-page")) {
+      expect(StyleSheet.flatten(page.props.style).alignSelf).toBe("flex-start");
+      expect(StyleSheet.flatten(page.props.style).flexGrow).toBeUndefined();
+    }
+    // And the card inside has no flexGrow to fill a page taller than its content.
+    for (const hero of within(pager).getAllByTestId("plate-hero")) {
+      const style = StyleSheet.flatten(hero.props.style);
+      expect(style.flexGrow).toBeUndefined();
+      expect(style.flex).toBeUndefined();
+    }
+  });
+
   it("the pager's value reads in English", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
     mount(demo().runtime);
@@ -1076,6 +1094,28 @@ describe("Paket kamu", () => {
     // Every plan is one tap away through the list.
     fireEvent.press(plans.getByRole("button", { name: "Lihat semua" }));
     expect(router.push).toHaveBeenLastCalledWith("/paket-saya");
+  });
+
+  it("on a 360 phone the rail cards shrink so a sliver of the third card always peeks; at 412 they stay 168", async () => {
+    const widthsAt = async (width: number) => {
+      mockWindow = { ...mockWindow, width };
+      mount(runtimeWith(async () => ending()).runtime, v2);
+      const plans = within(await screen.findByTestId("plans"));
+      const widths = plans.getAllByTestId(/^plan-card-s-[a-z0-9]+$/).map((c) => StyleSheet.flatten(c.props.style).width as number);
+      screen.unmount();
+      return widths;
+    };
+    const saved = mockWindow;
+    try {
+      const narrow = await widthsAt(360);
+      expect(new Set(narrow).size).toBe(1);
+      // Margin 16, two cards, three gaps of 8 up to the third card's start: what is left of 360 is the peek.
+      expect(360 - (16 + 2 * narrow[0] + 2 * 8)).toBeGreaterThanOrEqual(28);
+      expect(narrow[0]).toBeLessThan(168);
+      expect((await widthsAt(412))[0]).toBe(168);
+    } finally {
+      mockWindow = saved;
+    }
   });
 
   it("three plans already make the rail", async () => {

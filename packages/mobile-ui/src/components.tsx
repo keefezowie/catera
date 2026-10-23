@@ -18,7 +18,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PaletteKey } from "@catera/design-tokens";
 import { nativeLayout } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
@@ -27,7 +27,7 @@ import { StatusBand } from "./StatusBand";
 import { themedStyles, useColors } from "./theme";
 import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
 import { ScreenHeaderContext, screenInsetBehavior } from "./screenInsets";
-import { useScreenBottomEdge, useToastAnchor } from "./toastAnchor";
+import { insideTabs, useScreenBottomEdge, useToastAnchor } from "./toastAnchor";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
 
@@ -587,6 +587,11 @@ export function ScreenFooter({ children, os = process.env.EXPO_OS }: { children:
   const v2 = useV2Styles();
   const scaled = useLayoutScale() === "v2";
   const bottomEdge = useScreenBottomEdge();
+  const insets = useSafeAreaInsets();
+  const navigation = useScreenNavigation();
+  // Under v2 a full-screen flow (a modal above the tabs) draws under the system navigation bar on Android, so its
+  // footer adds that inset; inside the tabs NativeTabs already ends the screen above the bar, so it adds nothing.
+  const inset = scaled && !insideTabs(navigation as never) ? insets.bottom : 0;
   const [height, setHeight] = useState<number>();
   useToastAnchor(height === undefined ? null : { bottom: bottomEdge + height });
   const onLayout = (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height);
@@ -597,7 +602,11 @@ export function ScreenFooter({ children, os = process.env.EXPO_OS }: { children:
       </SafeAreaView>
     );
   return (
-    <View testID="screen-footer" style={[styles.footer, scaled && v2.footer]} onLayout={onLayout}>
+    <View
+      testID="screen-footer"
+      style={[styles.footer, scaled && v2.footer, inset > 0 && { paddingBottom: nativeLayout.cardPadding + inset }]}
+      onLayout={onLayout}
+    >
       {children}
     </View>
   );

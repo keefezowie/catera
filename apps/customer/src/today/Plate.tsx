@@ -249,7 +249,6 @@ export function Plate({
   apiBase,
   offline,
   variant = "card",
-  paged = false,
   counted = true,
   delivery,
 }: {
@@ -257,8 +256,6 @@ export function Plate({
   apiBase: string;
   offline?: boolean;
   variant?: "card" | "hero";
-  /** A card of the pager: the pager rides over the band, not the card, and the cards fill its height, so they match. */
-  paged?: boolean;
   /** Whether this hero is the one in view, so its journey counts as seen. A card behind the pager's first is not. */
   counted?: boolean;
   /** The day behind a hero plate, from a fresh read: its "…" opens the day's actions. Left out offline. */
@@ -282,7 +279,6 @@ export function Plate({
       testID="plate-hero"
       // Not clipped: the shadow of each fill falls outside the frame.
       style={{
-        ...(paged ? { flexGrow: 1 } : null),
         borderRadius: HERO_RADIUS,
         borderCurve: "continuous",
       }}

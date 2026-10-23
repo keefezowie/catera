@@ -371,7 +371,6 @@ function SignedInHome({ actorId }: { actorId: string }) {
               <Plate
                 key={`${p.deliveryId}:${p.meal}`}
                 variant="hero"
-                paged
                 counted={i === inView}
                 plate={p}
                 apiBase={runtime.apiBase}
