@@ -1,11 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { Keyboard, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider } from "@catera/mobile-ui";
 import { Masuk } from "../src/auth/Masuk";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
+jest.mock("react-native-safe-area-context", () => ({
+  ...jest.requireActual("react-native-safe-area-context/jest/mock").default,
+  useSafeAreaInsets: () => ({ top: 0, bottom: 24, left: 0, right: 0 }),
+}));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -78,6 +82,22 @@ describe("Dapur Masuk, the OKX layout", () => {
 });
 
 describe("Dapur Masuk heading and labels", () => {
+  it("adds the bottom inset to the Android keyboard padding, because Dapur's Screen pays none", async () => {
+    const handlers: Record<string, ((e?: never) => void)[]> = {};
+    jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, fn: () => void) => {
+      (handlers[event] ??= []).push(fn);
+      return { remove: jest.fn() };
+    }) as never);
+    renderMasuk();
+    await screen.findByRole("tab", { name: "Email" });
+    const pad = () => StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle).paddingBottom as number;
+    const down = pad();
+    act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height: 300 } } as never))));
+    expect(pad()).toBe(down + 300 + 24);
+    act(() => ["keyboardDidHide", "keyboardWillHide"].forEach((name) => handlers[name]?.forEach((fn) => fn())));
+    expect(pad()).toBe(down);
+  });
+
   it("has one heading, Masuk, with the Catera Dapur wordmark where the mascot sits elsewhere", async () => {
     renderMasuk();
     expect(await screen.findByText("Catera Dapur")).toBeTruthy();

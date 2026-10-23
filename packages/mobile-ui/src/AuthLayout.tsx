@@ -5,7 +5,9 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "
 import { nativeMotion } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
 import { useReduced } from "./motion/useReduced";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboard } from "./useKeyboard";
+import { useLayoutScale } from "./layoutScale";
 import { StateArt } from "./brand/StateArt";
 import { fontFor } from "./type";
 import { themedStyles, useColors } from "./theme";
@@ -157,10 +159,13 @@ export function PasswordField({
  * the keyboard draws over the page without resizing it, so the page adds the keyboard's height under its content (the
  * scroll view can then bring the error and the primary button above it), and scrolls to the end whenever `revealKey`
  * changes (a failed attempt), so the error and the button are what is on screen. iOS insets the scroll view itself.
- * No dependency: it reads the keyboard events (`useKeyboard`).
+ * No dependency: it reads the keyboard events (`useKeyboard`). The customer scale's Screen already pays the bottom inset
+ * (the 3-button navigation bar); Dapur's does not, so there the page adds the bottom inset to the keyboard padding.
  */
 export function AuthScreen({ children, revealKey }: { children: ReactNode; revealKey?: string | number }) {
   const { up, height } = useKeyboard();
+  const insets = useSafeAreaInsets();
+  const scaled = useLayoutScale() === "v2";
   const reduced = useReduced();
   const ref = useRef<ScrollView>(null);
   const android = process.env.EXPO_OS !== "ios";
@@ -171,7 +176,7 @@ export function AuthScreen({ children, revealKey }: { children: ReactNode; revea
     return () => cancelAnimationFrame(frame);
   }, [android, revealKey, reduced]);
   return (
-    <Screen scrollRef={ref} extraBottom={android && up ? height : 0}>
+    <Screen scrollRef={ref} extraBottom={android && up ? height + (scaled ? 0 : insets.bottom) : 0}>
       {children}
     </Screen>
   );
