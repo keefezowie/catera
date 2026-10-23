@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
-import { MoodHeader, Screen, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useMoodColors } from "@catera/mobile-ui";
+import { fonts, MoodHeader, Screen, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useMoodColors } from "@catera/mobile-ui";
 import { localPhone } from "./localPhone";
 import { AkunTiles } from "./AkunTiles";
 import { SignInFirst } from "./SignInFirst";
@@ -151,7 +151,7 @@ function Account() {
           meta={
             <View style={styles.identity}>
               <View testID="akun-avatar" style={[styles.avatar, { backgroundColor: c.surface }]}>
-                <Text variant="rowTitle" style={{ fontWeight: "700" }}>
+                <Text variant="rowTitle" style={{ fontFamily: fonts.bold }}>
                   {initialsOf(name)}
                 </Text>
               </View>
