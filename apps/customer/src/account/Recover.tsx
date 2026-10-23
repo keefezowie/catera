@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, FormError, Screen, Text } from "@catera/mobile-ui";
+import { AuthHeading, Button, Field, FormError, Screen, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
 import { useAction } from "./useAction";
@@ -26,14 +26,15 @@ export function Recover() {
     });
 
   return (
-    <Screen>
-      <View style={{ gap: 14, paddingTop: 8 }}>
-        <Text>
-          {t(
-            "Kami kirim tautan ke emailmu. Buka tautannya di HP ini untuk membuat kata sandi baru.",
-            "We'll email you a link. Open it on this phone to set a new password.",
-          )}
-        </Text>
+    <Screen title="">
+      <AuthHeading
+        title={t("Pemulihan akun", "Account recovery")}
+        subtitle={t(
+          "Kami kirim tautan ke emailmu. Buka tautannya di HP ini untuk membuat kata sandi baru.",
+          "We email you a link. Open it on this phone to set a new password.",
+        )}
+      />
+      <View style={{ gap: 14 }}>
         <Field
           label="Email"
           value={email}
@@ -62,6 +63,7 @@ export function Recover() {
         <Button
           variant="text"
           label={t("Kembali ke Masuk", "Back to sign in")}
+          style={{ alignSelf: "flex-start" }}
           onPress={() => router.replace({ pathname: "/login", params: { next } } as never)}
         />
       </View>

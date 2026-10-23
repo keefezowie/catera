@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, FormError, Screen, Text } from "@catera/mobile-ui";
+import { AuthHeading, AuthSwitch, Button, Field, FormError, PasswordField, Screen, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
 import { useAction } from "./useAction";
@@ -52,11 +52,16 @@ export function Register() {
       setResent(true);
     });
 
+  const failed = action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null;
+
   return (
-    <Screen>
+    <Screen title="">
+      <AuthHeading
+        title={sent ? t("Cek emailmu", "Check your email") : t("Daftar", "Sign up")}
+        subtitle={sent ? undefined : t("Kami kirim tautan verifikasi ke emailmu.", "We send a verification link to your email.")}
+      />
       {sent ? (
-        <View style={{ gap: 12, paddingTop: 8 }}>
-          <Text variant="title">{t("Cek emailmu", "Check your email")}</Text>
+        <View style={{ gap: 12 }}>
           <Text>
             {t(
               "Kalau email ini bisa didaftarkan, kami sudah mengirim tautan verifikasi. Buka tautannya di HP ini untuk kembali ke Catera. Cek juga folder spam.",
@@ -66,17 +71,17 @@ export function Register() {
           {resent ? (
             <Text variant="caption">{t("Permintaan sudah dikirim. Cek emailmu.", "Request sent. Check your email.")}</Text>
           ) : null}
+          {failed}
           <Button
             variant="secondary"
             label={t("Kirim ulang verifikasi", "Resend verification")}
             busy={action.busy}
             onPress={() => void resend()}
           />
-          <Button variant="text" label={t("Ubah email", "Change email")} onPress={() => setSent(false)} />
+          <Button variant="text" label={t("Ubah email", "Change email")} style={{ alignSelf: "flex-start" }} onPress={() => setSent(false)} />
         </View>
       ) : (
-        <View style={{ gap: 14, paddingTop: 8 }}>
-          <Text>{t("Kami kirim tautan verifikasi ke emailmu.", "We'll send a verification link to your email.")}</Text>
+        <View style={{ gap: 14 }}>
           <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={100} />
           <Field
             label="Email"
@@ -88,11 +93,14 @@ export function Register() {
             autoCorrect={false}
             maxLength={254}
           />
-          <Field
+          <PasswordField
             label={t("Kata sandi", "Password")}
+            showWord={t("Lihat", "Show")}
+            hideWord={t("Sembunyi", "Hide")}
+            showA11y={t("Tampilkan kata sandi", "Show password")}
+            hideA11y={t("Sembunyikan kata sandi", "Hide password")}
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
             autoComplete="new-password"
             autoCapitalize="none"
             autoCorrect={false}
@@ -102,6 +110,7 @@ export function Register() {
               "At least 8 characters. Verify your email before signing in.",
             )}
           />
+          {failed}
           <Button
             label={t("Daftar & verifikasi email", "Sign up & verify email")}
             busy={action.busy}
@@ -110,10 +119,9 @@ export function Register() {
           />
         </View>
       )}
-      {action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null}
-      <Button
-        variant="text"
-        label={t("Sudah punya akun? Masuk", "Already registered? Sign in")}
+      <AuthSwitch
+        prompt={t("Sudah punya akun?", "Already registered?")}
+        action={t("Masuk", "Sign in")}
         onPress={() => router.replace({ pathname: "/login", params: { next } } as never)}
       />
     </Screen>

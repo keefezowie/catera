@@ -317,8 +317,19 @@ export function Field({
   error,
   style,
   inputRef,
+  trailing,
+  invalid = false,
   ...input
-}: { label: string; hint?: string; error?: string; inputRef?: Ref<TextInput> } & TextInputProps) {
+}: {
+  label: string;
+  hint?: string;
+  error?: string;
+  inputRef?: Ref<TextInput>;
+  /** A small action inside the field's end edge (a show/hide toggle); the text keeps clear of it. */
+  trailing?: ReactNode;
+  /** The danger outline without a line of text, for a field whose failure a FormError below the form already words. */
+  invalid?: boolean;
+} & TextInputProps) {
   const c = useColors();
   const styles = useStyles();
   const v2 = useV2Styles();
@@ -327,13 +338,16 @@ export function Field({
     <View style={{ gap: 6 }}>
       <RNText style={[styles.fieldLabel]}>{label}</RNText>
       {/* The caller's style extends the base input style; spreading it after would replace the fill, border and ink. */}
-      <TextInput
-        ref={inputRef}
-        accessibilityLabel={label}
-        placeholderTextColor={c.muted}
-        {...input}
-        style={[styles.input, scaled && v2.input, !!error && { borderColor: c.danger }, style]}
-      />
+      <View>
+        <TextInput
+          ref={inputRef}
+          accessibilityLabel={label}
+          placeholderTextColor={c.muted}
+          {...input}
+          style={[styles.input, scaled && v2.input, (!!error || invalid) && { borderColor: c.danger }, trailing ? { paddingRight: 96 } : null, style]}
+        />
+        {trailing ? <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, justifyContent: "center" }}>{trailing}</View> : null}
+      </View>
       {error ? (
         <RNText selectable style={[styles.caption, { color: c.danger }]}>
           {error}

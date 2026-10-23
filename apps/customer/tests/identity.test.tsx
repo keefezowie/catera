@@ -111,10 +111,10 @@ describe("Daftar dengan email", () => {
     );
   });
 
-  it("shows a single heading: the header names the screen, the body says how", async () => {
+  it("shows a single heading: the large Daftar title, with the subtitle under it", async () => {
     renderWith(<Register />);
     await screen.findByLabelText("Nama");
-    expect(screen.queryAllByRole("header")).toHaveLength(0);
+    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Daftar"]);
     expect(screen.queryByText("Daftar dengan email")).toBeNull();
     expect(screen.queryByText("Daftar dengan email dan kata sandi.")).toBeNull();
     expect(screen.getByText("Kami kirim tautan verifikasi ke emailmu.")).toBeTruthy();
@@ -136,10 +136,10 @@ describe("Daftar dengan email", () => {
 });
 
 describe("Lupa kata sandi", () => {
-  it("shows a single heading: the header names the screen, the body explains", async () => {
+  it("shows a single heading: the large Pemulihan akun title, with the explanation under it", async () => {
     renderWith(<Recover />);
     await screen.findByLabelText("Email");
-    expect(screen.queryAllByRole("header")).toHaveLength(0);
+    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Pemulihan akun"]);
     expect(screen.queryByText("Pulihkan kata sandi")).toBeNull();
     expect(screen.getByText(/Kami kirim tautan/)).toBeTruthy();
   });
@@ -163,9 +163,9 @@ describe("Masuk links", () => {
   it("offers email registration and password recovery, keeping where to return", async () => {
     mockParams = { next: "/disimpan" };
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Daftar dengan email" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Daftar" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/register", params: { next: "/disimpan" } });
-    fireEvent.press(screen.getByRole("button", { name: "Masuk dengan email" }));
+    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
     fireEvent.press(screen.getByRole("button", { name: "Lupa kata sandi?" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/recover", params: { next: "/disimpan" } });
   });
@@ -187,7 +187,7 @@ describe("Masuk with email", () => {
       throw new Error("INVALID_CREDENTIALS");
     });
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Masuk dengan email" }));
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));

@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, type Actor } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, FormError, Screen, StateArt, Text, useColors } from "@catera/mobile-ui";
+import { AuthHeading, AuthSwitch, Button, Field, FormError, MethodTabs, PasswordField, Screen, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { leaveFor } from "../nav";
 
@@ -19,10 +19,9 @@ export function e164Indonesia(input: string): string {
 /** Sign in with the phone number (SMS code) first; email and password on request. */
 export function Masuk() {
   const { runtime, t, locale, signedIn, refresh } = useMobile();
-  const c = useColors();
   const params = useLocalSearchParams<{ next?: string }>();
   const next = nativeReturnPath(typeof params.next === "string" ? params.next : undefined);
-  const [withEmail, setWithEmail] = useState(false);
+  const [method, setMethod] = useState<"phone" | "email">("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
@@ -34,7 +33,7 @@ export function Masuk() {
   const [error, setError] = useState("");
   const [failures, setFailures] = useState(0);
 
-  useEffect(() => setError(""), [withEmail]);
+  useEffect(() => setError(""), [method]);
 
   async function run(step: () => Promise<void>, which: "step" | "demo" = "step") {
     if (busy) return;
@@ -62,19 +61,50 @@ export function Masuk() {
     leaveFor(next);
   };
 
+  const phoneCopy = t(
+    "Pakai nomor HP yang kamu berikan ke katering. Kami kirim kode lewat SMS.",
+    "Use the phone number you gave your caterer. We text you a code.",
+  );
+  const emailCopy = t("Masuk dengan email dan kata sandi kamu.", "Sign in with your email and password.");
+  const phoneStep = method === "phone";
+  const primary = phoneStep ? (
+    <Button
+      label={sent ? t("Masuk", "Sign in") : t("Kirim kode", "Send code")}
+      busy={waiting === "step"}
+      disabled={sent ? code.trim().length < 6 : phone.replace(/\D/g, "").length < 9}
+      onPress={() =>
+        run(async () => {
+          if (!sent) {
+            await runtime.sendPhoneOtp(e164Indonesia(phone));
+            setSent(true);
+          } else {
+            // The code stays on screen while it is checked; a code that does not match comes back to it.
+            await finish(await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), "Pelanggan", Crypto.randomUUID()));
+          }
+        })
+      }
+    />
+  ) : (
+    <Button
+      label={t("Masuk", "Sign in")}
+      busy={waiting === "step"}
+      disabled={!email || !password}
+      onPress={() => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID(), "Pelanggan")))}
+    />
+  );
+
   return (
-    <Screen>
-      <View style={{ paddingTop: 8, gap: 12 }}>
-        {/* The waving mascot greets the person signing in; the sentence under it carries the meaning. */}
-        <StateArt pose="melambai" />
-        <Text style={{ color: c.muted, textAlign: "center" }}>
-          {t(
-            "Pakai nomor HP yang kamu berikan ke katering. Kodenya kami kirim lewat SMS.",
-            "Use the phone number you gave your caterer. We'll text you a code.",
-          )}
-        </Text>
-      </View>
-      {!withEmail ? (
+    <Screen title="">
+      <AuthHeading title={t("Masuk", "Sign in")} subtitle={phoneStep ? phoneCopy : emailCopy} />
+      <MethodTabs
+        value={method}
+        onChange={setMethod}
+        options={[
+          { value: "phone", label: t("Nomor HP", "Phone") },
+          { value: "email", label: "Email" },
+        ]}
+      />
+      {phoneStep ? (
         <View style={{ gap: 14 }}>
           <Field
             label={t("Nomor HP", "Phone number")}
@@ -84,6 +114,7 @@ export function Masuk() {
             autoComplete="tel"
             placeholder="0812…"
             editable={!sent}
+            invalid={!!error && !sent}
           />
           {sent ? (
             <Field
@@ -94,35 +125,20 @@ export function Masuk() {
               autoComplete="sms-otp"
               maxLength={6}
               autoFocus
+              invalid={!!error}
             />
           ) : null}
-          <Button
-            label={sent ? t("Masuk", "Sign in") : t("Kirim kode", "Send code")}
-            busy={waiting === "step"}
-            disabled={sent ? code.trim().length < 6 : phone.replace(/\D/g, "").length < 9}
-            onPress={() =>
-              run(async () => {
-                if (!sent) {
-                  await runtime.sendPhoneOtp(e164Indonesia(phone));
-                  setSent(true);
-                } else {
-                  // The code stays on screen while it is checked; a code that does not match comes back to it.
-                  await finish(await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), "Pelanggan", Crypto.randomUUID()));
-                }
-              })
-            }
-          />
           {sent ? (
             <Button
               variant="text"
               label={t("Ganti nomor", "Change number")}
+              style={{ alignSelf: "flex-start" }}
               onPress={() => {
                 setSent(false);
                 setCode("");
               }}
             />
           ) : null}
-          <Button variant="text" label={t("Masuk dengan email", "Sign in with email")} onPress={() => setWithEmail(true)} />
         </View>
       ) : (
         <View style={{ gap: 14 }}>
@@ -136,34 +152,33 @@ export function Masuk() {
             autoComplete="email"
             maxLength={254}
           />
-          <Field
+          <PasswordField
             label={t("Kata sandi", "Password")}
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
             autoComplete="password"
             maxLength={256}
-          />
-          <Button
-            label={t("Masuk", "Sign in")}
-            busy={waiting === "step"}
-            disabled={!email || !password}
-            onPress={() => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID(), "Pelanggan")))}
+            invalid={!!error}
+            showWord={t("Lihat", "Show")}
+            hideWord={t("Sembunyi", "Hide")}
+            showA11y={t("Tampilkan kata sandi", "Show password")}
+            hideA11y={t("Sembunyikan kata sandi", "Hide password")}
           />
           <Button
             variant="text"
             label={t("Lupa kata sandi?", "Forgot password?")}
+            style={{ alignSelf: "flex-start", marginTop: -8 }}
             onPress={() => router.push({ pathname: "/recover", params: { next } } as never)}
           />
-          <Button variant="text" label={t("Masuk dengan nomor HP", "Sign in with phone")} onPress={() => setWithEmail(false)} />
         </View>
       )}
       {error ? <FormError message={error} failureKey={failures} testID="masuk-error" /> : null}
-      <Button
-        variant="text"
-        label={t("Daftar dengan email", "Sign up with email")}
+      {primary}
+      <AuthSwitch
+        prompt={t("Belum punya akun?", "No account yet?")}
+        action={t("Daftar", "Sign up")}
         onPress={() => router.push({ pathname: "/register", params: { next } } as never)}
       />
       {__DEV__ ? (

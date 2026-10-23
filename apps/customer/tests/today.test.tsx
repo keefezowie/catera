@@ -476,7 +476,7 @@ describe("Masuk", () => {
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
     expect(runtime.verifyPhoneOtp).toHaveBeenCalledWith("+6281234567890", "123456", "Pelanggan", expect.any(String));
-    fireEvent.press(screen.getByRole("button", { name: "Masuk dengan email" }));
+    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
     expect(screen.getByLabelText("Kata sandi").props.secureTextEntry).toBe(true);
   });
 
@@ -488,7 +488,7 @@ describe("Masuk", () => {
         <Masuk />
       </MobileProvider>,
     );
-    fireEvent.press(screen.getByRole("button", { name: "Masuk dengan email" }));
+    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));

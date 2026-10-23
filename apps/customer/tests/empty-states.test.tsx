@@ -9,7 +9,6 @@ import { addDays, jakartaDay, monthOf, monthWeeks, type ClaimPreview, type Custo
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider, ThemeProvider, type MascotPose } from "@catera/mobile-ui";
 import ClaimRoute from "../app/claim/[token]";
-import LoginRoute from "../app/login";
 import { Payments } from "../src/account/Payments";
 import { Addresses } from "../src/account/Addresses";
 import { NotificationsScreen } from "../src/account/Notifications";
@@ -228,14 +227,6 @@ const STATES: State[] = [
     action: "Jelajah paket",
   },
   {
-    name: "sign-in",
-    pose: "melambai",
-    runtime: () => runtimeWith({}, null),
-    ui: <LoginRoute />,
-    copy: ["Pakai nomor HP yang kamu berikan ke katering. Kodenya kami kirim lewat SMS."],
-    action: "Kirim kode",
-  },
-  {
     name: "the claim link preview",
     pose: "melambai",
     runtime: () => runtimeWith({}, null),
@@ -445,7 +436,7 @@ describe("each empty and error state shows its pose and keeps its copy and actio
 
   it("draws the art at 96 on a 360dp phone at font scale 1.3, so the title and action stay above the fold", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    for (const state of [STATES[0], STATES[5], STATES[8], STATES[10]]) {
+    for (const state of [STATES[0], STATES[5], STATES[8], STATES[9]]) {
       const art = await open(state);
       expect(artHeight(art)).toBe(96);
       screen.unmount();
@@ -476,7 +467,7 @@ describe("each empty and error state shows its pose and keeps its copy and actio
 });
 
 it("mascot art is hidden from screen readers", async () => {
-  for (const state of [STATES[0], STATES[3], STATES[6], STATES[11]]) {
+  for (const state of [STATES[0], STATES[3], STATES[6], STATES[10]]) {
     const art = await open(state);
     // Present for the eye, absent for TalkBack and VoiceOver: the state's own text carries the meaning.
     expect(screen.queryByTestId(`mascot-${state.pose}`)).toBeNull();
