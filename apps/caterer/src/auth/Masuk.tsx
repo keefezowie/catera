@@ -3,7 +3,7 @@ import { View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthSwitch, Button, Field, FormError, MethodTabs, MoodHeader, PasswordField, Screen, Text, useMoodColors } from "@catera/mobile-ui";
+import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, MethodTabs, PasswordField, Text } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
 import { e164Indonesia } from "../onboarding";
 import { useFormRun } from "../useFormRun";
@@ -11,7 +11,6 @@ import { useFormRun } from "../useFormRun";
 /** Sign in with the WhatsApp number (SMS code) or email; demo roles only in development. */
 export function Masuk() {
   const { runtime, actor, t, locale, signedIn, refresh } = useMobile();
-  const mood = useMoodColors();
   // A session that comes back (signal returns, token refreshes) goes straight to the kitchen.
   useEffect(() => {
     if (actor) goToTab("index");
@@ -38,18 +37,10 @@ export function Masuk() {
   const failed = !!failure;
 
   return (
-    <Screen
-      header={
-        <MoodHeader testID="masuk-header" title="Catera Dapur">
-          <Text style={{ color: mood.headerMeta }}>
-            {t("Masuk untuk melihat daftar masak dan antar hari ini.", "Sign in to see today's cooking and delivery lists.")}
-          </Text>
-        </MoodHeader>
-      }
-    >
-      {/* The mood header is Dapur's brand mark, so there is no mascot here. */}
+    <AuthScreen revealKey={failure?.key}>
+      {/* Dapur has no mascot: its name sits where the customer's mark does, and Masuk is the screen's one heading. */}
       <AuthHeading
-        mark={false}
+        brand="Catera Dapur"
         title={t("Masuk", "Sign in")}
         subtitle={
           phoneStep
@@ -61,7 +52,7 @@ export function Masuk() {
         value={method}
         onChange={setMethod}
         options={[
-          { value: "phone", label: "WhatsApp" },
+          { value: "phone", label: t("Nomor HP", "Phone") },
           { value: "email", label: "Email" },
         ]}
       />
@@ -100,15 +91,15 @@ export function Masuk() {
         </View>
       ) : (
         <View style={{ gap: 14 }}>
-          <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" invalid={failed} />
           <PasswordField
             label={t("Kata sandi", "Password")}
             value={password}
             onChangeText={setPassword}
             autoCapitalize="none"
             invalid={failed}
-            showWord={t("Lihat", "Show")}
-            hideWord={t("Sembunyi", "Hide")}
+            showWord={t("Tampilkan", "Show")}
+            hideWord={t("Sembunyikan", "Hide")}
             showA11y={t("Tampilkan kata sandi", "Show password")}
             hideA11y={t("Sembunyikan kata sandi", "Hide password")}
           />
@@ -163,6 +154,6 @@ export function Masuk() {
           ))}
         </View>
       ) : null}
-    </Screen>
+    </AuthScreen>
   );
 }

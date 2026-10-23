@@ -83,10 +83,10 @@ function Navigation() {
             sign-in, buying and paying, a claim link and the story. */}
         <Stack screenOptions={screenOptions}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          {/* Short forms: a sheet on iOS, each with Close at the leading edge. */}
-          <Stack.Screen name="login" options={{ title: t("Masuk", "Sign in"), ...flow("modal") }} />
-          <Stack.Screen name="register" options={{ title: t("Daftar", "Sign up"), ...flow("modal") }} />
-          <Stack.Screen name="recover" options={{ title: t("Pemulihan akun", "Account recovery"), ...flow("modal") }} />
+          {/* Short forms: a sheet on iOS, each with Close at the leading edge. Their large in-page title is the heading, so the bar title is empty; `title` still names the route. */}
+          <Stack.Screen name="login" options={{ title: t("Masuk", "Sign in"), ...flow("modal"), headerTitle: "" }} />
+          <Stack.Screen name="register" options={{ title: t("Daftar", "Sign up"), ...flow("modal"), headerTitle: "" }} />
+          <Stack.Screen name="recover" options={{ title: t("Pemulihan akun", "Account recovery"), ...flow("modal"), headerTitle: "" }} />
           <Stack.Screen
             name="auth/callback"
             options={{ title: t("Verifikasi akun", "Verify account"), headerBackVisible: false }}

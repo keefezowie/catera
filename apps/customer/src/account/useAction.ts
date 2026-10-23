@@ -12,14 +12,18 @@ export function useAction(describe?: (e: unknown, locale: "id" | "en", t: (id: s
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [failures, setFailures] = useState(0);
+  // The failure's code, for a form that outlines the field the failure is about.
+  const [code, setCode] = useState("");
   async function run(action: () => Promise<unknown>) {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
     setError("");
+    setCode("");
     try {
       await action();
     } catch (e) {
+      setCode((e as { code?: string }).code || (e as Error).message || "");
       setError((describe ?? failureText)(e, locale, t));
       setFailures((n) => n + 1);
     } finally {
@@ -27,5 +31,5 @@ export function useAction(describe?: (e: unknown, locale: "id" | "en", t: (id: s
       setBusy(false);
     }
   }
-  return { busy, error, failures, setError, run };
+  return { busy, code, error, failures, setError, run };
 }

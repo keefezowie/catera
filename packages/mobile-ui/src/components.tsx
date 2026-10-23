@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text as RNText,
   TextInput,
+  useWindowDimensions,
   View,
   type StyleProp,
   type TextInputProps,
@@ -334,6 +335,7 @@ export function Field({
   const styles = useStyles();
   const v2 = useV2Styles();
   const scaled = useLayoutScale() === "v2";
+  const { fontScale } = useWindowDimensions();
   return (
     <View style={{ gap: 6 }}>
       <RNText style={[styles.fieldLabel]}>{label}</RNText>
@@ -344,7 +346,7 @@ export function Field({
           accessibilityLabel={label}
           placeholderTextColor={c.muted}
           {...input}
-          style={[styles.input, scaled && v2.input, (!!error || invalid) && { borderColor: c.danger }, trailing ? { paddingRight: 96 } : null, style]}
+          style={[styles.input, scaled && v2.input, (!!error || invalid) && { borderColor: c.danger }, trailing ? { paddingRight: Math.round(112 * Math.max(1, fontScale)) } : null, style]}
         />
         {trailing ? <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, justifyContent: "center" }}>{trailing}</View> : null}
       </View>
@@ -433,6 +435,8 @@ export function Screen({
   onScroll,
   refreshControl,
   list,
+  extraBottom = 0,
+  scrollRef,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -467,6 +471,10 @@ export function Screen({
    * its own body, so `children` is unused.
    */
   list?: (root: { scrollProps: ScrollViewProps; header: ReactNode }) => ReactElement;
+  /** Room under the content, for the Android keyboard that draws over an edge-to-edge window (AuthScreen). */
+  extraBottom?: number;
+  /** The screen's own ScrollView, for a wrapper that scrolls it. */
+  scrollRef?: Ref<ScrollView>;
 }) {
   const styles = useStyles();
   const margin = useScreenMargin();
@@ -560,7 +568,7 @@ export function Screen({
     testID: "screen-scroll",
     contentInsetAdjustmentBehavior: screenInsetBehavior({ header: !!header, bleed }),
     automaticallyAdjustKeyboardInsets: ios,
-    contentContainerStyle: { paddingBottom: 32 + bottomInset },
+    contentContainerStyle: { paddingBottom: 32 + bottomInset + extraBottom },
     keyboardShouldPersistTaps: "handled",
     onScroll: handleScroll,
     scrollEventThrottle: handleScroll ? 16 : undefined,
@@ -594,7 +602,7 @@ export function Screen({
               ),
             })
           ) : (
-            <ScrollView {...scrollProps}>
+            <ScrollView ref={scrollRef} {...scrollProps}>
               {header ? <ScreenHeaderContext.Provider value>{header}</ScreenHeaderContext.Provider> : null}
               {lead}
               {body}

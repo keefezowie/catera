@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -132,6 +133,10 @@ describe("Daftar dengan email", () => {
     fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
     expect(await screen.findByTestId("identity-error")).toBeTruthy();
     expect(screen.queryByText("Cek emailmu")).toBeNull();
+    // The password is what was refused, so it carries the danger outline and the email does not.
+    const edge = (label: string) => StyleSheet.flatten(screen.getByLabelText(label).props.style).borderColor;
+    expect(edge("Kata sandi")).not.toBe(edge("Nama"));
+    expect(edge("Email")).toBe(edge("Nama"));
   });
 });
 
@@ -142,6 +147,17 @@ describe("Lupa kata sandi", () => {
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Pemulihan akun"]);
     expect(screen.queryByText("Pulihkan kata sandi")).toBeNull();
     expect(screen.getByText(/Kami kirim tautan/)).toBeTruthy();
+  });
+
+  it("outlines the email when the link cannot be sent", async () => {
+    supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ error: { code: "unexpected_failure", status: 500 } } as never);
+    renderWith(<Recover />);
+    const email = await screen.findByLabelText("Email");
+    const before = StyleSheet.flatten(email.props.style).borderColor;
+    fireEvent.changeText(email, "rani@example.test");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
+    expect(await screen.findByTestId("identity-error")).toBeTruthy();
+    expect(StyleSheet.flatten(screen.getByLabelText("Email").props.style).borderColor).not.toBe(before);
   });
 
   it("sends a recovery link to the email and says so", async () => {

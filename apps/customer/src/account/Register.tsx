@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthSwitch, Button, Field, FormError, PasswordField, Screen, Text } from "@catera/mobile-ui";
+import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, PasswordField, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
 import { useAction } from "./useAction";
@@ -55,10 +55,10 @@ export function Register() {
   const failed = action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null;
 
   return (
-    <Screen title="">
+    <AuthScreen revealKey={action.failures}>
       <AuthHeading
         title={sent ? t("Cek emailmu", "Check your email") : t("Daftar", "Sign up")}
-        subtitle={sent ? undefined : t("Kami kirim tautan verifikasi ke emailmu.", "We send a verification link to your email.")}
+        subtitle={sent ? undefined : t("Kami kirim tautan verifikasi ke emailmu.", "We'll send a verification link to your email.")}
       />
       {sent ? (
         <View style={{ gap: 12 }}>
@@ -92,15 +92,17 @@ export function Register() {
             autoCapitalize="none"
             autoCorrect={false}
             maxLength={254}
+            invalid={action.code === "EMAIL_NOT_CONFIRMED"}
           />
           <PasswordField
             label={t("Kata sandi", "Password")}
-            showWord={t("Lihat", "Show")}
-            hideWord={t("Sembunyi", "Hide")}
+            showWord={t("Tampilkan", "Show")}
+            hideWord={t("Sembunyikan", "Hide")}
             showA11y={t("Tampilkan kata sandi", "Show password")}
             hideA11y={t("Sembunyikan kata sandi", "Hide password")}
             value={password}
             onChangeText={setPassword}
+            invalid={action.code === "PASSWORD_REJECTED"}
             autoComplete="new-password"
             autoCapitalize="none"
             autoCorrect={false}
@@ -124,6 +126,6 @@ export function Register() {
         action={t("Masuk", "Sign in")}
         onPress={() => router.replace({ pathname: "/login", params: { next } } as never)}
       />
-    </Screen>
+    </AuthScreen>
   );
 }

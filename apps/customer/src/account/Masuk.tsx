@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, type Actor } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthSwitch, Button, Field, FormError, MethodTabs, PasswordField, Screen, Text } from "@catera/mobile-ui";
+import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, MethodTabs, PasswordField, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { leaveFor } from "../nav";
 
@@ -94,7 +94,7 @@ export function Masuk() {
   );
 
   return (
-    <Screen title="">
+    <AuthScreen revealKey={failures}>
       <AuthHeading title={t("Masuk", "Sign in")} subtitle={phoneStep ? phoneCopy : emailCopy} />
       <MethodTabs
         value={method}
@@ -151,6 +151,7 @@ export function Masuk() {
             autoCorrect={false}
             autoComplete="email"
             maxLength={254}
+            invalid={!!error}
           />
           <PasswordField
             label={t("Kata sandi", "Password")}
@@ -161,8 +162,8 @@ export function Masuk() {
             autoComplete="password"
             maxLength={256}
             invalid={!!error}
-            showWord={t("Lihat", "Show")}
-            hideWord={t("Sembunyi", "Hide")}
+            showWord={t("Tampilkan", "Show")}
+            hideWord={t("Sembunyikan", "Hide")}
             showA11y={t("Tampilkan kata sandi", "Show password")}
             hideA11y={t("Sembunyikan kata sandi", "Hide password")}
           />
@@ -199,6 +200,6 @@ export function Masuk() {
           />
         </View>
       ) : null}
-    </Screen>
+    </AuthScreen>
   );
 }

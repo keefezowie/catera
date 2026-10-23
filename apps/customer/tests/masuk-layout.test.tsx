@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Keyboard, StyleSheet } from "react-native";
+import { Keyboard, ScrollView, StyleSheet } from "react-native";
+import * as Reanimated from "react-native-reanimated";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { Masuk } from "../src/account/Masuk";
@@ -60,14 +61,17 @@ function order(): string[] {
 }
 
 const keyboard = () => {
-  const handlers: Record<string, () => void> = {};
+  // Every component that listens (the page and its heading) hears the event.
+  const handlers: Record<string, ((e?: never) => void)[]> = {};
   jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, fn: () => void) => {
-    handlers[event] = fn;
+    (handlers[event] ??= []).push(fn);
     return { remove: jest.fn() };
   }) as never);
+  const fire = (events: string[], e?: unknown) =>
+    act(() => events.forEach((name) => handlers[name]?.forEach((fn) => fn(e as never))));
   return {
-    show: () => act(() => (handlers.keyboardDidShow ?? handlers.keyboardWillShow)()),
-    hide: () => act(() => (handlers.keyboardDidHide ?? handlers.keyboardWillHide)()),
+    show: (height = 280) => fire(["keyboardDidShow", "keyboardWillShow"], { endCoordinates: { height } }),
+    hide: () => fire(["keyboardDidHide", "keyboardWillHide"]),
   };
 };
 const borderOf = (label: string) => StyleSheet.flatten(screen.getByLabelText(label).props.style).borderColor;
@@ -144,15 +148,72 @@ describe("Masuk, the OKX layout", () => {
   });
 
   it("shows the 56dp mascot mark, hides it while the keyboard is up and brings it back", async () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const kb = keyboard();
     renderWith(<Masuk />);
     const mark = await screen.findByTestId("mascot-melambai", { includeHiddenElements: true });
     expect(StyleSheet.flatten(mark.props.style).alignSelf).toBe("flex-start");
     expect(StyleSheet.flatten(screen.getByTestId("mascot-art", { includeHiddenElements: true }).props.style).height).toBe(56);
+    const host = () => screen.getByTestId("auth-mark", { includeHiddenElements: true });
+    const slot = () => StyleSheet.flatten(host().props.style);
+    // Measured once, so the room it gives back is its real height.
+    fireEvent(host().children[0] as never, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 56, height: 56 } } });
+    expect(slot().height).toBe(56);
     kb.show();
-    expect(screen.queryByTestId("mascot-melambai", { includeHiddenElements: true })).toBeNull();
+    // Reduced motion: the room is gone at once, not eased out.
+    await waitFor(() => expect(slot()).toMatchObject({ height: 0, opacity: 0 }));
     kb.hide();
-    expect(screen.getByTestId("mascot-melambai", { includeHiddenElements: true })).toBeTruthy();
+    await waitFor(() => expect(slot()).toMatchObject({ height: 56, opacity: 1 }));
+  });
+
+  it("adds the Android keyboard's height under the page and scrolls to the error and the button when a sign-in fails", async () => {
+    const kb = keyboard();
+    const scrollToEnd = jest.spyOn(ScrollView.prototype as never as { scrollToEnd: () => void }, "scrollToEnd").mockImplementation(() => undefined);
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("INVALID_CREDENTIALS");
+    });
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    const pad = () => StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle).paddingBottom as number;
+    const down = pad();
+    kb.show(300);
+    expect(pad()).toBe(down + 300);
+    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await screen.findByTestId("masuk-error");
+    await waitFor(() => expect(scrollToEnd).toHaveBeenCalled());
+    kb.hide();
+    expect(pad()).toBe(down);
+  });
+
+  it("gives every tab a 48dp target and the password toggle its visible word in its spoken name", async () => {
+    renderWith(<Masuk />);
+    for (const name of ["Nomor HP", "Email"]) {
+      const tab = await screen.findByRole("tab", { name });
+      expect(StyleSheet.flatten(tab.props.style)).toMatchObject({ minWidth: 48, minHeight: 48 });
+    }
+    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
+    const toggle = screen.getByRole("button", { name: "Tampilkan kata sandi" });
+    expect(screen.getByText("Tampilkan")).toBeTruthy();
+    fireEvent.press(toggle);
+    expect(screen.getByText("Sembunyikan")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
+  });
+
+  it("outlines both the email and the password after a credentials error", async () => {
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("INVALID_CREDENTIALS");
+    });
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    const [e0, p0] = [borderOf("Email"), borderOf("Kata sandi")];
+    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await screen.findByTestId("masuk-error");
+    expect(borderOf("Email")).not.toBe(e0);
+    expect(borderOf("Kata sandi")).not.toBe(p0);
   });
 
   it("offers Lupa kata sandi? under the password field on the email path only", async () => {

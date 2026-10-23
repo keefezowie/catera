@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider } from "@catera/mobile-ui";
@@ -69,9 +70,45 @@ describe("Dapur Masuk, the OKX layout", () => {
     fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3456 7890");
     fireEvent.press(screen.getByRole("tab", { name: "Email" }));
     expect(screen.getByText("Masuk dengan email dan kata sandi kamu.")).toBeTruthy();
-    fireEvent.press(screen.getByRole("tab", { name: "WhatsApp" }));
+    fireEvent.press(screen.getByRole("tab", { name: "Nomor HP" }));
     expect(screen.getByLabelText("Nomor WhatsApp").props.value).toBe("0812 3456 7890");
     fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     expect(router.push).toHaveBeenCalledWith("/daftar");
+  });
+});
+
+describe("Dapur Masuk heading and labels", () => {
+  it("has one heading, Masuk, with the Catera Dapur wordmark where the mascot sits elsewhere", async () => {
+    renderMasuk();
+    expect(await screen.findByText("Catera Dapur")).toBeTruthy();
+    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Masuk"]);
+    expect(screen.queryByTestId("masuk-header")).toBeNull();
+    expect(screen.queryByTestId("mascot-melambai", { includeHiddenElements: true })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Lupa kata sandi?" })).toBeNull();
+  });
+
+  it("names the phone tab Nomor HP and keeps the field Nomor WhatsApp", async () => {
+    renderMasuk();
+    expect(await screen.findByRole("tab", { name: "Nomor HP" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "WhatsApp" })).toBeNull();
+    expect(screen.getByLabelText("Nomor WhatsApp")).toBeTruthy();
+  });
+
+  it("toggles the password with its visible word in the spoken name, and outlines both fields on a failure", async () => {
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("INVALID_CREDENTIALS");
+    });
+    renderMasuk();
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Tampilkan kata sandi" }));
+    expect(screen.getByText("Sembunyikan")).toBeTruthy();
+    const edge = (label: string) => StyleSheet.flatten(screen.getByLabelText(label).props.style).borderColor;
+    const [e0, p0] = [edge("Email"), edge("Kata sandi")];
+    fireEvent.changeText(screen.getByLabelText("Email"), "dapur@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await screen.findByTestId("form-error");
+    expect(edge("Email")).not.toBe(e0);
+    expect(edge("Kata sandi")).not.toBe(p0);
   });
 });
