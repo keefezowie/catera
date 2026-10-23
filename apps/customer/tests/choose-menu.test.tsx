@@ -1,10 +1,19 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
+import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { ThemeProvider } from "@catera/mobile-ui";
 import { ChooseMenu } from "../src/schedule/ChooseMenu";
 import { customerLink } from "../src/links";
 
+/** The phone the screen is drawn on; the Jest default is 390 wide at font scale 2. */
+let mockWindow = { width: 390, height: 800, scale: 2, fontScale: 2 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   useLocalSearchParams: () => ({ id: "subscription", date: "2026-11-03", meal: "lunch" }),
@@ -264,4 +273,156 @@ it("date rows are 48dp picks with a selection haptic", async () => {
   expect(row.props.accessibilityState.selected).toBe(true);
   fireEvent.press(row);
   expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+});
+
+describe("Pilih menu as photo cards (R4)", () => {
+  const dish = (extra: Record<string, unknown> = {}) => ({
+    id: "option-2",
+    version: 1,
+    categoryId: "main",
+    name: "Rendang sapi dengan sambal hijau dan daun singkong rebus",
+    serving: "1 porsi",
+    image: "",
+    description: "",
+    archived: false,
+    ...extra,
+  });
+  const withDishes = (dates = [day()]) => ({
+    ...month(dates),
+    options: [{ ...month().options[0], image: "/media/ayam.jpg" }, dish()],
+  });
+  const saved = {
+    version: 2,
+    selectionStatus: "selected",
+    details: { meal: "lunch", name: "", description: "", image: "", items: [] },
+  };
+  const card = (id: string) => screen.getByTestId(`dish-card-${id}`);
+
+  afterEach(() => {
+    mockWindow = { width: 390, height: 800, scale: 2, fontScale: 2 };
+    jest.restoreAllMocks();
+  });
+
+  it("options are photo cards with name and serving", async () => {
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
+    renderMenu();
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    // A dish with a photo draws it; one without gets the utensil tile at the same size, never an empty hole.
+    expect(within(card("option")).getByTestId("dish-photo-option")).toBeTruthy();
+    expect(within(card("option")).getByText("Ayam panggang")).toBeTruthy();
+    expect(within(card("option")).getByText("1 potong")).toBeTruthy();
+    expect(within(card("option-2")).getByTestId("dish-fallback-option-2")).toBeTruthy();
+    expect(within(card("option-2")).queryByTestId("dish-photo-option-2")).toBeNull();
+  });
+
+  it("the selected card has the accent ring and accessibilityState selected", async () => {
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
+    renderMenu();
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    expect(card("option").props.accessibilityState).toMatchObject({ selected: false });
+    expect(screen.queryByTestId("dish-check-option")).toBeNull();
+    fireEvent.press(card("option"));
+    const on = StyleSheet.flatten(card("option").props.style);
+    expect(card("option").props.accessibilityState).toMatchObject({ selected: true });
+    expect(on.borderWidth).toBe(2);
+    expect(on.borderColor).toBe(nativeThemes.light.forest);
+    expect(screen.getByTestId("dish-check-option")).toBeTruthy();
+    // The other card keeps the same 2dp edge in a clear colour, so a selection never shifts the grid.
+    const off = StyleSheet.flatten(card("option-2").props.style);
+    expect(off.borderWidth).toBe(2);
+    expect(off.borderColor).not.toBe(nativeThemes.light.forest);
+    expect(card("option-2").props.accessibilityState).toMatchObject({ selected: false });
+  });
+
+  it("Pilih sebelum {cutoff} shows and turns to the warning tone under 24h", async () => {
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
+    const view = renderMenu();
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    const calm = screen.getByTestId("menu-deadline");
+    expect(within(calm).getByText(/^Pilih sebelum \S+ 2 November 17\.00$/)).toBeTruthy();
+    expect(StyleSheet.flatten(calm.props.style)?.backgroundColor).toBeUndefined();
+    view.unmount();
+
+    const soon = new Date(Date.now() + 3 * 3600_000).toISOString();
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes([day({ cutoffAt: soon })]));
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    render(
+      <ThemeProvider storageKey="choose-menu-test">
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <ChooseMenu />
+        </MobileProvider>
+      </ThemeProvider>,
+    );
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    // Under a day away the line sits on the attention ground, from the dark palette's own tokens.
+    const warn = screen.getByTestId("menu-deadline");
+    expect(within(warn).getByText(/^Pilih sebelum /)).toBeTruthy();
+    expect(StyleSheet.flatten(warn.props.style).backgroundColor).toBe(nativeThemes.dark.cream);
+  });
+
+  it("{x} dari {n} hari sudah dipilih", async () => {
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(
+      withDishes([day(), day({ date: "2026-11-04", dayId: "day-2", ...saved }), day({ date: "2026-11-05", dayId: "day-3" })]),
+    );
+    const view = renderMenu();
+    expect(await screen.findByText("1 dari 3 hari sudah dipilih")).toBeTruthy();
+    view.unmount();
+
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes([day(), day({ date: "2026-11-04", dayId: "day-2" })]));
+    const none = renderMenu();
+    expect(await screen.findByText("0 dari 2 hari sudah dipilih")).toBeTruthy();
+    none.unmount();
+
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(
+      withDishes([day(saved), day({ date: "2026-11-04", dayId: "day-2", ...saved })]),
+    );
+    renderMenu();
+    expect(await screen.findByText("2 dari 2 hari sudah dipilih")).toBeTruthy();
+  });
+
+  it("Simpan menu is pinned in the footer", async () => {
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
+    renderMenu();
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    const footer = () => within(screen.getByTestId("screen-footer"));
+    expect(footer().getByRole("button", { name: "Tinjau pilihan" })).toBeDisabled();
+    fireEvent.press(card("option"));
+    fireEvent.press(footer().getByRole("button", { name: "Tinjau pilihan" }));
+    fireEvent.press(footer().getByRole("button", { name: "Simpan menu" }));
+    fireEvent.press(footer().getByRole("button", { name: "Simpan menu" }));
+    await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(1));
+  });
+
+  it("at font scale 1.3 on a 360dp phone the cards keep 2 columns and the name wraps to 2 lines", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
+    renderMenu();
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    for (const id of ["option", "option-2"]) {
+      const cell = StyleSheet.flatten(screen.getByTestId(`dish-cell-${id}`).props.style);
+      expect(cell.maxWidth).toBe("50%");
+      expect(cell.flexBasis).toBe("40%");
+    }
+    expect(within(card("option-2")).getByText(dish().name).props.numberOfLines).toBe(2);
+  });
+
+  it("a cutoff that passes while editing leaves the cards read-only", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
+    try {
+      const cutoff = new Date(Date.now() + 10_000).toISOString();
+      (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes([day({ cutoffAt: cutoff })]));
+      renderMenu();
+      fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+      act(() => {
+        jest.advanceTimersByTime(31_000);
+      });
+      expect(await screen.findByText(/Batas memilih sudah lewat/)).toBeTruthy();
+      expect(card("option").props.accessibilityState).toMatchObject({ disabled: true });
+      fireEvent.press(card("option"));
+      expect(card("option").props.accessibilityState).toMatchObject({ selected: false });
+      expect(screen.queryByTestId("menu-deadline")).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

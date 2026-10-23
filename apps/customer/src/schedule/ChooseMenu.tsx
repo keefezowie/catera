@@ -28,6 +28,7 @@ import {
   useConfirm,
   useToast,
   Photo,
+  StickyAction,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { failureText } from "../account/failure";
@@ -36,11 +37,15 @@ import { jakartaClock, photoUri } from "../today/Plate";
 import { longDay, monthTitle, shiftMonth, weekdayName } from "./dates";
 import { goToTab } from "../nav";
 import { ChooseMenuSkeleton } from "../skeletons";
+import { DecorativeIcon } from "../layout/DecorativeIcon";
+import { DishCard } from "./DishCard";
 
 type MenuDay = CustomerMenuMonth["dates"][number];
 type Meal = "lunch" | "dinner";
 type Choice = { slotId: string; optionId: string; optionVersion: number };
-type Draft = { days: MenuDay[]; choices: Choice[]; template: MealMenu; dirty: boolean };
+/** Under a day to the cutoff, the deadline line takes the attention ground. */
+const SOON_MS = 24 * 3600_000;
+type Draft ={ days: MenuDay[]; choices: Choice[]; template: MealMenu; dirty: boolean };
 
 const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
@@ -171,14 +176,17 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
   const today = jakartaDay(new Date(now));
   const selected = dates.find((d) => d.date === date) ?? dates.find((d) => d.date >= today) ?? dates[0];
   const editable = (d: MenuDay) => d.editable && Date.parse(d.cutoffAt) > now;
-  const stateLabel = (d: MenuDay) => {
-    const state = customerMenuPresentation({
+  const menuState = (d: MenuDay) =>
+    customerMenuPresentation({
       surface: "delivery",
       hasSavedMenu: !!d.details,
       editable: editable(d),
       selectionStatus: d.selectionStatus,
       activeOptionCount: options.length,
     }).state;
+  const savedDays = dates.filter((d) => menuState(d) === "saved").length;
+  const stateLabel = (d: MenuDay) => {
+    const state = menuState(d);
     return state === "saved"
       ? t("Menu tersimpan", "Menu saved")
       : state === "selection_due"
@@ -252,7 +260,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
 
   function pick(slotId: string, optionId: string) {
     const option = options.find((o) => o.id === optionId);
-    if (!draft || !option) return;
+    if (!draft || !option || !draft.days.every(editable)) return;
     setDraft({
       ...draft,
       dirty: true,
@@ -273,8 +281,50 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
     });
   }
 
+  // The editor's deadline is its earliest open day's cutoff; once any day has passed, FormError says so instead.
+  const open = !!draft && draft.days.every(editable);
+  const firstCutoff = draft ? [...draft.days].sort((a, b) => Date.parse(a.cutoffAt) - Date.parse(b.cutoffAt))[0] : undefined;
+  const soon = !!firstCutoff && Date.parse(firstCutoff.cutoffAt) - now < SOON_MS;
+  const deadline =
+    open && firstCutoff ? (
+      <View style={styles.deadlineRow}>
+        <DecorativeIcon name="time-outline" size={18} color={soon ? palette.charcoal : palette.muted} />
+        <Text
+          variant={soon ? "bodyStrong" : "caption"}
+          style={{ flex: 1, fontVariant: ["tabular-nums"] }}
+        >
+          {t(`Pilih sebelum ${cutoff(firstCutoff)}`, `Choose by ${cutoff(firstCutoff)}`)}
+        </Text>
+      </View>
+    ) : null;
+
+  // While editing, the one action is pinned under the page: Tinjau pilihan, then Simpan menu.
+  const footer =
+    offer.menuSelectionMode === "customer" && draft ? (
+      reviewing ? (
+        <StickyAction
+          testID="menu-save"
+          caption={t(
+            "Pilihan yang sudah tersimpan di tanggal-tanggal ini akan diganti. Semua porsi dapat menu yang sama.",
+            "Choices already saved on these dates will be replaced. Every portion gets the same menu.",
+          )}
+          label={t("Simpan menu", "Save menu")}
+          busy={sending === "save"}
+          disabled={!valid || !writeable || sending === "reset"}
+          onPress={() => void send("customerMenu.saveBatch")}
+        />
+      ) : (
+        <StickyAction
+          testID="menu-review"
+          label={t("Tinjau pilihan", "Review choice")}
+          disabled={!valid || !writeable}
+          onPress={() => setReviewing(true)}
+        />
+      )
+    ) : undefined;
+
   return (
-    <Screen>
+    <Screen footer={footer}>
       <FadeSwap swapKey="ready" style={{ gap: 16 }}>
         <View style={{ gap: 4 }}>
           <Text variant="title">{offer.name}</Text>
@@ -313,6 +363,14 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 }}
               />
             </View>
+            {dates.length ? (
+              <Text variant="caption" testID="menu-count" style={{ textAlign: "center", fontVariant: ["tabular-nums"] }}>
+                {t(
+                  `${savedDays} dari ${dates.length} hari sudah dipilih`,
+                  `${savedDays} of ${dates.length} ${dates.length === 1 ? "day" : "days"} chosen`,
+                )}
+              </Text>
+            ) : null}
             {offer.meal === "both" ? (
               <Segmented<Meal>
                 options={(["lunch", "dinner"] as const).map((value) => ({ value, label: mealLabel(value, locale) }))}
@@ -365,14 +423,25 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
             ) : null}
           </>
         ) : (
-          <Card>
-            <Text variant="heading">
-              {reviewing ? t("Periksa pilihan menu", "Check your choice") : t("Lengkapi pilihan", "Complete your choice")}
-            </Text>
-            <Text>
-              {draft.days.map((d) => longDay(d.date, locale)).join(" · ")} · {mealLabel(meal, locale)}
-            </Text>
-            {!draft.days.every(editable) ? (
+          <View style={{ gap: 16 }}>
+            <View style={{ gap: 4 }}>
+              <Text variant="heading">
+                {reviewing ? t("Periksa pilihan menu", "Check your choice") : t("Lengkapi pilihan", "Complete your choice")}
+              </Text>
+              <Text>
+                {draft.days.map((d) => longDay(d.date, locale)).join(" · ")} · {mealLabel(meal, locale)}
+              </Text>
+            </View>
+            {deadline ? (
+              soon ? (
+                <Card tone="attention" testID="menu-deadline">
+                  {deadline}
+                </Card>
+              ) : (
+                <View testID="menu-deadline">{deadline}</View>
+              )
+            ) : null}
+            {!open ? (
               <FormError
                 message={t(
                   "Batas memilih sudah lewat, jadi pilihan ini tidak bisa disimpan. Katering yang memilihkan.",
@@ -390,7 +459,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                   ) : (
                     <>
                       <Text variant="label">{slot.label}</Text>
-                      <View style={styles.chips}>
+                      <View style={styles.grid}>
                         {options
                           .filter(
                             (o) =>
@@ -398,17 +467,23 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                               !draft.choices.some((c) => c.slotId !== slot.id && c.optionId === o.id),
                           )
                           .map((o) => (
-                            <FilterChip
+                            <DishCard
                               key={o.id}
+                              id={o.id}
+                              name={o.name}
+                              serving={o.serving || undefined}
+                              uri={o.image ? photoUri(o.image, runtime.apiBase) : undefined}
                               label={o.name + (o.serving ? ` · ${o.serving}` : "")}
                               selected={choice?.optionId === o.id}
+                              disabled={!open}
                               onPress={() => pick(slot.id, o.id)}
                             />
                           ))}
                       </View>
                     </>
                   )}
-                  {dish?.image ? (
+                  {/* The review shows each chosen dish's photo once more under its line. */}
+                  {reviewing && dish?.image ? (
                     <Photo uri={photoUri(dish.image, runtime.apiBase)} style={styles.photo} accessibilityLabel={dish.name} />
                   ) : null}
                   {dish?.description ? <Text variant="caption">{dish.description}</Text> : null}
@@ -436,27 +511,10 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                       ))}
                   </View>
                 ) : null}
-                <Button
-                  label={t("Tinjau pilihan", "Review choice")}
-                  disabled={!valid || !writeable}
-                  onPress={() => setReviewing(true)}
-                />
               </>
             ) : (
               <>
-                <Text variant="caption">
-                  {t(
-                    "Pilihan yang sudah tersimpan di tanggal-tanggal ini akan diganti. Semua porsi dapat menu yang sama.",
-                    "Choices already saved on these dates will be replaced. Every portion gets the same menu.",
-                  )}
-                </Text>
                 {error ? <FormError message={error} failureKey={failures} testID="menu-error" /> : null}
-                <Button
-                  label={t("Simpan menu", "Save menu")}
-                  busy={sending === "save"}
-                  disabled={!valid || !writeable || sending === "reset"}
-                  onPress={() => void send("customerMenu.saveBatch")}
-                />
                 <Button variant="secondary" label={t("Lanjut memilih", "Keep choosing")} onPress={() => setReviewing(false)} />
               </>
             )}
@@ -497,7 +555,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 else close();
               }}
             />
-          </Card>
+          </View>
         )}
       </FadeSwap>
     </Screen>
@@ -511,4 +569,7 @@ const useStyles = themedStyles((c) => ({
   divider: { borderTopWidth: 1, borderTopColor: c.line },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   photo: { height: 120, borderRadius: 12, backgroundColor: c.sage },
+  // Dish cards: two columns 12 apart, 16 between rows (the cards carry their own 2dp ring and 4 inset).
+  grid: { flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 16 },
+  deadlineRow: { flexDirection: "row", alignItems: "center", gap: 8 },
 }));

@@ -23,6 +23,7 @@ const REMOTE = [
   "apps/customer/src/discover/PackageDetail.tsx",
   "apps/customer/src/schedule/DayScreen.tsx",
   "apps/customer/src/schedule/ChooseMenu.tsx",
+  "apps/customer/src/schedule/DishCard.tsx",
   "apps/customer/src/today/RecapCard.tsx",
   "apps/customer/src/today/EmptyHome.tsx",
   "apps/customer/src/buy/PaidOutcome.tsx",
