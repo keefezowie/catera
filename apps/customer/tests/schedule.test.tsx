@@ -713,7 +713,7 @@ describe("Jadwal", () => {
       expect(flat(screen.getByTestId("agenda-empty-days"))).toMatchObject({
         backgroundColor: nativeThemes.light.surface,
         borderRadius: 16,
-        paddingHorizontal: 16,
+        paddingHorizontal: 15,
         minHeight: 56,
       });
     });
