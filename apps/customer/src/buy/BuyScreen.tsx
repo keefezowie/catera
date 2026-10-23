@@ -253,21 +253,44 @@ export function BuyScreen({
     );
 
   const shown = quote.shown;
+  const waiting = quote.pending || (renew && !context.data);
+  const disabled = !quote.ready || !payable || !!pendingCheckout || (renew && !context.data);
+  // A Bayar that cannot be pressed says why, one line above it, the first reason that holds (deep pages R1).
+  const why = !disabled
+    ? ""
+    : waiting
+      ? t("Menghitung total…", "Working out the total…")
+      : !address
+        ? t("Pilih alamat dulu.", "Choose an address first.")
+        : !startDate
+          ? t("Pilih tanggal mulai dulu.", "Choose a start date first.")
+          : pendingCheckout
+            ? t("Ada pembayaran yang belum selesai.", "A payment is still open.")
+            : quote.error;
   const footer = (
     <View style={{ gap: nativeLayout.groupGap }}>
       {error ? <FormError message={error} failureKey={failures} /> : null}
+      {why ? (
+        <Text testID="buy-pay-reason" variant="meta" selectable>
+          {why}
+        </Text>
+      ) : null}
       <View testID="buy-footer-row" style={[styles.footer, stacked && styles.footerStacked]}>
         <View style={stacked ? undefined : styles.total}>
           <Text variant="meta">{t("Total", "Total")}</Text>
           <Text variant="section" selectable accessibilityRole="text" style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
-            {shown ? currency(shown.total, locale) : "-"}
+            {shown ? currency(shown.total, locale) : quote.pending ? t("Menghitung…", "Working out…") : "-"}
           </Text>
         </View>
         <Button
           variant="primary"
-          label={t("Bayar", "Pay")}
+          label={
+            quote.ready
+              ? t(`Bayar ${currency(quote.ready.total, locale)}`, `Pay ${currency(quote.ready.total, locale)}`)
+              : t("Bayar", "Pay")
+          }
           busy={busy}
-          disabled={!quote.ready || !payable || !!pendingCheckout || (renew && !context.data)}
+          disabled={disabled}
           onPress={() => void submit()}
           style={stacked ? styles.payStacked : styles.pay}
         />
@@ -278,7 +301,7 @@ export function BuyScreen({
   const pricing = !!shown || quote.pending || !!quote.error;
 
   return (
-    <Screen footer={footer} nativeTitle={renew ? t(`Perpanjang ${offer.name}`, `Renew ${offer.name}`) : offer.name}>
+    <Screen footer={footer} nativeTitle={renew ? t("Perpanjang", "Renew") : t("Beli", "Buy")}>
       <FadeSwap swapKey="ready" style={{ gap: nativeLayout.sectionGap }}>
         <View style={{ gap: nativeLayout.space.xl }}>
           {loadError ? <Retry message={loadError} onRetry={reloadAll} t={t} /> : null}

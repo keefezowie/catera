@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -134,6 +135,58 @@ function mealMeta(m: Offer["menus"][number], type: Offer["packageType"], locale:
   return preview && preview !== source ? `${source} · ${preview}` : source;
 }
 
+/** How many dishes "Isi paket" previews (deep pages R5). */
+const DISH_PREVIEW = 6;
+/** The preview photo is a 96 square. */
+const DISH_SIZE = 96;
+
+/** The dishes the package's menus list, each name once, in menu order: the preview's first six. */
+function previewDishes(o: Offer) {
+  const seen = new Set<string>();
+  const dishes: { id: string; name: string; image?: string }[] = [];
+  for (const m of o.menus ?? [])
+    for (const d of m.items ?? []) {
+      const key = d.name.trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      dishes.push(d);
+    }
+  return dishes.slice(0, DISH_PREVIEW);
+}
+
+/**
+ * Up to six of the package's dishes in a horizontal row above the per-meal rows: a 96 photo (or the same 96 surface tile
+ * with the utensils glyph when a dish has none) and its name in two lines. It runs to the screen's edges.
+ */
+function DishPreview({ dishes, apiBase, margin }: { dishes: { id: string; name: string; image?: string }[]; apiBase: string; margin: number }) {
+  const c = useColors();
+  const styles = useStyles();
+  return (
+    <ScrollView
+      testID="paket-dishes"
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ marginHorizontal: -margin }}
+      contentContainerStyle={[styles.dishes, { paddingHorizontal: margin }]}
+    >
+      {dishes.map((d) => (
+        <View key={d.id} testID="paket-dish" style={styles.dish}>
+          {d.image ? (
+            <Photo testID="paket-dish-photo" uri={photoUri(d.image, apiBase)} style={styles.dishPhoto} />
+          ) : (
+            <View testID="paket-dish-tile" style={[styles.dishPhoto, styles.dishTile]}>
+              <DecorativeIcon name="restaurant-outline" size={GLYPH_BARE} color={c.muted} />
+            </View>
+          )}
+          <Text variant="meta" numberOfLines={2} style={{ color: c.charcoal }}>
+            {d.name}
+          </Text>
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
 /** Paket: one package in full, with the way into Pilih jadwal (or a one-day trial). */
 export function PackageDetail() {
   const params = useLocalSearchParams<{ id: string; title?: string }>();
@@ -261,6 +314,7 @@ export function PackageDetail() {
   const { note } = priceUnitLabel(o, locale);
   const earliest = startDates(o, new Date(), 1)[0];
   const cutoff = o.cutoff.slice(0, 5);
+  const dishes = previewDishes(o);
   return (
     <Screen
       bleed
@@ -351,6 +405,7 @@ export function PackageDetail() {
         {/* Each section sits 32 below the one above: the body's 16 gap plus this 16. */}
         <View testID="paket-isi" style={styles.section}>
           <SectionHeader title={t("Isi paket", "What is included")} />
+          {dishes.length ? <DishPreview dishes={dishes} apiBase={runtime.apiBase} margin={margin} /> : null}
           <ListCard inset={GLYPH_INSET}>
             {o.menus.map((m) => (
               <GlyphRow
@@ -458,6 +513,10 @@ const useStyles = themedStyles((c) => ({
     justifyContent: "center",
   },
   section: { marginTop: nativeLayout.space.lg },
+  dishes: { gap: nativeLayout.space.md, paddingBottom: nativeLayout.space.md },
+  dish: { width: DISH_SIZE, gap: nativeLayout.space.xs },
+  dishPhoto: { width: DISH_SIZE, height: DISH_SIZE, borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", overflow: "hidden" },
+  dishTile: { backgroundColor: c.surface, alignItems: "center", justifyContent: "center" },
   review: { gap: nativeLayout.space.xs, paddingVertical: nativeLayout.space.md },
   infoRows: { gap: nativeLayout.space.xs },
   info: {

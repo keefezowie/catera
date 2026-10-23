@@ -6,7 +6,7 @@ import { currency, mealLabel, perMealPrice, priceUnitLabel, type DirectPaymentMe
 import { nativeLayout } from "@catera/design-tokens";
 import { Button, Card, fontFor, FormError, PressableRow, ReadError, Text, themedStyles, useColors, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { packageHref } from "../hrefs";
-import { DecorativeIcon, GlyphCircle, SectionHeader, Thumb } from "../layout";
+import { DecorativeIcon, GlyphCircle, ListCard, SectionHeader, Thumb } from "../layout";
 import { goToTab, leaveFor } from "../nav";
 import { photoUri } from "../today/photoUri";
 import { SUMMARY_PAD, THREE_LINE_PAD } from "./metrics";
@@ -77,7 +77,7 @@ export function NoLongerSold({ caterer, offers, t }: { caterer: string; offers: 
   );
 }
 
-/** "Bayar dengan": QRIS first when offered, the other method one text button away. */
+/** "Bayar dengan": QRIS first when offered, the other method one text button away (Beli: a row with Ganti). */
 export function PayWith({
   availability,
   chosen,
@@ -94,8 +94,37 @@ export function PayWith({
 }) {
   const styles = useStyles();
   const other = chosen === "QRIS" ? "VIRTUAL_ACCOUNT_BRI" : "QRIS";
+  const name = (m: DirectPaymentMethod) => (m === "QRIS" ? "QRIS" : t("Transfer bank BRI (VA)", "BRI bank transfer (VA)"));
+  const how = (m: DirectPaymentMethod) =>
+    m === "QRIS"
+      ? t("Pindai dari aplikasi bank atau e-wallet apa pun.", "Scan from any bank or e-wallet app.")
+      : t("Bayar ke nomor virtual account BRI.", "Pay to a BRI virtual account number.");
+  // Beli (deep pages R1): the chosen method is a plain row in a list card with a trailing Ganti, not a bordered box that
+  // reads as an input. With two methods, Ganti switches to the other one.
+  if (section && availability?.mode === "direct" && chosen)
+    return (
+      <View testID="buy-pay-with">
+        <SectionHeader title={t("Bayar dengan", "Pay with")} />
+        <ListCard inset={0}>
+          <View testID="buy-pay-method" style={styles.methodRow}>
+            <View style={styles.fieldText}>
+              <Text variant="bodyStrong">{name(chosen)}</Text>
+              <Text variant="meta">{how(chosen)}</Text>
+            </View>
+            {availability.availableMethods.includes(other) ? (
+              <Button
+                variant="text"
+                label={t("Ganti", "Change")}
+                accessibilityLabel={t("Ganti cara bayar", "Change payment method")}
+                onPress={() => onChoose(other)}
+              />
+            ) : null}
+          </View>
+        </ListCard>
+      </View>
+    );
   return (
-    <View style={{ gap: section ? 0 : 8 }}>
+    <View testID={section ? "buy-pay-with" : undefined} style={{ gap: section ? 0 : 8 }}>
       {section ? <SectionHeader title={t("Bayar dengan", "Pay with")} /> : <Text variant="label">{t("Bayar dengan", "Pay with")}</Text>}
       {!availability ? null : availability.mode !== "direct" ? (
         <Card style={styles.method}>
@@ -228,6 +257,13 @@ const useStyles = themedStyles((c) => ({
   below: { paddingBottom: nativeLayout.space.md },
   strong: { fontFamily: fontFor("800"), color: c.charcoal },
   method: { borderColor: c.forest, borderWidth: 1.5, gap: 4 },
+  methodRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: nativeLayout.space.md,
+    minHeight: nativeLayout.row.single,
+    paddingVertical: nativeLayout.space.sm,
+  },
   terms: { minHeight: nativeLayout.control.icon, justifyContent: "center" },
   link: { color: c.forest, fontFamily: fontFor("700"), textDecorationLine: "underline" }, // forest: action
 }));

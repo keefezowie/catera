@@ -1454,6 +1454,87 @@ describe("Paket on the layout scale (v2)", () => {
       mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
     }
   });
+
+  describe("Isi paket dish preview (deep pages R5)", () => {
+    const dish = (n: number, image = "") => ({ id: `d-${n}`, name: `Hidangan nomor ${n}`, description: "", image, serving: "" });
+    const withDishes = (items: ReturnType<typeof dish>[], extra: Partial<Offer> = {}) =>
+      offer({
+        id: "p-hidangan",
+        menus: [{ meal: "lunch", name: "", description: "", image: "", items } as unknown as Offer["menus"][number]],
+        ...extra,
+      });
+
+    it("Isi paket previews up to 6 dishes", async () => {
+      await open(withDishes([1, 2, 3, 4, 5, 6, 7, 8].map((n) => dish(n, n % 2 ? `/menu/${n}.jpg` : ""))));
+      const isi = within(screen.getByTestId("paket-isi"));
+      const preview = isi.getByTestId("paket-dishes");
+      const dishes = within(preview).getAllByTestId("paket-dish");
+      expect(dishes).toHaveLength(6);
+      expect(within(dishes[0]).getByText("Hidangan nomor 1")).toBeTruthy();
+      expect(within(preview).queryByText("Hidangan nomor 7")).toBeNull();
+      // Above the per-meal rows, in the same section.
+      expect(isi.getByTestId("paket-meal-lunch")).toBeTruthy();
+      // A dish with a photo shows it at 96, one without keeps the same 96 tile with no broken image.
+      expect(flat(within(dishes[0]).getByTestId("paket-dish-photo"))).toMatchObject({ width: 96, height: 96 });
+      expect(within(dishes[1]).queryByTestId("paket-dish-photo")).toBeNull();
+      expect(flat(within(dishes[1]).getByTestId("paket-dish-tile"))).toMatchObject({ width: 96, height: 96 });
+      expect(within(dishes[0]).getByText("Hidangan nomor 1").props.numberOfLines).toBe(2);
+    });
+
+    it("repeats a dish once when two meals list it", async () => {
+      await open(withNutrition);
+      expect(within(screen.getByTestId("paket-dishes")).getAllByText("Nasi putih")).toHaveLength(1);
+    });
+
+    it("no preview without dishes", async () => {
+      await open(withDishes([]));
+      expect(screen.getByTestId("paket-isi")).toBeTruthy();
+      expect(screen.queryByTestId("paket-dishes")).toBeNull();
+    });
+
+    it("no preview for a package without menus", async () => {
+      await open(offer({ id: "p-kosong", menus: [] }));
+      expect(screen.queryByTestId("paket-dishes")).toBeNull();
+    });
+
+    it("at font scale 1.3 on 360dp a dish keeps its 96 width and its name wraps to two lines", async () => {
+      mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+      try {
+        await open(withDishes([dish(1, "/menu/1.jpg"), dish(2)]));
+        const shown = screen.getAllByTestId("paket-dish");
+        expect(shown).toHaveLength(2);
+        shown.forEach((d, i) => {
+          expect(flat(d).width).toBe(96);
+          expect(within(d).getByText(`Hidangan nomor ${i + 1}`).props.numberOfLines).toBe(2);
+        });
+      } finally {
+        mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+      }
+    });
+
+    it("a dish without a photo sits on the dark surface in the dark theme", async () => {
+      const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+      try {
+        mockParams = { id: "p-hidangan" };
+        render(
+          <LayoutScaleProvider value="v2">
+            <ThemeProvider storageKey="paket-dishes-dark">
+              <MoodProvider now={MALAM_NOW}>
+                <MobileProvider runtime={runtimeWith(customer, { offer: jest.fn(async () => ({ offer: withDishes([dish(1)]) })) })} linkMapper={customerLink}>
+                  <PackageDetail />
+                </MobileProvider>
+              </MoodProvider>
+            </ThemeProvider>
+          </LayoutScaleProvider>,
+        );
+        await screen.findByTestId("paket-name");
+        expect(flat(screen.getByTestId("paket-dish-tile")).backgroundColor).toBe(nativeThemes.dark.surface);
+        expect(flat(screen.getByText("Hidangan nomor 1")).color).toBe(nativeThemes.dark.charcoal);
+      } finally {
+        scheme.mockRestore();
+      }
+    });
+  });
 });
 
 describe("Disimpan", () => {
