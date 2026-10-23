@@ -175,6 +175,23 @@ export function AuthScreen({ children, revealKey }: { children: ReactNode; revea
     const frame = requestAnimationFrame(() => ref.current?.scrollToEnd({ animated: !reduced }));
     return () => cancelAnimationFrame(frame);
   }, [android, revealKey, reduced]);
+  useEffect(() => {
+    if (!android || !up) return;
+    // The keyboard padding is in place with this render; the mascot is still collapsing, so wait for it to finish
+    // (at once under reduced motion) and then bring the end of the page, the primary button, above the keyboard.
+    // The fields come before the button, so the end of the page keeps the focused field on screen.
+    let frame = 0;
+    const timer = setTimeout(
+      () => {
+        frame = requestAnimationFrame(() => ref.current?.scrollToEnd({ animated: !reduced }));
+      },
+      reduced ? 0 : nativeMotion.control + 40,
+    );
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(frame);
+    };
+  }, [android, up, height, reduced]);
   return (
     <Screen scrollRef={ref} extraBottom={android && up ? height + (scaled ? 0 : insets.bottom) : 0}>
       {children}

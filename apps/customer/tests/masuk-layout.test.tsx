@@ -187,6 +187,27 @@ describe("Masuk, the OKX layout", () => {
     expect(pad()).toBe(down);
   });
 
+  it("scrolls to the end when the keyboard comes up so the primary button sits above it", async () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(false);
+    const kb = keyboard();
+    const scrollToEnd = jest.spyOn(ScrollView.prototype as never as { scrollToEnd: (o?: { animated?: boolean }) => void }, "scrollToEnd").mockImplementation(() => undefined);
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    expect(scrollToEnd).not.toHaveBeenCalled();
+    kb.show(300);
+    await waitFor(() => expect(scrollToEnd).toHaveBeenCalledWith({ animated: true }));
+  });
+
+  it("does not animate that scroll under reduced motion", async () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    const kb = keyboard();
+    const scrollToEnd = jest.spyOn(ScrollView.prototype as never as { scrollToEnd: (o?: { animated?: boolean }) => void }, "scrollToEnd").mockImplementation(() => undefined);
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    kb.show(300);
+    await waitFor(() => expect(scrollToEnd).toHaveBeenCalledWith({ animated: false }));
+  });
+
   it("gives every tab a 48dp target and the password toggle its visible word in its spoken name", async () => {
     renderWith(<Masuk />);
     for (const name of ["Nomor HP", "Email"]) {
