@@ -1,10 +1,11 @@
+import { Fragment } from "react";
 import { ActivityIndicator, StatusBar, StyleSheet } from "react-native";
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { NavigationContext } from "expo-router/react-navigation";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { LayoutScaleProvider, MoodProvider } from "@catera/mobile-ui";
+import { FadeSwap, LayoutScaleProvider, MoodProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { goToTab } from "../src/nav";
 import { PackageDetail, photoPassed } from "../src/discover/PackageDetail";
@@ -72,6 +73,21 @@ const tree = (runtime: MobileRuntime) => (
   </NavigationContext.Provider>
 );
 const wrap = (runtime: MobileRuntime) => render(tree(runtime));
+type Bar = { headerLeft?: () => React.ReactElement; headerRight?: () => React.ReactElement };
+const lastBar = () => navigation.setOptions.mock.calls.at(-1)![0] as Bar;
+/** One of the stack's bar slots, drawn on its own as the stack does (inside the app's providers). */
+const renderSlot = (runtime: MobileRuntime, ...slots: (() => React.ReactElement)[]) =>
+  render(
+    <LayoutScaleProvider value="v2">
+      <MoodProvider now={MALAM}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          {slots.map((slot, i) => (
+            <Fragment key={i}>{slot()}</Fragment>
+          ))}
+        </MobileProvider>
+      </MoodProvider>
+    </LayoutScaleProvider>,
+  );
 /** The screen's name: its Android content title (iOS shows it as the large title). */
 const nativeTitle = async () => within(await screen.findByTestId("screen-native-title"));
 
@@ -135,6 +151,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerStyle: { backgroundColor: "transparent" },
       headerTintColor: nativeThemes.light.cream,
       headerLeft: expect.any(Function),
+      headerRight: expect.any(Function),
     });
     expect(screen.queryByTestId("screen-native-title")).toBeNull();
     // The back on the photo is a 44 surface circle in the bar's leading slot (the platform's own returns past the photo).
@@ -143,9 +160,8 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     const scrim = screen.getByTestId("paket-photo-scrim");
     expect(flat(scrim)).toMatchObject({ position: "absolute", top: 0, left: 0, right: 0 });
     expect(String(flat(scrim).experimental_backgroundImage)).toMatch(/^linear-gradient\(rgba\(27,27,26,0\.6\)/);
-    // The heart stays on the photo, at its foot, clear of the bar.
-    const heart = screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" });
-    expect(flat(heart)).toMatchObject({ position: "absolute", bottom: 12, right: 16 });
+    // The heart is in the bar's trailing slot now, not on the photo (a later test draws it).
+    expect(screen.queryByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeNull();
     expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
     // The bar's back, drawn on its own (the stack renders it): a 44 surface circle that goes back.
     render(<MoodProvider now={MALAM}>{options.headerLeft()}</MoodProvider>);
@@ -154,6 +170,99 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     expect(flat(back).borderWidth).toBeUndefined();
     fireEvent.press(back);
     expect(router.back).toHaveBeenCalled();
+  });
+
+  it("makes the photo exactly the page wide at 4:3: one horizontal pull and no vertical margin on the stretched box", async () => {
+    wrap(runtimeWith(async () => ({ offer: cheap })));
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    const hero = flat(screen.getByTestId("paket-hero"));
+    expect(hero).toMatchObject({ aspectRatio: 4 / 3, marginHorizontal: -16 });
+    // Root cause of the 1080x852 photo on the emulator: Yoga sizes a stretched aspectRatio box from its outer height, so
+    // a negative marginTop on it adds that much to the height (and 4/3 of it to the stretched width). The pull to the
+    // top belongs to the wrapper alone.
+    expect([hero.marginTop, hero.marginBottom, hero.marginVertical, hero.margin]).toEqual([undefined, undefined, undefined, undefined]);
+    const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
+    expect(swap).toMatchObject({ marginTop: -16, marginHorizontal: -16, paddingHorizontal: 16 });
+    expect(swap.paddingTop).toBeUndefined();
+    // Wrapper pull (-16) + its padding (16) + the photo's pull (-16): the photo reaches the screen edge and no further.
+    expect((swap.marginHorizontal as number) + (swap.paddingHorizontal as number) + (hero.marginHorizontal as number)).toBe(-16);
+  });
+
+  it("puts back and heart in the bar as two 44 surface circles, the back leading and the heart trailing", async () => {
+    const runtime = runtimeWith(async () => ({ offer: cheap }));
+    wrap(runtime);
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    const bar = lastBar();
+    expect(screen.queryByRole("button", { name: /^Simpan / })).toBeNull();
+    renderSlot(runtime, bar.headerLeft!, bar.headerRight!);
+    for (const name of ["Kembali", "Simpan Nasi Ayam Bakar"]) {
+      const circle = flat(await screen.findByRole("button", { name }));
+      expect(circle).toMatchObject({ width: 44, height: 44, borderRadius: 22, backgroundColor: nativeThemes.light.surface });
+      expect(circle.borderWidth ?? 0).toBe(0);
+      expect(circle.position).toBeUndefined();
+    }
+  });
+
+  it("keeps the heart in the bar once the photo has scrolled away, and takes it out with the photo", async () => {
+    const runtime = runtimeWith((id) => (id === "p-murah" ? Promise.resolve({ offer: cheap }) : new Promise(() => undefined)));
+    const view = wrap(runtime);
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    fireEvent.scroll(screen.getByTestId("screen-scroll"), { nativeEvent: { contentOffset: { x: 0, y: photoPassed(411, 0) + 1 } } });
+    expect(lastBar().headerRight).toEqual(expect.any(Function));
+    expect(lastBar().headerLeft).toBeUndefined();
+    mockParams = { id: "p-lain", title: "Nasi Liwet" };
+    view.rerender(tree(runtime));
+    expect((await nativeTitle()).getByText("Nasi Liwet")).toBeTruthy();
+    expect(lastBar().headerRight).toBeUndefined();
+  });
+
+  it("keeps the bar slots the same functions across renders", async () => {
+    const runtime = runtimeWith(async () => ({ offer: cheap }));
+    const view = wrap(runtime);
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    const first = lastBar();
+    view.rerender(tree(runtime));
+    fireEvent.scroll(screen.getByTestId("screen-scroll"), { nativeEvent: { contentOffset: { x: 0, y: 5 } } });
+    expect(lastBar().headerLeft).toBe(first.headerLeft);
+    expect(lastBar().headerRight).toBe(first.headerRight);
+  });
+
+  it("saves from the bar heart: the label flips and the server is told", async () => {
+    const runtime = runtimeWith(async () => ({ offer: cheap }));
+    wrap(runtime);
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    renderSlot(runtime, lastBar().headerRight!);
+    fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
+    expect(await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" })).toBeTruthy();
+    expect(runtime.api.command).toHaveBeenCalledWith("savedPackage.set", { packageId: "p-murah", saved: true }, expect.any(String));
+  });
+
+  it("sends a signed-out visitor to sign in and back to the package from the bar heart", async () => {
+    const runtime = runtimeWith(async () => ({ offer: cheap }));
+    (runtime.api as unknown as { me: jest.Mock }).me = jest.fn(async () => ({ actor: null, demo: false }));
+    wrap(runtime);
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    renderSlot(runtime, lastBar().headerRight!);
+    fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
+    expect(router.push).toHaveBeenCalledWith("/login?next=/paket/p-murah");
+  });
+
+  it("bursts the five dots from the centre of the 44 circle", async () => {
+    const runtime = runtimeWith(async () => ({ offer: cheap }));
+    wrap(runtime);
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    renderSlot(runtime, lastBar().headerRight!);
+    const heart = await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" });
+    fireEvent.press(heart);
+    const dots = screen.getAllByTestId("heart-dot", { includeHiddenElements: true });
+    expect(dots).toHaveLength(5);
+    // The dots start at the middle of a 48 box (24, 24); the box must put that middle on the circle's centre.
+    let host = dots[0].parent;
+    while (host && (StyleSheet.flatten(host.props.style as never) as { width?: number } | undefined)?.width !== 48) host = host.parent;
+    const box = flat(host as never);
+    expect(box).toMatchObject({ position: "absolute", width: 48, height: 48 });
+    const circle = flat(heart);
+    expect([(box.left as number) + 24, (box.top as number) + 24]).toEqual([(circle.width as number) / 2, (circle.height as number) / 2]);
   });
 
   it("turns the bar opaque on the canvas once the photo has scrolled away, and back over the photo", async () => {
@@ -170,6 +279,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerStyle: { backgroundColor: "transparent" },
       headerTintColor: nativeThemes.light.cream,
       headerLeft: expect.any(Function),
+      headerRight: expect.any(Function),
     };
     expect(lightGlyphs()).toBe(true);
     // The 4:3 photo is 308 tall on a 411 phone, with no status bar inset here; less the 56dp Android bar it is passed at 252.
@@ -240,6 +350,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerStyle: { backgroundColor: nativeThemes.light.canvas },
       headerTintColor: nativeThemes.light.charcoal,
       headerLeft: undefined,
+      headerRight: undefined,
       headerTitle: "",
     });
     // Back to the first package: its photo leads again and the bar starts over the photo, not where it was left.
@@ -254,6 +365,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerStyle: { backgroundColor: "transparent" },
       headerTintColor: nativeThemes.light.cream,
       headerLeft: expect.any(Function),
+      headerRight: expect.any(Function),
     });
     expect(view.UNSAFE_queryAllByType(StatusBar).some((s) => s.props.barStyle === "light-content")).toBe(true);
   });

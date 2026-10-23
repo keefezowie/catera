@@ -1145,13 +1145,6 @@ describe("Paket", () => {
     expect(screen.queryByText(/Mulai paling cepat/)).toBeNull();
   });
 
-  it("heart on the detail goes to sign-in and back to the package", async () => {
-    mockParams = { id: "p-murah" };
-    wrap(runtimeWith(null), <PackageDetail />);
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
-    expect(router.push).toHaveBeenCalledWith("/login?next=/paket/p-murah");
-  });
-
   it("says when the package is gone", async () => {
     mockParams = { id: "p-hilang" };
     wrap(runtimeWith(), <PackageDetail />);
@@ -1216,16 +1209,10 @@ describe("Paket on the layout scale (v2)", () => {
 
   it("the hero is 4:3 and bleeds by the 16 margin, not the classic 20", async () => {
     await open();
-    expect(flat(screen.getByTestId("paket-hero"))).toMatchObject({ aspectRatio: 4 / 3, marginHorizontal: -16, marginTop: -16 });
+    expect(flat(screen.getByTestId("paket-hero"))).toMatchObject({ aspectRatio: 4 / 3, marginHorizontal: -16 });
+    expect(flat(screen.getByTestId("paket-hero")).marginTop).toBeUndefined();
     const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
     expect([swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, 16]);
-  });
-
-  it("the heart is a 44 surface circle at the photo's foot", async () => {
-    await open();
-    const heart = flat(screen.getByRole("button", { name: "Simpan Rantang Nusantara" }));
-    expect(heart).toMatchObject({ width: 44, height: 44, borderRadius: 22, position: "absolute", bottom: 12, right: 16 });
-    expect(heart.borderWidth).toBe(0);
   });
 
   it("the name is heroTitle and the caterer line is meta", async () => {

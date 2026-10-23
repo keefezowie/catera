@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { nutrientBounds, nutritionMetrics, packageNutrition, type Locale, type Offer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { Text, themedStyles, useStackedLayout } from "@catera/mobile-ui";
+import { fonts, Text, themedStyles, useStackedLayout } from "@catera/mobile-ui";
 
 type Metric = { key: string; label: string; short: string; amount: string; unit: string };
 
@@ -63,7 +63,7 @@ export function StatStrip({ offer }: { offer: Offer }) {
   const meals = offer.meal === "both" ? 2 : 1;
   const cells = [
     kcal ? { key: "kcal", value: kcal.amount, label: kcal.unit } : null,
-    protein ? { key: "protein", value: `${protein.amount} ${protein.unit}`, label: "protein" } : null,
+    protein ? { key: "protein", value: `${protein.amount} ${protein.unit}`, label: t("protein", "protein") } : null,
     kcal || protein ? { key: "meals", value: `${meals}×`, label: t("makan sehari", "meals a day") } : null,
   ].filter((c) => c !== null);
   const rest = (["carbsG", "fatG"] as const)
@@ -115,6 +115,6 @@ const useStyles = themedStyles((c) => ({
   cell: { flex: 1, minWidth: 0, alignItems: "center" },
   // Stacked, a cell is a line: the label first on the left, the number at the right.
   cellStacked: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: nativeLayout.space.md },
-  value: { fontWeight: "800", fontVariant: ["tabular-nums"], textAlign: "center" },
+  value: { fontFamily: fonts.extrabold, fontVariant: ["tabular-nums"], textAlign: "center" },
   label: { textAlign: "center", flexShrink: 1 },
 }));

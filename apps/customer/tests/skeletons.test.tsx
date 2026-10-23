@@ -847,12 +847,12 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
       () => read.resolve({ offer: offer() }),
       () => screen.findByTestId("paket-name"),
     );
-    // The block starts at the body's top and carries its padding, so the photo's pull stays inside it.
+    // The block starts at the body's top (its -16 cancels the body's padding); the photo has no vertical margin of its own.
     const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
-    expect([swap.marginTop, swap.paddingTop]).toEqual([-16, 16]);
+    expect([swap.marginTop, swap.paddingTop]).toEqual([-16, undefined]);
   });
 
-  it("Paket's photo and its heart sit inside the fading block, edge to edge (fix round 2, N1)", async () => {
+  it("Paket's photo sits inside the fading block, edge to edge, with its heart in the bar and not on the page (fix round 2, N1)", async () => {
     mockParams = { id: "p-rumahan" };
     renderWith(
       runtimeWith({ offer: jest.fn(async () => ({ offer: offer() })), request: jest.fn(async () => []) }),
@@ -861,22 +861,17 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     await screen.findByTestId("paket-name");
     const node = screen.UNSAFE_getAllByType(FadeSwap)[0];
     const swap = flat(node);
-    // The block covers the body's whole box: its top and both sides, the body's 16 and 20 carried as padding.
-    expect([swap.marginTop, swap.paddingTop, swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, 16, -20, 20]);
-    // The photo is pulled out by exactly that padding, so its edges are the block's own edges, and the heart on it
-    // (16 from the photo's right) is inside the block, where Android delivers its touches.
+    // The block covers the body's whole box: its top (the body's 16) and both sides, the body's 20 carried as padding.
+    expect([swap.marginTop, swap.paddingTop, swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, undefined, -20, 20]);
+    // The photo is pulled out by exactly that padding, so its edges are the block's own edges. It has no vertical
+    // margin: Yoga would add it to the stretched box's height and the width with it.
     // The photo: the 4:3 block with the -20 pull (the block's own view has no ratio).
     const photo = node.findAll(
       (n) => typeof n.type === "string" && flat(n)?.marginHorizontal === -20 && typeof flat(n)?.aspectRatio === "number",
     )[0];
-    expect([flat(photo).marginHorizontal, flat(photo).marginTop]).toEqual([
-      -(swap.paddingHorizontal as number),
-      -(swap.paddingTop as number),
-    ]);
-    // Found from the whole screen, so being inside the photo and the block is a fact about the tree, not the query.
-    const heart = screen.getByRole("button", { name: /Simpan/ });
-    expect(inside(heart, photo)).toBe(true);
-    expect(inside(heart, node)).toBe(true);
+    expect([flat(photo).marginHorizontal, flat(photo).marginTop]).toEqual([-(swap.paddingHorizontal as number), undefined]);
+    // The heart is in the bar's trailing slot (package-detail-header.test.tsx), so nothing on the page reaches past the photo.
+    expect(screen.queryByRole("button", { name: /Simpan/ })).toBeNull();
   });
 
   it("Paket on the layout scale pulls its photo out by the 16 margin, not the classic 20", async () => {
@@ -893,8 +888,8 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     );
     await screen.findByTestId("paket-name");
     const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
-    expect([swap.marginTop, swap.paddingTop, swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, 16, -16, 16]);
-    expect([flat(screen.getByTestId("paket-hero")).marginHorizontal, flat(screen.getByTestId("paket-hero")).marginTop]).toEqual([-16, -16]);
+    expect([swap.marginTop, swap.paddingTop, swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, undefined, -16, 16]);
+    expect([flat(screen.getByTestId("paket-hero")).marginHorizontal, flat(screen.getByTestId("paket-hero")).marginTop]).toEqual([-16, undefined]);
   });
 
   it("the Paket skeleton keeps the loaded page's geometry: 4:3 photo, 76 strip, one card of 72 rows", async () => {

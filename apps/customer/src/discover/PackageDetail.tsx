@@ -15,8 +15,6 @@ import {
   compositionPreview,
   currency,
   mealLabel,
-  menuSourceLabel,
-  menuSummary,
   perMealPrice,
   priceUnitLabel,
   shortDate,
@@ -28,7 +26,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   FadeSwap,
-  FormError,
+  fonts,
   linkTitle,
   nativeHeaderOptions,
   PressableScale,
@@ -106,6 +104,26 @@ function PhotoBack({ label }: { label: string }) {
   );
 }
 
+/**
+ * The heart in the bar (spec 3.4): a 44 surface circle in the trailing slot, on the scrim over the photo and on the
+ * canvas after it. The bar renders it outside the page, so it holds its own saved state; a refusal puts the heart back
+ * and says so in `useSaved`'s error toast.
+ */
+function PhotoHeart({ id, name }: { id: string; name: string }) {
+  const { t } = useMobile();
+  const saved = useSaved(`/paket/${id}`);
+  const isSaved = saved.isSaved(id);
+  return (
+    <SaveHeart
+      circle
+      saved={isSaved}
+      canSave={saved.signedIn}
+      label={isSaved ? t(`Hapus ${name} dari simpanan`, `Remove ${name} from saved`) : t(`Simpan ${name}`, `Save ${name}`)}
+      onToggle={() => void saved.toggle(id)}
+    />
+  );
+}
+
 /** Paket: one package in full, with the way into Pilih jadwal (or a one-day trial). */
 export function PackageDetail() {
   const params = useLocalSearchParams<{ id: string; title?: string }>();
@@ -117,7 +135,6 @@ export function PackageDetail() {
   const { width: screenWidth } = useWindowDimensions();
   const siang = useMoodColors("siang").header;
   const malam = useMoodColors("malam").header;
-  const saved = useSaved(`/paket/${id}`);
   const loaded = useData<{ offer: Offer | null }>(`paket:${id}`, () => runtime.api.offer(id));
   const reviews = useData<Review[]>(`reviews:${id}`, () => runtime.api.request<Review[]>(`reviews/${id}`));
   const o = loaded.data?.offer;
@@ -125,8 +142,14 @@ export function PackageDetail() {
   const navigation = useScreenNavigation();
   const photoHeader = !!o;
   const name = o?.name ?? "";
+  const offerId = o?.id;
   const stackHeader = useMemo(() => nativeHeaderOptions({ palette: c, demo }), [c, demo]);
-  const headerLeft = useMemo(() => () => <PhotoBack label={t("Kembali", "Back")} />, [t]);
+  // The bar's slots change with the language (and the package for the heart), not with every render: `t` is a new
+  // function each render, so the labels are read from it inside and the memo keys on `locale`.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const headerLeft = useMemo(() => () => <PhotoBack label={t("Kembali", "Back")} />, [locale]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const headerRight = useMemo(() => (offerId ? () => <PhotoHeart id={offerId} name={name} /> : undefined), [offerId, name, locale]);
   // Over the photo the bar is transparent with light ink. Once the photo has scrolled away the light ink would sit on
   // the cream page, so the bar turns opaque (the canvas on iOS, the scrolled surface-container tone on Android) with the
   // theme's tint and hands the status bar back to the theme; it takes the package name once the name line has scrolled under it, as a content title does. Scrolling back
@@ -148,12 +171,13 @@ export function PackageDetail() {
           ? {
               ...PHOTO_HEADER,
               headerLeft: undefined,
+              headerRight,
               headerTitle: stage === "named" ? name : "",
               // Past the photo the page has scrolled, so Android takes Material's scrolled tone like every pushed screen.
               headerStyle: { backgroundColor: process.env.EXPO_OS === "ios" ? c.canvas : c.tabBar },
               headerTintColor: stackHeader.headerTintColor,
             }
-          : { ...PHOTO_HEADER, headerLeft },
+          : { ...PHOTO_HEADER, headerLeft, headerRight },
       );
       return;
     }
@@ -170,10 +194,11 @@ export function PackageDetail() {
       headerStyle: stackHeader.headerStyle,
       headerTintColor: stackHeader.headerTintColor,
       headerLeft: undefined,
+      headerRight: undefined,
       // Android's content title starts the bar empty and takes it on scroll; iOS reads the route's `title`.
       headerTitle: process.env.EXPO_OS === "ios" ? undefined : "",
     });
-  }, [navigation, photoHeader, pastPhoto, stage, name, c.canvas, c.tabBar, stackHeader, headerLeft]);
+  }, [navigation, photoHeader, pastPhoto, stage, name, c.canvas, c.tabBar, stackHeader, headerLeft, headerRight]);
   // The scrim stays under the bar while the photo scrolls beneath it, so the light back arrow never lands on a bright
   // part of the photo; it stops at the photo's foot.
   const topInset = demo ? 0 : insets.top;
@@ -222,7 +247,6 @@ export function PackageDetail() {
 
   const open = `/beli/${encodeURIComponent(o.id)}`;
   const windows = (o.meal === "both" ? [o.windows.lunch, o.windows.dinner] : [o.windows[o.meal]]).join(" · ");
-  const isSaved = saved.isSaved(o.id);
   const shown = (reviews.data ?? []).slice(0, 3);
   const { note } = priceUnitLabel(o, locale);
   const earliest = startDates(o, new Date(), 1)[0];
@@ -239,7 +263,7 @@ export function PackageDetail() {
             <Text
               variant="section"
               accessibilityRole="text"
-              style={{ fontWeight: "800", fontVariant: ["tabular-nums"] }}
+              style={{ fontFamily: fonts.extrabold, fontVariant: ["tabular-nums"] }}
             >
               {currency(perMealPrice(o), locale)}
             </Text>
@@ -263,13 +287,14 @@ export function PackageDetail() {
         </View>
       }
     >
-      {/* One block that fades in from the skeleton (the loading page's FadeSwap). It covers the body's whole box (its
-          top and both sides) and carries the body's 16 and margin as padding, so the photo's pulls and the name
-          block's measured offset are what they are in the body. No part of the photo, and none of the heart on it, sits
-          outside its parent (where an Android touch would not reach and the fade's layer would clip it). */}
+      {/* One block that fades in from the skeleton (the loading page's FadeSwap). It covers the body's whole box (its top,
+          by the body's 16, and both sides, by the margin) and carries the margin as padding, so the photo's side pull and
+          the name block's measured offset are what they are in the body. The photo itself has no vertical margin: Yoga
+          sizes a stretched aspect-ratio box from its outer height, so a negative marginTop on it makes it 16 taller and,
+          the width following the height, 21 wider than the screen. */}
       <FadeSwap
         swapKey="ready"
-        style={{ gap: 16, marginTop: -16, paddingTop: 16, marginHorizontal: -margin, paddingHorizontal: margin }}
+        style={{ gap: 16, marginTop: -16, marginHorizontal: -margin, paddingHorizontal: margin }}
       >
         {/* The photo runs under the status bar too: 4:3 over the page's whole width. */}
         <View testID="paket-hero" style={[styles.hero, { marginHorizontal: -margin }]}>
@@ -290,13 +315,6 @@ export function PackageDetail() {
           {/* Light glyphs on the scrim; with the demo strip above, the strip's own fill keeps the theme's glyphs, and
               once the photo has scrolled away the canvas bar takes the theme's glyphs back. */}
           {demo || pastPhoto ? null : <ScreenStatusBar style="light" />}
-          <SaveHeart
-            saved={isSaved}
-            canSave={saved.signedIn}
-            label={isSaved ? t(`Hapus ${o.name} dari simpanan`, `Remove ${o.name} from saved`) : t(`Simpan ${o.name}`, `Save ${o.name}`)}
-            onToggle={() => void saved.toggle(o.id)}
-            style={[styles.heart, { right: margin }]}
-          />
         </View>
 
         {/* The name block starts at the page's top in content terms (the photo and this block share one parent), so its
@@ -320,7 +338,6 @@ export function PackageDetail() {
           <Text variant="meta">
             {`${[o.caterer, o.areas[0]].filter(Boolean).join(", ")}. ${ratingText(o, locale, t)}`}
           </Text>
-          {saved.error ? <FormError message={saved.error} /> : null}
         </View>
 
         <StatStrip offer={o} />
@@ -404,7 +421,6 @@ function InfoRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: s
 const useStyles = themedStyles((c) => ({
   hero: {
     aspectRatio: nativeLayout.ratio.hero,
-    marginTop: -16,
     backgroundColor: c.sage,
   },
   // The scrim's ink is the story's (TomorrowStory), from the darkest Malam tone.
@@ -415,17 +431,6 @@ const useStyles = themedStyles((c) => ({
     right: 0,
     height: SCRIM,
     experimental_backgroundImage: "linear-gradient(rgba(27,27,26,0.6), rgba(27,27,26,0))",
-  },
-  // A 44 surface circle at the photo's foot (its right edge is the page margin, set where it is drawn), clear of the
-  // bar's back at the top. It overrides the heart's own 48 disc and hairline.
-  heart: {
-    position: "absolute",
-    bottom: 12,
-    width: nativeLayout.control.icon,
-    height: nativeLayout.control.icon,
-    borderRadius: nativeLayout.control.icon / 2,
-    borderWidth: 0,
-    backgroundColor: c.surface,
   },
   back: {
     width: nativeLayout.control.icon,

@@ -66,6 +66,7 @@ export function SaveHeart({
   label,
   canSave = true,
   compact = false,
+  circle = false,
   style,
 }: {
   saved: boolean;
@@ -74,6 +75,8 @@ export function SaveHeart({
   canSave?: boolean;
   /** A 44dp target with a 32dp surface disc and a 20 glyph, for a package tile's corner; the default is the 48dp disc. */
   compact?: boolean;
+  /** A 44dp surface circle with no hairline and the 22 glyph, for a bar (the package page's trailing slot). */
+  circle?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const c = useColors();
@@ -109,10 +112,10 @@ export function SaveHeart({
       accessibilityState={{ selected: saved }}
       haptic="none"
       onPress={press}
-      style={[compact ? styles.target : styles.round, style]}
+      style={[compact ? styles.target : circle ? styles.circle : styles.round, style]}
     >
       {burstShown && !reduced ? (
-        <View {...decorative} pointerEvents="none" style={compact ? styles.burstCompact : styles.burst}>
+        <View {...decorative} pointerEvents="none" style={compact || circle ? styles.burstCompact : styles.burst}>
           {DOT_ANGLES.map((angle, i) => (
             <Dot key={angle} angle={angle} progress={burst} color={i % 2 ? c.forestDeep : c.forest} />
           ))}
@@ -143,6 +146,8 @@ const useStyles = themedStyles((c) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  // The 44 circle: the same 48 burst box as the compact target, 2 outside it, so the burst centres on the circle.
+  circle: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" },
   burst: { position: "absolute", left: -1, top: -1, width: 48, height: 48 },
   // The compact target is 44, so the same 48 burst box sits 2 outside it to keep its centre on the heart.
   burstCompact: { position: "absolute", left: -2, top: -2, width: 48, height: 48 },
