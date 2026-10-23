@@ -10,6 +10,7 @@ import {
   DemoStrip,
   fontAssets,
   LaunchCover,
+  LayoutScaleProvider,
   MascotLoading,
   MoodLabelsProvider,
   MoodProvider,
@@ -171,28 +172,31 @@ function Launch({ fontsDone, children }: { fontsDone: boolean; children: ReactNo
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets);
   // Every provider mounts at once, so the theme and the session are read while the fonts load. Signing out forgets the
-  // kept days, so the next person on this phone never sees them.
+  // kept days, so the next person on this phone never sees them. Dapur takes the v2 layout scale with a 48 touch target
+  // (Dapur layout spec 2.1, 2.2), at the level the customer root mounts it.
   return (
     <SafeAreaProvider>
       <WindowEdge />
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
-        <MoodProvider>
-          <MobileProvider runtime={runtime} linkMapper={dapurLink} openLink={openLink} onSignedOut={clearCachedDays}>
-            <Launch fontsDone={fontsLoaded || !!fontError}>
-              {fontError ? (
-                <FontError />
-              ) : !fontsLoaded ? (
-                <FontWait />
-              ) : (
-                <ToastProvider>
-                  <NavigationColors>
-                    <Navigation />
-                  </NavigationColors>
-                </ToastProvider>
-              )}
-            </Launch>
-          </MobileProvider>
-        </MoodProvider>
+        <LayoutScaleProvider value="v2" target={48}>
+          <MoodProvider>
+            <MobileProvider runtime={runtime} linkMapper={dapurLink} openLink={openLink} onSignedOut={clearCachedDays}>
+              <Launch fontsDone={fontsLoaded || !!fontError}>
+                {fontError ? (
+                  <FontError />
+                ) : !fontsLoaded ? (
+                  <FontWait />
+                ) : (
+                  <ToastProvider>
+                    <NavigationColors>
+                      <Navigation />
+                    </NavigationColors>
+                  </ToastProvider>
+                )}
+              </Launch>
+            </MobileProvider>
+          </MoodProvider>
+        </LayoutScaleProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

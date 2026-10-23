@@ -24,7 +24,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import type { PaletteKey } from "@catera/design-tokens";
 import { nativeLayout } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
-import { useLayoutScale, useScreenMargin } from "./layoutScale";
+import { useLayoutScale, useScreenMargin, useTouchTarget } from "./layoutScale";
 import { useStackedLayout } from "./stackedLayout";
 import { StatusBand } from "./StatusBand";
 import { barTone, cardEdge, cardEdgeWidth, themedStyles, useColors } from "./theme";
@@ -47,7 +47,9 @@ const textVariants = {
   label: { fontSize: 12, lineHeight: 23, fontWeight: "700" },
   caption: { fontSize: 11, lineHeight: 18, fontWeight: "400" },
   number: { fontSize: 40, fontWeight: "800", letterSpacing: -1, fontVariant: ["tabular-nums"] },
-  // The v2 type ladder (customer layout spec, section 2). The existing variants above keep their values so Dapur does not move.
+  /** The lead figure: the one number that answers the screen (Dapur Hari ini and Uang). Not a header. */
+  figure: { fontSize: nativeLayout.figure.lead, lineHeight: nativeLayout.figure.leadLine, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  // The v2 type ladder (customer layout spec, section 2). The existing variants above keep their values.
   largeTitle: { fontSize: 32, lineHeight: 40, fontWeight: "700", letterSpacing: -0.8 },
   heroTitle: { fontSize: 24, lineHeight: 30, fontWeight: "700", letterSpacing: -0.4 },
   section: { fontSize: 20, lineHeight: 26, fontWeight: "700", letterSpacing: -0.2 },
@@ -70,6 +72,7 @@ const variantColor: Record<keyof typeof textVariants, PaletteKey> = {
   label: "charcoal",
   caption: "muted",
   number: "charcoal",
+  figure: "charcoal",
   largeTitle: "charcoal",
   heroTitle: "charcoal",
   section: "charcoal",
@@ -222,7 +225,17 @@ export function Button({
   );
 }
 
-const CHIP_HIT_SLOP = { top: (nativeLayout.control.icon - nativeLayout.control.chip) / 2, bottom: (nativeLayout.control.icon - nativeLayout.control.chip) / 2 };
+/** Above and below a 34 chip or segment, so it reaches the root's touch target: 5 for 44, 7 for Dapur's 48. */
+function useChipHitSlop(): { top: number; bottom: number } {
+  const slop = (useTouchTarget() - nativeLayout.control.chip) / 2;
+  return { top: slop, bottom: slop };
+}
+
+/** Around a 44 stepper circle; none when the target is 44 (the customer app), 2 for Dapur's 48. */
+function useStepHitSlop(): number | undefined {
+  const slop = (useTouchTarget() - nativeLayout.control.icon) / 2;
+  return slop > 0 ? slop : undefined;
+}
 
 export function Chip({
   label,
@@ -240,6 +253,7 @@ export function Chip({
   const styles = useStyles();
   const v2 = useV2Styles();
   const scaled = useLayoutScale() === "v2";
+  const hitSlop = useChipHitSlop();
   return (
     <PressableScale
       accessibilityRole="button"
@@ -247,8 +261,8 @@ export function Chip({
       accessibilityState={{ selected }}
       haptic="select"
       onPress={onPress}
-      // A 34 chip keeps a 44 touch target through its hit area.
-      hitSlop={scaled ? CHIP_HIT_SLOP : undefined}
+      // A 34 chip reaches the root's touch target (44, Dapur 48) through its hit area.
+      hitSlop={scaled ? hitSlop : undefined}
       style={[styles.chip, scaled && v2.chip, selected ? styles.chipOn : styles.chipOff]}
     >
       <RNText style={[styles.chipLabel, { color: selected ? c.cream : c.charcoal }]}>
@@ -279,6 +293,7 @@ export function Segmented<T extends string>({
   const scaled = useLayoutScale() === "v2";
   const narrow = useStackedLayout(360);
   const stacked = scaled && options.length >= 3 && narrow;
+  const hitSlop = useChipHitSlop();
   return (
     <View
       testID="segmented"
@@ -292,7 +307,7 @@ export function Segmented<T extends string>({
           accessibilityState={{ selected: o.value === value }}
           haptic="select"
           onPress={() => onChange(o.value)}
-          hitSlop={scaled && !stacked ? CHIP_HIT_SLOP : undefined}
+          hitSlop={scaled && !stacked ? hitSlop : undefined}
           style={[
             stacked ? v2.segmentStacked : [styles.segment, scaled && v2.segment],
             o.value === value && styles.segmentOn,
@@ -407,6 +422,7 @@ export function Stepper({
   const styles = useStyles();
   const v2 = useV2Styles();
   const scaled = useLayoutScale() === "v2";
+  const stepSlop = useStepHitSlop();
   return (
     <View testID={testID} style={[styles.stepper, scaled && v2.stepper]}>
       {leading}
@@ -418,6 +434,7 @@ export function Stepper({
         disabled={value <= min}
         haptic="select"
         onPress={() => onChange(value - 1)}
+        hitSlop={scaled ? stepSlop : undefined}
         style={[styles.stepButton, scaled && v2.stepButton]}
       >
         <RNText style={[styles.stepGlyph, scaled && v2.stepGlyph]}>−</RNText>
@@ -432,6 +449,7 @@ export function Stepper({
         disabled={value >= max}
         haptic="select"
         onPress={() => onChange(value + 1)}
+        hitSlop={scaled ? stepSlop : undefined}
         style={[styles.stepButton, scaled && v2.stepButton]}
       >
         <RNText style={[styles.stepGlyph, scaled && v2.stepGlyph]}>+</RNText>
@@ -719,7 +737,7 @@ const useCardTones = themedStyles((c) => ({
   sage: { backgroundColor: c.sage, borderColor: c.sage, ...cardEdge(c) },
 }));
 
-/** The v2 overrides: laid over the classic styles by `useLayoutScale() === "v2"`, so Dapur never reads them. */
+/** The v2 overrides: laid over the classic styles by `useLayoutScale() === "v2"`; a tree with no provider never reads them. */
 const useV2Styles = themedStyles((c) => ({
   button: { minHeight: nativeLayout.control.button, borderRadius: nativeLayout.control.button / 2 },
   chip: { minHeight: nativeLayout.control.chip, borderRadius: nativeLayout.control.chip / 2 },

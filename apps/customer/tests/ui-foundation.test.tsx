@@ -33,6 +33,7 @@ import {
   ThemeProvider,
   TopInsetOwner,
   useScreenMargin,
+  useTouchTarget,
 } from "@catera/mobile-ui";
 import { nativeLayout, nativeMood, nativeThemes } from "@catera/design-tokens";
 
@@ -726,6 +727,26 @@ describe("layout scale", () => {
     expect(flat(screen.getByLabelText("Nama"))).toMatchObject({ minHeight: 50 });
   });
 
+  it("v2 without target keeps hitSlop 5", () => {
+    let target = 0;
+    function Probe() {
+      target = useTouchTarget();
+      return null;
+    }
+    render(
+      <LayoutScaleProvider value="v2">
+        <Probe />
+        {sample}
+        <Stepper label="Porsi" decreaseLabel="Kurangi" increaseLabel="Tambah" value={2} onChange={() => {}} />
+      </LayoutScaleProvider>,
+    );
+    expect(target).toBe(44);
+    expect(screen.getByRole("button", { name: "Halal" }).props.hitSlop).toEqual({ top: 5, bottom: 5 });
+    for (const name of ["Satu", "Dua"]) expect(screen.getByRole("tab", { name }).props.hitSlop).toEqual({ top: 5, bottom: 5 });
+    // A 44 circle already meets the 44 target, so the stepper buttons carry no slop, as before.
+    for (const name of ["Kurangi", "Tambah"]) expect(screen.getByRole("button", { name }).props.hitSlop).toBeUndefined();
+  });
+
   it("v2 geometry: a text button is 50 tall, a card is radius 16 with padding 16 and gap 8", () => {
     render(
       <LayoutScaleProvider value="v2">
@@ -914,7 +935,7 @@ describe("layout scale", () => {
 
   it("nativeLayout carries the spec values", () => {
     expect(nativeLayout.control).toEqual({ button: 50, field: 50, search: 44, chip: 34, icon: 44 });
-    expect(nativeLayout.row).toEqual({ single: 56, media: 72, keyValue: 40, info: 48 });
+    expect(nativeLayout.row).toEqual({ single: 56, media: 72, keyValue: 40, info: 48, compact: 64, check: 56 });
     expect(nativeLayout.space).toEqual({ xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 });
   });
 });

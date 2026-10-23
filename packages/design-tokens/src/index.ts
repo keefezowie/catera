@@ -296,8 +296,8 @@ export const nativePhoto = {
 
 /**
  * The native layout scale (customer layout spec, section 2). One source for sizes and spacing; `mobile-ui` reads it
- * through the `LayoutScale` context, so the customer app (`v2`) takes it and Catera Dapur keeps today's geometry
- * until it opts in.
+ * through the `LayoutScale` context. Both app roots provide `v2`; Catera Dapur adds a 48 touch target and reads the
+ * `dense` and `figure` keys (Dapur layout spec, section 2).
  */
 export const nativeLayout = {
   space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 },
@@ -309,7 +309,13 @@ export const nativeLayout = {
   cardPadding: 16,
   radius: { thumb: 8, control: 12, card: 16, sheet: 24 },
   control: { button: 50, field: 50, search: 44, chip: 34, icon: 44 },
-  row: { single: 56, media: 72, keyValue: 40, info: 48 },
-  thumb: { sm: 56, md: 64 },
+  /** `compact` is a two-line row and `check` the Daftar masak check row (Dapur layout spec 2.3). */
+  row: { single: 56, media: 72, keyValue: 40, info: 48, compact: 64, check: 56 },
+  /** `compact` is the dish thumb in a Dapur Menu row. */
+  thumb: { sm: 56, md: 64, compact: 48 },
   ratio: { hero: 4 / 3, card: 16 / 10, tile: 4 / 3 },
+  /** Catera Dapur's denser rhythm: its sections sit 24 apart (the customer `sectionGap` stays 32). */
+  dense: { sectionGap: 24 },
+  /** The lead figure (`Text variant="figure"`): the one number that answers Hari ini and Uang. */
+  figure: { lead: 32, leadLine: 40 },
 } as const;
