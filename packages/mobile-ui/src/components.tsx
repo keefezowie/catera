@@ -541,6 +541,17 @@ export function Screen({
       {children}
     </View>
   );
+  // One set of scroll props for the screen's own ScrollView and for a list that is the scroll root.
+  const scrollProps: ScrollViewProps = {
+    testID: "screen-scroll",
+    contentInsetAdjustmentBehavior: screenInsetBehavior({ header: !!header, bleed }),
+    automaticallyAdjustKeyboardInsets: ios,
+    contentContainerStyle: { paddingBottom: 32 + bottomInset },
+    keyboardShouldPersistTaps: "handled",
+    onScroll: handleScroll,
+    scrollEventThrottle: handleScroll ? 16 : undefined,
+    refreshControl,
+  };
   return (
     <SafeAreaView
       ref={frame}
@@ -560,16 +571,7 @@ export function Screen({
           // no top inset of its own on iOS, through ScreenHeaderContext). A photo header runs under the bar and opts out.
           list ? (
             list({
-              scrollProps: {
-                testID: "screen-scroll",
-                contentInsetAdjustmentBehavior: screenInsetBehavior({ header: !!header, bleed }),
-                automaticallyAdjustKeyboardInsets: ios,
-                contentContainerStyle: { paddingBottom: 32 },
-                keyboardShouldPersistTaps: "handled",
-                onScroll: handleScroll,
-                scrollEventThrottle: handleScroll ? 16 : undefined,
-                refreshControl,
-              },
+              scrollProps,
               header: (
                 <>
                   {header ? <ScreenHeaderContext.Provider value>{header}</ScreenHeaderContext.Provider> : null}
@@ -578,20 +580,11 @@ export function Screen({
               ),
             })
           ) : (
-          <ScrollView
-            testID="screen-scroll"
-            contentInsetAdjustmentBehavior={screenInsetBehavior({ header: !!header, bleed })}
-            automaticallyAdjustKeyboardInsets={ios}
-            contentContainerStyle={{ paddingBottom: 32 + bottomInset }}
-            keyboardShouldPersistTaps="handled"
-            onScroll={handleScroll}
-            scrollEventThrottle={handleScroll ? 16 : undefined}
-            refreshControl={refreshControl}
-          >
-            {header ? <ScreenHeaderContext.Provider value>{header}</ScreenHeaderContext.Provider> : null}
-            {lead}
-            {body}
-          </ScrollView>
+            <ScrollView {...scrollProps}>
+              {header ? <ScreenHeaderContext.Provider value>{header}</ScreenHeaderContext.Provider> : null}
+              {lead}
+              {body}
+            </ScrollView>
           )
         ) : (
           <>

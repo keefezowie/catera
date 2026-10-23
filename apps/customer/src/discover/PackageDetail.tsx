@@ -1,7 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Image,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -31,6 +30,7 @@ import {
   fonts,
   linkTitle,
   nativeHeaderOptions,
+  Photo,
   PressableScale,
   ReadError,
   SaveHeart,
@@ -309,12 +309,7 @@ export function PackageDetail() {
         {/* The photo runs under the status bar too: 4:3 over the page's whole width. */}
         <View testID="paket-hero" style={[styles.hero, { marginHorizontal: -margin }]}>
           {o.image ? (
-            <Image
-              accessibilityIgnoresInvertColors
-              source={{ uri: photoUri(o.image, runtime.apiBase) }}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
+            <Photo ground="photo" uri={photoUri(o.image, runtime.apiBase)} style={StyleSheet.absoluteFill} />
           ) : null}
           {/* Under the transparent bar: the status bar and the back read on the photo whatever it shows. */}
           <Animated.View

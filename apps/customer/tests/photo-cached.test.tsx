@@ -20,6 +20,7 @@ const source = (path: string) => readFileSync(join(root, path), "utf8");
 // Bundled brand art (MascotLoading, LaunchCover, SuccessRig, MascotReading, the wordmark) keeps React Native's Image.
 const REMOTE = [
   "apps/customer/src/discover/PackageCard.tsx",
+  "apps/customer/src/discover/PackageDetail.tsx",
   "apps/customer/src/schedule/DayScreen.tsx",
   "apps/customer/src/schedule/ChooseMenu.tsx",
   "apps/customer/src/today/RecapCard.tsx",

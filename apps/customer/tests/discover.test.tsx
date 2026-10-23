@@ -484,6 +484,32 @@ describe("Jelajah list root", () => {
     expect(screen.queryByTestId("package-cell")).toBeNull();
   });
 
+  it("the tiles come in with the chips as one block, only when the read finishes", async () => {
+    let release: (v: unknown) => void = () => undefined;
+    const runtime = runtimeWith(customer, { catalog: jest.fn(() => new Promise((r) => (release = r))) });
+    wrap(runtime, <Jelajah />);
+    await screen.findByTestId("jelajah-skeleton");
+    await waitFor(() => expect(runtime.api.catalog).toHaveBeenCalled());
+    await act(async () => release({ items: [cheap, pricey], nextCursor: null }));
+    const cells = await screen.findAllByTestId("package-cell");
+    for (const cell of cells) expect(cell.props.entering).toBeDefined();
+    // A search later adds and removes tiles without any entrance.
+    fireEvent.changeText(screen.getByLabelText("Cari paket"), "Nasi");
+    for (const cell of screen.getAllByTestId("package-cell")) expect(cell.props.entering).toBeUndefined();
+  });
+
+  it("the empty block comes in with the chips when the read finishes", async () => {
+    let release: (v: unknown) => void = () => undefined;
+    const runtime = runtimeWith(customer, { catalog: jest.fn(() => new Promise((r) => (release = r))) });
+    wrap(runtime, <Jelajah />);
+    await screen.findByTestId("jelajah-skeleton");
+    await waitFor(() => expect(runtime.api.catalog).toHaveBeenCalled());
+    await act(async () => release({ items: [], nextCursor: null }));
+    let node = screen.getByText("Belum ada paket.").parent;
+    while (node && node.props.entering === undefined && node.props.testID !== "jelajah-empty") node = node.parent;
+    expect(node?.props.entering).toBeDefined();
+  });
+
   it("the chip row answers the first tap while the search keyboard is up", async () => {
     const view = wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
@@ -968,7 +994,7 @@ describe("Jelajah mood header", () => {
       const above = (frameHeight - chip) / 2;
       // The chips are 12 under the search, and the grid 16 under the chips.
       expect(bodyTop + frameTop + above).toBe(12);
-      const gridTop = headerBottom + bodyTop + frameTop + frameHeight + frameBottom + BODY_GAP;
+      const gridTop = headerBottom + bodyTop + frameTop + frameHeight + frameBottom + need(byId("jelajah-body"), "paddingBottom");
       expect(gridTop - (headerBottom + 12) - chip).toBe(16);
 
       // A tile: the photo from the column width, the body's padding and gap, the two groups.

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FlatList, ScrollView, TextInput, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { menuSummary, perMealPrice, type Offer } from "@catera/domain";
@@ -19,6 +20,7 @@ import {
   Text,
   useColors,
   useMood,
+  useBlockEnter,
   useScreenMargin,
 } from "@catera/mobile-ui";
 import { topTags } from "./categories";
@@ -49,6 +51,8 @@ const SEARCH_TOP = 8;
 const BODY_MAX = 760;
 /** The odd last tile of a two column grid gets this empty cell beside it, so it keeps one column's width. */
 const SPACER = { id: "__spacer" } as const;
+/** The row gap between two rows of tiles. */
+const RowSeparator = () => <View style={{ height: GRID_ROW_GAP }} />;
 const isSpacer = (item: CatalogOffer | typeof SPACER): item is typeof SPACER =>
   item === SPACER;
 
@@ -160,6 +164,14 @@ function Browse({
   };
 
   // The grid's rows: the filtered packages, plus one empty cell when an odd last tile would stretch across a two column row.
+  // The read just finished: the chips, the tiles and the empty or error block all come in as one block over `content`.
+  // Only on this render; later renders (a search, a chip) and reduced motion add nothing.
+  const blockEnter = useBlockEnter();
+  const wasWaiting = useRef(waiting);
+  const entering = wasWaiting.current && !waiting ? blockEnter : undefined;
+  useLayoutEffect(() => {
+    wasWaiting.current = waiting;
+  }, [waiting]);
   const rows: (CatalogOffer | typeof SPACER)[] =
     columns === 2 && items.length % 2 === 1
       ? [...(items as CatalogOffer[]), SPACER]
@@ -187,7 +199,11 @@ function Browse({
             const tile = isSpacer(item) ? (
               <View testID="package-cell-spacer" style={cell} />
             ) : (
-              <View testID="package-cell" style={cell}>
+              <Animated.View
+                testID="package-cell"
+                entering={entering}
+                style={cell}
+              >
                 <PackageCard
                   layout="tile"
                   offer={item}
@@ -198,20 +214,25 @@ function Browse({
                   onToggleSaved={() => void saved.toggle(item.id)}
                   canSave={saved.signedIn}
                 />
-              </View>
+              </Animated.View>
             );
             return columns === 1 ? <View style={frame}>{tile}</View> : tile;
           }}
           columnWrapperStyle={
             columns === 2 ? { ...frame, columnGap: GRID_COLUMN_GAP } : undefined
           }
-          ItemSeparatorComponent={() => (
-            <View style={{ height: GRID_ROW_GAP }} />
-          )}
+          ItemSeparatorComponent={RowSeparator}
           ListHeaderComponent={
             <>
               {header}
-              <View testID="jelajah-body" style={[frame, { paddingTop: 16 }]}>
+              <View
+                testID="jelajah-body"
+                style={[
+                  frame,
+                  // The 16 under the chips (and under a saved-list error) that the block's gap used to give the first row.
+                  { paddingTop: 16, paddingBottom: waiting ? 0 : BODY_GAP },
+                ]}
+              >
                 {/* The chips and the grid arrive together from one skeleton, as one block. The chips filter what the read
                     returned, so before it there is nothing for them to narrow. */}
                 <FadeSwap
@@ -284,11 +305,8 @@ function Browse({
           }
           ListEmptyComponent={
             waiting ? null : (
-              <View
-                testID="jelajah-empty"
-                style={[frame, { paddingTop: BODY_GAP }]}
-              >
-                <FadeSwap swapKey="ready" style={{ gap: BODY_GAP }}>
+              <View testID="jelajah-empty" style={frame}>
+                <Animated.View entering={entering} style={{ gap: BODY_GAP }}>
                   {catalog.error && !catalog.data ? (
                     <ReadError
                       art
@@ -370,7 +388,7 @@ function Browse({
                       ) : null}
                     </View>
                   ) : null}
-                </FadeSwap>
+                </Animated.View>
               </View>
             )
           }
