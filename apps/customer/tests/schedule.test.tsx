@@ -505,8 +505,44 @@ describe("Jadwal", () => {
       expect(within(screen.getByTestId("agenda-row-d-road-lunch")).getByText("Siang 11.00–13.00 · Sedang diantar")).toBeTruthy();
       expect(within(screen.getByTestId("agenda-row-d-cook-lunch")).getByText("Siang 11.00–13.00 · Sedang dimasak")).toBeTruthy();
       expect(within(screen.getByTestId("agenda-row-d-done-lunch")).getByText("Siang 11.00–13.00 · Sudah sampai")).toBeTruthy();
-      // A past day nobody updated is not "scheduled" any more.
-      expect(within(screen.getByTestId("agenda-row-d-old-lunch")).getByText("Siang 11.00–13.00 · Belum sampai")).toBeTruthy();
+      // A past day nobody updated is settled as delivered (the server's auto_deliver reads silence so), never "Belum sampai".
+      expect(within(screen.getByTestId("agenda-row-d-old-lunch")).getByText("Siang 11.00–13.00 · Sampai")).toBeTruthy();
+      expect(screen.queryByText(/Belum sampai/)).toBeNull();
+    });
+
+    it("an unpicked row of a pick-your-own package offers Pilih menu, which opens the menu choice for that day", async () => {
+      const picks = offer({ menuSelectionMode: "customer", menus: [] } as Partial<Offer>);
+      const state = stateOf([
+        delivery("d-pick", "2026-10-08", {}, { offer: picks, subscription_id: "s-9" }),
+        // Already past: nothing left to pick.
+        delivery("d-gone", "2026-10-06", {}, { offer: picks }),
+        // The caterer picks: no action, the row only says the menu is not set.
+        delivery("d-chef", "2026-10-09", {}, { offer: offer({ menus: [] }) }),
+      ]);
+      renderV2(runtimeWith(state), <Jadwal />);
+      await gridReady();
+      const action = screen.getByTestId("agenda-pick-d-pick-lunch");
+      expect(within(action).getByText("Pilih menu")).toBeTruthy();
+      expect(action.props.accessibilityRole).toBe("button");
+      expect(screen.queryByTestId("agenda-pick-d-gone-lunch")).toBeNull();
+      expect(screen.queryByTestId("agenda-pick-d-chef-lunch")).toBeNull();
+      // The row itself still opens the day; the action is its own 44 target beside it.
+      expect(flat(action).minHeight).toBeGreaterThanOrEqual(44);
+      fireEvent.press(action);
+      expect(router.push).toHaveBeenCalledWith("/pilih-menu/s-9?date=2026-10-08&meal=lunch");
+    });
+
+    it("keeps the Pilih menu action and the whole title at 360dp and font scale 1.3", async () => {
+      mockWidth = 360;
+      mockFontScale = 1.3;
+      const picks = offer({ menuSelectionMode: "customer", menus: [] } as Partial<Offer>);
+      renderV2(runtimeWith(stateOf([delivery("d-pick", "2026-10-08", {}, { offer: picks })])), <Jadwal />);
+      await gridReady();
+      const action = screen.getByTestId("agenda-pick-d-pick-lunch");
+      // The action keeps its width (the title column gives way) and its label is never cut.
+      expect(flat(action).flexShrink).toBe(0);
+      expect(within(action).getByText("Pilih menu").props.numberOfLines).toBeUndefined();
+      expect(within(screen.getByTestId("agenda-row-d-pick-lunch")).getByText("Menu belum diisi").props.numberOfLines).toBeUndefined();
     });
 
     it("says today's unmarked meal past its window what Beranda says for it, and leaves one still ahead Terjadwal", async () => {
@@ -1246,7 +1282,7 @@ const showDay = async (d: Delivery, wait: RegExp | string = "Ayam bakar madu", s
 };
 const circleOf = (key: string) => screen.queryByTestId(`day-action-circle-${key}`);
 const actionKeys = () =>
-  ["change", "menu", "report", "chat", "address"].filter((key) => circleOf(key) !== null);
+  ["change", "menu", "report", "chat", "address"].filter((key) => screen.queryByTestId(`day-action-${key}`) !== null);
 
 describe("Hari", () => {
   it("is a sheet body: the handle, a 16:10 photo, the day's line, the dish as hero title, the state line with its cut-off, the address well", async () => {
@@ -1628,13 +1664,61 @@ describe("Hari", () => {
       expect(flat(circleOf("change")!)).toMatchObject({ width: ACTION_CIRCLE, height: ACTION_CIRCLE });
     });
 
-    it("wraps to two lines at 360dp: two circles per line, every label whole", async () => {
+    it("at 360dp the actions stack as full-width 48 rows in the same order, never a wrapped circle row", async () => {
       mockWidth = 360;
       await showDay(four());
-      expect(flat(screen.getByTestId("day-actions"))).toMatchObject({ flexDirection: "row", flexWrap: "wrap" });
-      for (const key of actionKeys()) expect(flat(screen.getByTestId(`day-action-${key}`))).toMatchObject({ width: "50%" });
+      expect(flat(screen.getByTestId("day-actions"))).toMatchObject({ flexDirection: "column" });
+      expect(flat(screen.getByTestId("day-actions")).flexWrap).toBeUndefined();
+      expect(actionKeys()).toEqual(["change", "menu", "chat", "address"]);
+      for (const key of actionKeys()) {
+        const row = screen.getByTestId(`day-action-${key}`);
+        expect(flat(row)).toMatchObject({ flexDirection: "row", alignItems: "center" });
+        expect(flat(row).minHeight).toBeGreaterThanOrEqual(48);
+        expect(flat(row).width).toBeUndefined();
+        expect(circleOf(key)).toBeNull();
+      }
+      // Each row is a button named by its label; the label reads in `body` (14/23) and is never cut.
+      expect(screen.getByRole("button", { name: "Ganti alamat" })).toBeTruthy();
       for (const label of ["Ubah hari", "Lihat menu", "Chat", "Ganti alamat"]) {
         expect(screen.getByText(label).props.numberOfLines).toBeUndefined();
+        expect(flat(screen.getByText(label))).toMatchObject({ fontSize: 14, lineHeight: 23 });
+      }
+      // A hairline between rows, none above the first; no chevron on Android.
+      expect(screen.getAllByTestId("day-action-separator")).toHaveLength(3);
+      expect(screen.queryByTestId("day-action-chevron-change")).toBeNull();
+    });
+
+    it("at font 1.3 on a 360dp screen the Hari actions are full-width rows, none wrapped", async () => {
+      mockWidth = 360;
+      mockFontScale = 1.3;
+      // Yesterday's delivered meal: Lihat menu, Ada masalah and Chat, the case where Ada masalah went under the gesture bar.
+      await showDay(
+        delivery("d-yday", "2026-10-06", { status: "delivered" }, { catererPhone: "+6281200000001" } as Partial<Delivery>),
+      );
+      expect(actionKeys()).toEqual(["menu", "report", "chat"]);
+      for (const key of actionKeys()) {
+        expect(flat(screen.getByTestId(`day-action-${key}`)).minHeight).toBeGreaterThanOrEqual(48);
+        expect(circleOf(key)).toBeNull();
+      }
+      expect(screen.getByText("Ada masalah").props.numberOfLines).toBeUndefined();
+    });
+
+    it("the last action row clears the bottom inset: the day's content pads the gesture bar's height", async () => {
+      // The safe-area mock's hook is already a jest.fn: swap its implementation and put the original back after.
+      const insets = (require("react-native-safe-area-context") as { useSafeAreaInsets: jest.Mock }).useSafeAreaInsets;
+      const original = insets.getMockImplementation();
+      insets.mockImplementation(() => ({ top: 0, left: 0, right: 0, bottom: 34 }));
+      try {
+        mockWidth = 360;
+        mockFontScale = 1.3;
+        await showDay(four());
+        // The block that spaces the day's parts by 16 also pays the inset, whatever the sheet's own foot gives.
+        let body = screen.getByTestId("day-address").parent!;
+        for (let i = 0; i < 6 && flat(body as never).gap !== DAY_GAP; i += 1) body = body.parent!;
+        expect(flat(body as never)).toMatchObject({ gap: DAY_GAP });
+        expect(flat(body as never).paddingBottom).toBeGreaterThanOrEqual(34);
+      } finally {
+        insets.mockImplementation(original);
       }
     });
 
@@ -1657,12 +1741,15 @@ describe("Hari", () => {
       expect(flat(screen.getByTestId("day-address")).height).toBeUndefined();
     });
 
-    it("wraps at font scale 1.3 and keeps the circles 56", async () => {
+    it("stacks at font scale 1.3 on a 412 phone too, with each row's icon at 24", async () => {
       mockWidth = 412;
       mockFontScale = 1.3;
       await showDay(four());
-      expect(flat(screen.getByTestId("day-actions"))).toMatchObject({ flexWrap: "wrap" });
-      for (const key of actionKeys()) expect(flat(circleOf(key)!)).toMatchObject({ width: 56, height: 56 });
+      expect(flat(screen.getByTestId("day-actions"))).toMatchObject({ flexDirection: "column" });
+      for (const key of actionKeys()) {
+        expect(circleOf(key)).toBeNull();
+        expect(flat(screen.getByTestId(`day-action-icon-${key}`, hidden)).fontSize).toBe(24);
+      }
     });
   });
 
@@ -1681,6 +1768,27 @@ describe("Hari", () => {
         await act(async () => {});
         expect(flat(circleOf("change")!)).toMatchObject({ backgroundColor: nativeThemes.dark.sage });
         expect(flat(screen.getByTestId("day-address"))).toMatchObject({ backgroundColor: nativeThemes.dark.canvas });
+      } finally {
+        scheme.mockRestore();
+      }
+    });
+
+    it("draws the stacked rows' icons and hairlines from the dark tokens", async () => {
+      const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+      mockParams = { id: "d-next" };
+      mockWidth = 360;
+      mockFontScale = 1.3;
+      try {
+        renderV2(
+          runtimeWith(stateOf([open("d-next", "2026-10-08")])),
+          <ThemeProvider storageKey="hari-dark-rows">
+            <DayScreen />
+          </ThemeProvider>,
+        );
+        await screen.findByText("Ayam bakar madu");
+        await act(async () => {});
+        expect(flat(screen.getByTestId("day-action-icon-change", hidden))).toMatchObject({ color: nativeThemes.dark.charcoal });
+        expect(flat(screen.getAllByTestId("day-action-separator")[0])).toMatchObject({ backgroundColor: nativeThemes.dark.line });
       } finally {
         scheme.mockRestore();
       }

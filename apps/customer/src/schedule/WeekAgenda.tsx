@@ -14,7 +14,7 @@ import {
 } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { PressableRow, Text, themedStyles, useColors, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
+import { PressableRow, PressableScale, Text, themedStyles, useColors, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { router } from "expo-router";
 import { DecorativeIcon, ListCard, MediaRow } from "../layout";
 import { dayHref } from "../hrefs";
@@ -109,14 +109,13 @@ export function WeekAgenda({
   const mealRow = ({ d, m }: Item, date: string) => {
     const image = d.offer.menus?.find((x) => x.meal === m.meal)?.image || d.offer.image;
     // The words the screen already uses for a meal's stage (Plate's state line, the day sheet), so the agenda never coins
-    // its own: scheduled, cooking, on the way, arrived, delivered, not delivered. A past meal nobody updated is "Belum
-    // sampai" there.
+    // its own: scheduled, cooking, on the way, arrived, delivered, not delivered.
     const journey = mealJourney(m);
-    // Beranda's rule (plateState): a meal nobody has sent out whose window has opened is due, and a report outranks it.
+    // Beranda's rule (plateState): today's meal nobody has sent out whose window has opened is due, and a report outranks
+    // it. Only today: a past day nobody updated was settled as delivered by the server (auto_deliver reads silence so).
     const reported = !!m.issue && m.issue.status !== "resolved";
-    const due =
-      !reported &&
-      (date < today || (date === today && windowStart(date, d.offer, m.meal) <= now.getTime()));
+    const due = !reported && date === today && windowStart(date, d.offer, m.meal) <= now.getTime();
+    const settled = !reported && date < today && (journey.stage === "scheduled" || journey.stage === "preparing");
     const state = failed(m.status)
       ? t("Gagal diantar", "Not delivered")
       : journey.stage === "delivered"
@@ -125,11 +124,13 @@ export function WeekAgenda({
           ? statusLabel("arrived", locale)
           : journey.stage === "out_for_delivery"
             ? t("Sedang diantar", "On the way")
-            : due
-              ? t("Belum sampai", "Not here yet")
-              : journey.stage === "preparing"
-                ? t("Sedang dimasak", "Being cooked")
-                : t("Terjadwal", "Scheduled");
+            : settled
+              ? statusLabel("delivered", locale)
+              : due
+                ? t("Belum sampai", "Not here yet")
+                : journey.stage === "preparing"
+                  ? t("Sedang dimasak", "Being cooked")
+                  : t("Terjadwal", "Scheduled");
     const label = m.meal === "dinner" ? t("Malam", "Dinner") : t("Siang", "Lunch");
     const window = d.offer.windows?.[m.meal];
     const sub = [window ? `${label} ${window}` : label, state].filter(Boolean).join(" · ");
@@ -139,7 +140,9 @@ export function WeekAgenda({
     // The thumb and the title read the same menu: a photo never sits beside "Menu belum diisi".
     const notSet = !lead;
     const title = lead || t("Menu belum diisi", "Menu not set yet");
-    return (
+    // A pick-your-own day still ahead whose menu is not set offers the pick beside the row, as Beranda's day block does.
+    const pick = notSet && date >= today && d.offer.menuSelectionMode === "customer";
+    const row = (
       <MediaRow
         key={`${d.id}:${m.meal}`}
         testID={`agenda-row-${d.id}-${m.meal}`}
@@ -152,6 +155,25 @@ export function WeekAgenda({
         wrap
         onPress={() => router.push(dayHref(d.id, d.service_date, locale) as never)}
       />
+    );
+    if (!pick) return row;
+    // The action is the row's sibling, not a child of its button, so each is its own target for touch and screen reader.
+    const query = new URLSearchParams({ date, meal: m.meal }).toString();
+    return (
+      <View key={`${d.id}:${m.meal}`} style={styles.pickRow}>
+        <View style={{ flex: 1, minWidth: 0 }}>{row}</View>
+        <PressableScale
+          testID={`agenda-pick-${d.id}-${m.meal}`}
+          accessibilityRole="button"
+          accessibilityLabel={t(`Pilih menu, ${dayName(date, "id")}`, `Choose menu, ${dayName(date, "en")}`)}
+          onPress={() => router.push(`/pilih-menu/${encodeURIComponent(d.subscription_id)}?${query}` as never)}
+          style={styles.pick}
+        >
+          <Text variant="bodyStrong" style={{ color: c.forest }}>
+            {t("Pilih menu", "Choose menu")}
+          </Text>
+        </PressableScale>
+      </View>
     );
   };
 
@@ -212,6 +234,8 @@ const useStyles = themedStyles((c) => ({
   body: { gap: nativeLayout.space.lg },
   blocks: { gap: nativeLayout.space.xl },
   block: { gap: nativeLayout.groupGap },
+  pickRow: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.sm },
+  pick: { minHeight: 44, flexShrink: 0, justifyContent: "center", paddingHorizontal: nativeLayout.space.sm },
   empty: {
     minHeight: nativeLayout.row.single,
     justifyContent: "center",
