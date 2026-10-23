@@ -1,5 +1,5 @@
 import { AccessibilityInfo, StyleSheet } from "react-native";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativeLayout, nativeThemes } from "@catera/design-tokens";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -311,6 +311,16 @@ describe("Hapus akun", () => {
     for (const text of within(callout).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
     expect(StyleSheet.flatten(callout.props.style).height).toBeUndefined();
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+  });
+
+  it("counts one plan in the singular in English, and the callout takes the card radius", async () => {
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+    const state = { ...customerState(null), subscriptions: [running("Makan Siang Rumahan", "s-1")] };
+    const { runtime } = runtimeWith({ user: phoneUser, state });
+    renderWith(runtime, <HapusAkunRoute />);
+    const callout = await screen.findByTestId("hapus-akun-plans");
+    expect(await within(callout).findByText("1 plan still running")).toBeTruthy();
+    expect(StyleSheet.flatten(callout.props.style).borderRadius).toBe(nativeLayout.radius.card);
   });
 
   it("Hapus akun with a running plan sends the request with the plan names for the team", async () => {

@@ -14,6 +14,7 @@ import {
   themedStyles,
   useBusy,
   useColors,
+  useToast,
 } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
@@ -51,6 +52,7 @@ function Updates() {
   const { runtime, command, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
+  const toast = useToast();
   const customer = useData("notifications:customer", () => runtime.api.customer());
   // Updates read on this screen, so their dots go at once and do not wait for the refresh.
   const [readHere, setReadHere] = useState<ReadonlySet<string>>(new Set());
@@ -78,7 +80,8 @@ function Updates() {
         markRead(n.id);
       }
     } catch {
-      // The rows that stayed unread keep their dots.
+      // The rows that stayed unread keep their dots, and the action stays to try again.
+      toast.show({ message: t("Belum semua ditandai dibaca. Coba lagi.", "Not all marked as read. Try again."), tone: "error" });
     }
     await customer.reload();
   });

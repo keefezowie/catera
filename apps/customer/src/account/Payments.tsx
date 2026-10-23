@@ -93,7 +93,7 @@ function History() {
                   first={i === 0}
                   label={name}
                   status={{ label: t("Menunggu", "Waiting"), tone: "waiting" }}
-                  caption={[t("Menunggu pembayaran", "Waiting for payment"), item.catererName].filter(Boolean).join(" · ")}
+                  caption={item.catererName}
                 >
                   <Button
                     label={t("Bayar", "Pay")}
@@ -142,7 +142,11 @@ function History() {
                   testID="payment-row"
                   first={i === 0}
                   label={name}
-                  status={{ label: t("Kedaluwarsa", "Expired"), tone: "expired" }}
+                  status={
+                    item.paymentFailed
+                      ? { label: t("Gagal", "Failed"), tone: "expired" }
+                      : { label: t("Kedaluwarsa", "Expired"), tone: "expired" }
+                  }
                   caption={[
                     item.paymentFailed
                       ? t("Pembayaran gagal", "Payment failed")

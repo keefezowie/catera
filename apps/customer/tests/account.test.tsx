@@ -548,6 +548,28 @@ describe("Notifikasi", () => {
     expect(screen.queryAllByTestId("unread-dot")).toHaveLength(0);
   });
 
+  it("a mark-all pass with a failed read says so and keeps the unread dots", async () => {
+    const notes = mixed();
+    const runtime = runtimeWith({ notifications: notes as never });
+    // The second of three reads fails.
+    (runtime.api.command as jest.Mock)
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
+    renderWith(
+      runtime,
+      <ToastProvider>
+        <NotificationsScreen />
+      </ToastProvider>,
+    );
+    fireEvent.press(await screen.findByRole("button", { name: "Tandai semua dibaca" }));
+    expect(await screen.findByText("Belum semua ditandai dibaca. Coba lagi.")).toBeTruthy();
+    expect(runtime.api.command).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("REQUEST_TIMEOUT")).toBeNull();
+    // n-1 went through; n-3 and n-4 are still unread, so the action stays.
+    expect(screen.getAllByTestId("unread-dot")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Tandai semua dibaca" })).toBeTruthy();
+  });
+
   it("all read: no mark-all action and no dots, in the dark theme too", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.theme", "dark");
     renderWith(
@@ -690,7 +712,10 @@ describe("Riwayat pembayaran", () => {
     );
     renderWith(runtime, <Payments />);
     expect(await screen.findByText("Makan Malam Sehat")).toBeTruthy();
-    expect(screen.getByText(/Menunggu pembayaran/)).toBeTruthy();
+    // The Menunggu chip carries the state, so the caption names only the caterer.
+    expect(screen.queryByText(/Menunggu pembayaran/)).toBeNull();
+    expect(within(statusOf("Makan Malam Sehat")).getByText("Menunggu")).toBeTruthy();
+    expect(screen.getByText("Dapur Contoh")).toBeTruthy();
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.getByText(/150\.000/)).toBeTruthy();
     expect(screen.queryByText("Paket Catatan")).toBeNull();
@@ -769,8 +794,10 @@ describe("Riwayat pembayaran", () => {
       },
     );
     renderWith(runtime, <Payments />);
-    // The section label and each row's status chip.
-    expect(await screen.findAllByText("Kedaluwarsa")).toHaveLength(4);
+    // The section label and the two ran-out rows' chips; the failed payment's chip says Gagal, in the same tone.
+    expect(await screen.findAllByText("Kedaluwarsa")).toHaveLength(3);
+    const gagal = within(statusOf("Paket Coba")).getByText("Gagal");
+    expect(flat(gagal).color).toBe(flat(within(statusOf("Paket Habis")).getByText("Kedaluwarsa")).color);
     expect(screen.queryByText("Belum dibayar")).toBeNull();
     expect(screen.queryByText("Belum ada pembayaran.")).toBeNull();
     expect(screen.getAllByText(/Waktu pembayaran habis/)).toHaveLength(2);

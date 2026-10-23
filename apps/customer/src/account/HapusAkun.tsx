@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
+import { nativeLayout } from "@catera/design-tokens";
 import { planLabel } from "@catera/domain";
 import { requestAccountDeletion, useData, useMobile } from "@catera/mobile-core";
 import {
@@ -109,8 +110,8 @@ function HapusAkun() {
   // One callout for any number of running plans: the count, then what the request means for them. The plan names go
   // to the team in the request, not onto the sheet.
   const plans = running.length ? (
-    <View testID="hapus-akun-plans" style={{ backgroundColor: c.fill, borderRadius: 16, borderCurve: "continuous", padding: 16, gap: 8 }}>
-      <Text variant="bodyStrong">{t(`${running.length} paket masih berjalan`, `${running.length} plans still running`)}</Text>
+    <View testID="hapus-akun-plans" style={{ backgroundColor: c.fill, borderRadius: nativeLayout.radius.card, borderCurve: "continuous", padding: 16, gap: 8 }}>
+      <Text variant="bodyStrong">{t(`${running.length} paket masih berjalan`, running.length === 1 ? "1 plan still running" : `${running.length} plans still running`)}</Text>
       {[
         t("Pengantaran yang belum lewat dibatalkan.", "Deliveries that have not passed yet are cancelled."),
         t("Riwayat dan alamat dihapus.", "Your history and addresses are deleted."),
