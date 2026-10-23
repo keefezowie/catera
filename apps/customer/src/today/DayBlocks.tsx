@@ -21,8 +21,10 @@ export const mealWord = (meal: "lunch" | "dinner", t: Translate) =>
 /**
  * A day's tiles, for its deliveries whose menu is picked. A day of one delivery fills one of the two meal slots and says
  * the other is empty (the empty lunch before a dinner, the empty dinner after a lunch). Otherwise the picked ones fill
- * up to two tiles; the rest are `hidden`, reached through "+n lagi". Unpicked deliveries get no tile: they share the
- * day's one "Pilih menu" row.
+ * up to two tiles; the rest are `hidden`, reached through "+n lagi". Deliveries without a menu get no tile: they share
+ * the day's unset rows. On a mixed day the picked ones keep the day's order with the unset ones skipped, so "+n lagi"
+ * counts picked deliveries only, and a lone picked tile beside unset ones gets no "tidak ada pengantaran" slot (the
+ * other meal may well have a delivery).
  */
 function slotsOf(day: UpcomingDay, picked: UpcomingMeal[]): { slots: Slot[]; hidden: UpcomingMeal[] } {
   if (day.meals.length === 1 && picked.length === 1) {
@@ -56,7 +58,7 @@ export function DayBlocks({
   onOpen: (day: UpcomingDay, meal: UpcomingMeal) => void;
   /** "+n lagi" was pressed; `hidden` are the deliveries the tiles left out. */
   onMore: (day: UpcomingDay, hidden: UpcomingMeal[]) => void;
-  /** "Pilih menu" on the day's unpicked row was pressed; `first` is the first delivery without a menu. */
+  /** "Pilih menu" on the day's unpicked row was pressed; `first` is the first delivery the customer can still pick. */
   onPick: (day: UpcomingDay, first: UpcomingMeal) => void;
 }) {
   const { t } = useMobile();
@@ -66,7 +68,12 @@ export function DayBlocks({
     <View style={styles.blocks}>
       {days.map((day) => {
         const picked = day.meals.filter((m) => m.lead !== null);
-        const unpicked = day.meals.filter((m) => m.lead === null);
+        const unset = day.meals.filter((m) => m.lead === null);
+        // Pick-your-own menus are the customer's to choose; a caterer-chosen one is waiting on the kitchen.
+        const unpicked = unset.filter((m) => m.pickable);
+        const unannounced = unset.filter((m) => !m.pickable);
+        // "Pilih menu" only while one of them can still change (before its cutoff).
+        const open = unpicked.find((m) => m.changeUntil !== null);
         const { slots, hidden } = slotsOf(day, picked);
         const n = day.meals.length;
         return (
@@ -107,7 +114,27 @@ export function DayBlocks({
                 onPress={() => onMore(day, hidden)}
               />
             ) : null}
-            {unpicked.length ? <UnpickedRow count={unpicked.length} onPick={() => onPick(day, unpicked[0])} /> : null}
+            {unpicked.length ? (
+              <UnsetRow
+                testID="day-unpicked-row"
+                text={
+                  unpicked.length === 1
+                    ? t("Menu belum dipilih", "Menu not chosen yet")
+                    : t(`${unpicked.length} pengantaran belum ada menu`, `${unpicked.length} deliveries without a menu`)
+                }
+                onPick={open ? () => onPick(day, open) : undefined}
+              />
+            ) : null}
+            {unannounced.length ? (
+              <UnsetRow
+                testID="day-unannounced-row"
+                text={
+                  unannounced.length === 1
+                    ? t("Menu belum diumumkan", "Menu not announced yet")
+                    : t(`${unannounced.length} menu belum diumumkan`, `${unannounced.length} menus not announced yet`)
+                }
+              />
+            ) : null}
           </View>
         );
       })}
@@ -179,32 +206,30 @@ function NoneTile({ meal, stacked }: { meal: "lunch" | "dinner"; stacked: boolea
 }
 
 /**
- * A day's deliveries without a menu, as one row (spec R3): the utensil tile, how many ("Menu belum dipilih" for one) and
- * one "Pilih menu" text action to the first one's menu. The count wraps at large text; the action keeps one line.
+ * A day's deliveries without a menu, as one row (spec R3): the utensil tile, what is missing and, for pick-your-own
+ * menus still before their cutoff, one "Pilih menu" text action. The text wraps at large text; the action keeps one line.
  */
-function UnpickedRow({ count, onPick }: { count: number; onPick: () => void }) {
+function UnsetRow({ testID, text, onPick }: { testID: string; text: string; onPick?: () => void }) {
   const { t } = useMobile();
   const c = useColors();
   const styles = useStyles();
-  const text =
-    count === 1
-      ? t("Menu belum dipilih", "Menu not chosen yet")
-      : t(`${count} pengantaran belum ada menu`, `${count} deliveries without a menu`);
   const action = t("Pilih menu", "Choose menu");
   return (
-    <View testID="day-unpicked-row" style={styles.unpicked}>
-      <View testID="day-unpicked-tile" style={styles.unpickedTile}>
+    <View testID={testID} style={styles.unpicked}>
+      <View testID={`${testID.replace(/-row$/, "")}-tile`} style={styles.unpickedTile}>
         <DecorativeIcon name="restaurant-outline" size={20} color={c.charcoal} />
       </View>
       <Text variant="body" style={styles.unpickedText}>
         {text}
       </Text>
-      <PressableRow accessibilityRole="button" accessibilityLabel={action} onPress={onPick} style={styles.pick}>
-        {/* forest: action */}
-        <Text variant="bodyStrong" numberOfLines={1} style={{ color: c.forest }}>
-          {action}
-        </Text>
-      </PressableRow>
+      {onPick ? (
+        <PressableRow accessibilityRole="button" accessibilityLabel={action} onPress={onPick} style={styles.pick}>
+          {/* forest: action */}
+          <Text variant="bodyStrong" numberOfLines={1} style={{ color: c.forest }}>
+            {action}
+          </Text>
+        </PressableRow>
+      ) : null}
     </View>
   );
 }

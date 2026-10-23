@@ -29,6 +29,8 @@ export type UpcomingMeal = {
   deliveryId: string;
   /** The plan the delivery belongs to, for its menu link (`/pilih-menu/{subscriptionId}`). */
   subscriptionId: string;
+  /** Whether the customer picks this menu (a pick-your-own package); a caterer-chosen one is announced instead. */
+  pickable: boolean;
   meal: "lunch" | "dinner";
   packageName: string;
   catererName: string;
@@ -64,6 +66,7 @@ export function upcomingDays(state: CustomerState, now: Date, days: number, loca
         meal: {
           deliveryId: d.id,
           subscriptionId: d.subscription_id,
+          pickable: d.offer.menuSelectionMode === "customer",
           meal,
           packageName: d.offer.name,
           catererName: d.offer.caterer,

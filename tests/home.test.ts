@@ -181,6 +181,16 @@ describe("upcomingDays", () => {
     expect(first.meals[0].subscriptionId).toBe("s9");
   });
 
+  it("a meal is pickable only when the customer chooses the menu", () => {
+    const own = offer({ menuSelectionMode: "customer" });
+    const [first] = upcomingDays(state([delivery(day(1), [lunch()], {}, own)]), NOW, 3, "id");
+    expect(first.meals[0].pickable).toBe(true);
+    const [second] = upcomingDays(state([delivery(day(1), [lunch()], {}, offer({ menuSelectionMode: "caterer" }))]), NOW, 3, "id");
+    expect(second.meals[0].pickable).toBe(false);
+    const [third] = upcomingDays(state([delivery(day(1), [lunch()])]), NOW, 3, "id");
+    expect(third.meals[0].pickable).toBe(false);
+  });
+
   it("a menu not yet set shows no dish and the package photo", () => {
     const pending = offer({ menus: [menu("lunch", { selectionStatus: "pending", image: "https://img/template.jpg" })] });
     const [first] = upcomingDays(state([delivery(day(1), [lunch()], {}, pending)]), NOW, 3, "id");

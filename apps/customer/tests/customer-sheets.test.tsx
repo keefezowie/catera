@@ -683,6 +683,26 @@ describe("outcomes", () => {
     app.unmount();
   });
 
+  it("a changed sub-rating survives closing and reopening the review", async () => {
+    answer("ulasan:s-1", stateWith([], { subscriptions: [subscription()] }));
+    const first = await mount("/");
+    await go(() => router.push("/ulasan/s-1"));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "4 bintang" })));
+    fireEvent.changeText(screen.getByLabelText("Cerita singkat (opsional)"), "Datang agak telat");
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Pengantaran 3 bintang" })));
+    first.unmount();
+    const again = await mount("/");
+    await go(() => router.push("/ulasan/s-1"));
+    expect(screen.getByLabelText("Cerita singkat (opsional)").props.value).toBe("Datang agak telat");
+    expect(screen.getByRole("button", { name: "4 bintang" }).props.accessibilityState.selected).toBe(true);
+    expect(screen.getByRole("button", { name: "Pengantaran 3 bintang" }).props.accessibilityState.selected).toBe(true);
+    expect(screen.getByRole("button", { name: "Pengantaran 4 bintang" }).props.accessibilityState.selected).toBe(false);
+    expect(screen.getByRole("button", { name: "Rasa 4 bintang" }).props.accessibilityState.selected).toBe(true);
+    // Nanti saja drops the draft, so no later test starts from it.
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Nanti saja" })));
+    again.unmount();
+  });
+
   it("Kirim sends once while busy", async () => {
     let finish: (v: unknown) => void = () => undefined;
     mockCommand.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)) as never);
