@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Linking, View } from "react-native";
 import { useMobile } from "@catera/mobile-core";
 import { Button, fontFor, StateArt, Text, useColors } from "@catera/mobile-ui";
@@ -31,6 +31,11 @@ export function CheckEmail({
   const { t } = useMobile();
   const c = useColors();
   const timer = useResendTimer(60, true);
+  const { restart } = timer;
+  // The wait starts again only once a resend went through; a failed one leaves Kirim ulang ready.
+  useEffect(() => {
+    if (resent) restart();
+  }, [resent, restart]);
   return (
     <View testID="check-email" style={{ gap: 14 }}>
       <View style={{ gap: 8, paddingTop: 8 }}>
@@ -56,10 +61,7 @@ export function CheckEmail({
           ready={t("Kirim ulang tautan", "Resend link")}
           waiting={(time) => t(`Kirim ulang dalam ${time}`, `Resend in ${time}`)}
           busy={resendBusy}
-          onPress={() => {
-            timer.restart();
-            onResend();
-          }}
+          onPress={onResend}
         />
         <Button variant="text" label={t("Ubah email", "Change email")} style={{ alignSelf: "flex-start" }} onPress={onChangeEmail} />
       </View>

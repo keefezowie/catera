@@ -308,6 +308,29 @@ describe("Masuk, the SMS code", () => {
     await act(async () => settle({ id: "u-c1", role: "customer", name: "Rani" }));
   });
 
+  it("a code pasted whole into empty slots submits once, and the slots hold still while it is checked", async () => {
+    let settle: (v: unknown) => void = () => {};
+    runtime.verifyPhoneOtp = jest.fn(() => new Promise((resolve) => (settle = resolve))) as never;
+    renderWith(<Masuk />);
+    const input = await toCode();
+    expect(input.props.selectTextOnFocus).toBe(false);
+    fireEvent.changeText(input, "123456");
+    await waitFor(() => expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(1));
+    expect(slotText()).toEqual(["1", "2", "3", "4", "5", "6"]);
+    expect(screen.getByLabelText("Kode dari SMS").props.editable).toBe(false);
+    await act(async () => settle({ id: "u-c1", role: "customer", name: "Rani" }));
+    expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the code once for a screen reader: the input carries the label, the visible one is hidden", async () => {
+    renderWith(<Masuk />);
+    await toCode();
+    const visible = screen.getByText("Kode dari SMS", { includeHiddenElements: true });
+    expect(visible.props.importantForAccessibility).toBe("no");
+    expect(visible.props.accessibilityElementsHidden).toBe(true);
+    expect(screen.getByLabelText("Kode dari SMS").props.accessibilityLabel).toBe("Kode dari SMS");
+  });
+
   it("a wrong code shows the error and clears the slots", async () => {
     runtime.verifyPhoneOtp = jest.fn(async () => {
       throw Object.assign(new Error("INVALID_OTP"), { code: "INVALID_OTP" });

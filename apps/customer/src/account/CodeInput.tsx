@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref } from "react";
+import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { Text as RNText, TextInput, useWindowDimensions, View } from "react-native";
 import { Button, fontFor, useColors } from "@catera/mobile-ui";
 
@@ -55,7 +55,14 @@ export function CodeInput({
 
   return (
     <View style={{ gap: 6 }}>
-      <RNText style={{ fontFamily: fontFor("700"), fontSize: 13, color: c.charcoal }}>{label}</RNText>
+      {/* The input below carries the label, so a screen reader hears it once. */}
+      <RNText
+        importantForAccessibility="no"
+        accessibilityElementsHidden
+        style={{ fontFamily: fontFor("700"), fontSize: 13, color: c.charcoal }}
+      >
+        {label}
+      </RNText>
       <View>
         <View
           style={{ flexDirection: "row", gap: GAP }}
@@ -104,7 +111,7 @@ export function CodeInput({
           maxLength={CODE_LENGTH}
           autoFocus
           caretHidden
-          contextMenuHidden={false}
+          selectTextOnFocus={false}
           // Nearly transparent rather than 0, so iOS still offers the code from the SMS above the keyboard.
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.011, color: "transparent" }}
         />
@@ -127,7 +134,8 @@ export function useResendTimer(seconds = 60, running = false) {
     const timer = setInterval(() => setLeft((n) => Math.max(0, n - 1)), 1000);
     return () => clearInterval(timer);
   }, [counting]);
-  return { left, restart: () => setLeft(seconds) };
+  const restart = useCallback(() => setLeft(seconds), [seconds]);
+  return { left, restart };
 }
 
 /** A resend as a text button: muted "Kirim ulang dalam 0:42" while it waits, then `ready` in the action colour. */

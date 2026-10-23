@@ -136,6 +136,7 @@ export function Masuk() {
               value={code}
               onChangeText={setCode}
               onFilled={(entered) => void verify(entered)}
+              editable={!busy}
               invalid={!!error && !code}
             />
           ) : null}

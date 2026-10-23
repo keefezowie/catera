@@ -227,6 +227,21 @@ describe("Cek emailmu", () => {
     open.mockRestore();
   });
 
+  it("a resend that fails keeps the resend ready and says why", async () => {
+    jest.useFakeTimers();
+    try {
+      await toRecoverSent();
+      act(() => jest.advanceTimersByTime(60_000));
+      supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ error: { code: "unexpected_failure", status: 500 } } as never);
+      fireEvent.press(screen.getByRole("button", { name: "Kirim ulang tautan" }));
+      expect(await screen.findByTestId("identity-error")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Kirim ulang tautan" })).not.toBeDisabled();
+      expect(screen.queryByText("Terkirim lagi. Cek emailmu.")).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("resends after the 60 second countdown, and Ubah email goes back to the form", async () => {
     jest.useFakeTimers();
     try {
