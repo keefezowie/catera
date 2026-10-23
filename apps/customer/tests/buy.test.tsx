@@ -472,7 +472,7 @@ describe("Beli / Perpanjang", () => {
   it("transfer bank starts the virtual account instead", async () => {
     const runtime = server();
     wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Ganti cara bayar" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Ganti ke Transfer bank BRI (VA)" }));
     await bayarReady();
     fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
@@ -693,7 +693,8 @@ describe("Beli / Perpanjang", () => {
     expect(screen.getByText("Biaya layanan")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     fireEvent.press(await screen.findByRole("radio", { name: /Rumah/ }));
-    expect(await screen.findByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toBeTruthy();
+    // The line under the choices, and the same words as the footer's reason.
+    expect(await screen.findAllByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toHaveLength(2);
     expect(screen.queryByText("Biaya layanan")).toBeNull();
     expect(screen.queryByText(totalOf({ startDate: "2026-10-08" }))).toBeNull();
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
@@ -1604,7 +1605,8 @@ describe("Beli layout (customer layout spec 3.7)", () => {
   it("an address outside the caterer's area is a blocked line under the choices", async () => {
     mockWindow = PHONE;
     wrapV2(server({ addresses: [rumah] }), <BuyScreen packageId="p-rumahan" />);
-    expect(await screen.findByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toBeTruthy();
+    // The line under the choices, and the same words as the footer's reason.
+    expect(await screen.findAllByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toHaveLength(2);
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
     expect(screen.queryByRole("header", { name: "Rincian" })).toBeNull();
   });
@@ -1676,10 +1678,31 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("row");
   });
 
-  it("the footer keeps its row at 411dp and font scale 1.3, where the amount and Bayar still fit", async () => {
+  it("the footer stacks at 411dp and font scale 1.3, now that Bayar names the amount", async () => {
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
     wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
+    expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
+  });
+
+  it("a seven-digit total stacks the footer at 360dp and font scale 1.0, so the amount never breaks after Rp", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1 };
+    wrapV2(server(), <BuyScreen packageId="p-rumahan" initial={{ portions: "4" }} />);
+    const total = totalOf({ portions: 4 });
+    expect(total.replace(/[^0-9]/g, "")).toHaveLength(7);
+    await screen.findByRole("button", { name: `Bayar ${total}` });
+    expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
+  });
+
+  it("a seven-digit total stacks the footer at 411dp and font scale 1.3", async () => {
+    mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
+    wrapV2(server(), <BuyScreen packageId="p-rumahan" initial={{ portions: "4" }} />);
+    await screen.findByRole("button", { name: `Bayar ${totalOf({ portions: 4 })}` });
+    expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
+  });
+
+  it("a six-digit total keeps the footer row at 411dp and font scale 1.0", async () => {
+    await open();
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("row");
   });
 
@@ -1823,8 +1846,51 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   it("a disabled pay button says why: no address", async () => {
     wrapV2(server({ addresses: [] }), <BuyScreen packageId="p-rumahan" />);
     await deliveredTo("Belum ada alamat pengantaran.");
-    await waitFor(() => expect(reason().props.children).toBe("Pilih alamat dulu."));
-    expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
+    await waitFor(() => expect(reason().props.children).toBe("Tambahkan alamat dulu."));
+    const pay = screen.getByRole("button", { name: "Bayar" });
+    expect(pay).toBeDisabled();
+    // A screen reader hears the same reason after the label.
+    expect(pay.props.accessibilityHint).toBe("Tambahkan alamat dulu.");
+  });
+
+  it("says nothing about the address while the customer's addresses are still loading", async () => {
+    const runtime = server();
+    (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await screen.findByTestId("buy-summary");
+    await waitFor(() => expect(reason().props.children).toBe("Menghitung total…"));
+    expect(screen.queryByText("Pilih alamat dulu.")).toBeNull();
+    expect(screen.queryByText("Tambahkan alamat dulu.")).toBeNull();
+  });
+
+  it("says nothing about the total while the payment methods are still loading", async () => {
+    const runtime = server();
+    const methods = jest.fn(() => new Promise(() => undefined));
+    (runtime.api.request as jest.Mock).mockImplementation(methods);
+    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await screen.findByRole("button", { name: `Bayar ${totalOf()}` });
+    expect(reason().props.children).toBe("Menghitung total…");
+  });
+
+  it("a renewal context that fails shows its retry and no Menghitung beside it", async () => {
+    const runtime = server();
+    const first = (runtime.api.renewalContext as jest.Mock).getMockImplementation()!;
+    (runtime.api.renewalContext as jest.Mock).mockImplementation(async (id: string, pkg: string | undefined, cycles: number) => {
+      if (cycles === 2) throw new Error("REQUEST_TIMEOUT");
+      return first(id, pkg, cycles);
+    });
+    wrapV2(runtime, <BuyScreen renewFrom="s-1" />);
+    await bayarReady();
+    fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
+    expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    expect(screen.queryByText("Menghitung total…")).toBeNull();
+  });
+
+  it("a blocked choice is also the footer's reason, in case its line has scrolled away", async () => {
+    wrapV2(server({ addresses: [rumah] }), <BuyScreen packageId="p-rumahan" />);
+    const blocked = "Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.";
+    await waitFor(() => expect(reason().props.children).toBe(blocked));
   });
 
   it("a disabled pay button says why: a pending checkout", async () => {
@@ -1853,8 +1919,9 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     expect(within(row).getByText("QRIS")).toBeTruthy();
     expect(within(row).getByText("Ganti")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Pakai transfer bank (VA)" })).toBeNull();
-    fireEvent.press(within(row).getByRole("button", { name: "Ganti cara bayar" }));
+    fireEvent.press(within(row).getByRole("button", { name: "Ganti ke Transfer bank BRI (VA)" }));
     expect(within(screen.getByTestId("buy-pay-method")).getByText("Transfer bank BRI (VA)")).toBeTruthy();
+    expect(within(screen.getByTestId("buy-pay-method")).getByRole("button", { name: "Ganti ke QRIS" })).toBeTruthy();
   });
 
   it("Bayar dengan has no Ganti when only one method is offered", async () => {
@@ -1863,7 +1930,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     expect(within(screen.getByTestId("buy-pay-method")).getByText("QRIS")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Ganti cara bayar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Ganti ke/ })).toBeNull();
   });
 
   it("at 360dp and font scale 1.3 the reason and the method row wrap instead of clipping", async () => {

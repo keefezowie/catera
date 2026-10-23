@@ -100,7 +100,7 @@ export function PayWith({
       ? t("Pindai dari aplikasi bank atau e-wallet apa pun.", "Scan from any bank or e-wallet app.")
       : t("Bayar ke nomor virtual account BRI.", "Pay to a BRI virtual account number.");
   // Beli (deep pages R1): the chosen method is a plain row in a list card with a trailing Ganti, not a bordered box that
-  // reads as an input. With two methods, Ganti switches to the other one.
+  // reads as an input. With two methods, Ganti switches to the other one and names it; a third method needs a choice sheet.
   if (section && availability?.mode === "direct" && chosen)
     return (
       <View testID="buy-pay-with">
@@ -115,7 +115,7 @@ export function PayWith({
               <Button
                 variant="text"
                 label={t("Ganti", "Change")}
-                accessibilityLabel={t("Ganti cara bayar", "Change payment method")}
+                accessibilityLabel={t(`Ganti ke ${name(other)}`, `Change to ${name(other)}`)}
                 onPress={() => onChoose(other)}
               />
             ) : null}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { router } from "expo-router";
 import {
   currency,
@@ -20,15 +20,18 @@ import {
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, FadeSwap, fontFor, FormError, Screen, Stepper, Text, themedStyles, useStackedLayout } from "@catera/mobile-ui";
+import { Button, FadeSwap, fontFor, FormError, Screen, Stepper, Text, themedStyles, useScreenMargin, useStackedLayout } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { BuySummary, FieldGlyph, FieldRow, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
-import { FOOTER_STACK_BELOW, PAY_MIN_WIDTH } from "./metrics";
+import { FOOTER_STACK_BELOW, footerFits, PAY_MIN_WIDTH } from "./metrics";
 import { useQuote, type BuyPayload } from "./useQuote";
 import { useChoice } from "../choice";
 import { GLYPH_INSET, ListCard, SectionHeader } from "../layout";
 import { FLOW_HREF } from "../nav";
 import { BreakdownSkeleton, BuySkeleton } from "../skeletons";
+
+/** `Screen`'s body is at most this wide. */
+const PAGE_MAX_WIDTH = 760;
 
 /** Choices a link may carry (old /checkout links, Paket); anything invalid falls back to defaults. */
 export type BuyInitial = { portions?: string; cycles?: string; startDate?: string; addressId?: string };
@@ -53,7 +56,9 @@ export function BuyScreen({
   const { runtime, actor, ready, t, locale, command } = useMobile();
   const styles = useStyles();
   // The amount and Bayar share a row while they fit; at large text on a narrow phone they stack.
-  const stacked = useStackedLayout(FOOTER_STACK_BELOW);
+  const narrow = useStackedLayout(FOOTER_STACK_BELOW);
+  const { width: windowWidth, fontScale } = useWindowDimensions();
+  const margin = useScreenMargin();
   const renew = !!renewFrom;
   const query = new URLSearchParams({ ...(trial ? { trial: "1" } : {}), ...initial }).toString();
   const here = `${renew ? `/renew/${encodeURIComponent(renewFrom)}` : `/beli/${encodeURIComponent(packageId)}`}${query ? `?${query}` : ""}`;
@@ -253,20 +258,33 @@ export function BuyScreen({
     );
 
   const shown = quote.shown;
-  const waiting = quote.pending || (renew && !context.data);
+  const loadingRead = (r: { data: unknown; error?: unknown }) => !r.data && !r.error;
+  const waiting =
+    quote.pending || loadingRead(customer) || loadingRead(methods) || (renew && loadingRead(context));
   const disabled = !quote.ready || !payable || !!pendingCheckout || (renew && !context.data);
-  // A Bayar that cannot be pressed says why, one line above it, the first reason that holds (deep pages R1).
-  const why = !disabled
-    ? ""
-    : waiting
-      ? t("Menghitung total…", "Working out the total…")
-      : !address
-        ? t("Pilih alamat dulu.", "Choose an address first.")
-        : !startDate
-          ? t("Pilih tanggal mulai dulu.", "Choose a start date first.")
-          : pendingCheckout
-            ? t("Ada pembayaran yang belum selesai.", "A payment is still open.")
-            : quote.error;
+  // A Bayar that cannot be pressed says why, one line above it, the first reason that holds (deep pages R1). A read that
+  // failed already shows its Retry on the page, so the footer then says nothing rather than claim it is still counting.
+  const why =
+    !disabled || loadError
+      ? ""
+      : waiting
+        ? t("Menghitung total…", "Working out the total…")
+        : !address
+          ? addresses.length
+            ? t("Pilih alamat dulu.", "Choose an address first.")
+            : t("Tambahkan alamat dulu.", "Add an address first.")
+          : !startDate
+            ? t("Pilih tanggal mulai dulu.", "Choose a start date first.")
+            : pendingCheckout
+              ? t("Ada pembayaran yang belum selesai.", "A payment is still open.")
+              : quote.error || blocked;
+  const amountText = shown ? currency(shown.total, locale) : quote.pending ? t("Menghitung…", "Working out…") : "-";
+  const payLabel = quote.ready
+    ? t(`Bayar ${currency(quote.ready.total, locale)}`, `Pay ${currency(quote.ready.total, locale)}`)
+    : t("Bayar", "Pay");
+  // The amount and Bayar share a row while both fit whole; otherwise they stack.
+  const stacked =
+    narrow || !footerFits(amountText, payLabel, Math.min(windowWidth, PAGE_MAX_WIDTH) - margin * 2, fontScale);
   const footer = (
     <View style={{ gap: nativeLayout.groupGap }}>
       {error ? <FormError message={error} failureKey={failures} /> : null}
@@ -279,16 +297,13 @@ export function BuyScreen({
         <View style={stacked ? undefined : styles.total}>
           <Text variant="meta">{t("Total", "Total")}</Text>
           <Text variant="section" selectable accessibilityRole="text" style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
-            {shown ? currency(shown.total, locale) : quote.pending ? t("Menghitung…", "Working out…") : "-"}
+            {amountText}
           </Text>
         </View>
         <Button
           variant="primary"
-          label={
-            quote.ready
-              ? t(`Bayar ${currency(quote.ready.total, locale)}`, `Pay ${currency(quote.ready.total, locale)}`)
-              : t("Bayar", "Pay")
-          }
+          label={payLabel}
+          accessibilityHint={why || undefined}
           busy={busy}
           disabled={disabled}
           onPress={() => void submit()}

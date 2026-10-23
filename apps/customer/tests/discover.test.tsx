@@ -1486,6 +1486,18 @@ describe("Paket on the layout scale (v2)", () => {
       expect(within(screen.getByTestId("paket-dishes")).getAllByText("Nasi putih")).toHaveLength(1);
     });
 
+    it("at 360dp the preview runs to the screen edges: margin -16, content padded 16", async () => {
+      mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
+      try {
+        await open(withDishes([dish(1), dish(2)]));
+        const preview = screen.getByTestId("paket-dishes");
+        expect(flat(preview).marginHorizontal).toBe(-16);
+        expect((StyleSheet.flatten(preview.props.contentContainerStyle) ?? {}).paddingHorizontal).toBe(16);
+      } finally {
+        mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+      }
+    });
+
     it("no preview without dishes", async () => {
       await open(withDishes([]));
       expect(screen.getByTestId("paket-isi")).toBeTruthy();
