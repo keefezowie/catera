@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AppState, Image, View } from "react-native";
+import { AppState, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import {
@@ -27,6 +27,7 @@ import {
   useColors,
   useConfirm,
   useToast,
+  Photo,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { failureText } from "../account/failure";
@@ -408,11 +409,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                     </>
                   )}
                   {dish?.image ? (
-                    <Image
-                      source={{ uri: photoUri(dish.image, runtime.apiBase) }}
-                      style={styles.photo}
-                      accessibilityLabel={dish.name}
-                    />
+                    <Photo uri={photoUri(dish.image, runtime.apiBase)} style={styles.photo} accessibilityLabel={dish.name} />
                   ) : null}
                   {dish?.description ? <Text variant="caption">{dish.description}</Text> : null}
                 </View>

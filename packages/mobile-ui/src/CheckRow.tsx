@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Image, View } from "react-native";
+import { View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { nativeMotion } from "@catera/design-tokens";
+import { Photo } from "./PhotoRing";
 import { Text } from "./components";
 import { PressableScale, useReduced } from "./motion";
 import { useColors } from "./theme";
@@ -89,13 +90,7 @@ export function CheckRow({
             <View
               style={{ width: PHOTO, height: PHOTO, borderRadius: 10, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.line }}
             >
-              <Image
-                testID={`${testID}-image`}
-                accessibilityIgnoresInvertColors
-                source={{ uri: image }}
-                resizeMode="cover"
-                style={{ width: PHOTO, height: PHOTO }}
-              />
+              <Photo testID={`${testID}-image`} uri={image} style={{ width: PHOTO, height: PHOTO }} />
             </View>
           ) : (
             <View

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
   dayLabel,
   jakartaDay,
@@ -11,7 +11,7 @@ import {
   type Subscription,
 } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
-import { Button, fontFor, MoodFill, StickyAction, SuccessBeat, Text, themedStyles, useMoodColors } from "@catera/mobile-ui";
+import { Button, fontFor, MoodFill, Photo, StickyAction, SuccessBeat, Text, themedStyles, useMoodColors } from "@catera/mobile-ui";
 import { goToTab, leaveFor } from "../nav";
 import { photoUri } from "../today/Plate";
 
@@ -65,13 +65,7 @@ export function PaidOutcome({ checkoutId, summary, offer }: { checkoutId: string
         {image ? (
           // The photo says nothing the name below does not, so screen readers skip it.
           <View testID="paid-photo" style={styles.photo} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Image
-              testID="paid-photo-image"
-              accessibilityIgnoresInvertColors
-              source={{ uri: photoUri(image, runtime.apiBase) }}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
+            <Photo testID="paid-photo-image" uri={photoUri(image, runtime.apiBase)} style={StyleSheet.absoluteFill} />
           </View>
         ) : null}
         <View style={{ paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8, gap: 2 }}>

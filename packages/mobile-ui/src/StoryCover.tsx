@@ -1,5 +1,6 @@
-import { Image, View } from "react-native";
+import { View } from "react-native";
 import { nativeThemes } from "@catera/design-tokens";
+import { Photo } from "./PhotoRing";
 import { Text } from "./components";
 
 // A cover sits on a photo, so its inks do not follow the theme: the photo is the same in both.
@@ -35,10 +36,9 @@ export function StoryCover({
       {/* A uri of "" (real data for a day without a photo) leaves the failed-photo ground (photoGround, the same
           neutral as a photo that failed elsewhere, never a forest block), which the title still reads on. */}
       {uri ? (
-        <Image
-          accessibilityIgnoresInvertColors
-          source={{ uri }}
-          resizeMode="cover"
+        <Photo
+          ground="photo"
+          uri={uri}
           style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width, height }}
         />
       ) : null}

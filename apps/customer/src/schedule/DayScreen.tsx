@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, type ReactNode, type RefObject } from "react";
-import { AccessibilityInfo, Image, type Text as RNText, View } from "react-native";
+import { AccessibilityInfo, type Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { closeSheetFor, pushSheet } from "../nav";
 import {
@@ -27,6 +27,7 @@ import {
   useColors,
   useSheetTitleFocus,
   useToastAnchor,
+  Photo,
 } from "@catera/mobile-ui";
 import { signInSentence } from "../account/SignInFirst";
 import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
@@ -184,12 +185,7 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
       {(focus) => (
         <>
           {photo ? (
-            <Image
-              testID="day-photo"
-              source={{ uri: photoUri(photo, runtime.apiBase) }}
-              style={styles.photo}
-              accessibilityIgnoresInvertColors
-            />
+            <Photo testID="day-photo" uri={photoUri(photo, runtime.apiBase)} style={styles.photo} />
           ) : null}
           {blocks.map((block, i) => {
             const m = meals.find((x) => x.meal === block.meal);

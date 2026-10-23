@@ -2,6 +2,7 @@ import { withMobile } from "./with-mobile";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { ActivityIndicator, Image, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Image as PhotoImage } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import type { LibraryDish, MealMenu } from "@catera/domain";
 import { contrastRatio, nativeMood, nativeThemes } from "@catera/design-tokens";
@@ -1173,7 +1174,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       mount({ dates: [filled("2026-10-08", [{ ...dishes[1], image: "https://cdn.test/ayam.jpg" }, dishes[0], dishes[2], dishes[3]])] });
       expect(await screen.findByText("Tampilan di aplikasi pelanggan")).toBeTruthy();
       const cover = screen.getByTestId("story-cover");
-      expect(within(cover).UNSAFE_getByType(Image).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
+      expect(within(cover).UNSAFE_getByType(PhotoImage).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
       expect(
         screen.getByText("Foto lauk utama jadi sampul menu besok. Menu tanpa foto memakai foto paket."),
       ).toBeTruthy();
@@ -1183,7 +1184,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       const bare = dishes.map((d) => ({ ...d, image: "" }));
       mount({ dates: [filled("2026-10-08", bare)] });
       await screen.findByText("Tampilan di aplikasi pelanggan");
-      expect(within(screen.getByTestId("story-cover")).UNSAFE_getByType(Image).props.source).toEqual({
+      expect(within(screen.getByTestId("story-cover")).UNSAFE_getByType(PhotoImage).props.source).toEqual({
         uri: "https://cdn.test/paket.jpg",
       });
     });

@@ -23,6 +23,7 @@ export function Photo({
   ground: groundKind = "neutral",
   headers,
   onFail,
+  accessibilityLabel,
 }: {
   uri: string;
   style?: StyleProp<ViewStyle>;
@@ -32,6 +33,8 @@ export function Photo({
   headers?: Record<string, string>;
   /** Called once when the photo fails to load, so a caller can say so in words next to the ground that remains. */
   onFail?: () => void;
+  /** Names the photo for a screen reader (a dish photo that carries its dish name). */
+  accessibilityLabel?: string;
 }) {
   const c = useColors();
   const reduced = useReduced();
@@ -42,6 +45,7 @@ export function Photo({
   return (
     <Image
       testID={testID}
+      accessibilityLabel={accessibilityLabel}
       accessibilityIgnoresInvertColors
       source={headers ? { uri, headers } : { uri }}
       contentFit="cover"

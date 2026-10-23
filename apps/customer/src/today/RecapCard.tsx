@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { router, useIsFocused } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { shortDate, type Subscription } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
-import { Button, fontFor, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, fontFor, Photo, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
 
 /**
@@ -78,13 +78,7 @@ export function RecapCard({
       <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}>
         {image ? (
           <View style={styles.photo} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Image
-              testID="recap-photo"
-              accessibilityIgnoresInvertColors
-              source={{ uri: image }}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
+            <Photo testID="recap-photo" uri={image} style={StyleSheet.absoluteFill} />
           </View>
         ) : null}
         <View style={{ flex: 1, gap: 2 }}>

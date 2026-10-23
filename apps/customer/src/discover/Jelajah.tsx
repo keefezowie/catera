@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ScrollView, TextInput, View } from "react-native";
+import { FlatList, ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { menuSummary, perMealPrice, type Offer } from "@catera/domain";
@@ -26,7 +26,12 @@ import { BODY_GAP, ChipRowFrame } from "./ChipRow";
 import { FilterChip } from "./FilterChip";
 import { MealSegment } from "./MealSegment";
 import { PackageCard } from "./PackageCard";
-import { PackageGrid, useGridCell } from "./PackageGrid";
+import {
+  GRID_COLUMN_GAP,
+  GRID_ROW_GAP,
+  useGridCell,
+  useGridColumns,
+} from "./PackageGrid";
 import { type CatalogOffer } from "./format";
 import { chooseArea, useStoredArea } from "./area";
 import { useSaved } from "./saved";
@@ -40,12 +45,19 @@ const centred = { textAlign: "center" } as const;
 const CATEGORIES = 6;
 /** The search pill sits 16 under the headline (the header's 8 plus its own 8). */
 const SEARCH_TOP = 8;
+/** The page body is capped like the Screen body, so a tablet or foldable keeps the same measure. */
+const BODY_MAX = 760;
+/** The odd last tile of a two column grid gets this empty cell beside it, so it keeps one column's width. */
+const SPACER = { id: "__spacer" } as const;
+const isSpacer = (item: CatalogOffer | typeof SPACER): item is typeof SPACER =>
+  item === SPACER;
 
 /** The headline names the meal the mood is on, as one question on one line (it wraps only when the text is large). */
 function JelajahTitle() {
   const { t } = useMobile();
   const { mood } = useMood();
-  const meal = mood === "siang" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
+  const meal =
+    mood === "siang" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
   return (
     <Text testID="jelajah-title" variant="heroTitle" accessibilityRole="header">
       {`${meal} ${t("minggu depan?", "next week?")}`}
@@ -61,13 +73,20 @@ export function Jelajah() {
   return <Browse area={area} onArea={chooseArea} />;
 }
 
-function Browse({ area, onArea }: { area: string | null; onArea: (value: string) => void }) {
+function Browse({
+  area,
+  onArea,
+}: {
+  area: string | null;
+  onArea: (value: string) => void;
+}) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
   const { mood, setMood } = useMood();
   // The meal segment is the mood toggle, so the list always follows the mood, wherever it was changed.
   const meal = mood === "siang" ? "lunch" : "dinner";
   const cell = useGridCell();
+  const columns = useGridColumns();
   const margin = useScreenMargin();
   const saved = useSaved("/jelajah");
   const [search, setSearch] = useState("");
@@ -77,10 +96,15 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
 
   // The area goes to the server too, but the list is narrowed here by each package's own areas.
   // Chips and search filter what it returned, so toggling one never refetches or blanks the list.
-  const query = new URLSearchParams({ limit: "100", ...(area ? { area } : {}) }).toString();
+  const query = new URLSearchParams({
+    limit: "100",
+    ...(area ? { area } : {}),
+  }).toString();
   // The catalog is read once the area is known, so the first read is already for it.
-  const catalog = useData<{ items: Offer[] } | null>(area === null ? "jelajah:area" : `jelajah:${query}`, () =>
-    area === null ? Promise.resolve(null) : runtime.api.catalog("?" + query),
+  const catalog = useData<{ items: Offer[] } | null>(
+    area === null ? "jelajah:area" : `jelajah:${query}`,
+    () =>
+      area === null ? Promise.resolve(null) : runtime.api.catalog("?" + query),
   );
   // One wait from the first frame to the first list: the area read, then the catalog read, under one skeleton.
   const waiting = area === null || (catalog.loading && !catalog.data);
@@ -89,10 +113,16 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
   const all = catalog.data?.items;
   // Only packages that deliver to the chosen area; "Semua area" (no area) shows everything.
   const inArea = useMemo(
-    () => ((all ?? []) as CatalogOffer[]).filter((o) => !area || (o.areas ?? []).includes(area)),
+    () =>
+      ((all ?? []) as CatalogOffer[]).filter(
+        (o) => !area || (o.areas ?? []).includes(area),
+      ),
     [all, area],
   );
-  const inMeal = useMemo(() => inArea.filter((o) => o.meal === meal || o.meal === "both"), [inArea, meal]);
+  const inMeal = useMemo(
+    () => inArea.filter((o) => o.meal === meal || o.meal === "both"),
+    [inArea, meal],
+  );
   // The category chips are what caterers tagged in the packages of this area and meal, so none leads to an empty list.
   // A tag that left with an area or meal change no longer filters, so a list never hides behind a chip that is not on
   // screen.
@@ -108,7 +138,12 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
           (!budget || perMealPrice(o) <= BUDGET) &&
           (!trial || !!o.trialPrice) &&
           (!needle ||
-            [o.name, o.caterer, ...o.tags, ...o.menus.map((m) => menuSummary(m, locale))]
+            [
+              o.name,
+              o.caterer,
+              ...o.tags,
+              ...o.menus.map((m) => menuSummary(m, locale)),
+            ]
               .join(" ")
               .toLowerCase()
               .includes(needle)),
@@ -124,9 +159,223 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
     setTrial(false);
   };
 
+  // The grid's rows: the filtered packages, plus one empty cell when an odd last tile would stretch across a two column row.
+  const rows: (CatalogOffer | typeof SPACER)[] =
+    columns === 2 && items.length % 2 === 1
+      ? [...(items as CatalogOffer[]), SPACER]
+      : (items as CatalogOffer[]);
+  // The body of the page sits at the screen margin, capped like a Screen body; the header above it is full bleed.
+  const frame = {
+    paddingHorizontal: margin,
+    maxWidth: BODY_MAX,
+    width: "100%",
+    alignSelf: "center",
+  } as const;
+
   return (
     <Screen
       plainHeader
+      list={({ scrollProps, header }) => (
+        <FlatList
+          {...scrollProps}
+          // The column count can change with the text size, and a list cannot change it in place.
+          key={columns}
+          numColumns={columns}
+          data={waiting ? [] : rows}
+          keyExtractor={(o) => o.id}
+          renderItem={({ item }) => {
+            const tile = isSpacer(item) ? (
+              <View testID="package-cell-spacer" style={cell} />
+            ) : (
+              <View testID="package-cell" style={cell}>
+                <PackageCard
+                  layout="tile"
+                  offer={item}
+                  saved={saved.isSaved(item.id)}
+                  onOpen={() =>
+                    router.push(packageHref(item.id, item.name) as never)
+                  }
+                  onToggleSaved={() => void saved.toggle(item.id)}
+                  canSave={saved.signedIn}
+                />
+              </View>
+            );
+            return columns === 1 ? <View style={frame}>{tile}</View> : tile;
+          }}
+          columnWrapperStyle={
+            columns === 2 ? { ...frame, columnGap: GRID_COLUMN_GAP } : undefined
+          }
+          ItemSeparatorComponent={() => (
+            <View style={{ height: GRID_ROW_GAP }} />
+          )}
+          ListHeaderComponent={
+            <>
+              {header}
+              <View testID="jelajah-body" style={[frame, { paddingTop: 16 }]}>
+                {/* The chips and the grid arrive together from one skeleton, as one block. The chips filter what the read
+                    returned, so before it there is nothing for them to narrow. */}
+                <FadeSwap
+                  swapKey={waiting ? "loading" : "ready"}
+                  style={{ gap: BODY_GAP }}
+                >
+                  {waiting ? (
+                    <JelajahSkeleton />
+                  ) : (
+                    <>
+                      {/* One row: the meal, then the two filters, then what caterers tagged. It starts at the margin and runs to the
+                          right edge; its frame is a real 44 tall, so each chip's hit slop sits inside its parent. */}
+                      <ChipRowFrame>
+                        <ScrollView
+                          testID="chip-row"
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          keyboardShouldPersistTaps="handled"
+                          style={{
+                            flexGrow: 0,
+                            flexShrink: 0,
+                            height: nativeLayout.control.icon,
+                          }}
+                          contentContainerStyle={{
+                            gap: nativeLayout.space.sm,
+                            alignItems: "center",
+                            minHeight: nativeLayout.control.icon,
+                            paddingRight: margin,
+                          }}
+                        >
+                          <MealSegment />
+                          <FilterChip
+                            label={t("Di bawah Rp30.000", "Under Rp30,000")}
+                            selected={budget}
+                            onPress={() => setBudget(!budget)}
+                          />
+                          <FilterChip
+                            label={t("Bisa coba 1 hari", "One-day trial")}
+                            selected={trial}
+                            onPress={() => setTrial(!trial)}
+                          />
+                          {tags.map((name) => (
+                            <FilterChip
+                              key={name}
+                              label={name}
+                              accessibilityLabel={t(
+                                `Kategori ${name}`,
+                                `Category ${name}`,
+                              )}
+                              selected={name === activeTag}
+                              onPress={() =>
+                                setTag(name === activeTag ? "" : name)
+                              }
+                            />
+                          ))}
+                        </ScrollView>
+                      </ChipRowFrame>
+
+                      {saved.error ? (
+                        <ReadError
+                          message={saved.error}
+                          onRetry={() => void saved.reload()}
+                        />
+                      ) : null}
+                    </>
+                  )}
+                </FadeSwap>
+              </View>
+            </>
+          }
+          ListEmptyComponent={
+            waiting ? null : (
+              <View
+                testID="jelajah-empty"
+                style={[frame, { paddingTop: BODY_GAP }]}
+              >
+                <FadeSwap swapKey="ready" style={{ gap: BODY_GAP }}>
+                  {catalog.error && !catalog.data ? (
+                    <ReadError
+                      art
+                      message={catalog.error}
+                      onRetry={() => void catalog.reload()}
+                    />
+                  ) : area && inArea.length === 0 ? (
+                    <View style={{ gap: 10 }}>
+                      <StateArt pose="mencari" />
+                      <Text variant="heading" style={centred}>
+                        {t(
+                          `Belum ada katering yang antar ke ${area}.`,
+                          `No caterer delivers to ${area} yet.`,
+                        )}
+                      </Text>
+                      <Button
+                        variant="secondary"
+                        label={t("Lihat semua area", "See all areas")}
+                        onPress={() => onArea("")}
+                      />
+                    </View>
+                  ) : inArea.length === 0 ? (
+                    // Nothing is on offer at all (no area is chosen here), so there is no other meal to send the person to.
+                    <View style={{ gap: 10 }}>
+                      <StateArt pose="mencari" />
+                      <Text variant="heading" style={centred}>
+                        {t("Belum ada paket.", "No packages yet.")}
+                      </Text>
+                    </View>
+                  ) : items.length === 0 && !filtered ? (
+                    // Only the meal is narrowing and the area has packages, so the other meal has some: say which meal is empty
+                    // and offer the other one.
+                    <View style={{ gap: 10 }}>
+                      <StateArt pose="mencari" />
+                      <Text variant="heading" style={centred}>
+                        {area
+                          ? t(
+                              `Belum ada paket makan ${mealWord} di ${area}.`,
+                              `No ${mealWordEn} packages in ${area} yet.`,
+                            )
+                          : t(
+                              `Belum ada paket makan ${mealWord}.`,
+                              `No ${mealWordEn} packages yet.`,
+                            )}
+                      </Text>
+                      <Button
+                        variant="secondary"
+                        label={
+                          mood === "siang"
+                            ? t("Lihat makan malam", "See dinner")
+                            : t("Lihat makan siang", "See lunch")
+                        }
+                        onPress={() =>
+                          setMood(mood === "siang" ? "malam" : "siang")
+                        }
+                      />
+                    </View>
+                  ) : items.length === 0 ? (
+                    <View style={{ gap: 10 }}>
+                      <StateArt pose="mencari" />
+                      <Text variant="heading" style={centred}>
+                        {t(
+                          "Belum ada paket yang cocok.",
+                          "No matching packages yet.",
+                        )}
+                      </Text>
+                      <Text style={[{ color: c.muted }, centred]}>
+                        {t(
+                          "Coba kata kunci atau pilihan lain.",
+                          "Try another keyword or choice.",
+                        )}
+                      </Text>
+                      {filtered ? (
+                        <Button
+                          variant="secondary"
+                          label={t("Hapus pilihan", "Clear choices")}
+                          onPress={clear}
+                        />
+                      ) : null}
+                    </View>
+                  ) : null}
+                </FadeSwap>
+              </View>
+            )
+          }
+        />
+      )}
       header={
         // No mood band: the question, the area, the heart and the search sit on the canvas (spec 3.3). The meal is the
         // segment in the chip row, and the mood still tints Beranda and the tab roots that keep their band.
@@ -136,12 +385,24 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
           meta={
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel={t("Pilih area pengantaran", "Choose delivery area")}
-              accessibilityValue={area === null ? undefined : { text: area || t("Belum dipilih", "Not chosen") }}
+              accessibilityLabel={t(
+                "Pilih area pengantaran",
+                "Choose delivery area",
+              )}
+              accessibilityValue={
+                area === null
+                  ? undefined
+                  : { text: area || t("Belum dipilih", "Not chosen") }
+              }
               haptic="none"
               onPress={() => router.push("/area" as never)}
               // The target is 44 tall and the 34 chip is drawn inside it, so the hit area is the target itself.
-              style={{ alignSelf: "flex-start", maxWidth: "100%", minHeight: nativeLayout.control.icon, justifyContent: "center" }}
+              style={{
+                alignSelf: "flex-start",
+                maxWidth: "100%",
+                minHeight: nativeLayout.control.icon,
+                justifyContent: "center",
+              }}
             >
               <View
                 testID="area-chip"
@@ -162,10 +423,18 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
                   // part of the list's wait, so it breathes with the list's skeleton (mounted in the same commit), and
                   // that group names the wait for screen readers.
                   <SkeletonGroup>
-                    <Skeleton testID="jelajah-area-skeleton" width={96} height={14} />
+                    <Skeleton
+                      testID="jelajah-area-skeleton"
+                      width={96}
+                      height={14}
+                    />
                   </SkeletonGroup>
                 ) : (
-                  <Text variant="label" style={{ flexShrink: 1, fontSize: 13 }} numberOfLines={1}>
+                  <Text
+                    variant="label"
+                    style={{ flexShrink: 1, fontSize: 13 }}
+                    numberOfLines={1}
+                  >
                     {area || t("Pilih area", "Choose area")}
                   </Text>
                 )}
@@ -212,120 +481,25 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               accessibilityLabel={t("Cari paket", "Search packages")}
               value={search}
               onChangeText={setSearch}
-              placeholder={t("Cari menu atau katering…", "Search a dish or caterer…")}
+              placeholder={t(
+                "Cari menu atau katering…",
+                "Search a dish or caterer…",
+              )}
               placeholderTextColor={c.muted}
               returnKeyType="search"
-              style={{ flex: 1, minHeight: nativeLayout.control.search, fontFamily: FONT, fontSize: 15, color: c.charcoal }}
+              style={{
+                flex: 1,
+                minHeight: nativeLayout.control.search,
+                fontFamily: FONT,
+                fontSize: 15,
+                color: c.charcoal,
+              }}
             />
           </View>
         </MoodHeader>
       }
     >
-      {/* The chips and the grid arrive together from one skeleton, as one block. The chips filter what the read
-          returned, so before it there is nothing for them to narrow. */}
-      <FadeSwap swapKey={waiting ? "loading" : "ready"} style={{ gap: BODY_GAP }}>
-        {waiting ? (
-          <JelajahSkeleton />
-        ) : (
-          <>
-            {/* One row: the meal, then the two filters, then what caterers tagged. It starts at the margin and runs to the
-                right edge; its frame is a real 44 tall, so each chip's hit slop sits inside its parent. */}
-            <ChipRowFrame>
-              <ScrollView
-                testID="chip-row"
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ flexGrow: 0, flexShrink: 0, height: nativeLayout.control.icon }}
-                contentContainerStyle={{
-                  gap: nativeLayout.space.sm,
-                  alignItems: "center",
-                  minHeight: nativeLayout.control.icon,
-                  paddingRight: margin,
-                }}
-              >
-                <MealSegment />
-                <FilterChip label={t("Di bawah Rp30.000", "Under Rp30,000")} selected={budget} onPress={() => setBudget(!budget)} />
-                <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
-                {tags.map((name) => (
-                  <FilterChip
-                    key={name}
-                    label={name}
-                    accessibilityLabel={t(`Kategori ${name}`, `Category ${name}`)}
-                    selected={name === activeTag}
-                    onPress={() => setTag(name === activeTag ? "" : name)}
-                  />
-                ))}
-              </ScrollView>
-            </ChipRowFrame>
-
-            {saved.error ? <ReadError message={saved.error} onRetry={() => void saved.reload()} /> : null}
-
-            {/* Each state without packages leads with its mascot, centred above its line: puzzled when the read failed,
-                searching when the area, meal, search or chips found nothing. */}
-            {catalog.error && !catalog.data ? (
-              <ReadError art message={catalog.error} onRetry={() => void catalog.reload()} />
-            ) : area && inArea.length === 0 ? (
-              <View style={{ gap: 10 }}>
-                <StateArt pose="mencari" />
-                <Text variant="heading" style={centred}>
-                  {t(`Belum ada katering yang antar ke ${area}.`, `No caterer delivers to ${area} yet.`)}
-                </Text>
-                <Button variant="secondary" label={t("Lihat semua area", "See all areas")} onPress={() => onArea("")} />
-              </View>
-            ) : inArea.length === 0 ? (
-              // Nothing is on offer at all (no area is chosen here), so there is no other meal to send the person to.
-              <View style={{ gap: 10 }}>
-                <StateArt pose="mencari" />
-                <Text variant="heading" style={centred}>
-                  {t("Belum ada paket.", "No packages yet.")}
-                </Text>
-              </View>
-            ) : items.length === 0 && !filtered ? (
-              // Only the meal is narrowing and the area has packages, so the other meal has some: say which meal is empty
-              // and offer the other one.
-              <View style={{ gap: 10 }}>
-                <StateArt pose="mencari" />
-                <Text variant="heading" style={centred}>
-                  {area
-                    ? t(`Belum ada paket makan ${mealWord} di ${area}.`, `No ${mealWordEn} packages in ${area} yet.`)
-                    : t(`Belum ada paket makan ${mealWord}.`, `No ${mealWordEn} packages yet.`)}
-                </Text>
-                <Button
-                  variant="secondary"
-                  label={mood === "siang" ? t("Lihat makan malam", "See dinner") : t("Lihat makan siang", "See lunch")}
-                  onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
-                />
-              </View>
-            ) : items.length === 0 ? (
-              <View style={{ gap: 10 }}>
-                <StateArt pose="mencari" />
-                <Text variant="heading" style={centred}>
-                  {t("Belum ada paket yang cocok.", "No matching packages yet.")}
-                </Text>
-                <Text style={[{ color: c.muted }, centred]}>
-                  {t("Coba kata kunci atau pilihan lain.", "Try another keyword or choice.")}
-                </Text>
-                {filtered ? <Button variant="secondary" label={t("Hapus pilihan", "Clear choices")} onPress={clear} /> : null}
-              </View>
-            ) : (
-              <PackageGrid>
-                {items.map((o) => (
-                  <View key={o.id} testID="package-cell" style={cell}>
-                    <PackageCard
-                      layout="tile"
-                      offer={o}
-                      saved={saved.isSaved(o.id)}
-                      onOpen={() => router.push(packageHref(o.id, o.name) as never)}
-                      onToggleSaved={() => void saved.toggle(o.id)}
-                      canSave={saved.signedIn}
-                    />
-                  </View>
-                ))}
-              </PackageGrid>
-            )}
-          </>
-        )}
-      </FadeSwap>
+      {null}
     </Screen>
   );
 }

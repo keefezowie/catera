@@ -1,5 +1,6 @@
-import { Image, Text as RNText, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
+import { Text as RNText, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Photo } from "./PhotoRing";
 import { PressableScale } from "./motion";
 import { useMoodColors } from "./mood";
 import { useColors } from "./theme";
@@ -100,13 +101,11 @@ export function CalendarPhotoCell({
     >
       {showPhoto ? (
         <>
-          <Image
+          <Photo
             testID="cell-photo"
-            accessibilityIgnoresInvertColors
-            source={{ uri: photo }}
-            resizeMode="cover"
-            // The line colour shows while the photo loads or if it never does.
-            style={{ ...fill, borderRadius: RADIUS, backgroundColor: c.line, opacity: past ? 0.5 : 1 }}
+            uri={photo}
+            // Photo's neutral ground shows while the photo loads or if it never does.
+            style={{ ...fill, borderRadius: RADIUS, opacity: past ? 0.5 : 1 }}
           />
           <View
             testID="cell-number-pill"

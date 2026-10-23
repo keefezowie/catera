@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -19,6 +19,7 @@ import {
   useTopInsetOwned,
   type MascotPose,
   withAlpha,
+  Photo,
 } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { loadCachedCustomer } from "../today/offline";
@@ -225,7 +226,7 @@ function StoryPage({
   return (
     <View testID="tomorrow-part" style={{ flex: 1, backgroundColor: ink.photoGround, justifyContent: "flex-end" }}>
       {/* A dish without a photo leaves the failed-photo ground (photoGround, never a forest block), which the text still reads on. */}
-      {uri ? <Image accessibilityIgnoresInvertColors source={{ uri }} resizeMode="cover" style={StyleSheet.absoluteFill} /> : null}
+      {uri ? <Photo ground="photo" uri={uri} style={StyleSheet.absoluteFill} /> : null}
       {/* Softens the join between the black header and the photo's top edge. */}
       <View
         pointerEvents="none"

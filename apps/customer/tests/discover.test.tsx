@@ -1,5 +1,5 @@
 import * as ReactNative from "react-native";
-import { ActivityIndicator, ScrollView, StyleSheet } from "react-native";
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet } from "react-native";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -119,6 +119,17 @@ const jelajahWithArea = (
 );
 
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
+
+/** The grid's gaps as the Jelajah list sets them: the columns' gap on a row, the row gap as the separator's height. */
+const gridGaps = () => {
+  const list = screen.UNSAFE_getByType(FlatList);
+  const separator = list.props.ItemSeparatorComponent() as { props: { style: unknown } };
+  return {
+    columnGap: flat({ props: { style: list.props.columnWrapperStyle } }).columnGap,
+    rowGap: flat(separator).height,
+    numColumns: list.props.numColumns,
+  };
+};
 
 const lastCatalogQuery = (runtime: MobileRuntime) =>
   String((runtime.api.catalog as jest.Mock).mock.calls.at(-1)![0]);
@@ -452,6 +463,35 @@ describe("Jelajah", () => {
   });
 });
 
+describe("Jelajah list root", () => {
+  it("the two column grid is the scroll root: one FlatList, no outer ScrollView", async () => {
+    const view = wrap(runtimeWith(), <Jelajah />);
+    await screen.findByText("Menu Sehat Premium");
+    const lists = view.UNSAFE_getAllByType(FlatList);
+    expect(lists).toHaveLength(1);
+    expect(lists[0].props.numColumns).toBe(2);
+    expect(lists[0].props.contentInsetAdjustmentBehavior).toBeDefined();
+    expect(lists[0].props.keyboardShouldPersistTaps).toBe("handled");
+    expect(screen.getAllByTestId("package-cell")).toHaveLength(2);
+  });
+
+  it("keeps the header, the search and the chips above the grid, and the loading skeleton before it", async () => {
+    const runtime = runtimeWith(customer, { catalog: jest.fn(() => new Promise(() => undefined)) });
+    wrap(runtime, <Jelajah />);
+    expect(await screen.findByTestId("jelajah-skeleton")).toBeTruthy();
+    expect(screen.getByTestId("jelajah-title")).toBeTruthy();
+    expect(screen.getByTestId("jelajah-search")).toBeTruthy();
+    expect(screen.queryByTestId("package-cell")).toBeNull();
+  });
+
+  it("the chip row answers the first tap while the search keyboard is up", async () => {
+    const view = wrap(runtimeWith(), <Jelajah />);
+    await screen.findByText("Menu Sehat Premium");
+    const row = view.UNSAFE_getAllByType(ScrollView).find((r) => r.props.horizontal);
+    expect(row!.props.keyboardShouldPersistTaps).toBe("handled");
+  });
+});
+
 describe("topTags", () => {
   const tagged = (id: string, tags: string[]) => offer({ id, tags });
 
@@ -587,9 +627,19 @@ describe("Jelajah mood header", () => {
       .map((b) => b.props.accessibilityLabel ?? within(b).getByText(/./).props.children);
     expect(names).toEqual(["Di bawah Rp30.000", "Bisa coba 1 hari", "Kategori Sehat", "Kategori Rumahan"]);
     // The segment leads the row: it comes before the first filter chip in the tree.
-    const tree = JSON.stringify(screen.toJSON());
-    expect(tree.indexOf('"testID":"meal-segment"')).toBeGreaterThan(tree.indexOf('"testID":"chip-row"'));
-    expect(tree.indexOf('"testID":"meal-segment"')).toBeLessThan(tree.indexOf("Di bawah Rp30.000"));
+    const order: string[] = [];
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== "object") {
+        if (typeof node === "string") order.push(node);
+        return;
+      }
+      const n = node as { props?: { testID?: string }; children?: unknown[] };
+      if (n.props?.testID) order.push(n.props.testID);
+      n.children?.forEach(walk);
+    };
+    walk(screen.toJSON());
+    expect(order.indexOf("meal-segment")).toBeGreaterThan(order.indexOf("chip-row"));
+    expect(order.indexOf("meal-segment")).toBeLessThan(order.indexOf("Di bawah Rp30.000"));
   });
 
   it("opens on Malam with the Malam tab selected and the lunch packages hidden", async () => {
@@ -807,8 +857,7 @@ describe("Jelajah mood header", () => {
     it("lays the packages out as a two column grid with a 12 column gap and a 20 row gap", async () => {
       mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
-      const grid = screen.getByTestId("package-grid");
-      expect(flat(grid)).toMatchObject({ flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 20 });
+      expect(gridGaps()).toEqual({ columnGap: 12, rowGap: 20, numColumns: 2 });
       // The two lunch packages; the dinner one waits behind the Malam tab. Two columns: a 40 percent basis that grows.
       const cells = screen.getAllByTestId("package-cell");
       expect(cells).toHaveLength(2);
@@ -908,8 +957,8 @@ describe("Jelajah mood header", () => {
       expect(headerBottom).toBe(150); // 8 + 44 + 8 + 30 + 8 + 8 + 44
 
       // Body: its own top padding, then the chip frame, then the gap to the grid.
-      const bodyTop = need(byId("screen-body"), "paddingTop");
-      const margin = need(byId("screen-body"), "paddingHorizontal");
+      const bodyTop = need(byId("jelajah-body"), "paddingTop");
+      const margin = need(byId("jelajah-body"), "paddingHorizontal");
       const frame = byId("chip-row-frame");
       const chip = need(byId("meal-track"), "height");
       const frameTop = need(frame, "marginTop");
@@ -923,9 +972,7 @@ describe("Jelajah mood header", () => {
       expect(gridTop - (headerBottom + 12) - chip).toBe(16);
 
       // A tile: the photo from the column width, the body's padding and gap, the two groups.
-      const grid = byId("package-grid");
-      const columnGap = need(grid, "columnGap");
-      const rowGap = need(grid, "rowGap");
+      const { columnGap, rowGap } = gridGaps();
       const column = (DEVICE.width - 2 * margin - columnGap) / 2;
       const tile = within(screen.getAllByTestId("package-tile")[0]);
       const photo = column / need(tile.getByTestId("package-photo"), "aspectRatio");

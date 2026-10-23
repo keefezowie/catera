@@ -1281,7 +1281,9 @@ describe("Hari", () => {
     await showDay(open("d-next", "2026-10-08"));
     expect(DAY_GAP).toBe(16);
     expect(DAY_MEAL_GAP).toBe(4);
-    const body = screen.getByTestId("day-photo").parent!.parent!;
+    // Photo and expo-image add two composite levels between the host view and the block that spaces it.
+    let body = screen.getByTestId("day-photo").parent!;
+    for (let i = 0; i < 6 && flat(body as never).gap !== DAY_GAP; i += 1) body = body.parent!;
     expect(flat(body as never)).toMatchObject({ gap: DAY_GAP });
     // The meal's block is the nearest ancestor of its state line that spaces its lines by 4.
     let meal = screen.getByTestId("day-state-dot-lunch").parent;

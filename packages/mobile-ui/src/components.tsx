@@ -9,6 +9,7 @@ import {
   type NativeSyntheticEvent,
   type RefreshControlProps,
   ScrollView,
+  type ScrollViewProps,
   StyleSheet,
   Text as RNText,
   TextInput,
@@ -417,6 +418,7 @@ export function Screen({
   bleed = false,
   onScroll,
   refreshControl,
+  list,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -445,6 +447,12 @@ export function Screen({
   onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
   /** Pull to refresh on the page's scroll view (a `RefreshControl`); ignored when `scroll` is false. */
   refreshControl?: ReactElement<RefreshControlProps>;
+  /**
+   * A virtualised list is the scroll root (no outer ScrollView). The screen hands over the props it would give its own
+   * ScrollView and its header, already inside the header context, for the list's `ListHeaderComponent`. The list draws
+   * its own body, so `children` is unused.
+   */
+  list?: (root: { scrollProps: ScrollViewProps; header: ReactNode }) => ReactElement;
 }) {
   const styles = useStyles();
   const margin = useScreenMargin();
@@ -550,6 +558,26 @@ export function Screen({
           // The first scroll view in the screen: iOS collapses the large title and minimizes the tab bar from it, and
           // insets it for the status bar and the floating tab bar, under a full-bleed header too (the header then pays
           // no top inset of its own on iOS, through ScreenHeaderContext). A photo header runs under the bar and opts out.
+          list ? (
+            list({
+              scrollProps: {
+                testID: "screen-scroll",
+                contentInsetAdjustmentBehavior: screenInsetBehavior({ header: !!header, bleed }),
+                automaticallyAdjustKeyboardInsets: ios,
+                contentContainerStyle: { paddingBottom: 32 },
+                keyboardShouldPersistTaps: "handled",
+                onScroll: handleScroll,
+                scrollEventThrottle: handleScroll ? 16 : undefined,
+                refreshControl,
+              },
+              header: (
+                <>
+                  {header ? <ScreenHeaderContext.Provider value>{header}</ScreenHeaderContext.Provider> : null}
+                  {lead}
+                </>
+              ),
+            })
+          ) : (
           <ScrollView
             testID="screen-scroll"
             contentInsetAdjustmentBehavior={screenInsetBehavior({ header: !!header, bleed })}
@@ -564,6 +592,7 @@ export function Screen({
             {lead}
             {body}
           </ScrollView>
+          )
         ) : (
           <>
             {header}

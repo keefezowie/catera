@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { Image, StyleSheet } from "react-native";
-// PhotoRing draws with expo-image; the calendar cell and the story cover still use React Native's Image.
+import { StyleSheet } from "react-native";
+// PhotoRing, the calendar cell and the story cover all draw their photos through Photo (expo-image).
 import { Image as PhotoImage } from "expo-image";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
@@ -161,7 +161,7 @@ describe("CalendarPhotoCell", () => {
 
   it("with a photo and a menu it shows the image and the day in a neutral pill, with no dashed border", () => {
     render(<CalendarPhotoCell {...base} />);
-    expect(screen.UNSAFE_getByType(Image).props.source).toEqual({ uri: base.uri });
+    expect(screen.UNSAFE_getByType(PhotoImage).props.source).toEqual({ uri: base.uri });
     expect(gone("cell-dashed")).toBe(true);
     expect(flat("cell-number-pill")).toMatchObject({
       // Direction K (rules 1, 3): a month of day numbers spends no forest; the pill is the page neutral, the number ink.
@@ -184,7 +184,7 @@ describe("CalendarPhotoCell", () => {
 
   it("menu not set draws a dashed 1.5dp markerIdle border and a sun, and no image", () => {
     render(<CalendarPhotoCell {...base} menuSet={false} />);
-    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
     expect(flat("cell-dashed")).toMatchObject({
       borderStyle: "dashed",
       borderWidth: 1.5,
@@ -198,7 +198,7 @@ describe("CalendarPhotoCell", () => {
 
   it("no meal shows the plain number in headerMeta, with no image, border or sun", () => {
     render(<CalendarPhotoCell {...base} uri={null} menuSet={false} />);
-    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
     expect(gone("cell-dashed")).toBe(true);
     expect(gone("cell-sun")).toBe(true);
     expect(gone("cell-number-pill")).toBe(true);
@@ -273,7 +273,7 @@ describe("CalendarPhotoCell", () => {
   it("at font scale 1.3 a photo cell falls back to the number with a 6dp photo dot", () => {
     setFontScale(1.3);
     render(<CalendarPhotoCell {...base} />);
-    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
     expect(flat("cell-photo-dot")).toMatchObject({ width: 6, height: 6, borderRadius: 3 });
     expect(gone("cell-number-pill")).toBe(true);
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
@@ -292,7 +292,7 @@ describe("CalendarPhotoCell", () => {
 
   it("a covered day whose uri is empty falls back to the number with the dot, and renders no Image", () => {
     const view = render(<CalendarPhotoCell {...base} uri="" />);
-    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
     expect(gone("cell-photo")).toBe(true);
     expect(gone("cell-number-pill")).toBe(true);
     expect(gone("cell-dashed")).toBe(true);
@@ -306,7 +306,7 @@ describe("CalendarPhotoCell", () => {
 
   it("an empty uri on a day whose menu is not set is still the dashed cell", () => {
     render(<CalendarPhotoCell {...base} uri="" menuSet={false} />);
-    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
     expect(flat("cell-dashed").borderStyle).toBe("dashed");
     expect(gone("cell-photo-dot")).toBe(true);
   });
@@ -314,7 +314,7 @@ describe("CalendarPhotoCell", () => {
   it("below font scale 1.3 the photo stays, and the empty and unset cells never get the dot", () => {
     setFontScale(1.29);
     const view = render(<CalendarPhotoCell {...base} />);
-    expect(screen.UNSAFE_getByType(Image)).toBeTruthy();
+    expect(screen.UNSAFE_getByType(PhotoImage)).toBeTruthy();
     expect(gone("cell-photo-dot")).toBe(true);
     setFontScale(2);
     view.rerender(<CalendarPhotoCell {...base} uri={null} menuSet={false} />);
@@ -490,14 +490,14 @@ describe("StoryCover", () => {
   it("is the requested size with a cover-fit photo", () => {
     render(<StoryCover {...base} />);
     expect(flat("story-cover")).toMatchObject({ width: 200, height: 320 });
-    const image = screen.UNSAFE_getByType(Image);
+    const image = screen.UNSAFE_getByType(PhotoImage);
     expect(image.props.source).toEqual({ uri: base.uri });
-    expect(image.props.resizeMode).toBe("cover");
+    expect(image.props.contentFit).toBe("cover");
   });
 
   it("an empty uri keeps the dark ground, the bars and the title, with no Image", () => {
     render(<StoryCover {...base} uri="" />);
-    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
     expect(flat("story-cover").backgroundColor).toBe(nativeThemes.light.photoGround);
     expect(screen.getByTestId("story-segment-3", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByText("Menu hari ini")).toBeTruthy();

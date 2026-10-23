@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { Image, StyleSheet } from "react-native";
-// The row's rings draw their photos with expo-image; the story itself still uses React Native's Image.
+import { StyleSheet } from "react-native";
+// The rings and the story draw their photos with expo-image (through Photo).
 import { Image as RingImage } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -211,7 +211,7 @@ describe("Menu besok story", () => {
     expect(screen.getByText("Makan siang · 11.00–13.00")).toBeTruthy();
     expect(screen.getByText("Ayam bakar madu")).toBeTruthy();
     expect(screen.getByText("Dapur Senja · Nasi putih, Sayur asem")).toBeTruthy();
-    expect(screen.UNSAFE_getAllByType(Image).some((i) => i.props.source?.uri === AYAM_PHOTO)).toBe(true);
+    expect(screen.UNSAFE_getAllByType(RingImage).some((i) => i.props.source?.uri === AYAM_PHOTO)).toBe(true);
   });
 
   it("moves to dinner with Lihat menu malam, then ends with Selesai, which closes", async () => {
@@ -243,7 +243,7 @@ describe("Menu besok story", () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ part: "1" });
     await open(unsetDinnerState, BEFORE_CUTOFF);
     expect(screen.getByText("Dapur Senja belum mengisi menunya")).toBeTruthy();
-    expect(screen.UNSAFE_getAllByType(Image).some((i) => i.props.source?.uri === PACKAGE_PHOTO)).toBe(true);
+    expect(screen.UNSAFE_getAllByType(RingImage).some((i) => i.props.source?.uri === PACKAGE_PHOTO)).toBe(true);
   });
 
   it("writes the seen mark of each part as it is shown", async () => {

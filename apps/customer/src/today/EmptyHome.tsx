@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Image, View } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
 import { currency, perMealPrice, priceUnitLabel, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
@@ -14,6 +14,7 @@ import {
   Text,
   themedStyles,
   useColors,
+  Photo,
 } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
 import { packageHref } from "../hrefs";
@@ -141,12 +142,7 @@ function OfferCard({ offer: o }: { offer: Offer }) {
       style={styles.card}
     >
       {o.image ? (
-        <Image
-          accessibilityIgnoresInvertColors
-          source={{ uri: photoUri(o.image, runtime.apiBase) }}
-          style={styles.photo}
-          resizeMode="cover"
-        />
+        <Photo uri={photoUri(o.image, runtime.apiBase)} style={styles.photo} />
       ) : null}
       <View style={{ padding: 14, gap: 2 }}>
         <Text variant="heading">{o.name}</Text>

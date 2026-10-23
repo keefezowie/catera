@@ -1,8 +1,8 @@
-import { Image, View } from "react-native";
+import { View } from "react-native";
 import { currency, perMealPrice } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { fontFor, PressableRow, SaveHeart, Text, themedStyles } from "@catera/mobile-ui";
+import { fontFor, Photo, PressableRow, SaveHeart, Text, themedStyles } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { type CatalogOffer } from "./format";
 import { calorieHint } from "./NutritionCard";
@@ -48,13 +48,7 @@ export function PackageCard({
     <View testID="package-tile">
       <PressableRow accessibilityRole="button" accessibilityLabel={`${offer.name}, ${offer.caterer}`} onPress={onOpen}>
         {offer.image ? (
-          <Image
-            testID="package-photo"
-            accessibilityIgnoresInvertColors
-            source={{ uri: photoUri(offer.image, runtime.apiBase) }}
-            style={styles.photo}
-            resizeMode="cover"
-          />
+          <Photo testID="package-photo" uri={photoUri(offer.image, runtime.apiBase)} style={styles.photo} />
         ) : (
           <View testID="package-photo" style={styles.photo} />
         )}
