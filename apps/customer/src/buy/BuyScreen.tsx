@@ -184,10 +184,13 @@ export function BuyScreen({
       title: t("Alamat pengantaran", "Delivery address"),
       items: addresses.map((a) => ({ id: a.id, label: a.label, detail: a.line })),
       selected: address?.id,
-      // Kelola alamat: the sheet opens Alamat over the purchase in its own place.
-      extra: { key: "kelola", label: t("Kelola alamat", "Manage addresses"), href: FLOW_HREF.alamat },
+      // Tambah alamat and Kelola alamat: the sheet opens the form or Alamat over the purchase in its own place.
+      extras: [
+        { key: "tambah", label: t("Tambah alamat", "Add address"), href: FLOW_HREF.alamatForm },
+        { key: "kelola", label: t("Kelola alamat", "Manage addresses"), href: FLOW_HREF.alamat },
+      ],
     });
-    if (picked && picked !== "kelola") setAddressId(picked);
+    if (picked && picked !== "kelola" && picked !== "tambah") setAddressId(picked);
   }
 
   async function pickStart() {

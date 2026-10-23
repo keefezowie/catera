@@ -632,6 +632,18 @@ describe("Beli / Perpanjang", () => {
     expect(router.push).not.toHaveBeenCalledWith("/pembelian/alamat");
   });
 
+  it("the pick sheet offers Tambah alamat and Kelola alamat", async () => {
+    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await bayarReady();
+    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    const sheet = within(await screen.findByTestId("choice-sheet"));
+    expect(sheet.getByRole("button", { name: "Kelola alamat" })).toBeTruthy();
+    // Tambah alamat opens the address form over the purchase in the picker's own place.
+    fireEvent.press(sheet.getByRole("button", { name: "Tambah alamat" }));
+    await waitFor(() => expect(router.replace).toHaveBeenLastCalledWith("/pembelian/alamat-form"));
+    expect(router.push).not.toHaveBeenCalledWith("/pembelian/alamat-form");
+  });
+
   it("falls back to a remaining address when the chosen one is removed in Kelola alamat", async () => {
     const rt = server();
     function Remove() {

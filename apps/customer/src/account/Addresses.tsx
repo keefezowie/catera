@@ -1,10 +1,9 @@
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
-import { router } from "expo-router";
 import type { Address } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, ReadError, Screen, Text, useBusy, useColors, useListMotion } from "@catera/mobile-ui";
-import { useAddressRemoval } from "./addressRemoval";
+import { Button, Card, FadeSwap, PressableRow, ReadError, Screen, Text, useColors, useListMotion } from "@catera/mobile-ui";
+import { DecorativeIcon } from "../layout";
 import { FLOW_HREF, pushSheet } from "../nav";
 import { ListSkeleton } from "../skeletons";
 import { SignInFirst } from "./SignInFirst";
@@ -22,7 +21,7 @@ function AddressesLoading() {
 /**
  * Alamat: the delivery addresses. Adding and editing one is a native form sheet over this list (`/alamat-form`); from
  * Beli or Bayar (`flow`) the list and its form open over the purchase instead (`/pembelian/alamat-form`), so the
- * purchase stays underneath.
+ * purchase stays underneath. Deleting an address is at the bottom of its edit form.
  */
 export function Addresses({ flow = false }: { flow?: boolean }) {
   const { actor, ready, t } = useMobile();
@@ -32,7 +31,7 @@ export function Addresses({ flow = false }: { flow?: boolean }) {
 }
 
 /** The form route for this list's context: the tab's own sheet, or the copy over the purchase. */
-const formHref = (flow: boolean, id?: string) =>
+export const addressFormHref = (flow: boolean, id?: string) =>
   `${flow ? FLOW_HREF.alamatForm : "/alamat-form"}${id ? `?id=${encodeURIComponent(id)}` : ""}`;
 
 function AddressBook({ flow }: { flow: boolean }) {
@@ -41,7 +40,6 @@ function AddressBook({ flow }: { flow: boolean }) {
   const customer = useData("alamat:customer", () => runtime.api.customer());
   // An address the customer adds enters as a row; the book's first load enters as one block (Decision A).
   const rowMotion = useListMotion(customer.data?.addresses.map((a) => a.id) ?? null);
-  const remove = useAddressRemoval(formHref(flow));
 
   if (!customer.data)
     return customer.error ? (
@@ -58,72 +56,51 @@ function AddressBook({ flow }: { flow: boolean }) {
 
   return (
     <Screen>
-      {/* The book fades in from its skeleton as one block. */}
+      {/* The book fades in from its skeleton as one block. The screen title already asks where meals go. */}
       <FadeSwap swapKey="ready" style={{ gap: 16 }}>
-        <Text variant="title">{t("Makanan diantar ke mana?", "Where should meals go?")}</Text>
         {customer.data.addresses.map((a) => (
           <Animated.View key={a.id} testID="address-row" {...rowMotion(a.id)}>
-            <AddressRow
-              address={a}
-              onEdit={() => pushSheet(formHref(flow, a.id) as never)}
-              onRemove={(retry) => remove(a, customer.data?.addresses ?? [], retry)}
-            />
+            <AddressRow address={a} onEdit={() => pushSheet(addressFormHref(flow, a.id) as never)} />
           </Animated.View>
         ))}
         {!customer.data.addresses.length ? (
           <Text style={{ color: c.muted }}>{t("Belum ada alamat.", "No addresses yet.")}</Text>
         ) : null}
-        <Button label={t("Tambah alamat", "Add address")} onPress={() => pushSheet(formHref(flow) as never)} />
+        <Button label={t("Tambah alamat", "Add address")} onPress={() => pushSheet(addressFormHref(flow) as never)} />
       </FadeSwap>
     </Screen>
   );
 }
 
 /**
- * One address with its two actions stacked at the end edge. Hapus stays busy from the press until the whole removal
- * settles (the in-use read, the sheets, then the delete or the move), so a second press sends nothing.
+ * One address as one press target: the whole card opens its edit form, with a pencil at the end edge. The row is
+ * named "Ubah {label}" and the pencil is drawn for the eye only, so a screen reader hears one button per address.
  */
-function AddressRow({
-  address: a,
-  onEdit,
-  onRemove,
-}: {
-  address: Address;
-  onEdit: () => void;
-  onRemove: (retry: () => void) => Promise<void>;
-}) {
+function AddressRow({ address: a, onEdit }: { address: Address; onEdit: () => void }) {
   const { t } = useMobile();
-  const [busy, remove] = useBusy(onRemove);
-  const press = () => void remove(press);
+  const c = useColors();
   return (
-    <Card>
-      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text variant="heading">{a.label}</Text>
-          <Text>{a.line}</Text>
-          <Text variant="caption">
-            {a.area}, {a.city}
-          </Text>
-          {a.instructions ? <Text variant="caption">{a.instructions}</Text> : null}
+    <PressableRow
+      accessibilityRole="button"
+      accessibilityLabel={t(`Ubah ${a.label}`, `Edit ${a.label}`)}
+      onPress={onEdit}
+      style={{ minHeight: 48 }}
+    >
+      <Card testID="address-card">
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="heading">{a.label}</Text>
+            <Text>{a.line}</Text>
+            <Text variant="caption">
+              {a.area}, {a.city}
+            </Text>
+            {a.instructions ? <Text variant="caption">{a.instructions}</Text> : null}
+          </View>
+          <View testID="address-edit-icon">
+            <DecorativeIcon name="pencil-outline" size={20} color={c.muted} />
+          </View>
         </View>
-        <View style={{ alignItems: "flex-end", gap: 4 }}>
-          <Button
-            variant="text"
-            label={t("Ubah", "Edit")}
-            accessibilityLabel={t(`Ubah ${a.label}`, `Edit ${a.label}`)}
-            onPress={onEdit}
-            style={{ minWidth: 48 }}
-          />
-          <Button
-            variant="text"
-            label={t("Hapus", "Delete")}
-            accessibilityLabel={t(`Hapus ${a.label}`, `Delete ${a.label}`)}
-            busy={busy}
-            onPress={press}
-            style={{ minWidth: 48 }}
-          />
-        </View>
-      </View>
-    </Card>
+      </Card>
+    </PressableRow>
   );
 }

@@ -22,21 +22,26 @@ import {
 
 export type ChoiceItem = { id: string; label: string; detail?: string };
 
+/**
+ * A text button under the list ("Tambah alamat", "Kelola alamat"); choosing it answers `key`. With `href`, the sheet
+ * itself opens that screen in its own place (one stack change), so the next screen is never presented while the sheet
+ * is still sliding away; the asker then opens nothing.
+ */
+export type ChoiceExtra = { key: string; label: string; href?: string };
+
 export type ChoiceInput = {
   title: string;
   items: ChoiceItem[];
   selected?: string | null;
-  /**
-   * A text button under the list ("Kelola alamat"); choosing it answers `extra.key`. With `href`, the sheet itself opens
-   * that screen in its own place (one stack change), so the next screen is never presented while the sheet is still
-   * sliding away; the asker then opens nothing.
-   */
-  extra?: { key: string; label: string; href?: string };
+  /** The buttons under the list, side by side and wrapping when they do not fit. */
+  extras?: ChoiceExtra[];
+  /** One button under the list; the same as a one-item `extras`, drawn before them. */
+  extra?: ChoiceExtra;
 };
 
 const waiting: QuestionRegistry<ChoiceInput, string | null> = new Map();
 
-/** Asks a choice sheet at `pathname` and resolves the chosen item's id (or `extra.key`), or null when it closes. */
+/** Asks a choice sheet at `pathname` and resolves the chosen item's id (or an extra's `key`), or null when it closes. */
 export function useChoice(): (pathname: string, input: ChoiceInput) => Promise<string | null> {
   return useCallback((pathname: string, input: ChoiceInput) => parkQuestion(waiting, pathname, input, null), []);
 }
@@ -52,6 +57,7 @@ export function ChoiceRoute({ os }: { os?: string } = {}) {
   const { input, close } = useQuestionRoute(waiting, null, os);
   if (!input) return null;
   const choose = (result: string, href?: string) => close(result, href ? () => router.replace(href as never) : undefined);
+  const extras = [...(input.extra ? [input.extra] : []), ...(input.extras ?? [])];
   return (
     // A long list (a full address book, a larger font) scrolls under the fixed title row.
     <SheetFitBody header={<SheetHeader title={input.title} closeLabel={t("Tutup", "Close")} />}>
@@ -61,9 +67,20 @@ export function ChoiceRoute({ os }: { os?: string } = {}) {
         value={input.selected ?? null}
         onChange={choose}
       />
-      {input.extra ? (
-        <View style={{ paddingHorizontal: process.env.EXPO_OS === "ios" ? 20 : 24, paddingTop: 8 }}>
-          <Button variant="secondary" label={input.extra.label} onPress={() => choose(input.extra!.key, input.extra!.href)} />
+      {extras.length ? (
+        <View
+          style={{
+            paddingHorizontal: process.env.EXPO_OS === "ios" ? 20 : 24,
+            paddingTop: 8,
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          {extras.map((x) => (
+            // Two fit beside each other on a phone; at a larger font each takes the full width.
+            <Button key={x.key} variant="secondary" label={x.label} onPress={() => choose(x.key, x.href)} style={{ flexGrow: 1, flexBasis: 140 }} />
+          ))}
         </View>
       ) : null}
     </SheetFitBody>

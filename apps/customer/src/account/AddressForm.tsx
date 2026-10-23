@@ -15,13 +15,32 @@ import {
   SkeletonGroup,
   Text,
   useColors,
+  useBusy,
   useToast,
   useUnsavedGuard,
 } from "@catera/mobile-ui";
 import { FilterChip } from "../discover/FilterChip";
+import { addressFormHref } from "./Addresses";
+import { useAddressRemoval } from "./addressRemoval";
 import { failureText } from "./failure";
 
-type Draft = { label: string; line: string; area: string; city: string; instructions: string };
+/** `other`: the label is the customer's own words (Lainnya), typed in the label field, not one of the preset chips. */
+type Draft = { label: string; other: boolean; line: string; area: string; city: string; instructions: string };
+
+/** The label chips before Lainnya, as [Indonesian, English]; a label in either language picks its chip. */
+const PRESET_LABELS: [string, string][] = [
+  ["Rumah", "Home"],
+  ["Kantor", "Office"],
+];
+const isPreset = (label: string) => PRESET_LABELS.some((p) => p.includes(label.trim()));
+
+/**
+ * Only typed text asks: a field that differs from what the form opened with. Choosing an area or a label chip alone
+ * does not; the label counts once it is the customer's own words under Lainnya.
+ */
+const typedChange = (d: Draft, start: Draft) =>
+  (["line", "city", "instructions"] as const).some((k) => d[k].trim() !== start[k].trim()) ||
+  (d.other && d.label.trim() !== start.label.trim());
 
 /**
  * Addresses typed and not saved, per person and address ("baru" for a new one), in memory only. Android's bottom sheet
@@ -32,6 +51,7 @@ const drafts = new Map<string, Draft>();
 
 const blank = (t: (id: string, en: string) => string, a?: Address | null): Draft => ({
   label: a?.label ?? t("Rumah", "Home"),
+  other: !!a && !isPreset(a.label),
   line: a?.line ?? "",
   area: a?.area ?? "Jakarta Selatan",
   city: a?.city ?? "Jakarta",
@@ -74,7 +94,7 @@ function FormSkeleton() {
  * (`sheetOptions({ detents: "form" })`); from Beli or Bayar the same form opens as `/pembelian/alamat-form` over the
  * purchase. Saving closes the sheet with the toast "Alamat disimpan". Typed changes ask before the sheet closes.
  */
-export function AddressForm() {
+export function AddressForm({ flow = false }: { flow?: boolean } = {}) {
   const params = useLocalSearchParams<{ id?: string }>();
   const { actor, ready, t } = useMobile();
   const id = typeof params.id === "string" && params.id ? params.id : "";
@@ -92,16 +112,20 @@ export function AddressForm() {
         )}
       </Frame>
     );
-  return <Book key={`${actor.id}:${id}`} actorId={actor.id} id={id} title={title} />;
+  return <Book key={`${actor.id}:${id}`} actorId={actor.id} id={id} title={title} flow={flow} />;
 }
 
-function Book({ actorId, id, title }: { actorId: string; id: string; title: string }) {
+function Book({ actorId, id, title, flow }: { actorId: string; id: string; title: string; flow: boolean }) {
   const { runtime, t } = useMobile();
   const c = useColors();
   // A new address needs nothing read first; an edit reads the book for its version.
   const customer = useData(`alamat-form:${id}`, () => (id ? runtime.api.customer() : Promise.resolve(null)));
-  if (!id) return <Form actorId={actorId} address={null} title={title} />;
-  const address = customer.data?.addresses.find((a) => a.id === id);
+  // Once shown, the form keeps its address: a read after Hapus no longer lists it while the sheet is closing.
+  const shown = useRef<Address | null>(null);
+  const found = customer.data?.addresses.find((a) => a.id === id);
+  if (found) shown.current = found;
+  if (!id) return <Form actorId={actorId} address={null} title={title} flow={flow} />;
+  const address = found ?? shown.current;
   if (!address)
     return (
       <Frame title={title} swapKey={customer.loading ? "loading" : "missing"}>
@@ -116,10 +140,23 @@ function Book({ actorId, id, title }: { actorId: string; id: string; title: stri
         )}
       </Frame>
     );
-  return <Form actorId={actorId} address={address} title={title} />;
+  return <Form actorId={actorId} address={address} title={title} flow={flow} addresses={customer.data?.addresses ?? [address]} />;
 }
 
-function Form({ actorId, address, title }: { actorId: string; address: Address | null; title: string }) {
+function Form({
+  actorId,
+  address,
+  title,
+  flow,
+  addresses = [],
+}: {
+  actorId: string;
+  address: Address | null;
+  title: string;
+  flow: boolean;
+  /** The whole book, for moving this address's deliveries to another one when Hapus finds it in use. */
+  addresses?: Address[];
+}) {
   const { command, t, locale } = useMobile();
   const c = useColors();
   const toast = useToast();
@@ -130,11 +167,20 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
   const [error, setError] = useState("");
   const [failures, setFailures] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [removed, setRemoved] = useState(false);
   const closed = useRef(false);
-  // Only typed text asks: a field that differs from what the form opened with. Choosing an area alone does not.
-  const typed = (["label", "line", "city", "instructions"] as const).some((k) => draft[k].trim() !== start[k].trim());
+  const typed = typedChange(draft, start);
+  const removal = useAddressRemoval(addressFormHref(flow));
+  // Hapus stays busy from the press until the whole removal settles, so a second press sends nothing.
+  const [removing, remove] = useBusy(async (retry: () => void) => {
+    if (!address) return;
+    if (!(await removal(address, addresses, retry))) return;
+    drafts.delete(draftKey);
+    setRemoved(true);
+  });
+  const pressRemove = () => void remove(pressRemove);
 
-  useUnsavedGuard(!saved && typed, t("alamat", "address"), {
+  useUnsavedGuard(!saved && !removed && typed, t("alamat", "address"), {
     t,
     nounEn: "address",
     onDiscard: () => drafts.delete(draftKey),
@@ -148,11 +194,17 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
     toast.show({ message: t("Alamat disimpan", "Address saved"), tone: "success" });
   }, [saved, toast, t]);
 
+  // Deleted: the removal already said so; the form closes once the guard has seen `removed`.
+  useEffect(() => {
+    if (!removed || closed.current) return;
+    closed.current = true;
+    router.back();
+  }, [removed]);
+
   const set = (patch: Partial<Draft>) =>
     setDraft((d) => {
       const next = { ...d, ...patch };
-      const changed = (["label", "line", "city", "instructions"] as const).some((k) => next[k].trim() !== start[k].trim());
-      if (changed) drafts.set(draftKey, next);
+      if (typedChange(next, start)) drafts.set(draftKey, next);
       else drafts.delete(draftKey);
       return next;
     });
@@ -214,7 +266,31 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
         </>
       }
     >
-      <Field label={t("Label alamat", "Address label")} value={draft.label} onChangeText={(label) => set({ label })} maxLength={60} />
+      <Text variant="label">{t("Label", "Label")}</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {PRESET_LABELS.map(([id, en]) => {
+          const label = t(id, en);
+          return (
+            <FilterChip
+              key={id}
+              label={label}
+              selected={!draft.other && (draft.label.trim() === id || draft.label.trim() === en)}
+              onPress={() => set({ label, other: false })}
+            />
+          );
+        })}
+        <FilterChip
+          label={t("Lainnya", "Other")}
+          selected={draft.other}
+          // The customer's own label comes back when it was theirs to start with; a preset gives way to an empty field.
+          onPress={() => {
+            if (!draft.other) set({ other: true, label: start.other ? start.label : "" });
+          }}
+        />
+      </View>
+      {draft.other ? (
+        <Field label={t("Label alamat", "Address label")} value={draft.label} onChangeText={(label) => set({ label })} maxLength={60} />
+      ) : null}
       <Field
         label={t("Jalan, nomor, detail", "Street, number, details")}
         hint={
@@ -236,6 +312,7 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
       <Field label={t("Kota", "City")} value={draft.city} onChangeText={(city) => set({ city })} maxLength={80} />
       <Field
         label={t("Petunjuk pengantaran", "Delivery instructions")}
+        hint={t("Contoh: pagar hitam, titip satpam", "For example: black gate, leave it with security")}
         value={draft.instructions}
         onChangeText={(instructions) => set({ instructions })}
         multiline
@@ -247,6 +324,11 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
           "A delivery already scheduled changes its address only through Change day in Schedule.",
         )}
       </Text>
+      {address ? (
+        <View style={{ alignItems: "flex-start", paddingTop: 8 }}>
+          <Button variant="text" label={t("Hapus alamat", "Delete address")} ink={c.danger} busy={removing} onPress={pressRemove} />
+        </View>
+      ) : null}
     </Frame>
   );
 }

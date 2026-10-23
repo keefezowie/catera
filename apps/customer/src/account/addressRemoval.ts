@@ -15,7 +15,8 @@ const NEW_ADDRESS = "baru";
  *   server archives the old address too; otherwise a sheet says how many stayed, until when and which kitchen;
  * - only a payment still open: an error toast, since nothing can be moved yet.
  * `newAddressHref` is the form sheet for a new address in the list's context. A failed read or command ends in an
- * error toast whose "Coba lagi" runs `retry`.
+ * error toast whose "Coba lagi" runs `retry`. It resolves true when the address left the book, so the form it was
+ * pressed in can close.
  */
 export function useAddressRemoval(newAddressHref: string) {
   const { runtime, command, t, locale } = useMobile();
@@ -24,7 +25,7 @@ export function useAddressRemoval(newAddressHref: string) {
   const toast = useToast();
 
   return useCallback(
-    async (address: Address, addresses: Address[], retry: () => void) => {
+    async (address: Address, addresses: Address[], retry: () => void): Promise<boolean> => {
       const deleted = () => toast.show({ message: t("Alamat dihapus", "Address deleted"), tone: "success" });
       try {
         const use = await runtime.api.addressUse(address.id);
@@ -40,14 +41,14 @@ export function useAddressRemoval(newAddressHref: string) {
             tone: "danger",
             icon: "trash",
           });
-          if (!ok) return;
+          if (!ok) return false;
           await command("address.delete", { addressId: address.id });
           deleted();
-          return;
+          return true;
         }
         if (!use.count) {
           toast.show({ message: addressUseLine(use, locale), tone: "error" });
-          return;
+          return false;
         }
         const move = await confirm({
           title: t("Alamat masih dipakai", "Address still in use"),
@@ -55,7 +56,7 @@ export function useAddressRemoval(newAddressHref: string) {
           confirmLabel: t("Pindahkan ke alamat lain", "Move to another address"),
           cancelLabel: t("Batal", "Cancel"),
         });
-        if (!move) return;
+        if (!move) return false;
         const choice = await ask({
           title: t("Pindahkan ke alamat mana?", "Move to which address?"),
           context: { title: address.label, lines: [address.line] },
@@ -67,15 +68,15 @@ export function useAddressRemoval(newAddressHref: string) {
           ],
           closeLabel: t("Tutup", "Close"),
         });
-        if (!choice) return;
+        if (!choice) return false;
         if (choice === NEW_ADDRESS) {
           pushSheet(newAddressHref);
-          return;
+          return false;
         }
         const result = await command<AddressReplaceResult>("address.replace", { fromAddressId: address.id, toAddressId: choice });
         if (result.deleted) {
           deleted();
-          return;
+          return true;
         }
         // Days that stayed keep the old address in the list; with none, only a payment still open holds it.
         const left = result.stayed
@@ -96,6 +97,7 @@ export function useAddressRemoval(newAddressHref: string) {
           cancelLabel: t("Tutup", "Close"),
         });
         if (schedule) goToTab("jadwal");
+        return false;
       } catch (e) {
         const code = (e as { code?: string }).code || (e as Error).message;
         toast.show({
@@ -103,6 +105,7 @@ export function useAddressRemoval(newAddressHref: string) {
           tone: "error",
           action: { label: t("Coba lagi", "Try again"), onPress: retry },
         });
+        return false;
       }
     },
     [runtime, command, t, locale, confirm, ask, toast, newAddressHref],

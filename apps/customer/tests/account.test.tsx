@@ -3,6 +3,7 @@ import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -666,6 +667,159 @@ describe("Alamat", () => {
     );
   });
 
+  it("the label is Rumah, Kantor or Lainnya; Lainnya shows the text field", async () => {
+    const runtime = runtimeWith({ addresses: [] });
+    renderWith(runtime, withForm);
+    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    const chip = (name: string) => screen.getByRole("button", { name });
+    expect(chip("Rumah").props.accessibilityState).toMatchObject({ selected: true });
+    expect(chip("Kantor").props.accessibilityState).toMatchObject({ selected: false });
+    expect(chip("Lainnya").props.accessibilityState).toMatchObject({ selected: false });
+    // A preset label needs no typing.
+    expect(screen.queryByLabelText("Label alamat")).toBeNull();
+    fireEvent.press(chip("Lainnya"));
+    expect(chip("Lainnya").props.accessibilityState).toMatchObject({ selected: true });
+    fireEvent.changeText(screen.getByLabelText("Label alamat"), "Kos adik");
+    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
+    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith("address.save", expect.objectContaining({ label: "Kos adik" }), expect.any(String)),
+    );
+  });
+
+  it("Kantor saves the label Kantor and hides the text field", async () => {
+    const runtime = runtimeWith({ addresses: [] });
+    renderWith(runtime, withForm);
+    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    fireEvent.press(screen.getByRole("button", { name: "Lainnya" }));
+    fireEvent.press(screen.getByRole("button", { name: "Kantor" }));
+    expect(screen.queryByLabelText("Label alamat")).toBeNull();
+    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
+    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith("address.save", expect.objectContaining({ label: "Kantor" }), expect.any(String)),
+    );
+  });
+
+  it("a custom label opens as Lainnya with its text", async () => {
+    const runtime = runtimeWith({ addresses: [{ ...kantor, id: "a-9", label: "Kos adik" }] });
+    renderWith(runtime, withForm);
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Kos adik" }));
+    expect((await screen.findByRole("button", { name: "Lainnya" })).props.accessibilityState).toMatchObject({ selected: true });
+    expect(screen.getByLabelText("Label alamat").props.value).toBe("Kos adik");
+  });
+
+  it("an existing Kantor opens with Kantor chosen", async () => {
+    const runtime = runtimeWith({ addresses: [kantor] });
+    renderWith(runtime, withForm);
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Kantor" }));
+    await screen.findByLabelText("Petunjuk pengantaran");
+    // The row under the sheet reads "Kantor" too; the chip is the one in the form.
+    const form = within(screen.getByTestId("sheet-host"));
+    expect(form.getByRole("button", { name: "Kantor" }).props.accessibilityState).toMatchObject({ selected: true });
+    expect(screen.queryByLabelText("Label alamat")).toBeNull();
+  });
+
+  it("Petunjuk pengantaran shows an example", async () => {
+    renderWith(runtimeWith({ addresses: [] }), withForm);
+    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    expect(screen.getByText("Contoh: pagar hitam, titip satpam")).toBeTruthy();
+  });
+
+  it("no addresses: the empty line and Tambah alamat, no heading", async () => {
+    renderWith(runtimeWith({ addresses: [] }), withForm);
+    expect(await screen.findByText("Belum ada alamat.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tambah alamat" })).toBeTruthy();
+    expect(screen.queryByText("Makanan diantar ke mana?")).toBeNull();
+  });
+
+  it("three rows at 360dp and font scale 1.3 wrap instead of clipping, each a 48dp target", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    try {
+      const long = { ...kantor, line: "Jl. Kebon Jeruk Raya No. 27, Blok C, lantai 3, sebelah warung" };
+      renderWith(
+        runtimeWith({ addresses: [kantor, { ...long, id: "a-2", label: "Rumah" }, { ...kantor, id: "a-3", label: "Kos adik" }] }),
+        withForm,
+      );
+      await screen.findByRole("button", { name: "Ubah Kos adik" });
+      for (const name of ["Ubah Kantor", "Ubah Rumah", "Ubah Kos adik"]) {
+        const row = screen.getByRole("button", { name });
+        expect(Number(flat(row).minHeight)).toBeGreaterThanOrEqual(48);
+        for (const text of within(row).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
+      }
+    } finally {
+      mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+    }
+  });
+
+  it("takes the dark theme surface for an address row", async () => {
+    const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    try {
+      render(
+        <ThemeProvider storageKey="alamat-dark-test">
+          <MobileProvider runtime={runtimeWith({ addresses: [kantor] })} linkMapper={customerLink}>
+            <Addresses />
+          </MobileProvider>
+        </ThemeProvider>,
+      );
+      await screen.findByRole("button", { name: "Ubah Kantor" });
+      expect(flat(screen.getByTestId("address-card")).backgroundColor).toBe(nativeThemes.dark.surface);
+    } finally {
+      scheme.mockRestore();
+    }
+  });
+
+  describe("the unsaved guard", () => {
+    /** The form on a stand-in stack: the guard's beforeRemove listener, and whether a close was held. */
+    function mountForm(addresses: (typeof kantor)[], params: Record<string, string>) {
+      mockParams = params;
+      let listeners: ((e: { data: { action: { type: string } }; preventDefault: () => void }) => void)[] = [];
+      const nav = {
+        addListener: (event: string, fn: (typeof listeners)[number]) => {
+          if (event === "beforeRemove") listeners.push(fn);
+          return () => void (listeners = listeners.filter((l) => l !== fn));
+        },
+        dispatch: jest.fn(),
+        getState: () => ({ routes: [{ key: "form" }] }),
+        isFocused: () => true,
+        canGoBack: () => true,
+        setOptions: () => undefined,
+      };
+      renderWith(
+        runtimeWith({ addresses }),
+        <ToastProvider>
+          <NavigationContext.Provider value={nav as never}>
+            <NavigationRouteContext.Provider value={{ key: "form", name: "alamat-form" } as never}>
+              <AddressForm />
+            </NavigationRouteContext.Provider>
+          </NavigationContext.Provider>
+        </ToastProvider>,
+      );
+      return () => {
+        let held = false;
+        for (const fn of [...listeners]) fn({ data: { action: { type: "GO_BACK" } }, preventDefault: () => (held = true) });
+        return held;
+      };
+    }
+    afterEach(() => void (mockParams = {}));
+
+    it("is still asked on typed changes; a label chip alone closes at once", async () => {
+      const close = mountForm([kantor], { id: "a-1" });
+      await screen.findByRole("button", { name: "Hapus alamat" });
+      fireEvent.press(screen.getByRole("button", { name: "Rumah" }));
+      expect(close()).toBe(false);
+      fireEvent.press(screen.getByRole("button", { name: "Lainnya" }));
+      fireEvent.changeText(screen.getByLabelText("Label alamat"), "Kos adik");
+      expect(close()).toBe(true);
+    });
+
+    it("asks for typed instructions", async () => {
+      const close = mountForm([kantor], { id: "a-1" });
+      fireEvent.changeText(await screen.findByLabelText("Petunjuk pengantaran"), "Pagar hijau");
+      expect(close()).toBe(true);
+    });
+  });
+
   it("keeps the form and says so when saving fails", async () => {
     const runtime = runtimeWith({ addresses: [kantor] });
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CONFLICT"), { code: "CONFLICT" }));
@@ -1094,7 +1248,8 @@ describe("Simpan alamat says what is missing", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
     expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeDisabled();
     expect(screen.getByText("Isi dulu: jalan.")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Label alamat"), "");
+    // A custom label starts empty: Lainnya shows the label field.
+    fireEvent.press(screen.getByRole("button", { name: "Lainnya" }));
     fireEvent.changeText(screen.getByLabelText("Kota"), "");
     expect(screen.getByText("Isi dulu: label, jalan, kota.")).toBeTruthy();
     fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. A");

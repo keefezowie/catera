@@ -1,14 +1,17 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import type { Address, AddressUse } from "@catera/domain";
 import { Addresses } from "../src/account/Addresses";
+import { AddressForm } from "../src/account/AddressForm";
 import { customerLink } from "../src/links";
+import { SheetHost } from "./sheetHost";
 
+let mockParams: Record<string, string> = {};
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
   Link: () => null,
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockParams,
   useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
 }));
 /**
@@ -77,13 +80,58 @@ beforeEach(() => {
   } as unknown as MobileRuntime["api"];
 });
 
+/** The edit form is a sheet route (`/alamat-form?id=`): the host shows it beside the list, and `router.back` closes it. */
+const SHEETS = { "/alamat-form": AddressForm };
+const toParams = (params: Record<string, string>) => void (mockParams = params);
 const renderBook = () =>
   render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
       <Addresses />
+      <SheetHost routes={SHEETS} onParams={toParams} />
     </MobileProvider>,
   );
-const pressDelete = async (label = "Rumah") => fireEvent.press(await screen.findByRole("button", { name: `Hapus ${label}` }));
+/** Hapus lives in the edit form: open the address's row, then find "Hapus alamat" at the bottom of the form. */
+const openForm = async (label = "Rumah") => {
+  fireEvent.press(await screen.findByRole("button", { name: `Ubah ${label}` }));
+  return screen.findByRole("button", { name: "Hapus alamat" });
+};
+const pressDelete = async (label = "Rumah") => fireEvent.press(await openForm(label));
+
+it("Alamat has no Makanan diantar ke mana? heading", async () => {
+  renderBook();
+  await screen.findByRole("button", { name: "Ubah Rumah" });
+  expect(screen.queryByText("Makanan diantar ke mana?")).toBeNull();
+});
+
+it("a row opens its edit form; the trailing pencil is labelled Ubah {label}", async () => {
+  renderBook();
+  const row = await screen.findByRole("button", { name: "Ubah Kantor" });
+  // One press target per address: the row holds the address and the pencil, and there is no Hapus beside it.
+  expect(within(row).getByText(OFFICE.line)).toBeTruthy();
+  expect(within(row).getByTestId("address-edit-icon")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Hapus Kantor" })).toBeNull();
+  fireEvent.press(row);
+  expect(router.push).toHaveBeenCalledWith("/alamat-form?id=a-office");
+  expect(await screen.findByRole("header", { name: "Ubah alamat" })).toBeTruthy();
+});
+
+it("Hapus alamat lives in the edit form and asks first", async () => {
+  renderBook();
+  await pressDelete();
+  await waitFor(() => expect(command).toHaveBeenCalledWith("address.delete", { addressId: HOME.id }, expect.any(String)));
+  expect(mockConfirm).toHaveBeenCalledTimes(1);
+  expect(mockConfirm.mock.calls[0][0]).toMatchObject({ title: "Hapus alamat ini?", tone: "danger" });
+  // Deleted: the form closes over the list.
+  await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Hapus alamat" })).toBeNull());
+});
+
+it("a new address has no Hapus alamat", async () => {
+  renderBook();
+  fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+  expect(await screen.findByRole("header", { name: "Alamat baru" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Hapus alamat" })).toBeNull();
+});
 
 it("an unused address asks once, deletes and says Alamat dihapus", async () => {
   renderBook();
@@ -109,6 +157,9 @@ it("Batal keeps the address", async () => {
   await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
   expect(command).not.toHaveBeenCalled();
   expect(mockToast).not.toHaveBeenCalled();
+  // The form stays open.
+  expect(router.back).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Hapus alamat" })).toBeTruthy();
 });
 
 it("an address in use says how many deliveries and when, then moves them", async () => {
@@ -178,15 +229,15 @@ it("Hapus is busy until the removal settles and a second press sends nothing", a
   addressUse.mockImplementation(() => new Promise<AddressUse>((resolve) => (answer = resolve)));
   mockConfirm.mockResolvedValue(false);
   renderBook();
-  const button = await screen.findByRole("button", { name: "Hapus Rumah" });
+  const button = await openForm();
   fireEvent.press(button);
   fireEvent.press(button);
   act(() => void jest.advanceTimersByTime(150));
-  expect(screen.getByRole("button", { name: "Hapus Rumah" }).props.accessibilityState).toMatchObject({ busy: true });
+  expect(screen.getByRole("button", { name: "Hapus alamat" }).props.accessibilityState).toMatchObject({ busy: true });
   expect(screen.getByTestId("button-spinner")).toBeTruthy();
   expect(addressUse).toHaveBeenCalledTimes(1);
   await act(async () => answer(unused));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Hapus Rumah" }).props.accessibilityState).toMatchObject({ busy: false }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Hapus alamat" }).props.accessibilityState).toMatchObject({ busy: false }));
   jest.useRealTimers();
 });
 
