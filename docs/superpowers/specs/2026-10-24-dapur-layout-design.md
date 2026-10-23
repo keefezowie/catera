@@ -55,7 +55,7 @@ Move `SectionHeader`, `ListCard` (and its inset constants), `MediaRow`, `GlyphRo
 - `CheckRow` (Daftar masak): 56 tall; leading quantity column 48 wide (`section` 800, tabular, right-aligned, so up to 4 digits fit without moving the name); dish `bodyStrong`, optional 40 r8 photo; the 48 check at the right. Checked rows stay in place.
 - `StopRow`: 64 (`TwoLineRow` geometry): 28 order badge, name `rowTitle`, address `meta` one line, and the two existing trailing 48 buttons (map, "…") as one fixed trailing column at the same pitch on every row. Opening navigation to a stop is the run's most frequent job, so it stays one tap on the row. Pilih mode keeps its check and the selection bar.
 - `RantangTrack size="compact"`: rail 40 (disc 24, ring 32), the visible state-words line hidden (it stays in the accessibility label), stop labels with counts in the existing two-line slots; about 84 tall. The default size is unchanged.
-- Sheet bodies use `useScreenMargin()` for their side padding under v2 (16), and `TimScreen` and `HapusAkun` read `sheetSidePadding` instead of re-deriving it.
+- Sheet bodies keep `sheetSidePadding` (20 iOS / 24 Android) in both apps, so customer sheets do not move; `TimScreen` and `HapusAkun` read it instead of re-deriving it.
 
 ## 3. Screens
 
