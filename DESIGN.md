@@ -1029,6 +1029,163 @@ Outside the 156: the current tracker stop on the meal card is 6.5:1 in light and
 
 After Phase G, Sunrise and Sunrise ink are read only by the tracker's current stop (`stopActive`, `RantangTrack.tsx:432`), `nativeArt` (the success ring, the reading highlight, the sparkles), the confetti file and the launch hand-off sparkles. `tests/native-theme-guard.test.ts:128-141` fails when any other native source reads `sunrise` or `sunriseInk` (allowed: `RantangTrack.tsx`, `Confetti.tsx`, `LaunchCover.tsx`; `nativeArt` lives in the tokens package, outside the scan). No guard restricts who reads `stopActive`; today only `RantangTrack` does. Other guards in the same file: no card is filled in forest (`:145`), the Malam pattern is gone (`:158`), and no loose error text (`:170-234`, see Errors).
 
+## Customer layout scale (October 2026)
+
+Layout only, customer app (`apps/customer`) only: sizing, spacing, density, hierarchy and placement. Palette K (Colour revision (Phase G), above), the artwork, the names, the copy glossary, the motion rules, the server rules and the four tabs are unchanged. Catera Dapur keeps its geometry until its own layout pass. Sources: the [layout spec](docs/superpowers/specs/2026-10-23-customer-layout-design.md), the [plan](docs/superpowers/plans/2026-10-23-customer-layout.md) and the rulings recorded while it was built (listed with their costs in the [layout handoff](docs/superpowers/handoffs/2026-10-23-customer-layout-handoff.md)). Built on `v2` from `fecd0490` to `709e08a8`.
+
+### Owner decisions
+
+- October 22, 2026: re-layout and move content; the tabs and their names stay. The mood header shrinks into a food-led hero, with the mood tint and the day statement kept and the arc replaced by a compact two-stop status line. Balanced density. Design for one plan, sometimes two; several plans get a compact rail; the 8-plan demo customer is the stress case.
+- October 23, 2026: Jelajah is option B, a 2-column grid. The side margin is 16 (the canvas offered 16 or 20; 20 stays a one-constant switch).
+- Skills for this pass: `ui-ux-pro-max` and the app-screen rules of `design-taste-frontend` (one question per screen, the biggest block carries it, capped lists, row geometry).
+
+### What it supersedes (customer screens only)
+
+Dapur keeps every rule below. For customer screens these earlier statements no longer describe the app:
+
+- Typography, the native ramp table: customer screens use the new variants below. The table still describes the existing variants, which keep their values.
+- Layout, "body 20 side padding": the customer margin is 16.
+- Native mood and theme, Shapes, depth and type: the Beranda hero overlap of 58, the hero radius 28 with an inner photo radius 20, buttons 10 and chips at their classic size.
+- Native mood and theme, Two independent axes: `MoodArc` is no longer drawn on any customer screen, and Jelajah's header no longer carries a mood fill.
+- Components and behaviour: the Phase B mood header on Beranda with its headline and the day arc (Day arc switch), the large Siang/Malam meal buttons on Jelajah (Toggles, Jelajah), and the Beranda bullets for the headline, the hero pager's equal heights and 64 inset, the other-meal row, the bordered "Perlu kamu urus" list, the Menu besok row, the Berikutnya rows with 40dp rings and the plans row. The Menu besok story, its seen marks and the recap card are unchanged.
+- The Jadwal bullet (photo cells, the day number in a pill, dashed borders) and Hari as a pushed screen with a title bar and the ⋮ menu.
+- The plan detail hero (the 10 frame, radius 28 and 168 photo), its caterer line above the hero, and the 60dp `PhotoRing` rows with a per-row ⋮.
+- Native navigation and chrome, "On every tab root the top row is 48dp": under the customer scale the MoodHeader top row is 44, Beranda's band row is 36 and Jelajah's header is plain.
+- Akun's gear, its embedded plan list and the "Paket aktif" screen title (now "Paket saya").
+
+### Tokens and the opt-in
+
+`nativeLayout` in `packages/design-tokens/src/index.ts`:
+
+| Key | Value |
+| --- | --- |
+| `space` | 4, 8, 12, 16, 24, 32, 48 |
+| `margin` | 16 (classic screens use 20) |
+| `sectionGap` / `headingGap` / `groupGap` | 32 / 12 / 8 |
+| `cardPadding` | 16 |
+| `radius` | thumb 8, control 12, card 16, sheet 24; buttons are fully round |
+| `control` | button 50, field 50, search 44, chip 34, icon 44 |
+| `row` | single 56, media 72, key-value 40, info 48 |
+| `thumb` | 56 and 64 |
+| `ratio` | hero 4:3, card 16:10, tile 4:3 |
+
+`LayoutScaleProvider`, `useLayoutScale`, `useScreenMargin` and `LayoutScaleName` live in `packages/mobile-ui/src/layoutScale.tsx` and are exported from `@catera/mobile-ui`. The default scale is `classic`. Only `apps/customer/app/_layout.tsx` provides `v2`, between `ThemeProvider` and `MoodProvider`. Dapur provides nothing, and `apps/caterer/tests/layout-classic.test.tsx` pins its Screen, Button, Chip, Segmented, Field, Card and body Text values.
+
+Shared components under `v2`:
+
+- `Screen`: side margin 16 from `useScreenMargin()` (20 classic), also used by the Android native title and by `MoodHeader`'s content padding.
+- `Button`: 50 tall, radius 25 (the `text` variant too).
+- `Chip` and each `Segmented` segment: 34 tall, radius 17, `hitSlop` 5 above and below for a 44 target. The segmented track has radius 21. `FilterChip` renders the shared `Chip`.
+- `Field`: 50.
+- `Card`: radius 16, padding 16, gap 8 (classic 10), no border. The attention tone keeps a 1px `attentionBorder` edge with padding 15, so its content still sits 16 in.
+- `MoodHeader`: the top row is 44 (classic 48). `band` gives Beranda's 36 meta row and a 4 gap; `plain` draws the header on the canvas with no mood fill and no rounded panel; `overlap` is a number.
+- `ScreenFooter`: no top hairline, 16 bottom padding (82 around a 50 button), filled with the canvas tone so a card scrolling under it stops at a tone step. On Android, on screens above the tabs (Buy, Bayar, Paket, Claim, plan detail), it adds the bottom safe-area inset, so the button clears the system navigation bar. Footers inside the tabs add nothing.
+- `Stepper`: 56 row, 44 round buttons on `sage`, charcoal glyphs, optional leading glyph. Classic keeps its 48 buttons and forest glyphs.
+- `HeroPager`: the card is the pager width minus (margin + 12 gap + 32 peek), 60 under `v2` and 64 classic. Each page keeps its own height, top-aligned.
+- Additive props with unchanged defaults: `Skeleton.aspectRatio`, `SaveHeart.compact` (44 target, 32 surface disc) and `SaveHeart.circle` (44 surface circle), `Chip.accessibilityLabel`, `Card.testID`.
+
+### Text variants
+
+New `Text` variants in `packages/mobile-ui/src/components.tsx`. The weight is applied through `fontFamily` (`fontFor`), as for every native weight. `largeTitle`, `heroTitle` and `section` are headers for screen readers. Existing variants keep their values.
+
+| Variant | Size / line | Weight | Tracking | Colour |
+| --- | --- | --- | --- | --- |
+| `largeTitle` | 32 / 40 | 700 | -0.8 | charcoal |
+| `heroTitle` | 24 / 30 | 700 | -0.4 | charcoal |
+| `section` | 20 / 26 | 700 | -0.2 | charcoal |
+| `rowTitle` | 17 / 22 | 600 | none | charcoal |
+| `bodyL` | 15 / 22 | 400 | none | charcoal |
+| `bodyStrong` | 15 / 22 | 600 | none | charcoal |
+| `meta` | 13 / 18 | 400 | none | muted |
+
+Prices and footer amounts use `section` at 800 with tabular figures.
+
+### Customer layout blocks
+
+In `apps/customer/src/layout`, read by every redesigned screen and by its skeleton:
+
+- `SectionHeader`: a `section` title (role header) with an optional trailing link, 12 above the content.
+- `ListCard`: one surface card, no border, separators between rows only (n-1). Separator insets: `MEDIA_INSET` 68 (default), `GLYPH_INSET` 52, `BARE_GLYPH_INSET` 32.
+- `MediaRow`: 72 tall with a 56 thumb, title `rowTitle` and `meta` on one line each, optional chevron or trailing node, a button only with `onPress`. `wrap` is `true` (title and meta grow) or `"title"` (only the title grows).
+- `GlyphRow`: 56, 72 or 48. The 56 and 72 rows draw a 40 circle (`GLYPH_CIRCLE`), whose fill `tone` can set; a 48 info row always draws the bare 20 glyph (`GLYPH_BARE`). Optional `wrap`.
+- `Thumb`: 56 or 64, radius 8. `notSet` is a dashed 1.5 `controlRing` tile with the restaurant-outline glyph.
+- `GlyphCircle`: the 40 circle on its own (Buy's field rows).
+- `HeroPhotoFrame` (`today/HeroPhoto.tsx`): an outer layer holding the 1.5 inset and the 14.5 corners, and an inner layer holding only the aspect ratio, so the photo fills the card's inner width. Putting the margin and the ratio on one node left a 4px gutter on the left and 14 to 17px on the right on Android (gate 2).
+- `DecorativeIcon` and `rowLabel(...parts)`: row glyphs are hidden from screen readers, and a row's label joins its trimmed non-empty parts with ", ", so TalkBack hears no empty part or stray comma. `MediaRow` and `GlyphRow` label themselves this way unless the caller passes a label.
+
+A `Text` or `Pressable` coloured with `c.forest` needs a `// forest: action|selection` marker (`tests/native-theme-guard.test.ts`).
+
+### Beranda
+
+Order: mood band, hero or hero pager, recap card, live slot, "Berikutnya", "Paket kamu". The loading skeleton reads the same constants.
+
+- Mood band: `MoodHeader band`, the status inset plus 12, a 36 row with the sun or moon glyph (18) and the date in `meta` (with the "Memperbarui…" live region), a 4 gap, the day statement in `section` as one string, then 12 and the 40 status row. The band pads 16 plus 104 at the bottom, and the hero rides up into that 104 (`HERO_BAND_OVERLAP` 104; the data area lifts by `HERO_BAND_RISE`, -120). Radius 32 with a hero, 28 without. The old 58 and -74 numbers are gone.
+- The statement names the meal and its state, never the dish: "Makan siang sedang diantar.", "Siang ini, 2 pengantaran.", or "... tidak ada pengantaran." with nothing coming.
+- Status line (`StatusStops`): a tablist of two stops on the band, under the statement, for the single hero, the pager and no hero alike. The spec placed it in the hero body; it moved to the band after gate 2, because under a 2-plate pager it fell behind the tab bar. One row at least 40 tall. Each stop is a dot beside a two-line block (label `bodyStrong` "Siang 11.00–13.00", state line `meta`), with `hitSlop` 2 for a 44 target, and a 2dp `heroEdge` track runs between the stops. Dots: now is filled ink with a 16% ink halo, next an ink ring, none a `controlRing` ring, done filled muted. `stopActive` is not used here; palette K rule 4 keeps it for the tracker's current stop. At most one stop is "now": an earlier failed or unconfirmed meal counts as done once the other meal has started. The shown meal's label is forest at 700 and the other is ink at 600. A press calls `useMood().setMood` exactly as the arc did. The shown meal's state line is a short state label (the count for a pager); the other meal's is its waiting label, else its dish, else the count; a meal with nothing says "Tidak ada". `OtherMealRow` is gone.
+- Hero card (`Plate`): radius 16, 1.5 `heroEdge`, `heroShadow`, no frame padding. The photo is 16:10 (`nativeLayout.ratio.card`) in a `HeroPhotoFrame`, not the spec's 4:3: with the tracker and the actions kept, 4:3 made the hero 77 to 87% of the first viewport. Body padding 16, gap 12: the meal line (`meta`) and the dish (`heroTitle`) 2 apart, a capitalised detail line (`meta`), the tracker, then the existing actions. The hero card holds no status line and no state sentence. Every Plate state is kept.
+- Hero height, accepted: 54 to 76% of the first viewport (761dp on a 412x915 phone), by state. The spec's 40 to 60% holds only in quiet states. The 122dp tracker and the delivery actions are kept because the hero is the screen's question while a meal is under way.
+- Hero pager: kept for several plates of the shown meal, with each page at its own height, top-aligned.
+- Live slot: one 72 row surface card (radius 16, no border) showing the first waiting item in the existing order, with its action. When more wait, "n hal lainnya" is its own 44 link row under it, opening the pushed screen `/perlu-diurus` ("Perlu kamu urus"), which lists every item as a `ListCard` of 72 rows with a 40 `sage` glyph circle. Hidden when nothing waits.
+- Berikutnya: `SectionHeader` with "Lihat jadwal", at most 3 delivery days. When every shown day has one delivery: one card of 72 rows with a 36 date column (weekday over the day number in `section`), a 56 thumb, the dish and "Besok · Siang 11.00–13.00". When a day has 2 or more: a day block (`rowTitle` label, `meta` "n pengantaran"), a 2-column grid (gap 12) of at most 2 tiles (photo 16:10 radius 12, `bodyStrong` dish, `meta` "Siang · caterer"), a canvas-tone tile "Malam tidak ada pengantaran" for an empty meal, and a 36 tall "+n lagi" link row (`hitSlop` to 44). Tomorrow's items open `/tomorrow?part=i`.
+- Paket kamu: 1 or 2 plans are 72 rows. With 3 or more: "n paket aktif" with "Lihat semua", over a rail of cards (photo 16:10 radius 12, gap 8) sorted by soonest `ends_on`, then name. The rail bleeds to the screen edge through a wrapper margin (-16) with 16 content padding. A card is `min(168, (width - margin - 16 - 28) / 2)`: 168 from about 400dp up and 150 at 360dp, so a third card peeks.
+
+### Jadwal and the day sheet
+
+- Month band: the month in `heroTitle` in the header's top row with two 44 chevrons; a `meta` weekday row at least 20; cells 40 tall (`hitSlop` 2) with a 32 circle and the number at 15/500. Selected is a filled `toggleActive` circle with an `onToggleActive` number; today is a 2 `todayRing` ring. A delivery day has a 6 ink dot (`headerText`; `markerIdle` once past) placed at the cell's foot, outside the circle; a day whose menu is not set has a 6 ring (1.5, `markerIdle`). Only the weeks the month needs are drawn (October 2026 has 5). No photo, moon, pill or dashed ring. The grid sits at the header's 16 inset. Legend in `meta` with 6 swatches: "Ada pengantaran" and "Menu belum diisi".
+- Read window: Jadwal reads whole Monday-to-Sunday weeks, from the month's first Monday to its last Sunday (October 2026 reads `2026-09-28` to `2026-11-01`), so the agenda never cuts a week at the month edge.
+- Agenda: `section` "Minggu ini" with the range in `meta` on the heading row; any other week is "Pekan 26 Okt–1 Nov" ("Week of …") with "n pengantaran", because "Minggu <date>" reads as Sunday. One block per delivery day (`bodyStrong` "Kamis 22 Okt · Hari ini"), with a card of 72 rows: thumb 56 from the row's own menu, the lead dish as title (or "Menu belum diisi"), `meta` "Siang 11.00–13.00 · state". States: Terjadwal, Sedang dimasak, Sedang diantar, Sudah sampai, Gagal diantar, and "Belum sampai" for a past day still scheduled and for today's meal past the start of its window (Beranda's due rule). Days with nothing fold into one 56 surface card ("Sabtu dan Minggu tidak ada pengantaran"); the last row is a 56 link "Minggu depan, <range>". Selecting a date selects its week.
+- Day sheet: `hari/[id]` is a form sheet in the root stack (`app/hari/[id].tsx`, `sheetOptions({ detents: "day" })`, detents 0.75 and 1, grabber, header hidden), so it covers the tab bar. The URL and every caller are unchanged; a cold link opens Beranda with the day over it. There is no title row: the first meal's `meta` line "date · meal · caterer" is the screen-reader header and focus target. Order: photo 16:10 radius 16, then per meal the `meta` line, the `heroTitle` dish, `bodyL` sides and a state line with a dot ("Terjadwal 11.00–13.00 · bisa diubah sampai hari ini 17.00", or "· sudah tidak bisa diubah"). The action row sits directly under the first meal's state line, before the 56 canvas-tone address well (radius 12, pin glyph) and before any further meal, so it is in view at the first detent. Body gap 16, a meal's own lines 4 apart.
+- Day actions: 56 circles on `sage` with `meta` labels, in this order when they apply: Ubah hari, Pilih menu (pick-your-own) or Lihat menu, Ada masalah, Chat, Ganti alamat. One row (12 side padding, items 56 to 96 wide), wrapping to two lines below effective width 380 (`width / fontScale`). Ubah hari hides after the cut-off and on a closed day. Lihat menu opens the package page. The menu circles close the sheet and open their page in the tab beneath. The ⋮ menu, the pinned footer and the "Ada masalah" text link are gone from the sheet; `DayMore` remains in the Beranda hero's photo corner.
+
+### Jelajah
+
+- Header: a `plain` MoodHeader on the canvas with no mood band (spec 3.3: no tall mood stack). A 44 row with the 34 area chip inside a 44 target and the bare 44 saved heart, the `heroTitle` question on one line ("Makan siang minggu depan?"), then the 44 search pill 16 under the title. The chips sit 12 under the search and the grid 16 under the chips.
+- Chip row: a 44 tall frame running from the margin to the right screen edge. First the Siang/Malam segment (a 34 surface track centred in the row, 30 pills, 44 tall tabs, sun and moon glyphs, the selected pill with a 1.5 forest ring and a 700 forest label), then the budget and trial chips, then up to six category chips. The 66 photo rings and the 60 tall meal buttons are gone.
+- Grid (`PackageGrid`): 2 columns, column gap 12, row gap 20, one column below effective width 300. Tile (`PackageCard`): photo 4:3 radius 12, heart as a 44 target with a 32 surface disc, name `bodyStrong` up to 2 lines, caterer `meta` one line, price `bodyStrong` 700 with "/ makan", and always one `meta` line: "± 610 kkal · coba 1 hari", calories alone, or "Belum bisa dicoba". The "n kali makan / hari" note left the tile and stays on the package page. Disimpan uses the same grid, and its skeleton is the tile grid.
+- Fold target: 4 full tiles above the tab bar in production (no demo strip) on Pixel 8 geometry (50dp status inset, 104dp tab bar). The grid starts 262dp from the top. By the builder's arithmetic from the rendered styles, two-line names leave about 9dp to spare in production and overrun the bar by about 15dp on the demo build (its 24dp strip); one-line names fit on both. Gate 2 measured all 4 tiles above the tab bar on the demo build, 3.8dp to spare.
+
+### Package detail
+
+- The photo is 4:3 across the full page width, including the status inset, under the transparent bar. The pull to the top is FadeSwap's alone; the photo has no vertical margin (a negative top margin on a stretched `aspectRatio` box made it 1080x852 on the gate).
+- Back and heart sit in the bar as two 44 surface circles (`headerLeft` and `headerRight`). The heart stays in the bar once the photo has scrolled away; back returns to the platform back.
+- Then: name `heroTitle`, caterer `meta`, the stat strip (`StatStrip`, one card of up to three cells: kkal, protein, meals a day; numbers `section` 800, labels `meta`; stacks below effective width 340), carbs and fat as one `meta` line, the caveat line, the description in `bodyL`. "Isi paket": 72 `GlyphRow`s with a 40 circle on the Siang or Malam header tint, the meal in `rowTitle` and the menu source with the dishes in `meta` ("Menu contoh · Ayam bakar madu"). "Pengantaran": 48 info rows with bare 20 glyphs in `bodyL` that wrap. Reviews keep their block. Sections are 32 apart.
+- Sticky footer 82: price `section` 800 with "Per sekali makan" in `meta`, "Coba 1 hari" outlined and "Pilih jadwal" primary, both 50.
+
+### Akun and Paket saya
+
+- Akun: MoodHeader with the 56 initials avatar (hidden from screen readers) and the name in `heroTitle` in the top row, and a `meta` contact line. Then three tiles (min 96, gap 8, radius 16, padding 12; glyph over a `bodyStrong` label over a `meta` count): Paket saya "n aktif", Alamat "n tersimpan", Riwayat "Pembayaran", with "Tidak ada" for zero. The counts come from the existing `akun:customer` read. Below effective width 340 the tiles stack into one column of 72 rows with the glyph beside the words, so 412dp at font scale 1.3 (316) stacks. Then 32, a card of four 56 bare-glyph rows (Data akun, Disimpan, Notifikasi, Bantuan dan laporan), 16, and a separate Pengaturan card row with "Bahasa, tampilan" under its title. No gear and no plan rows.
+- Paket saya (`/paket-saya`, title "Paket saya"): `section` "Aktif" with "n paket", a card of 72 rows (56 photo, "kitchen · n hari lagi") sorted by `ends_on` then name. "Selesai" (completed plans, latest end first) shows only when such plans exist; cancelled plans never show. A failed read shows the puzzled mascot.
+
+### Plan detail
+
+- The hero is Beranda's card: radius 16, 1.5 edge, shadow, a 16:10 photo in `HeroPhotoFrame`, body 16 with gap 12: `meta` "caterer · meal", `heroTitle` "n hari lagi" (`remainingLabel`), `meta` date range, and the renewed tag.
+- "Berikutnya": `SectionHeader` and a card of 72 `MediaRow`s (thumb 56, date `rowTitle` that may wrap, dishes on one truncated `meta` line, chevron). No per-row ⋮; day actions live in the day sheet.
+- The sticky footer action and its conditions are kept, as spec 3.6 says, instead of the canvas's "Perpanjang paket" outline inside the hero.
+
+### Buy
+
+- Order: summary card (64 thumb, name `rowTitle`, caterer and price `meta`, padding 12), 24, then one card of field rows with 40 glyph circles and separators inset 52: Mulai 72 (trailing "Ubah"), Lama paket 56 (or the existing length options), Porsi per hari 56 (44 stepper circles), Diantar ke 72 (trailing "Ganti", or "Tambah alamat"). Then "Rincian" (a card of 40 rows in `bodyL`), "Bayar dengan", and the terms. Sections are 32 apart with 12 under each heading.
+- The terms sentence is one 44 tall link row (`buy-terms`) that opens the terms; the link words keep their underline.
+- Footer: "Total" in `meta` over the amount in `section` 800, and the primary "Bayar" (50, min width 168) at the right. They stack below effective width 300, so 360dp at font scale 1.3 stacks and 412dp at 1.3 keeps the row.
+- Pending payment, quote error and still-running blocks are kept.
+
+### Evidence
+
+- Jest, customer app (`apps/customer/tests`): `ui-foundation`, `layout-blocks`, `status-stops`, `beranda-sections`, `today`, `hero-arrival`, `tomorrow`, `recap`, `skeletons`, `loading`, `empty-states`, `schedule`, `sheets`, `customer-sheets`, `navigation`, `native-header`, `mood`, `discover`, `feedback`, `nutrition`, `package-detail-header`, `account`, `paket-saya`, `plan`, `buy` and `help`. Caterer: `apps/caterer/tests/layout-classic.test.tsx` and `menu.test.tsx` (classic header). Root Vitest: `tests/native-font-weights.test.ts`, `tests/native-theme-guard.test.ts`, `tests/home.test.ts`.
+- Checks at `709e08a8`, as recorded by the final fix wave: customer Jest 1726 of 1727 (the one failure is the baseline `customer-sheets` "moving a day toasts the new date", which derives its dates from the real clock), caterer Jest 618 of 618, root Vitest 1044 of 1044, root typecheck clean.
+- Emulator gates on the Pixel 8 API 36 emulator (1080x2400, 412x915dp), Expo Go, the demo customer with 8 plans, captures with uiautomator XML and contact sheets under `output/native-review/layout-2026-10-23/`: `gate1/` (head `0864b2b0`, 10 failures, all routed to fixes), `gate2/` (head `ba9105d2`, 8 failures, all routed to fixes; touch areas checked by tapping), and `final/` (head `d4dee269`: 16 of the 18 earlier failures fixed and 2 partly; 4 failures, which `709e08a8` fixes and covers in Jest). The emulator re-check of those four (pager page heights, the plans rail peek at 360dp, the Buy footer above the navigation bar, the 44 terms link) is pending; captures go to `recheck/`.
+
+### Not verified
+
+- Anything on iOS (no Mac): the bar's back and heart circles (the iOS bar may wrap a `headerRight` view in its glass button), swipe back with a custom `headerLeft`, the day-parented sheets opened by a link (two root sheets pushed in one tick). The Akun avatar is hidden with Android props only, so VoiceOver may still read the initials (an open minor).
+- The production build without the demo strip. The Jelajah fold and the Beranda hero heights for production are computed from rendered styles, not measured.
+- The four final-gate fixes on the emulator (re-check pending, see Evidence).
+- From the gates: Beranda with one or two plans (Jest only), a status stop in its "now" state, the "Malam tidak ada pengantaran" tile, the screen behind "n hal lainnya" and the "+n lagi" targets on a device, the day sheet's Ubah hari and Pilih menu circles, Jelajah at font scale 1.3 and 360dp after the gate fixes, the area picker, search, filtered-empty and save-error states, the loading grid on a device, the package reviews block and a two-meal package page.
+- Live TalkBack and VoiceOver passes. Label structure is tested in Jest only.
+- Whether the Android footer keeps the navigation inset above the keyboard.
+
+This is not a device or release approval.
+
 ## Native Phase G, October 2026
 
 Owner feedback of October 12, 2026 (FB1 to FB11) and the owner's picks of October 13, built as Phase G ([spec](docs/superpowers/specs/2026-10-13-native-phase-g-design.md), [plan](docs/superpowers/plans/2026-10-13-native-phase-g.md)) from `456d5bd4` to `92ca26b5`, and gated on the Android emulator in Expo Go and a debugOptimized build with the demo backend (gates g7-g1a to g-c-14, captures under `output/native-review/phase-g/gates/`). Decisions, reviews and attempt counts are in the ledger, `.superpowers/sdd/2026-10-12-native-phase-g/progress.md`. This section is the contract for motion, loading, errors, the tracker, the calendar, delivery confirmation, Data akun, addresses, form sheets and copy in both native apps; the colour contract is the section above. Dials are unchanged: customer ENERGY 2 / RHYTHM 2 / MOTION 2, Dapur ENERGY 1 / RHYTHM 1 / MOTION 2.
