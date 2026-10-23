@@ -393,6 +393,25 @@ describe("Pilih menu as photo cards (R4)", () => {
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(1));
   });
 
+  it("Tinjau pilihan is disabled while Hapus pilihan is sending", async () => {
+    (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(
+      withDishes([
+        day({
+          ...saved,
+          details: { ...saved.details, composition: offer.menus[0].composition, items: [{ id: "main:0", name: "Ayam panggang", optionId: "option", optionVersion: 4 }] },
+        }),
+      ]),
+    );
+    (runtime.api.command as jest.Mock).mockImplementation(() => new Promise(() => {}));
+    renderMenu();
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah menu" }));
+    const review = () => within(screen.getByTestId("screen-footer")).getByRole("button", { name: "Tinjau pilihan" });
+    expect(review()).toBeEnabled();
+    fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan, biar katering memilih" }));
+    await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(1));
+    expect(review()).toBeDisabled();
+  });
+
   it("at font scale 1.3 on a 360dp phone the cards keep 2 columns and the name wraps to 2 lines", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());

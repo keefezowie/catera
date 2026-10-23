@@ -45,7 +45,7 @@ type Meal = "lunch" | "dinner";
 type Choice = { slotId: string; optionId: string; optionVersion: number };
 /** Under a day to the cutoff, the deadline line takes the attention ground. */
 const SOON_MS = 24 * 3600_000;
-type Draft ={ days: MenuDay[]; choices: Choice[]; template: MealMenu; dirty: boolean };
+type Draft = { days: MenuDay[]; choices: Choice[]; template: MealMenu; dirty: boolean };
 
 const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
@@ -317,7 +317,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
         <StickyAction
           testID="menu-review"
           label={t("Tinjau pilihan", "Review choice")}
-          disabled={!valid || !writeable}
+          disabled={!valid || !writeable || sending === "reset"}
           onPress={() => setReviewing(true)}
         />
       )
