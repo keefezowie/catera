@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { PressableRow, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useStackedLayout, cardEdge } from "@catera/mobile-ui";
+import { PressableRow, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useStackedLayout, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { DecorativeIcon, rowLabel } from "../layout";
 
 /** A shortcut tile is at least this tall (spec 3.5); its words push it taller rather than being cut. */
@@ -125,7 +125,7 @@ const useStyles = themedStyles((c) => ({
   row: { columnGap: nativeLayout.groupGap, rowGap: nativeLayout.groupGap },
   tile: {
     minHeight: TILE_MIN_HEIGHT,
-    padding: TILE_PADDING,
+    padding: TILE_PADDING - cardEdgeWidth(c),
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     backgroundColor: c.surface,

@@ -1,7 +1,7 @@
 import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
-import { themedStyles, cardEdge } from "@catera/mobile-ui";
+import { themedStyles, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { GLYPH_BARE, GLYPH_CIRCLE } from "./metrics";
 
 /** Where a `MediaRow` text column starts: its 56 thumb and the 12 gap. */
@@ -36,7 +36,7 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
-    paddingHorizontal: nativeLayout.cardPadding,
+    paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
     overflow: "hidden",
     ...cardEdge(c),
   },

@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { nutrientBounds, nutritionMetrics, packageNutrition, type Locale, type Offer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { fonts, Text, themedStyles, useStackedLayout, cardEdge } from "@catera/mobile-ui";
+import { fonts, Text, themedStyles, useStackedLayout, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 
 type Metric = { key: string; label: string; short: string; amount: string; unit: string };
 
@@ -105,7 +105,7 @@ export function StatStrip({ offer }: { offer: Offer }) {
 const useStyles = themedStyles((c) => ({
   group: { gap: nativeLayout.groupGap },
   strip: {
-    padding: nativeLayout.cardPadding,
+    padding: nativeLayout.cardPadding - cardEdgeWidth(c),
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     backgroundColor: c.surface,

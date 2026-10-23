@@ -20,6 +20,7 @@ import {
   useMoodColors,
   useToast,
   withAlpha,
+  cardEdge,
 } from "@catera/mobile-ui";
 import { HeroPhotoFrame } from "./HeroPhoto";
 import { dayHasActions } from "../schedule/dayActions";
@@ -593,6 +594,7 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.surface,
+    ...cardEdge(c),
   },
   // A failed or loading photo shows the neutral ground.
   photo: { backgroundColor: fixedInk.photoGround, justifyContent: "flex-end" },

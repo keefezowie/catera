@@ -184,7 +184,7 @@ export function PackageDetail() {
               headerRight,
               headerTitle: stage === "named" ? name : "",
               // Past the photo the page has scrolled, so Android takes Material's scrolled tone like every pushed screen.
-              headerStyle: { backgroundColor: process.env.EXPO_OS === "ios" ? c.canvas : c.tabBar },
+              headerStyle: { backgroundColor: process.env.EXPO_OS === "ios" ? c.canvas : c.tabBarAndroid },
               headerTintColor: stackHeader.headerTintColor,
             }
           : { ...PHOTO_HEADER, headerLeft, headerRight },
@@ -208,7 +208,7 @@ export function PackageDetail() {
       // Android's content title starts the bar empty and takes it on scroll; iOS reads the route's `title`.
       headerTitle: process.env.EXPO_OS === "ios" ? undefined : "",
     });
-  }, [navigation, photoHeader, pastPhoto, stage, name, c.canvas, c.tabBar, stackHeader, headerLeft, headerRight]);
+  }, [navigation, photoHeader, pastPhoto, stage, name, c.canvas, c.tabBarAndroid, stackHeader, headerLeft, headerRight]);
   // The scrim stays under the bar while the photo scrolls beneath it, so the light back arrow never lands on a bright
   // part of the photo; it stops at the photo's foot.
   const topInset = demo ? 0 : insets.top;

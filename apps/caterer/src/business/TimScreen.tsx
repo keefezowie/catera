@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Share, View } from "react-native";
 import { useMobile } from "@catera/mobile-core";
 import { useFormRun } from "../useFormRun";
-import { Button, FormError, SheetFitBody, SheetHeader, Text, useColors, useToast } from "@catera/mobile-ui";
+import { Button, FormError, SheetFitBody, SheetHeader, Text, useColors, useToast, cardEdge } from "@catera/mobile-ui";
 
 /**
  * Whether the share sheet's answer proves the invite went out. iOS answers `sharedAction` only for a real share and
@@ -56,7 +56,7 @@ export function TimScreen() {
           )}
         </Text>
         {code ? (
-          <View style={{ gap: 4, padding: 16, borderRadius: 14, borderCurve: "continuous", backgroundColor: c.sage }}>
+          <View style={{ gap: 4, padding: 16, borderRadius: 14, borderCurve: "continuous", backgroundColor: c.sage, ...cardEdge(c) }}>
             <Text variant="caption">{t("Kode undangan", "Invite code")}</Text>
             <Text selectable variant="heading" style={{ fontVariant: ["tabular-nums"] }}>
               {code}

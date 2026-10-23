@@ -99,7 +99,7 @@ describe("StatStrip", () => {
     expect(await screen.findByTestId("stat-strip")).toBeTruthy();
     expect(labels()).toEqual(["620 kkal", "32 g protein", "1× makan sehari"]);
     // One card (radius 16, padding 16, three columns), not a grid of tiles.
-    expect(flat(screen.getByTestId("stat-strip"))).toMatchObject({ flexDirection: "row", borderRadius: 16, padding: 16 });
+    expect(flat(screen.getByTestId("stat-strip"))).toMatchObject({ flexDirection: "row", borderRadius: 16, padding: 15, borderWidth: 1 });
     expect(screen.queryByTestId("gizi-row")).toBeNull();
     expect(screen.queryByTestId("gizi-tile")).toBeNull();
     // The number: section (20/26) at 800, tabular. The label: meta (13/18).

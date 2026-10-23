@@ -389,7 +389,7 @@ describe("Perlu kamu urus (the full list)", () => {
     // canvas by tone: no border, no shadow.
     for (const row of rows) expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(72);
     const card = StyleSheet.flatten(within(screen.getByTestId("waiting-list")).getByTestId("list-card").props.style);
-    expect(card).toMatchObject({ borderRadius: 16, backgroundColor: light.surface, paddingHorizontal: 16 });
+    expect(card).toMatchObject({ borderRadius: 16, backgroundColor: light.surface, paddingHorizontal: 15 });
     expect(card).toMatchObject({ borderWidth: 1, borderColor: light.cardBorder, boxShadow: light.cardShadow });
     expect(within(screen.getByTestId("waiting-list")).getAllByTestId("list-card-separator")).toHaveLength(6);
     // Titles wrap at large text: none is held to one line.

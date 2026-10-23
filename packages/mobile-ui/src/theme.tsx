@@ -16,6 +16,11 @@ export function cardEdge(p: NativePalette): { borderWidth?: number; borderColor?
   return p.cardBorder ? { borderWidth: 1, borderColor: p.cardBorder, boxShadow: p.cardShadow } : {};
 }
 
+/** The bar tone: white on iOS (the system draws the hairline), a filled step on Android, which has no divider. */
+export function barTone(palette: NativePalette, os: string | undefined = process.env.EXPO_OS): string {
+  return os === "android" ? palette.tabBarAndroid : palette.tabBar;
+}
+
 export type ThemePreference = "system" | "light" | "dark";
 
 type ThemeValue = {

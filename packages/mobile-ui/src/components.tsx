@@ -26,7 +26,7 @@ import { nativeLayout } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
 import { useLayoutScale, useScreenMargin } from "./layoutScale";
 import { StatusBand } from "./StatusBand";
-import { cardEdge, cardEdgeWidth, themedStyles, useColors } from "./theme";
+import { barTone, cardEdge, cardEdgeWidth, themedStyles, useColors } from "./theme";
 import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
 import { ScreenHeaderContext, screenInsetBehavior } from "./screenInsets";
 import { insideTabs, useScreenBottomEdge, useToastAnchor } from "./toastAnchor";
@@ -516,8 +516,8 @@ export function Screen({
   useLayoutEffect(() => {
     if (!tonal || !navigation || (!scrolled && !toned.current)) return;
     toned.current = true;
-    navigation.setOptions({ headerStyle: { backgroundColor: scrolled ? palette.tabBar : palette.canvas } });
-  }, [tonal, navigation, scrolled, palette.tabBar, palette.canvas]);
+    navigation.setOptions({ headerStyle: { backgroundColor: scrolled ? barTone(palette) : palette.canvas } });
+  }, [tonal, navigation, scrolled, palette.tabBar, palette.tabBarAndroid, palette.canvas]);
   const handleScroll =
     contentTitle || tonal || onScroll
       ? (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -695,7 +695,8 @@ const useCardTones = themedStyles((c) => ({
   // Light: a white card on a white page, so a 1px hairline and a faint boxShadow carry it. Dark stands off by tone (1.33:1).
   surface: { backgroundColor: c.surface, borderColor: c.surface, ...cardEdge(c) },
   attention: { backgroundColor: c.cream, borderColor: c.attentionBorder },
-  sage: { backgroundColor: c.sage, borderColor: c.sage },
+  // The sage fill is 1.10:1 on a white page, below the 1.2 surface rule, so it carries the same hairline and shadow.
+  sage: { backgroundColor: c.sage, borderColor: c.sage, ...cardEdge(c) },
 }));
 
 /** The v2 overrides: laid over the classic styles by `useLayoutScale() === "v2"`, so Dapur never reads them. */

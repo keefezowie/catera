@@ -527,8 +527,8 @@ describe("appearance", () => {
     // Pinned values (direction K): the cream bar, the neutral indicator pill, forest for selected and muted for the rest.
     expect(tabBarColors(nativeThemes.light)).toEqual({
       backgroundColor: "#FFFFFF",
-      indicatorColor: "#D8D8D3",
-      rippleColor: "#D8D8D3",
+      indicatorColor: "#C6C6C2",
+      rippleColor: "#C6C6C2",
       tintColor: "#163D2E",
       iconColor: { default: "#555B54", selected: "#163D2E" },
       labelColor: { default: "#555B54", selected: "#163D2E" },

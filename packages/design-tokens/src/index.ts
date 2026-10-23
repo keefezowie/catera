@@ -84,6 +84,7 @@ export type PaletteKey =
   | "cardBorder"
   | "cardShadow"
   | "tabBar"
+  | "tabBarAndroid"
   | "disabledFill"
   | "tabIndicator"
   | "toast"
@@ -129,8 +130,11 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
     // White bar (the Grab pattern). Its top edge is the hairline: iOS draws it itself; NativeTabs has no Android divider
     // prop, so that edge is NOT VERIFIED on device. Fallback: tabBar = fill. The Android pill is a step darker than the line.
     tabBar: "#FFFFFF",
+    // Android draws no divider and takes no hairline prop, so its bar is a filled Material surface-container step,
+    // 1.22:1 on white. iOS keeps the white bar (the system draws its own top hairline).
+    tabBarAndroid: "#E9E9E7",
     disabledFill: "#CFD3C6",
-    tabIndicator: "#D8D8D3",
+    tabIndicator: "#C6C6C2",
     toast: "#2E2E2E",
     onToast: "#FFF7E9",
     toastAction: "#BFD8BB",
@@ -161,6 +165,7 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
     cardBorder: "",
     cardShadow: "",
     tabBar: "#292927",
+    tabBarAndroid: "#292927",
     disabledFill: "#34332F",
     tabIndicator: "#444441",
     toast: "#F5F1E8",
@@ -231,7 +236,7 @@ const darkMood = (header: string): MoodPalette => ({
 });
 
 /**
- * Light mood header tints, deepened to 1.2:1 on the white page (owner confirmation pending). To revert, set them back to
+ * Light mood header tints, deepened to 1.2:1 on the white page (owner-approved 2026-10-23, option B). To revert, set them back to
  * the old cream and pale sage ("#FFF7E9", "#F3F6EF"); then `markerIdle` can return to "#858D80" and `heroEdge` to
  * "#C9C6BA", and the mood-header pair in `tests/native-contrast.test.ts` needs a named edge.
  */

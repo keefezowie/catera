@@ -54,8 +54,10 @@ describe("direction K theme tokens", () => {
     expect(nativeThemes.light).toMatchObject({
       controlRing: "#858D80", disabledFill: "#CFD3C6", toast: "#2E2E2E", onToast: "#FFF7E9", toastAction: "#BFD8BB",
     });
-    // The light Android tab pill is a step darker than the hairline, 1.43:1 off the white bar; dark keeps its charcoal step.
-    expect(nativeThemes.light.tabIndicator).toBe("#D8D8D3");
+    // The light Android tab pill sits 1.41:1 off the Android bar (#E9E9E7); dark keeps its charcoal step.
+    expect(nativeThemes.light.tabIndicator).toBe("#C6C6C2");
+    expect(nativeThemes.light.tabBarAndroid).toBe("#E9E9E7");
+    expect(nativeThemes.dark.tabBarAndroid).toBe(nativeThemes.dark.tabBar);
     expect(nativeThemes.dark.tabIndicator).toBe("#444441");
   });
   it("the success disc is a literal, not the Siang header", () => {
@@ -87,7 +89,22 @@ describe("light theme on a white page (2026-10-23)", () => {
     for (const t of ["charcoal", "muted", "forest", "danger"] as const)
       expect(contrastRatio(light[t], light.fill), t + " on fill").toBeGreaterThanOrEqual(4.5);
     // The fill is told from white by the control's own outline (fieldBorder, secondaryBorder), never by tone alone.
+    // It is 1.10:1 on white, below the 1.2 surface rule, so a box filled with it that stands alone on the page (the
+    // sage Card tone, the invite-code and reply boxes) must carry the card hairline and shadow, not rely on tone.
     expect(contrastRatio(light.fill, light.surface)).toBeLessThan(HAIRLINE);
+    expect(contrastRatio(light.sage, light.surface)).toBeLessThan(HAIRLINE);
+    expect(contrastRatio(light.cardBorder, light.sage)).toBeGreaterThan(1);
+  });
+  // Android has no tab bar divider and no hairline prop, so its bar is a filled step that must stand off the page on
+  // tone alone (1.2:1, the surface rule). iOS keeps the white bar and the system's own top hairline.
+  it("the Android tab bar stands 1.2:1 off the white page and keeps the pill, icons and labels readable", () => {
+    const a = light.tabBarAndroid;
+    expect(contrastRatio(a, light.canvas)).toBeGreaterThanOrEqual(HAIRLINE);
+    expect(contrastRatio(light.tabIndicator, a)).toBeGreaterThanOrEqual(1.4);
+    expect(contrastRatio(light.forest, light.tabIndicator)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(light.forest, a)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(light.muted, a)).toBeGreaterThanOrEqual(4.5);
+    expect(light.tabBar).toBe("#FFFFFF");
   });
   it("dark keeps today's values", () => {
     expect(dark.canvas).toBe("#151514");
@@ -140,7 +157,7 @@ function pairs(theme: ThemeName, mood: Mood): Pair[] {
     { id: "hero vs canvas", kind: "surface", a: m.hero, b: t.canvas, edge: m.heroEdge },
     // Light: white on white, carried by the card's hairline border; the tab bar by its top hairline (`line`).
     { id: "card vs canvas", kind: "surface", a: t.surface, b: t.canvas, edge: t.cardBorder || undefined, edgeMin: HAIRLINE },
-    { id: "tab bar vs canvas", kind: "surface", a: t.tabBar, b: t.canvas, edge: theme === "light" ? t.line : undefined, edgeMin: HAIRLINE },
+    { id: "tab bar vs canvas (iOS: white, the system's top hairline)", kind: "surface", a: t.tabBar, b: t.canvas, edge: theme === "light" ? t.line : undefined, edgeMin: HAIRLINE },
     { id: "demo strip vs mood header", kind: "surface", a: t.canvas, b: m.header },
     { id: "search field boundary vs mood header", kind: "nontext", a: m.markerIdle, b: m.header },
     { id: "Siang/Malam track boundary vs mood header", kind: "nontext", a: m.markerIdle, b: m.header },
@@ -243,11 +260,13 @@ describe("derived steps and component rules", () => {
     // pill is a neutral step, never the page colour (a pill in the canvas reads as a hole punched in the bar).
     it(`${theme}: the tab indicator pill holds the forest icon at 3:1 and stands 1.4:1 off the bar`, () => {
       expect(contrastRatio(p.forest, p.tabIndicator)).toBeGreaterThanOrEqual(3);
-      expect(contrastRatio(p.tabIndicator, p.tabBar)).toBeGreaterThanOrEqual(1.4);
-      expect(contrastRatio(p.sage, p.tabBar) < 1.4 || theme === "dark").toBe(true);
+      // The pill is Android-only, so it is measured on the Android bar.
+      expect(contrastRatio(p.tabIndicator, p.tabBarAndroid)).toBeGreaterThanOrEqual(1.4);
       expect(p.tabIndicator).not.toBe(p.canvas);
-      expect(contrastRatio(p.muted, p.tabBar)).toBeGreaterThanOrEqual(4.5);
-      expect(contrastRatio(p.forest, p.tabBar)).toBeGreaterThanOrEqual(4.5);
+      for (const bar of [p.tabBar, p.tabBarAndroid]) {
+        expect(contrastRatio(p.muted, bar)).toBeGreaterThanOrEqual(4.5);
+        expect(contrastRatio(p.forest, bar)).toBeGreaterThanOrEqual(4.5);
+      }
     });
     // PhotoRing (rule 3): forest is the selected ring; the meal cue is neutral, dinner in ink and lunch in controlRing.
     // The two meals stay 3:1 apart (charcoal on forest was 1.13:1 in light), and the dinner ring reads on its grounds.

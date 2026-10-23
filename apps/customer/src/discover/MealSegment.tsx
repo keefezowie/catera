@@ -35,7 +35,7 @@ export function MealSegment() {
     >
       {/* The track fills the row and centres its 34 shape, so it stays level with the chips whatever the row measures. */}
       <View testID="meal-track-frame" pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, justifyContent: "center" }}>
-        <View testID="meal-track" style={{ height: TRACK, borderRadius: TRACK / 2, backgroundColor: c.surface }} />
+        <View testID="meal-track" style={{ height: TRACK, borderRadius: TRACK / 2, backgroundColor: c.cardBorder ? c.fill : c.surface }} />
       </View>
       {options.map((option) => {
         const selected = option.value === mood;

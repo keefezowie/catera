@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import type { CustomerActionItem, CustomerState } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { PressableRow, Text, themedStyles, useColors, useStackedLayout, cardEdge } from "@catera/mobile-ui";
+import { PressableRow, Text, themedStyles, useColors, useStackedLayout, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { GLYPH_INSET } from "../layout";
 import { SECTION_LEAD } from "./sectionGap";
 import { WaitingAction, WaitingGlyph, useWaitingRows } from "./WaitingList";
@@ -90,7 +90,7 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
-    paddingHorizontal: nativeLayout.cardPadding,
+    paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
     ...cardEdge(c),
   },
   row: {

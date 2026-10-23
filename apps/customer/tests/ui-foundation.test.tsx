@@ -17,6 +17,7 @@ import {
   fonts,
   HeroPager,
   LayoutScaleProvider,
+  tabBarColors,
   moodHeaderTopInset,
   MoodHeader,
   PressableRow,
@@ -749,12 +750,19 @@ describe("layout scale", () => {
     expect(flat(screen.getByTestId("surface"))).toMatchObject({
       borderWidth: 1, borderColor: light.cardBorder, boxShadow: "0 1px 2px rgba(0,0,0,0.04)", backgroundColor: light.surface, padding: 15,
     });
-    // The sage tone is a fill, not a white card: its border is its own colour and it casts no shadow.
-    expect(flat(screen.getByTestId("sage"))).toMatchObject({ borderWidth: 1, borderColor: light.sage, padding: 15 });
-    expect(flat(screen.getByTestId("sage")).boxShadow).toBeUndefined();
+    // The sage fill is 1.10:1 on white, so it carries the same hairline and shadow as a white card.
+    expect(flat(screen.getByTestId("sage"))).toMatchObject({
+      borderWidth: 1, borderColor: light.cardBorder, boxShadow: light.cardShadow, backgroundColor: light.sage, padding: 15,
+    });
     const attention = flat(screen.getByTestId("attention"));
     expect(attention.borderColor).toBe(nativeThemes.light.attentionBorder);
     expect(attention.borderWidth + (attention.padding as number)).toBe(16);
+  });
+
+  it("the tab bar is white on iOS and a filled step on Android, which has no divider", () => {
+    expect(tabBarColors(nativeThemes.light, "ios")).toMatchObject({ backgroundColor: "#FFFFFF" });
+    expect(tabBarColors(nativeThemes.light, "android")).toMatchObject({ backgroundColor: "#E9E9E7", indicatorColor: "#C6C6C2" });
+    expect(tabBarColors(nativeThemes.dark, "android").backgroundColor).toBe(nativeThemes.dark.tabBar);
   });
 
   it("the classic card (Dapur) gets the same light hairline and shadow, with its padding unchanged", () => {

@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { currency, firstOperatingDayAfter, shortDate, type Locale, type Quote } from "@catera/domain";
 import { plural } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, fontFor, PressableScale, Text, themedStyles, cardEdge } from "@catera/mobile-ui";
+import { Button, fontFor, PressableScale, Text, themedStyles, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { FieldRow } from "./BuyParts";
 import { BREAKDOWN_PAD, BREAKDOWN_ROW } from "./metrics";
 
@@ -141,8 +141,8 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
-    paddingHorizontal: nativeLayout.cardPadding,
-    paddingVertical: BREAKDOWN_PAD,
+    paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
+    paddingVertical: BREAKDOWN_PAD - cardEdgeWidth(c),
   },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: nativeLayout.space.md, minHeight: BREAKDOWN_ROW },
   rowLabel: { flex: 1, minWidth: 0 },

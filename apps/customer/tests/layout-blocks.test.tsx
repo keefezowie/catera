@@ -118,7 +118,7 @@ describe("layout blocks", () => {
       </ListCard>,
     );
     expect(screen.getAllByTestId("list-card-separator")).toHaveLength(2);
-    expect(flat(screen.getByTestId("list-card"))).toMatchObject({ borderRadius: 16, paddingHorizontal: 16 });
+    expect(flat(screen.getByTestId("list-card"))).toMatchObject({ borderRadius: 16, paddingHorizontal: 15 });
     expect(flat(screen.getAllByTestId("list-card-separator")[0]).height).toBe(1);
   });
 

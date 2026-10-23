@@ -1,6 +1,7 @@
 import type { ColorValue } from "react-native";
 import type { NativeTabsHostNativeProps, NativeTabsLabelStyle } from "expo-router/unstable-native-tabs";
 import type { NativePalette } from "@catera/design-tokens";
+import { barTone } from "./theme";
 import { useSheetOnTop } from "./sheets";
 import { fonts } from "./type";
 
@@ -18,9 +19,9 @@ export type TabBarColors = {
  * reaches the bar. Selected tabs are forest, the rest muted; on Android the selected icon sits on the `tabIndicator`
  * pill, and a press ripples in the same tint so the ripple previews the pill it leads to.
  */
-export function tabBarColors(palette: NativePalette): TabBarColors {
+export function tabBarColors(palette: NativePalette, os: string | undefined = process.env.EXPO_OS): TabBarColors {
   return {
-    backgroundColor: palette.tabBar,
+    backgroundColor: barTone(palette, os),
     indicatorColor: palette.tabIndicator,
     rippleColor: palette.tabIndicator,
     tintColor: palette.forest,

@@ -307,12 +307,12 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     at(PHOTO_PASSED);
     const onCanvas = {
       ...overPhoto,
-      headerStyle: { backgroundColor: nativeThemes.light.tabBar },
+      headerStyle: { backgroundColor: nativeThemes.light.tabBarAndroid },
       headerTintColor: nativeThemes.light.charcoal,
       // Past the photo the platform's own back returns.
       headerLeft: undefined,
     };
-    expect(nativeThemes.light.tabBar).toBe("#FFFFFF");
+    expect(nativeThemes.light.tabBarAndroid).toBe("#E9E9E7");
     expect(navigation.setOptions).toHaveBeenLastCalledWith(onCanvas);
     expect(lightGlyphs()).toBe(false);
     // Once the name line has gone under the bar, the bar takes the name.
@@ -337,7 +337,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     // Scrolled past the photo first, so the bar is opaque when the photo state is left.
     fireEvent.scroll(screen.getByTestId("screen-scroll"), { nativeEvent: { contentOffset: { x: 0, y: PHOTO_PASSED + 10 } } });
     expect(navigation.setOptions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ headerStyle: { backgroundColor: nativeThemes.light.tabBar } }),
+      expect.objectContaining({ headerStyle: { backgroundColor: nativeThemes.light.tabBarAndroid } }),
     );
     // Another package whose read has not come back: no photo to lead with, so the plain native header returns.
     mockParams = { id: "p-lain", title: "Nasi Liwet" };
