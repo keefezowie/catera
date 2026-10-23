@@ -1087,11 +1087,12 @@ describe("Ada masalah sheet after the rebase", () => {
     await screen.findByText("Apa yang terjadi?");
     const ready = sheetHeader();
     expect(ready).toEqual(loading);
-    // One line on screen; the whole day, package and kitchen for screen readers.
+    // One line on screen, the package, whole for screen readers; the day and the kitchen are in the card under it.
     const context = screen.getByTestId("sheet-context");
     expect(context.props.numberOfLines).toBe(1);
     expect(context.props.accessibilityLabel).toBe(context.props.children);
-    expect(String(context.props.children)).toContain(" · ");
+    expect(String(context.props.children)).not.toContain("Dapur Contoh");
+    expect(within(screen.getByTestId("delivery-card")).getByText("Dapur Contoh")).toBeTruthy();
   });
 
   it("Ubah hari holds its context line too: the header keeps its fixed parts while the day is read", async () => {

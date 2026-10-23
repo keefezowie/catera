@@ -1,23 +1,23 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Text as RNText, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { Pressable, Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, mealLabel, shortDate, type DeliveryIssue, type Subscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
+  ChoiceList,
   FadeSwap,
   Field,
-  fontFor,
+  fonts,
   FormError,
-  PressableScale,
   ReadError,
-  Segmented,
   SheetBody,
   SheetHeader,
+  sheetSidePadding,
   Skeleton,
   SkeletonGroup,
   Text,
-  themedStyles,
   useColors,
   useToast,
   useUnsavedGuard,
@@ -25,10 +25,23 @@ import {
 
 type Kind = "help" | "review";
 
+/** The subject goes to support as written here (Indonesian); the example line says what each topic covers. */
 const TOPICS = [
-  { id: "Pembatalan", en: "Cancellation" },
-  { id: "Pembayaran", en: "Payment" },
-  { id: "Lainnya", en: "Other" },
+  {
+    id: "Pembatalan",
+    en: "Cancellation",
+    example: { id: "Berhenti langganan atau batalkan paket", en: "Stop a subscription or cancel a package" },
+  },
+  {
+    id: "Pembayaran",
+    en: "Payment",
+    example: { id: "Sudah bayar tapi paket belum aktif", en: "Paid, but the package isn't active" },
+  },
+  {
+    id: "Lainnya",
+    en: "Other",
+    example: { id: "Pertanyaan lain soal paket atau pengantaran", en: "Anything else about a package or delivery" },
+  },
 ];
 
 /**
@@ -89,14 +102,15 @@ function HelpSkeleton() {
 }
 
 /**
- * `/bantuan-form?kind=help` ("Minta bantuan": a topic, the package and a few words) and
+ * `/bantuan-form?kind=help` ("Minta bantuan": the package, a topic and a few words; `&paket={subscriptionId}` opens it
+ * on that package) and
  * `/bantuan-form?kind=review&issue={id}` ("Minta Catera meninjau" a report): native form sheets over Bantuan
  * (`sheetOptions({ detents: "form" })`); from Beli or Bayar the same forms open as `/pembelian/bantuan-form` over the
  * purchase. Sending closes the sheet with the toast "Permintaan bantuan terkirim"; a refusal stays in the sheet.
  * Typed words ask before the sheet closes.
  */
 export function HelpForm() {
-  const params = useLocalSearchParams<{ kind?: string; issue?: string }>();
+  const params = useLocalSearchParams<{ kind?: string; issue?: string; paket?: string }>();
   const { actor, ready, t } = useMobile();
   const kind: Kind = params.kind === "review" ? "review" : "help";
   const issue = typeof params.issue === "string" ? params.issue : "";
@@ -117,7 +131,7 @@ export function HelpForm() {
   return kind === "review" ? (
     <Review key={`${actor.id}:${issue}`} actorId={actor.id} issueId={issue} title={title} />
   ) : (
-    <Help key={actor.id} actorId={actor.id} title={title} />
+    <Help key={actor.id} actorId={actor.id} title={title} paket={typeof params.paket === "string" ? params.paket : ""} />
   );
 }
 
@@ -152,15 +166,87 @@ function useRequest(draftKey: string, noun: { id: string; en: string }) {
   return { text, write, done };
 }
 
-/** Cancellations, refunds and other requests all enter support: a topic, a few words and the package. */
-function Help({ actorId, title }: { actorId: string; title: string }) {
+/**
+ * Which package the request is about, as one row: "Paket" over the package's name. With several packages the row opens
+ * them under it as radio rows (`ChoiceList`), and a choice closes them again; with one there is nothing to choose, so
+ * the row only names it. The rows run to the sheet's edges like `ChoiceList`, and grow with the text: nothing is cut.
+ */
+function PaketRow({
+  subscriptions,
+  chosen,
+  onChoose,
+}: {
+  subscriptions: Subscription[];
+  chosen: string;
+  onChoose: (id: string) => void;
+}) {
+  const { t } = useMobile();
+  const palette = useColors();
+  const [open, setOpen] = useState(false);
+  const ios = process.env.EXPO_OS === "ios";
+  const label = t("Paket", "Package");
+  const name = subscriptions.find((s) => s.id === chosen)?.snapshot.offer.name ?? "";
+  const several = subscriptions.length > 1;
+  const body = (
+    <>
+      <View style={{ flex: 1, gap: 2 }}>
+        <RNText style={{ fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: palette.muted }}>{label}</RNText>
+        <RNText style={{ fontFamily: fonts.semibold, fontSize: ios ? 17 : 16, lineHeight: 22, color: palette.charcoal }}>
+          {name}
+        </RNText>
+      </View>
+      {several ? <Ionicons name={open ? "chevron-up" : "chevron-down"} size={20} color={palette.controlRing} /> : null}
+    </>
+  );
+  const frame = {
+    minHeight: 72,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 16,
+    paddingHorizontal: sheetSidePadding(),
+    paddingVertical: 8,
+  };
+  return (
+    <View style={{ marginHorizontal: -sheetSidePadding() }}>
+      {several ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${label}, ${name}`}
+          accessibilityState={{ expanded: open }}
+          onPress={() => setOpen((v) => !v)}
+          android_ripple={{ color: palette.line }}
+          style={({ pressed }) => [frame, ios && pressed ? { backgroundColor: palette.sage } : null]}
+        >
+          {body}
+        </Pressable>
+      ) : (
+        <View style={frame}>{body}</View>
+      )}
+      {open ? (
+        <ChoiceList
+          label={label}
+          options={subscriptions.map((s) => ({ value: s.id, label: s.snapshot.offer.name }))}
+          value={chosen}
+          onChange={(id) => {
+            onChoose(id);
+            setOpen(false);
+          }}
+        />
+      ) : null}
+      <View style={{ height: 1, marginStart: sheetSidePadding(), backgroundColor: palette.line }} />
+    </View>
+  );
+}
+
+/** Cancellations, refunds and other requests all enter support: the package, a topic and a few words. */
+function Help({ actorId, title, paket }: { actorId: string; title: string; paket: string }) {
   const { runtime, command, t, locale } = useMobile();
   const c = useColors();
-  const styles = useStyles();
   const customer = useData("bantuan-form:customer", () => runtime.api.customer());
   const { text, write, done } = useRequest(`${actorId}:help`, { id: "permintaan", en: "request" });
   const [topic, setTopic] = useState("");
-  const [subscriptionId, setSubscriptionId] = useState("");
+  // The `paket` link names the package to start on; one the customer does not have falls back to the first.
+  const [subscriptionId, setSubscriptionId] = useState(paket);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [failures, setFailures] = useState(0);
@@ -217,29 +303,19 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
         </Text>
       ) : (
         <>
-          <Segmented<string>
-            value={topic}
-            onChange={setTopic}
-            options={TOPICS.map((x) => ({ value: x.id, label: t(x.id, x.en) }))}
-          />
-          {subscriptions.length > 1 ? (
-            <View style={styles.chips}>
-              {subscriptions.map((s) => (
-                <PressableScale
-                  key={s.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: s.id === chosen }}
-                  haptic="select"
-                  onPress={() => setSubscriptionId(s.id)}
-                  style={[styles.pick, s.id === chosen && styles.pickOn]}
-                >
-                  <RNText style={[styles.pickText, { color: s.id === chosen ? c.cream : c.charcoal }]}>
-                    {s.snapshot.offer.name}
-                  </RNText>
-                </PressableScale>
-              ))}
+          <PaketRow subscriptions={subscriptions} chosen={chosen} onChoose={setSubscriptionId} />
+          <View style={{ gap: 4 }}>
+            <Text variant="label">{t("Soal apa?", "What is it about?")}</Text>
+            {/* Radio rows, not a segmented control: three topics squeezed into one row split their words at large text. */}
+            <View style={{ marginHorizontal: -sheetSidePadding() }}>
+              <ChoiceList
+                label={t("Soal apa?", "What is it about?")}
+                value={topic || null}
+                onChange={setTopic}
+                options={TOPICS.map((x) => ({ value: x.id, label: t(x.id, x.en), detail: t(x.example.id, x.example.en) }))}
+              />
             </View>
-          ) : null}
+          </View>
           <Field
             label={t("Ceritakan masalahnya", "Tell us what's wrong")}
             multiline
@@ -330,9 +406,3 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
   );
 }
 
-const useStyles = themedStyles((c) => ({
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  pick: { minHeight: 48, paddingHorizontal: 14, borderRadius: 10, borderCurve: "continuous", borderWidth: 1, borderColor: c.secondaryBorder, justifyContent: "center" },
-  pickOn: { backgroundColor: c.forest, borderColor: c.forest },
-  pickText: { fontSize: 13, fontFamily: fontFor("700") },
-}));

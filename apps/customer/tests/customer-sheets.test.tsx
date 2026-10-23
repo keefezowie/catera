@@ -665,7 +665,7 @@ describe("outcomes", () => {
       const app = await mount("/bantuan");
       await go(() => router.push("/bantuan-form?kind=help"));
       expect(screen.getByRole("header", { name: "Minta bantuan" })).toBeTruthy();
-      await go(() => fireEvent.press(screen.getByRole("tab", { name: "Pembatalan" })));
+      await go(() => fireEvent.press(screen.getByRole("radio", { name: /^Pembatalan, / })));
       fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota bulan depan.");
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" })));
       expect(mockCommand).toHaveBeenCalledWith("support.create", {

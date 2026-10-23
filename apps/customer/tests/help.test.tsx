@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
 import { ActivityIndicator, Linking, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -8,7 +9,7 @@ import { ReportProblem } from "../src/help/ReportProblem";
 import { ReportList } from "../src/help/ReportList";
 import { customerLink } from "../src/links";
 import { nativeThemes } from "@catera/design-tokens";
-import { ToastProvider } from "@catera/mobile-ui";
+import { ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import * as nav from "../src/nav";
 import { HelpForm } from "../src/help/HelpForm";
 import { customerState, TODAY } from "./fixtures";
@@ -35,6 +36,13 @@ jest.mock("expo-secure-store", () => {
     deleteItemAsync: jest.fn(async (k: string) => void store.delete(k)),
   };
 });
+/** The phone a test draws on; by default the size React Native's jest setup reports. */
+const DEFAULT_WINDOW = { width: 750, height: 1334, scale: 2, fontScale: 2 };
+let mockWindow = DEFAULT_WINDOW;
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
 
 const customer = { id: "u-c1", role: "customer", name: "Rani Contoh" };
@@ -113,7 +121,21 @@ const withPhone = (state: CustomerState): CustomerState => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockParams = {};
+  mockWindow = DEFAULT_WINDOW;
 });
+
+/** A Bantuan topic: a radio row whose name is the topic, then its example line. */
+const topic = (name: string) => screen.findByRole("radio", { name: new RegExp(`^${name}, `) });
+const twoPlans = () => {
+  const state = customerState(null);
+  const first = state.subscriptions[0];
+  state.subscriptions = [
+    first,
+    { ...first, id: "s-2", snapshot: { ...first.snapshot, offer: { ...first.snapshot.offer, name: "Makan Malam Sehat" } } },
+  ];
+  return state;
+};
+const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props.style as never) as Record<string, unknown>;
 
 describe("Ada masalah", () => {
   beforeEach(() => {
@@ -316,6 +338,58 @@ describe("Ada masalah", () => {
     });
   });
 
+  it("Masalah shows the delivery card and the caterer name is not cut to one line", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    const long = "Dapur Ibu Sari Rasa Nusantara Masakan Rumahan Jakarta Selatan";
+    const state = customerState({ status: "out_for_delivery" });
+    state.deliveries = state.deliveries.map((d) => (d.id === "d-today" ? { ...d, offer: { ...d.offer, caterer: long } } : d));
+    renderWith(runtimeWith({ state }), <ReportProblem />);
+    const card = await screen.findByTestId("delivery-card");
+    // The day and the meal, then the caterer in full on up to two lines.
+    expect(within(card).getByText(/Makan siang/)).toBeTruthy();
+    const caterer = within(card).getByText(long);
+    expect(caterer.props.numberOfLines).toBe(2);
+    // The header no longer carries the caterer on its one held line.
+    expect(screen.getAllByText(new RegExp(long))).toHaveLength(1);
+  });
+
+  it("the delivery card names the meal being reported, also for a two-meal day", async () => {
+    const state = customerState({ status: "out_for_delivery" });
+    state.deliveries = state.deliveries.map((d) =>
+      d.id === "d-today" ? { ...d, meals: [...(d.meals ?? []), { ...(d.meals ?? [])[0], meal: "dinner" as const }] } : d,
+    );
+    mockParams = { id: "d-today", meal: "dinner" };
+    renderWith(runtimeWith({ state }), <ReportProblem />);
+    const card = await screen.findByTestId("delivery-card");
+    expect(within(card).getByText(/Makan malam/)).toBeTruthy();
+    fireEvent.press(screen.getByRole("radio", { name: "Makan siang" }));
+    expect(within(screen.getByTestId("delivery-card")).getByText(/Makan siang/)).toBeTruthy();
+  });
+
+  it.each(["light", "dark"] as const)("Masalah choices are not forest-filled (%s)", async (scheme) => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+    const state = customerState({ status: "out_for_delivery" });
+    state.deliveries = state.deliveries.map((d) =>
+      d.id === "d-today" ? { ...d, meals: [...(d.meals ?? []), { ...(d.meals ?? [])[0], meal: "dinner" as const }] } : d,
+    );
+    renderWith(
+      runtimeWith({ state }),
+      <ThemeProvider storageKey={`masalah-${scheme}`}>
+        <ReportProblem />
+      </ThemeProvider>,
+    );
+    await act(async () => {});
+    const palette = nativeThemes[scheme];
+    for (const name of ["Belum sampai", "Makan siang"]) {
+      const chosen = await screen.findByRole("radio", { name });
+      expect(chosen.props.accessibilityState.checked).toBe(true);
+      expect(flat(chosen).backgroundColor).not.toBe(palette.forest);
+      // The label stays ink on the page, not cream on a forest pill.
+      expect(StyleSheet.flatten(within(chosen).getByText(name).props.style).color).toBe(palette.charcoal);
+    }
+    jest.restoreAllMocks();
+  });
+
   it("uses 44pt targets for the choices", async () => {
     renderWith(runtimeWith(), <ReportProblem />);
     const radio = await screen.findByRole("radio", { name: "Belum sampai" });
@@ -421,9 +495,29 @@ describe("Bantuan dan laporan", () => {
     expect(screen.getAllByRole("button", { name: "Buka pembayaran" })).toHaveLength(1);
   });
 
-  it("says plainly when there is nothing to show", async () => {
-    renderWith(runtimeWith({ state: customerState(null) }), <ReportList />);
-    expect(await screen.findByText("Belum ada laporan.")).toBeTruthy();
+  it("empty Bantuan shows the art, the Jadwal line, and Minta bantuan when there is a plan", async () => {
+    const view = renderWith(runtimeWith({ state: customerState(null) }), <ReportList />);
+    const title = await screen.findByText("Belum ada laporan");
+    expect(screen.getByTestId("mascot-tidur", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByText("Kalau ada yang salah dengan pengantaran, laporkan dari harinya di Jadwal.")).toBeTruthy();
+    // With a plan, the way to ask sits in the empty state, under its line.
+    const empty = screen.getByTestId("bantuan-empty");
+    expect(within(empty).getByText("Belum ada laporan")).toBe(title);
+    expect(within(empty).getByRole("button", { name: "Minta bantuan" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Minta bantuan" })).toHaveLength(1);
+    view.unmount();
+    // Without a plan there is nothing to ask about yet: the art and the line, no button.
+    renderWith(runtimeWith({ state: { ...customerState(null), subscriptions: [] } }), <ReportList />);
+    expect(await screen.findByText("Belum ada laporan")).toBeTruthy();
+    expect(screen.getByTestId("mascot-tidur", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Minta bantuan" })).toBeNull();
+  });
+
+  it("with reports, Minta bantuan stays above them and there is no empty state", async () => {
+    renderWith(runtimeWith({ issues: [issue()] }), <ReportList />);
+    expect(await screen.findByRole("button", { name: "Minta bantuan" })).toBeTruthy();
+    expect(screen.queryByTestId("bantuan-empty")).toBeNull();
+    expect(screen.queryByTestId("mascot-tidur", { includeHiddenElements: true })).toBeNull();
   });
 
   it("asks to sign in and comes back to Bantuan", async () => {
@@ -535,9 +629,7 @@ describe("Bantuan: Minta bantuan", () => {
     renderWith(runtimeWith({ state, command }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
     expect(router.push).toHaveBeenCalledWith("/bantuan-form?kind=help");
-    await screen.findByRole("tab", { name: "Pembatalan" });
-    for (const topic of ["Pembatalan", "Pembayaran", "Lainnya"]) expect(screen.getByRole("tab", { name: topic })).toBeTruthy();
-    fireEvent.press(screen.getByRole("tab", { name: "Pembatalan" }));
+    fireEvent.press(await topic("Pembatalan"));
     // The primary action is pinned in the sheet's footer, not in the scrolling content.
     expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim permintaan" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityState.disabled).toBe(true);
@@ -563,7 +655,7 @@ describe("Bantuan: Minta bantuan", () => {
     });
     renderWith(runtimeWith({ state: customerState(null), command }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
-    fireEvent.press(await screen.findByRole("tab", { name: "Lainnya" }));
+    fireEvent.press(await topic("Lainnya"));
     fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Pertanyaan soal paket");
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
@@ -571,17 +663,13 @@ describe("Bantuan: Minta bantuan", () => {
   });
 
   it("asks which package when there are several", async () => {
-    const state = customerState(null);
-    const first = state.subscriptions[0];
-    state.subscriptions = [
-      first,
-      { ...first, id: "s-2", snapshot: { ...first.snapshot, offer: { ...first.snapshot.offer, name: "Makan Malam Sehat" } } },
-    ];
+    const state = twoPlans();
     const command = jest.fn(async () => ({}));
     renderWith(runtimeWith({ state, command }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Makan Malam Sehat" }));
-    fireEvent.press(screen.getByRole("tab", { name: "Pembayaran" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Paket, Makan Siang Rumahan" }));
+    fireEvent.press(screen.getByRole("radio", { name: "Makan Malam Sehat" }));
+    fireEvent.press(await topic("Pembayaran"));
     fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Sudah bayar tapi belum aktif");
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
     await waitFor(() =>
@@ -594,23 +682,102 @@ describe("Bantuan: Minta bantuan", () => {
   });
 
   it("package picks are 48dp and give a selection haptic", async () => {
-    const state = customerState(null);
-    const first = state.subscriptions[0];
-    state.subscriptions = [
-      first,
-      { ...first, id: "s-2", snapshot: { ...first.snapshot, offer: { ...first.snapshot.offer, name: "Makan Malam Sehat" } } },
-    ];
-    renderWith(runtimeWith({ state }), listWithForms, { toast: true });
+    renderWith(runtimeWith({ state: twoPlans() }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
-    const pick = await screen.findByRole("button", { name: "Makan Malam Sehat" });
+    fireEvent.press(await screen.findByRole("button", { name: "Paket, Makan Siang Rumahan" }));
+    const pick = screen.getByRole("radio", { name: "Makan Malam Sehat" });
     expect(StyleSheet.flatten(pick.props.style).minHeight).toBeGreaterThanOrEqual(48);
     fireEvent.press(pick);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 
+  it("topics are radio rows with an example line", async () => {
+    mockParams = { kind: "help" };
+    renderWith(runtimeWith({ state: customerState(null) }), <HelpForm />, { toast: true });
+    const cancel = await topic("Pembatalan");
+    expect(screen.queryByRole("tab")).toBeNull();
+    for (const [name, example] of [
+      ["Pembatalan", "Berhenti langganan atau batalkan paket"],
+      ["Pembayaran", "Sudah bayar tapi paket belum aktif"],
+      ["Lainnya", "Pertanyaan lain soal paket atau pengantaran"],
+    ]) {
+      const row = screen.getByRole("radio", { name: `${name}, ${example}` });
+      expect(within(row).getByText(example)).toBeTruthy();
+      expect(row.props.accessibilityState.checked).toBe(false);
+    }
+    fireEvent.press(cancel);
+    const chosen = await topic("Pembatalan");
+    expect(chosen.props.accessibilityState.checked).toBe(true);
+    // Choosing marks the row, it does not fill it in forest.
+    expect(flat(chosen).backgroundColor).not.toBe(nativeThemes.light.forest);
+  });
+
+  it("the package is one Paket row; the paket param preselects it", async () => {
+    mockParams = { kind: "help", paket: "s-2" };
+    const command = jest.fn(async () => ({}));
+    renderWith(runtimeWith({ state: twoPlans(), command }), <HelpForm />, { toast: true });
+    // One row names the chosen package; no chip per package.
+    const row = await screen.findByRole("button", { name: "Paket, Makan Malam Sehat" });
+    expect(flat(row).minHeight).toBeGreaterThanOrEqual(48);
+    expect(row.props.accessibilityState).toMatchObject({ expanded: false });
+    expect(screen.queryByRole("radio", { name: "Makan Siang Rumahan" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Makan Siang Rumahan" })).toBeNull();
+    fireEvent.press(await topic("Lainnya"));
+    fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Bisa ganti alamat?");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "support.create",
+        { subscriptionId: "s-2", subject: "Lainnya", description: "Bisa ganti alamat?" },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("the Paket row opens the packages as radio rows and closes on a choice", async () => {
+    mockParams = { kind: "help" };
+    renderWith(runtimeWith({ state: twoPlans() }), <HelpForm />, { toast: true });
+    fireEvent.press(await screen.findByRole("button", { name: "Paket, Makan Siang Rumahan" }));
+    expect(screen.getByRole("button", { name: "Paket, Makan Siang Rumahan" }).props.accessibilityState).toMatchObject({
+      expanded: true,
+    });
+    expect(screen.getByRole("radio", { name: "Makan Siang Rumahan" }).props.accessibilityState.checked).toBe(true);
+    fireEvent.press(screen.getByRole("radio", { name: "Makan Malam Sehat" }));
+    expect(screen.queryByRole("radio", { name: "Makan Siang Rumahan" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Paket, Makan Malam Sehat" })).toBeTruthy();
+  });
+
+  it("one package is named on a plain Paket row, and an unknown paket param falls back to it", async () => {
+    mockParams = { kind: "help", paket: "s-gone" };
+    renderWith(runtimeWith({ state: customerState(null) }), <HelpForm />, { toast: true });
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(screen.getByText("Paket")).toBeTruthy();
+    // Nothing to choose between, so the row does not open anything.
+    expect(screen.queryByRole("button", { name: /^Paket, / })).toBeNull();
+  });
+
+  it("topic rows and the Paket row grow at font 1.3 on a 360dp phone", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    mockParams = { kind: "help" };
+    const state = twoPlans();
+    const long = "Paket Makan Siang Rumahan Keluarga Besar Dengan Nama Panjang Sekali";
+    state.subscriptions[0] = {
+      ...state.subscriptions[0],
+      snapshot: { ...state.subscriptions[0].snapshot, offer: { ...state.subscriptions[0].snapshot.offer, name: long } },
+    };
+    renderWith(runtimeWith({ state }), <HelpForm />, { toast: true });
+    const row = await screen.findByRole("button", { name: `Paket, ${long}` });
+    // Rows set a minimum height only and never cut the package or the example line.
+    expect(flat(row).height).toBeUndefined();
+    expect(within(row).getByText(long).props.numberOfLines).toBeUndefined();
+    const cancel = await topic("Pembatalan");
+    expect(flat(cancel).height).toBeUndefined();
+    expect(within(cancel).getByText("Pembatalan").props.numberOfLines).toBeUndefined();
+  });
+
   it("has no package to ask about without a subscription", async () => {
     renderWith(runtimeWith({ state: { ...customerState(null), subscriptions: [] } }), <ReportList />);
-    await screen.findByText("Belum ada laporan.");
+    await screen.findByText("Belum ada laporan");
     expect(screen.queryByRole("button", { name: "Minta bantuan" })).toBeNull();
   });
 });

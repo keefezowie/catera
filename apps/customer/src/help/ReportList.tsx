@@ -21,6 +21,7 @@ import {
   FormError,
   ReadError,
   Screen,
+  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -124,6 +125,15 @@ function List({ flow }: { flow: boolean }) {
     : paymentItems
         .filter((i) => i.status === "awaiting_payment")
         .map((i) => ({ id: i.id.replace(/^payment-/, ""), detail: [i.packageName, i.catererName].filter(Boolean).join(" · ") }));
+  const empty = !reports.length && !cases.length && !payments.length;
+  // A customer with a plan can always ask; with nothing listed yet the button sits in the empty state, under its line.
+  const ask = customer.data.subscriptions.length ? (
+    <Button
+      variant="secondary"
+      label={t("Minta bantuan", "Ask for help")}
+      onPress={() => pushSheet(helpHref(flow, "kind=help") as never)}
+    />
+  ) : null;
 
   return (
     <Screen>
@@ -139,28 +149,26 @@ function List({ flow }: { flow: boolean }) {
             />
           </Card>
         ))}
-        {customer.data.subscriptions.length ? (
-          <Button
-            variant="secondary"
-            label={t("Minta bantuan", "Ask for help")}
-            onPress={() => pushSheet(helpHref(flow, "kind=help") as never)}
-          />
-        ) : null}
+        {empty ? null : ask}
         {reports.map((r) => (
           <ReportCard key={r.id} issue={r} flow={flow} />
         ))}
         {cases.map((c) => (
           <CaseCard key={c.id} item={c} refunds={refunds.filter((x) => x.case_id === c.id)} />
         ))}
-        {!reports.length && !cases.length && !payments.length ? (
-          <View style={{ gap: 4, paddingTop: 8 }}>
-            <Text variant="heading">{t("Belum ada laporan.", "No reports yet.")}</Text>
-            <Text style={{ color: palette.muted }}>
+        {empty ? (
+          <View testID="bantuan-empty" style={{ gap: 6, paddingTop: 8 }}>
+            <StateArt pose="tidur" style={{ marginBottom: 6 }} />
+            <Text variant="heading" style={{ textAlign: "center" }}>
+              {t("Belum ada laporan", "No reports yet")}
+            </Text>
+            <Text style={{ color: palette.muted, textAlign: "center" }}>
               {t(
-                "Ada masalah dengan makanan? Laporkan dari hari itu di Jadwal.",
-                "Something wrong with a meal? Report it from that day in Schedule.",
+                "Kalau ada yang salah dengan pengantaran, laporkan dari harinya di Jadwal.",
+                "If something goes wrong with a delivery, report it from that day in Schedule.",
               )}
             </Text>
+            {ask ? <View style={{ paddingTop: 10 }}>{ask}</View> : null}
           </View>
         ) : null}
         {issues.error || customer.error ? (

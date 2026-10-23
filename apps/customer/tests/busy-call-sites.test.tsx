@@ -147,7 +147,7 @@ const sites: Site[] = [
     signedIn: true,
     ui: <HelpForm />,
     fill: async () => {
-      fireEvent.press(await screen.findByRole("tab", { name: "Pembayaran" }));
+      fireEvent.press(await screen.findByRole("radio", { name: /^Pembayaran, / }));
       fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Pembayaran saya belum tercatat");
       return "Kirim permintaan";
     },

@@ -25,6 +25,7 @@ import type { PaletteKey } from "@catera/design-tokens";
 import { nativeLayout } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
 import { useLayoutScale, useScreenMargin } from "./layoutScale";
+import { useStackedLayout } from "./stackedLayout";
 import { StatusBand } from "./StatusBand";
 import { barTone, cardEdge, cardEdgeWidth, themedStyles, useColors } from "./theme";
 import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
@@ -253,6 +254,12 @@ export function Chip({
   );
 }
 
+/**
+ * One choice among a few short options on a filled track. Under v2, three or more options on a narrow screen or at large
+ * text (`useStackedLayout(360)`) would squeeze their labels until words split, so the segments stack instead: each one a
+ * full-width 48 row on the same track, the chosen one filled as before. Two options always stay a row. Labels keep their
+ * size in every layout and wrap rather than shrink. Classic (Dapur) keeps its one row.
+ */
 export function Segmented<T extends string>({
   options,
   value,
@@ -266,8 +273,14 @@ export function Segmented<T extends string>({
   const styles = useStyles();
   const v2 = useV2Styles();
   const scaled = useLayoutScale() === "v2";
+  const narrow = useStackedLayout(360);
+  const stacked = scaled && options.length >= 3 && narrow;
   return (
-    <View style={[styles.segmented, scaled && v2.segmented]} accessibilityRole="tablist">
+    <View
+      testID="segmented"
+      style={[styles.segmented, scaled && v2.segmented, stacked && v2.segmentedStacked]}
+      accessibilityRole="tablist"
+    >
       {options.map((o) => (
         <PressableScale
           key={o.value}
@@ -275,11 +288,14 @@ export function Segmented<T extends string>({
           accessibilityState={{ selected: o.value === value }}
           haptic="select"
           onPress={() => onChange(o.value)}
-          hitSlop={scaled ? CHIP_HIT_SLOP : undefined}
-          style={[styles.segment, scaled && v2.segment, o.value === value && styles.segmentOn]}
+          hitSlop={scaled && !stacked ? CHIP_HIT_SLOP : undefined}
+          style={[
+            stacked ? v2.segmentStacked : [styles.segment, scaled && v2.segment],
+            o.value === value && styles.segmentOn,
+          ]}
         >
           <RNText
-            style={[styles.chipLabel, { color: o.value === value ? c.cream : c.charcoal }]}
+            style={[styles.chipLabel, stacked && v2.segmentStackedLabel, { color: o.value === value ? c.cream : c.charcoal }]}
           >
             {o.label}
           </RNText>
@@ -706,6 +722,19 @@ const useV2Styles = themedStyles((c) => ({
   // The 34 segment inside the 4 padding makes a 42 track, so the track rounds at 21.
   segmented: { borderRadius: (nativeLayout.control.chip + 8) / 2 },
   segment: { minHeight: nativeLayout.control.chip, borderRadius: nativeLayout.control.chip / 2 },
+  // Stacked (3+ options, narrow or large text): the track becomes a column of full-width 48 rows, rounded like a card.
+  segmentedStacked: { flexDirection: "column", borderRadius: nativeLayout.radius.card, borderCurve: "continuous" },
+  segmentStacked: {
+    alignSelf: "stretch",
+    minHeight: 48,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: nativeLayout.radius.card - 4,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentStackedLabel: { textAlign: "center" },
   input: { minHeight: nativeLayout.control.field },
   // Light draws a 1px hairline (the padding gives it up so content still sits 16 in); dark has no border and stands off
   // the canvas by tone. The attention tone keeps its warm edge, and its padding gives up that 1px too.

@@ -47,6 +47,14 @@ jest.mock("expo-secure-store", () => {
   };
 });
 
+/** The phone a test draws on; by default the size React Native's jest setup reports, so other tests see no change. */
+const DEFAULT_WINDOW = { width: 750, height: 1334, scale: 2, fontScale: 2 };
+let mockWindow = DEFAULT_WINDOW;
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
+
 // react-test-renderer gives host refs no measure methods, so the screen's SafeAreaView gets a stand-in that reports a
 // window position (the height of a header sitting above the screen).
 let mockWindowY = 0;
@@ -953,5 +961,80 @@ describe("Screen bottom inset without a footer", () => {
       mount("stack", true);
       expect(bottom()).toBe(32);
     });
+  });
+});
+
+describe("Segmented at large text", () => {
+  const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props.style as never) as Record<string, unknown>;
+  const three = [
+    { value: "a", label: "Pembatalan" },
+    { value: "b", label: "Pembayaran" },
+    { value: "c", label: "Lainnya" },
+  ];
+  const at = (window: { width: number; fontScale: number }) => void (mockWindow = { height: 800, scale: 3, ...window });
+  afterEach(() => void (mockWindow = DEFAULT_WINDOW));
+
+  it("Segmented with 3 options stacks into rows at font 1.3 in v2; classic unchanged", () => {
+    at({ width: 360, fontScale: 1.3 });
+    const view = render(
+      <LayoutScaleProvider value="v2">
+        <Segmented options={three} value="b" onChange={() => {}} />
+      </LayoutScaleProvider>,
+    );
+    expect(flat(screen.getByTestId("segmented")).flexDirection).toBe("column");
+    for (const label of ["Pembatalan", "Pembayaran", "Lainnya"]) {
+      const row = screen.getByRole("tab", { name: label });
+      // A full-width 48 row: no flex share of a squeezed track, and no hit slop needed.
+      expect(flat(row)).toMatchObject({ minHeight: 48, alignSelf: "stretch" });
+      expect(flat(row).flex).toBeUndefined();
+      expect(row.props.hitSlop).toBeUndefined();
+      // The label never shrinks or gets cut: it wraps inside its row if it must.
+      const text = screen.getByText(label);
+      expect(text.props.adjustsFontSizeToFit).toBeFalsy();
+      expect(text.props.numberOfLines).toBeUndefined();
+    }
+    view.unmount();
+
+    // Classic (Dapur) keeps its one row of flex segments at the same size.
+    render(<Segmented options={three} value="b" onChange={() => {}} />);
+    expect(flat(screen.getByTestId("segmented")).flexDirection).toBe("row");
+    expect(flat(screen.getByRole("tab", { name: "Pembatalan" }))).toMatchObject({ flex: 1, minHeight: 48 });
+  });
+
+  it("two options stay a row at font 1.3, and three stay a row on a wide screen", () => {
+    at({ width: 360, fontScale: 1.3 });
+    const view = render(
+      <LayoutScaleProvider value="v2">
+        <Segmented options={three.slice(0, 2)} value="a" onChange={() => {}} />
+      </LayoutScaleProvider>,
+    );
+    expect(flat(screen.getByTestId("segmented")).flexDirection).toBe("row");
+    expect(flat(screen.getByRole("tab", { name: "Pembatalan" }))).toMatchObject({ flex: 1, minHeight: 34 });
+    view.unmount();
+    at({ width: 412, fontScale: 1 });
+    render(
+      <LayoutScaleProvider value="v2">
+        <Segmented options={three} value="a" onChange={() => {}} />
+      </LayoutScaleProvider>,
+    );
+    expect(flat(screen.getByTestId("segmented")).flexDirection).toBe("row");
+  });
+
+  it("stacked rows keep the track and the chosen segment's colours in the dark palette", async () => {
+    at({ width: 360, fontScale: 1.3 });
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("seg", "dark");
+    render(
+      <ThemeProvider storageKey="seg">
+        <LayoutScaleProvider value="v2">
+          <Segmented options={three} value="b" onChange={() => {}} />
+        </LayoutScaleProvider>
+      </ThemeProvider>,
+    );
+    await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("seg"));
+    await act(async () => {});
+    const dark = nativeThemes.dark;
+    expect(flat(screen.getByTestId("segmented")).backgroundColor).toBe(dark.fill);
+    expect(flat(screen.getByRole("tab", { name: "Pembayaran" })).backgroundColor).toBe(dark.forest);
+    expect(flat(screen.getByRole("tab", { name: "Lainnya" })).backgroundColor).toBeUndefined();
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Text as RNText, View } from "react-native";
+import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { signInSentence } from "../account/SignInFirst";
 import { closeSheetFor } from "../nav";
@@ -8,18 +8,17 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Card,
+  ChoiceList,
   FadeSwap,
   Field,
-  fontFor,
   FormError,
-  PressableScale,
   ReadError,
   SheetBody,
   SheetHeader,
+  sheetSidePadding,
   Skeleton,
   SkeletonGroup,
   Text,
-  themedStyles,
   useColors,
   useToast,
   useUnsavedGuard,
@@ -52,7 +51,11 @@ function toBantuan() {
   closeSheetFor("/bantuan");
 }
 
-/** Ada masalah: a form sheet over its Hari with three choices, an optional note and the send button. */
+/**
+ * Ada masalah: a form sheet over its Hari. The delivery it is about sits in a card at the top (the day, the meal and the
+ * caterer, whose name may take two lines and is never cut to one), then the meal (on a day of two), three choices of
+ * what happened as radio rows, an optional note and the send button.
+ */
 export function ReportProblem() {
   const params = useLocalSearchParams<{ id: string; meal?: string; jenis?: string }>();
   const { actor, ready, t } = useMobile();
@@ -139,7 +142,6 @@ function ReportSkeleton() {
 function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: string; meal?: string; jenis?: string }) {
   const { runtime, command, t, locale } = useMobile();
   const c = useColors();
-  const styles = useStyles();
   const toast = useToast();
   const state = useData(`report:${id}`, () => runtime.api.customer(`?deliveryId=${encodeURIComponent(id)}`));
   const draftKey = `${actorId}:${id}`;
@@ -205,7 +207,9 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
     );
 
   const caterer = d.offer.caterer;
-  const context = `${dayLabel(d.service_date, jakartaDay(new Date()), locale)} · ${d.offer.name} · ${caterer}`;
+  // The header's held line names the package; the day, the meal and the caterer are in the card, where nothing is cut.
+  const context = d.offer.name;
+  const day = dayLabel(d.service_date, jakartaDay(new Date()), locale);
 
   async function send() {
     if (busy || !kind || !current) return;
@@ -253,26 +257,25 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
         )
       }
     >
+      <Card testID="delivery-card" style={{ gap: 2 }}>
+        <Text variant="heading" style={{ fontVariant: ["tabular-nums"] }}>
+          {`${day} · ${mealLabel(current.meal, locale)}`}
+        </Text>
+        <Text numberOfLines={2} style={{ color: c.muted }}>
+          {caterer}
+        </Text>
+      </Card>
       {meals.length > 1 ? (
-        <View style={{ flexDirection: "row", gap: 8 }} accessibilityRole="radiogroup">
-          {meals.map((m) => {
-            const checked = m.meal === current.meal;
-            return (
-              <PressableScale
-                key={m.meal}
-                haptic="select"
-                accessibilityRole="radio"
-                accessibilityLabel={mealLabel(m.meal, locale)}
-                accessibilityState={{ checked }}
-                onPress={() => setMeal(m.meal)}
-                style={[styles.mealChoice, checked && styles.on]}
-              >
-                <RNText style={[styles.choiceLabel, { color: checked ? c.cream : c.charcoal }]}>
-                  {mealLabel(m.meal, locale)}
-                </RNText>
-              </PressableScale>
-            );
-          })}
+        <View style={{ gap: 4 }}>
+          <Text variant="label">{t("Makan yang mana?", "Which meal?")}</Text>
+          <View style={{ marginHorizontal: -sheetSidePadding() }}>
+            <ChoiceList
+              label={t("Makan yang mana?", "Which meal?")}
+              value={current.meal}
+              onChange={setMeal}
+              options={meals.map((m) => ({ value: m.meal, label: mealLabel(m.meal, locale) }))}
+            />
+          </View>
         </View>
       ) : null}
       {current.issue ? (
@@ -284,26 +287,16 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
         </>
       ) : (
         <>
-          <View style={{ gap: 8 }} accessibilityRole="radiogroup">
+          <View style={{ gap: 4 }}>
             <Text variant="label">{t("Apa yang terjadi?", "What happened?")}</Text>
-            {KINDS.map((k) => {
-              const checked = kind === k.id;
-              return (
-                <PressableScale
-                  key={k.id}
-                  haptic="select"
-                  accessibilityRole="radio"
-                  accessibilityLabel={k.subject}
-                  accessibilityState={{ checked }}
-                  onPress={() => setKind(k.id)}
-                  style={[styles.choice, checked && styles.on]}
-                >
-                  <RNText style={[styles.choiceLabel, { color: checked ? c.cream : c.charcoal }]}>
-                    {t(k.subject, k.en)}
-                  </RNText>
-                </PressableScale>
-              );
-            })}
+            <View style={{ marginHorizontal: -sheetSidePadding() }}>
+              <ChoiceList<Kind>
+                label={t("Apa yang terjadi?", "What happened?")}
+                value={kind || null}
+                onChange={setKind}
+                options={KINDS.map((k) => ({ value: k.id, label: t(k.subject, k.en) }))}
+              />
+            </View>
           </View>
           <Field
             label={t("Catatan (boleh dikosongkan)", "Note (optional)")}
@@ -324,28 +317,3 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
   );
 }
 
-const useStyles = themedStyles((c) => ({
-  choice: {
-    minHeight: 56,
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.surface,
-  },
-  mealChoice: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 12,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.surface,
-  },
-  on: { backgroundColor: c.forest, borderColor: c.forest },
-  choiceLabel: { fontSize: 15, fontFamily: fontFor("700") },
-}));
