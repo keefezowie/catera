@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { currency, firstOperatingDayAfter, shortDate, type Locale, type Quote } from "@catera/domain";
 import { plural } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, fontFor, PressableScale, Text, themedStyles } from "@catera/mobile-ui";
+import { Button, fontFor, PressableScale, Text, themedStyles, cardEdge } from "@catera/mobile-ui";
 import { FieldRow } from "./BuyParts";
 import { BREAKDOWN_PAD, BREAKDOWN_ROW } from "./metrics";
 
@@ -135,8 +135,9 @@ const useStyles = themedStyles((c) => ({
   optionOff: { borderWidth: 1, borderColor: c.secondaryBorder, backgroundColor: c.surface },
   optionLabel: { fontSize: 15, fontFamily: fontFor("700"), color: c.charcoal },
   optionLabelOn: { color: c.cream },
-  // A surface card of rows like the choices above it: it stands off the canvas by tone, with no border.
+  // A surface card of rows like the choices above it: light draws a hairline and a faint shadow, dark stands off by tone.
   breakdown: {
+    ...cardEdge(c),
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",

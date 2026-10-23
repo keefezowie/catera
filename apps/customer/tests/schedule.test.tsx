@@ -299,7 +299,8 @@ describe("Jadwal", () => {
       await gridReady();
       const ring = flat(inCell("Kamis 8 Oktober", "cell-unset-ring")!);
       expect(ring).toMatchObject({ width: 6, height: 6, borderRadius: 3, borderWidth: 1.5, borderColor: siang.markerIdle });
-      expect(siang.markerIdle).toBe(nativeThemes.light.controlRing);
+      // On the deeper header the idle marker is a step darker than controlRing (3:1 on the header).
+      expect(siang.markerIdle).toBe("#7E8679");
       expect(ring.backgroundColor).toBeUndefined();
       expect(inCell("Kamis 8 Oktober", "cell-dot")).toBeNull();
       expect(within(dayButton("Kamis 8 Oktober")).UNSAFE_queryByType(Image)).toBeNull();

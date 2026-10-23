@@ -88,7 +88,7 @@ export function Skeleton({
   const mood = useMoodColors();
   const pulse = use(PulseContext);
   const animated = useAnimatedStyle(() => ({ opacity: pulse ? pulse.value : 1 }));
-  const fill = onHero || onMood ? mood.arcTrack : palette.sage;
+  const fill = onHero || onMood ? mood.arcTrack : palette.fill;
   return (
     <Animated.View
       testID={testID}

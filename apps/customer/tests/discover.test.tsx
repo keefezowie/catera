@@ -740,7 +740,7 @@ describe("Jelajah mood header", () => {
     expect(flat(screen.getByTestId("jelajah-title")).color).toBe(colors.charcoal);
     expect(flat(header().getByPlaceholderText("Cari menu atau katering…")).color).toBe(colors.charcoal);
     // A tone step on the canvas, no borders; the heart is a bare glyph on a 44 target.
-    expect(flat(screen.getByTestId("jelajah-search"))).toMatchObject({ backgroundColor: colors.surface });
+    expect(flat(screen.getByTestId("jelajah-search"))).toMatchObject({ backgroundColor: colors.inputFill });
     expect(flat(screen.getByTestId("jelajah-search")).borderWidth).toBeUndefined();
     expect(flat(screen.getByTestId("area-chip")).borderWidth).toBeUndefined();
     const heart = flat(header().getByRole("button", { name: "Paket disimpan" }));
@@ -1379,9 +1379,9 @@ describe("Paket on the layout scale (v2)", () => {
     for (const b of within(screen.getByTestId("paket-footer")).getAllByRole("button")) {
       expect(flat(b)).toMatchObject({ minHeight: 50, borderRadius: 25 });
     }
-    // 16 around the 50 buttons makes the 82 bar, with no hairline above it.
+    // 16 around the 50 buttons makes the 82 bar, with a line hairline above it in light.
     const footer = flat(screen.getByTestId("screen-footer"));
-    expect([footer.padding, footer.paddingBottom, footer.borderTopWidth]).toEqual([16, 16, 0]);
+    expect([footer.padding, footer.paddingBottom, footer.borderTopWidth]).toEqual([16, 16, 1]);
   });
 
   it("a combined day keeps the unit and its note on one meta line", async () => {

@@ -3,7 +3,7 @@ import { AccessibilityInfo, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import NetInfo, { type NetInfoState } from "@react-native-community/netinfo";
 import { Button, Text } from "./components";
-import { themedStyles, useColors } from "./theme";
+import { cardEdge, themedStyles, useColors } from "./theme";
 import { fonts } from "./type";
 import { useT } from "./useT";
 
@@ -98,6 +98,7 @@ const useStyles = themedStyles((c) => ({
     borderRadius: 12,
     borderCurve: "continuous",
     padding: 12,
+    ...cardEdge(c),
   },
   text: { flex: 1, gap: 2 },
 }));

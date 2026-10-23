@@ -15,6 +15,7 @@ import {
   themedStyles,
   useColors,
   Photo,
+  cardEdge,
 } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
 import { packageHref } from "../hrefs";
@@ -126,6 +127,7 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.line,
+    ...cardEdge(c),
   },
   photo: { height: 150, width: "100%", backgroundColor: c.sage },
 }));

@@ -68,7 +68,7 @@ describe("EmptyHome mood header", () => {
   it("opens on a Malam header titled Beranda, with no toggle, and the food stays on the page", async () => {
     renderEmpty(null);
     const header = await screen.findByTestId("beranda-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#F3F6EF");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#E2ECDD");
     const title = within(header).getByText("Beranda");
     expect(title.props.accessibilityRole).toBe("header");
     expect(flat(title).color).toBe("#2E2E2E");
@@ -79,7 +79,7 @@ describe("EmptyHome mood header", () => {
     const card = await screen.findByRole("button", { name: /^Nasi Ayam Bakar,/ });
     expect(within(header).queryByRole("button", { name: /^Nasi Ayam Bakar,/ })).toBeNull();
     expect(flat(card).backgroundColor).toBe(nativeThemes.light.surface);
-    expect(nativeThemes.light.surface).toBe("#FFFEFA");
+    expect(nativeThemes.light.surface).toBe("#FFFFFF");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalledWith("/login");
   });

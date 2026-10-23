@@ -390,8 +390,7 @@ describe("Perlu kamu urus (the full list)", () => {
     for (const row of rows) expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(72);
     const card = StyleSheet.flatten(within(screen.getByTestId("waiting-list")).getByTestId("list-card").props.style);
     expect(card).toMatchObject({ borderRadius: 16, backgroundColor: light.surface, paddingHorizontal: 16 });
-    expect(card.borderWidth).toBeUndefined();
-    expect(card.boxShadow).toBeUndefined();
+    expect(card).toMatchObject({ borderWidth: 1, borderColor: light.cardBorder, boxShadow: light.cardShadow });
     expect(within(screen.getByTestId("waiting-list")).getAllByTestId("list-card-separator")).toHaveLength(6);
     // Titles wrap at large text: none is held to one line.
     for (const t of list.getAllByTestId("waiting-title")) expect(t.props.numberOfLines).toBeUndefined();
@@ -643,8 +642,7 @@ describe("the live slot", () => {
     expect(StyleSheet.flatten(row.props.style).minHeight).toBe(72);
     const card = StyleSheet.flatten(screen.getByTestId("live-slot").props.style);
     expect(card).toMatchObject({ borderRadius: 16, backgroundColor: light.surface });
-    expect(card.borderWidth).toBeUndefined();
-    expect(card.boxShadow).toBeUndefined();
+    expect(card).toMatchObject({ borderWidth: 1, borderColor: light.cardBorder, boxShadow: light.cardShadow });
     // The existing action and its side effect.
     fireEvent.press(row);
     expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-kantor?date=2026-10-13&meal=lunch");

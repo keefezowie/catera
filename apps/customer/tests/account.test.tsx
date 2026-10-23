@@ -416,7 +416,7 @@ describe("Akun", () => {
       expect(screen.getByRole("radio", { name: "Ikuti sistem" })).toBeChecked();
       expect(screen.getByRole("radio", { name: "Terang" })).not.toBeChecked();
       expect(screen.getByRole("radio", { name: "Gelap" })).not.toBeChecked();
-      expect(canvas()).toBe("#E4DED1");
+      expect(canvas()).toBe("#FFFFFF");
     });
 
     it("pressing Gelap stores dark and repaints Pengaturan under the sheet", async () => {
@@ -813,7 +813,7 @@ describe("Akun mood header", () => {
     expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe(
       nativeMood.light.malam.header,
     );
-    expect(nativeMood.light.malam.header).toBe("#F3F6EF");
+    expect(nativeMood.light.malam.header).toBe("#E2ECDD");
     const name = within(header).getByText("Rani Contoh");
     expect(name.props.accessibilityRole).toBe("header");
     expect(flat(name).color).toBe("#2E2E2E");

@@ -26,7 +26,7 @@ import { nativeLayout } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
 import { useLayoutScale, useScreenMargin } from "./layoutScale";
 import { StatusBand } from "./StatusBand";
-import { themedStyles, useColors } from "./theme";
+import { cardEdge, cardEdgeWidth, themedStyles, useColors } from "./theme";
 import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
 import { ScreenHeaderContext, screenInsetBehavior } from "./screenInsets";
 import { insideTabs, useScreenBottomEdge, useToastAnchor } from "./toastAnchor";
@@ -692,8 +692,8 @@ export function RoundButton({
 }
 
 const useCardTones = themedStyles((c) => ({
-  // Direction K: a card stands off the page by its fill (1.33:1), so it draws no visible border.
-  surface: { backgroundColor: c.surface, borderColor: c.surface },
+  // Light: a white card on a white page, so a 1px hairline and a faint boxShadow carry it. Dark stands off by tone (1.33:1).
+  surface: { backgroundColor: c.surface, borderColor: c.surface, ...cardEdge(c) },
   attention: { backgroundColor: c.cream, borderColor: c.attentionBorder },
   sage: { backgroundColor: c.sage, borderColor: c.sage },
 }));
@@ -706,14 +706,13 @@ const useV2Styles = themedStyles((c) => ({
   segmented: { borderRadius: (nativeLayout.control.chip + 8) / 2 },
   segment: { minHeight: nativeLayout.control.chip, borderRadius: nativeLayout.control.chip / 2 },
   input: { minHeight: nativeLayout.control.field },
-  // No 1px border: a card stands off the canvas by its tone. The attention tone keeps its warm edge, and its padding
-  // gives up that 1px so the content still sits 16 in.
-  card: { borderWidth: 0, borderRadius: nativeLayout.radius.card, borderCurve: "continuous", padding: nativeLayout.cardPadding, gap: nativeLayout.groupGap },
+  // Light draws a 1px hairline (the padding gives it up so content still sits 16 in); dark has no border and stands off
+  // the canvas by tone. The attention tone keeps its warm edge, and its padding gives up that 1px too.
+  card: { borderWidth: cardEdgeWidth(c), borderRadius: nativeLayout.radius.card, borderCurve: "continuous", padding: nativeLayout.cardPadding - cardEdgeWidth(c), gap: nativeLayout.groupGap },
   cardAttention: { borderWidth: 1, padding: nativeLayout.cardPadding - 1 },
-  // 16 around a 50 button makes the 82 bar; it stands off the canvas by its tone, with no hairline above it.
-  // The bar is filled with the canvas tone, not the card surface: a card that scrolls under it then stays cut off by a
-  // visible tone step (1.33:1) where a surface-coloured bar would swallow its edge, and no hairline is needed.
-  footer: { paddingBottom: nativeLayout.cardPadding, borderTopWidth: 0, backgroundColor: c.canvas },
+  // 16 around a 50 button makes the 82 bar. Dark: it stands off by tone, no hairline. Light: page and cards are both
+  // white, so a card scrolling under the bar would run into it; the bar gets a `line` hairline on top instead.
+  footer: { paddingBottom: nativeLayout.cardPadding, borderTopWidth: cardEdgeWidth(c), borderTopColor: c.line, backgroundColor: c.canvas },
   // A stepper row inside a list card: the card pads the sides, the 44 buttons are circles on the glyph tone.
   stepper: { minHeight: nativeLayout.row.single, paddingLeft: 0, paddingRight: 0, paddingVertical: 6, gap: nativeLayout.space.md },
   stepLabel: { fontSize: 15, lineHeight: 22, minWidth: 0 },
@@ -756,7 +755,7 @@ const useStyles = themedStyles((c) => ({
     gap: 4,
     padding: 4,
     borderRadius: 10,
-    backgroundColor: c.sage,
+    backgroundColor: c.fill,
   },
   segment: { flex: 1, minHeight: 48, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   segmentOn: { backgroundColor: c.forest },
@@ -768,7 +767,7 @@ const useStyles = themedStyles((c) => ({
     borderColor: c.fieldBorder,
     borderRadius: 9,
     borderCurve: "continuous",
-    backgroundColor: c.surface,
+    backgroundColor: c.inputFill,
     paddingHorizontal: 14,
     fontFamily: FONT,
     fontSize: 15,

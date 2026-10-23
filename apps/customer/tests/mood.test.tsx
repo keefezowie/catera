@@ -114,7 +114,7 @@ describe("MoodProvider and colours", () => {
 
   it("useMoodColors follows the theme and the mood", () => {
     const light = mount(<Probe />, { now: MALAM_NOW, scheme: "light" });
-    expect(text("header")).toBe("#F3F6EF");
+    expect(text("header")).toBe("#E2ECDD");
     light.unmount();
     mount(<Probe />, { now: SIANG_NOW, scheme: "dark" });
     expect(text("header")).toBe("#2E2B25");
@@ -555,7 +555,7 @@ describe("StatusBand", () => {
     expect(band).toMatchObject({ position: "absolute", top: 0, left: 0, right: 0 });
     // Malam at rest: the Siang fill underneath, the Malam header colour fully opaque over it.
     expect(flat("status-band-fill-siang").backgroundColor).toBe(nativeMood.light.siang.header);
-    expect(flat("status-band-fill-malam").backgroundColor).toBe("#F3F6EF");
+    expect(flat("status-band-fill-malam").backgroundColor).toBe("#E2ECDD");
     expect(flat("status-band-fill-malam").opacity).toBe(1);
   });
 

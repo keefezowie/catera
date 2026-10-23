@@ -191,7 +191,7 @@ describe("CalendarPhotoCell", () => {
       borderColor: siang.markerIdle,
       borderRadius: 12,
     });
-    expect(siang.markerIdle).toBe("#858D80");
+    expect(siang.markerIdle).toBe("#7E8679");
     expect(screen.getByTestId("cell-sun", { includeHiddenElements: true })).toBeTruthy();
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
   });

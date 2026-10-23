@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { currency, mealLabel, perMealPrice, priceUnitLabel, type DirectPaymentMethod, type Locale, type Offer, type PaymentAvailability } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, Card, fontFor, FormError, PressableRow, ReadError, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, fontFor, FormError, PressableRow, ReadError, Text, themedStyles, useColors, cardEdge } from "@catera/mobile-ui";
 import { packageHref } from "../hrefs";
 import { DecorativeIcon, GlyphCircle, SectionHeader, Thumb } from "../layout";
 import { goToTab, leaveFor } from "../nav";
@@ -220,6 +220,7 @@ const useStyles = themedStyles((c) => ({
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     backgroundColor: c.surface,
+    ...cardEdge(c),
   },
   summaryText: { flex: 1, minWidth: 0 },
   field: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md },

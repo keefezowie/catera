@@ -914,7 +914,7 @@ describe("Beranda mood", () => {
   it("fills the hero from the Malam palette and sets the plate heading in the hero ink (the hero is the card colour in both moods)", async () => {
     mount(runtimeWith(async () => bothMeals()), { now: MALAM_NOW });
     await screen.findByTestId("plate-hero");
-    expect(flat("plate-hero-fill-malam").backgroundColor).toBe("#FFFEFA");
+    expect(flat("plate-hero-fill-malam").backgroundColor).toBe("#FFFFFF");
     expect(flat("plate-hero-fill-malam").opacity).toBe(1);
     expect(flat("plate-dishes").color).toBe("#2E2E2E");
   });

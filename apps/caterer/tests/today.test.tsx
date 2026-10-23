@@ -602,7 +602,7 @@ describe("Hari ini by mood", () => {
       jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
       renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
       await screen.findByText("Tidak ada pengantaran makan malam.");
-      expect(flat("mood-fill-malam").backgroundColor).toBe("#F3F6EF");
+      expect(flat("mood-fill-malam").backgroundColor).toBe("#E2ECDD");
       // The fill is always mounted; in Malam it is the opaque layer.
       expect(flat("mood-fill-malam").opacity).toBe(1);
       const title = within(screen.getByTestId("mood-header")).getByRole("button", { name: CHANGE_DAY });

@@ -31,7 +31,7 @@ describe.each(apps)('%s app config', (_name, config, appDir) => {
   it('both apps use the phase-f splash marks with light and dark backgrounds', () => {
     const s = splash(config);
     expect(s).toMatchObject({
-      backgroundColor: '#FDFAF3',
+      backgroundColor: '#FFFFFF',
       image: `${PHASE_F}/splash-mark-light.png`,
       imageWidth: 200,
       dark: { backgroundColor: '#151514', image: `${PHASE_F}/splash-mark-dark.png` },

@@ -305,7 +305,7 @@ describe("Usaha mood header", () => {
   it("titles the screen with the kitchen name in a Malam header, leaving the cards on the theme surface", async () => {
     renderMood(kitchen("Dapur Bu Rina"));
     const header = await screen.findByTestId("usaha-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#F3F6EF");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#E2ECDD");
     const title = await within(header).findByText("Dapur Bu Rina");
     expect(title.props.accessibilityRole).toBe("header");
     expect(flat(title).color).toBe("#2E2E2E");
@@ -317,7 +317,7 @@ describe("Usaha mood header", () => {
     let card = label.parent;
     while (card && !flat(card).backgroundColor) card = card.parent;
     expect(flat(card!).backgroundColor).toBe(nativeThemes.light.surface);
-    expect(nativeThemes.light.surface).toBe("#FFFEFA");
+    expect(nativeThemes.light.surface).toBe("#FFFFFF");
   });
 
   it("falls back to Usaha as the title while the kitchen name is unknown", async () => {
@@ -423,7 +423,7 @@ describe("Usaha states", () => {
       expect(screen.getByRole("radio", { name: "Ikuti sistem" })).toBeChecked();
       expect(screen.getByRole("radio", { name: "Terang" })).not.toBeChecked();
       expect(screen.getByRole("radio", { name: "Gelap" })).not.toBeChecked();
-      expect(canvas()).toBe("#E4DED1");
+      expect(canvas()).toBe("#FFFFFF");
     });
 
     it("pressing Gelap stores dark and repaints Pengaturan under the sheet", async () => {

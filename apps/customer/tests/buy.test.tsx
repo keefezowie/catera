@@ -1684,11 +1684,10 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(within(screen.getByTestId("buy-summary")).getByText("Makan Siang Rumahan").props.numberOfLines).toBeUndefined();
   });
 
-  it("the cards stand off the canvas-filled footer by tone, and the footer has no hairline", async () => {
+  it("the canvas-filled footer carries a line hairline on top in light, since the white cards scroll under it", async () => {
     await open();
     const footer = flat(screen.getByTestId("screen-footer"));
-    expect(footer).toMatchObject({ backgroundColor: nativeThemes.light.canvas, paddingBottom: 16, borderTopWidth: 0 });
-    expect(footer.backgroundColor).not.toBe(nativeThemes.light.surface);
+    expect(footer).toMatchObject({ backgroundColor: nativeThemes.light.canvas, paddingBottom: 16, borderTopWidth: 1, borderTopColor: nativeThemes.light.line });
   });
 
   it("reads the dark theme's surface for the cards and its canvas for the footer", async () => {

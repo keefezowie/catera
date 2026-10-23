@@ -3,6 +3,19 @@ import { Appearance, StyleSheet, useColorScheme } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { nativeThemes, type NativePalette, type ThemeName } from "@catera/design-tokens";
 
+/** Width of a card's border: 1 when the palette draws one (light), 0 in dark where a card stands off the page by tone. */
+export function cardEdgeWidth(p: NativePalette): number {
+  return p.cardBorder ? 1 : 0;
+}
+
+/**
+ * The light card edge: a 1px `cardBorder` hairline and a faint `boxShadow` (never the legacy shadow props). Empty in
+ * dark. Spread it into a card style; take `cardEdgeWidth` off the padding where the card had none before.
+ */
+export function cardEdge(p: NativePalette): { borderWidth?: number; borderColor?: string; boxShadow?: string } {
+  return p.cardBorder ? { borderWidth: 1, borderColor: p.cardBorder, boxShadow: p.cardShadow } : {};
+}
+
 export type ThemePreference = "system" | "light" | "dark";
 
 type ThemeValue = {

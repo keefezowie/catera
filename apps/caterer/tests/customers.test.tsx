@@ -191,7 +191,7 @@ describe("Pelanggan mood header", () => {
   it("titles the list in a Malam header, with the customer cards below it on the theme surface", async () => {
     renderMood(runtimeWith("approved", true));
     const header = await screen.findByTestId("pelanggan-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#F3F6EF");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#E2ECDD");
     const title = within(header).getByText("Pelanggan");
     expect(title.props.accessibilityRole).toBe("header");
     expect(flat(title).color).toBe("#2E2E2E");
@@ -202,7 +202,7 @@ describe("Pelanggan mood header", () => {
     let card = screen.getByText("Andre Kusuma").parent;
     while (card && !flat(card).backgroundColor) card = card.parent;
     expect(flat(card!).backgroundColor).toBe(nativeThemes.light.surface);
-    expect(nativeThemes.light.surface).toBe("#FFFEFA");
+    expect(nativeThemes.light.surface).toBe("#FFFFFF");
   });
 
   it("keeps + Pelanggan lama as a 48dp button that opens the import", async () => {

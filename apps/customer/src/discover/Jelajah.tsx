@@ -432,7 +432,7 @@ function Browse({
                   paddingHorizontal: 12,
                   borderRadius: nativeLayout.control.chip / 2,
                   borderCurve: "continuous",
-                  backgroundColor: c.surface,
+                  backgroundColor: c.inputFill,
                 }}
               >
                 <Ionicons name="location-outline" size={16} color={c.muted} />
@@ -490,8 +490,8 @@ function Browse({
               paddingHorizontal: 14,
               borderRadius: nativeLayout.control.search / 2,
               borderCurve: "continuous",
-              // A tone step on the canvas, no border (palette K).
-              backgroundColor: c.surface,
+              // The grey field fill on the white page, no border.
+              backgroundColor: c.inputFill,
             }}
           >
             <Ionicons name="search-outline" size={20} color={c.muted} />

@@ -403,7 +403,7 @@ describe("Screen details", () => {
     at(40);
     at(400);
     expect(tones()).toEqual([nativeThemes.light.tabBar]);
-    expect(nativeThemes.light.tabBar).toBe("#FFF7E9");
+    expect(nativeThemes.light.tabBar).toBe("#FFFFFF");
     // Back at the top, the canvas again, once.
     at(0);
     at(0);
@@ -593,6 +593,28 @@ describe("dark theme", () => {
     return view;
   }
 
+  it("dark cards draw no border and no shadow: they stand off the page by tone (v2 and the classic card)", async () => {
+    await renderDark(
+      <>
+        <LayoutScaleProvider value="v2">
+          <Card testID="v2-card">
+            <Text>a</Text>
+          </Card>
+        </LayoutScaleProvider>
+        <Card testID="classic-card">
+          <Text>b</Text>
+        </Card>
+      </>,
+    );
+    const v2 = StyleSheet.flatten(screen.getByTestId("v2-card").props.style);
+    expect(v2).toMatchObject({ borderWidth: 0, padding: 16, backgroundColor: DARK.surface });
+    expect(v2.boxShadow).toBeUndefined();
+    // The classic card (Dapur) keeps its 1px border, drawn in the surface colour, so it is invisible in dark.
+    const classic = StyleSheet.flatten(screen.getByTestId("classic-card").props.style);
+    expect(classic).toMatchObject({ borderWidth: 1, borderColor: DARK.surface });
+    expect(classic.boxShadow).toBeUndefined();
+  });
+
   it("Text title uses the dark charcoal ink, never forest (direction K)", async () => {
     await renderDark(<Text variant="title">Jadwal</Text>);
     expect(StyleSheet.flatten(screen.getByText("Jadwal").props.style).color).toBe(nativeThemes.dark.charcoal);
@@ -705,10 +727,11 @@ describe("layout scale", () => {
       </LayoutScaleProvider>,
     );
     expect(flat(screen.getByRole("button", { name: "Nanti" })).minHeight).toBe(50);
-    expect(flat(screen.getByTestId("card"))).toMatchObject({ borderRadius: 16, padding: 16, gap: 8, borderWidth: 0 });
+    // Light draws a 1px hairline, so the padding gives it up: border plus padding is still 16.
+    expect(flat(screen.getByTestId("card"))).toMatchObject({ borderRadius: 16, padding: 15, gap: 8, borderWidth: 1 });
   });
 
-  it("v2 geometry: a card has no border, the attention tone keeps its edge and still sits 16 in", () => {
+  it("v2 geometry: a light card has a hairline and a faint shadow, the attention tone keeps its warm edge, all sit 16 in", () => {
     render(
       <LayoutScaleProvider value="v2">
         <Card testID="surface">
@@ -722,11 +745,27 @@ describe("layout scale", () => {
         </Card>
       </LayoutScaleProvider>,
     );
-    expect(flat(screen.getByTestId("surface"))).toMatchObject({ borderWidth: 0, padding: 16 });
-    expect(flat(screen.getByTestId("sage"))).toMatchObject({ borderWidth: 0, padding: 16 });
+    const light = nativeThemes.light;
+    expect(flat(screen.getByTestId("surface"))).toMatchObject({
+      borderWidth: 1, borderColor: light.cardBorder, boxShadow: "0 1px 2px rgba(0,0,0,0.04)", backgroundColor: light.surface, padding: 15,
+    });
+    // The sage tone is a fill, not a white card: its border is its own colour and it casts no shadow.
+    expect(flat(screen.getByTestId("sage"))).toMatchObject({ borderWidth: 1, borderColor: light.sage, padding: 15 });
+    expect(flat(screen.getByTestId("sage")).boxShadow).toBeUndefined();
     const attention = flat(screen.getByTestId("attention"));
     expect(attention.borderColor).toBe(nativeThemes.light.attentionBorder);
     expect(attention.borderWidth + (attention.padding as number)).toBe(16);
+  });
+
+  it("the classic card (Dapur) gets the same light hairline and shadow, with its padding unchanged", () => {
+    render(
+      <Card testID="classic">
+        <Text>a</Text>
+      </Card>,
+    );
+    expect(flat(screen.getByTestId("classic"))).toMatchObject({
+      borderWidth: 1, borderColor: nativeThemes.light.cardBorder, boxShadow: nativeThemes.light.cardShadow, padding: 16,
+    });
   });
 
   it("v2 geometry: the screen body takes the 16 margin", () => {
@@ -740,7 +779,7 @@ describe("layout scale", () => {
     expect(flat(screen.getByTestId("screen-body")).paddingHorizontal).toBe(16);
   });
 
-  it("v2 geometry: the footer is filled with the canvas, not the card surface, with 16 under it and no hairline", () => {
+  it("v2 geometry: the footer is filled with the canvas, with 16 under it and a line hairline on top in light", () => {
     // A surface-coloured bar would swallow the edge of a card scrolling under it; the canvas fill keeps a visible tone step.
     render(
       <LayoutScaleProvider value="v2">
@@ -750,8 +789,7 @@ describe("layout scale", () => {
       </LayoutScaleProvider>,
     );
     const footer = flat(screen.getByTestId("screen-footer"));
-    expect(footer).toMatchObject({ backgroundColor: nativeThemes.light.canvas, paddingBottom: 16, borderTopWidth: 0 });
-    expect(footer.backgroundColor).not.toBe(nativeThemes.light.surface);
+    expect(footer).toMatchObject({ backgroundColor: nativeThemes.light.canvas, paddingBottom: 16, borderTopWidth: 1, borderTopColor: nativeThemes.light.line });
   });
 
   it("v2 geometry: the stepper's buttons are 44 circles on the glyph tone and a leading node sits before the label", () => {

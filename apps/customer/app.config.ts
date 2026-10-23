@@ -54,7 +54,7 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        backgroundColor: "#FDFAF3",
+        backgroundColor: "#FFFFFF",
         image: "../../packages/brand/assets/phase-f/splash-mark-light.png",
         imageWidth: 200,
         dark: {

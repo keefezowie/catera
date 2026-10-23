@@ -3,7 +3,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Pressable, Switch, Text as RNText, View } from "react-native";
 import { useHaptic } from "../motion";
 import { Skeleton, SkeletonGroup } from "../Skeleton";
-import { useColors } from "../theme";
+import { cardEdge, useColors } from "../theme";
 import { fonts } from "../type";
 
 /**
@@ -56,6 +56,7 @@ export function SettingsSection({
             borderCurve: "continuous",
             borderWidth: 1,
             borderColor: palette.line,
+            ...cardEdge(palette),
             overflow: "hidden",
           }}
         >

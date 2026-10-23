@@ -312,7 +312,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       // Past the photo the platform's own back returns.
       headerLeft: undefined,
     };
-    expect(nativeThemes.light.tabBar).toBe("#FFF7E9");
+    expect(nativeThemes.light.tabBar).toBe("#FFFFFF");
     expect(navigation.setOptions).toHaveBeenLastCalledWith(onCanvas);
     expect(lightGlyphs()).toBe(false);
     // Once the name line has gone under the bar, the bar takes the name.

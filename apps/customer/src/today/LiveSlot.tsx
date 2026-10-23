@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import type { CustomerActionItem, CustomerState } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { PressableRow, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
+import { PressableRow, Text, themedStyles, useColors, useStackedLayout, cardEdge } from "@catera/mobile-ui";
 import { GLYPH_INSET } from "../layout";
 import { SECTION_LEAD } from "./sectionGap";
 import { WaitingAction, WaitingGlyph, useWaitingRows } from "./WaitingList";
@@ -84,13 +84,14 @@ export function LiveSlot({
 }
 
 const useStyles = themedStyles((c) => ({
-  // A surface card on the canvas: tone, not a border.
+  // A surface card on the canvas: a hairline and a faint shadow in light, tone in dark.
   card: {
     marginTop: SECTION_LEAD,
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     paddingHorizontal: nativeLayout.cardPadding,
+    ...cardEdge(c),
   },
   row: {
     minHeight: nativeLayout.row.media,

@@ -4,7 +4,7 @@ import { router, useIsFocused } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { shortDate, type Subscription } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
-import { Button, fontFor, Photo, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, fontFor, Photo, Text, themedStyles, useColors, cardEdge } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
 
 /**
@@ -118,6 +118,7 @@ const useStyles = themedStyles((c) => ({
     borderCurve: "continuous",
     padding: 16,
     gap: 12,
+    ...cardEdge(c),
   },
   photo: {
     width: 72,

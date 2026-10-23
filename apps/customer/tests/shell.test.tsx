@@ -526,9 +526,9 @@ describe("appearance", () => {
   it("tab bar colours come from the theme, never the mood", async () => {
     // Pinned values (direction K): the cream bar, the neutral indicator pill, forest for selected and muted for the rest.
     expect(tabBarColors(nativeThemes.light)).toEqual({
-      backgroundColor: "#FFF7E9",
-      indicatorColor: "#D3CEC1",
-      rippleColor: "#D3CEC1",
+      backgroundColor: "#FFFFFF",
+      indicatorColor: "#D8D8D3",
+      rippleColor: "#D8D8D3",
       tintColor: "#163D2E",
       iconColor: { default: "#555B54", selected: "#163D2E" },
       labelColor: { default: "#555B54", selected: "#163D2E" },
@@ -542,7 +542,7 @@ describe("appearance", () => {
       labelColor: { default: "#B5B2AA", selected: "#9CCBAE" },
     });
     // Control: the mood header really is Siang, then Malam, in each theme.
-    const header = { light: ["#FFF7E9", "#F3F6EF"], dark: ["#2E2B25", "#2A2D27"] };
+    const header = { light: ["#FBE7C3", "#E2ECDD"], dark: ["#2E2B25", "#2A2D27"] };
     for (const theme of ["light", "dark"] as const) {
       jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue(theme);
       for (const [i, at] of ["2026-10-09T03:00:00Z", MALAM].entries()) {
@@ -560,9 +560,9 @@ describe("appearance", () => {
   it("light system scheme: light tab bar and a dark status bar", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     await renderRoot();
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFF7E9" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFFFF" });
     expect(mockStatusBar.style).toBe("dark");
-    expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#E4DED1", card: "#FFFEFA" } });
+    expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FFFFFF", card: "#FFFFFF" } });
   });
 
   /** The glyphs each mounted mood header asks for while its screen is in front (React Native's own status bar). */
@@ -577,17 +577,17 @@ describe("appearance", () => {
     expect(mockStatusBar.style).toBe("dark");
     // A tab root's Malam header in front sets light glyphs over it.
     expect(moodGlyphs()).toEqual(["dark-content"]);
-    expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#F3F6EF");
+    expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#E2ECDD");
     expect(StyleSheet.flatten(screen.getByText("Judul uji").props.style).color).toBe("#2E2E2E");
     // Pushed screens get the native header on the theme canvas, never the mood fill.
     expect(mockStack.screenOptions).toMatchObject({
-      headerStyle: { backgroundColor: "#E4DED1" },
+      headerStyle: { backgroundColor: "#FFFFFF" },
       headerTintColor: "#2E2E2E",
-      contentStyle: { backgroundColor: "#E4DED1" },
+      contentStyle: { backgroundColor: "#FFFFFF" },
     });
     expect(mockStack.screenOptions?.header).toBeUndefined();
     // The mood never reaches the tab bar.
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFF7E9" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFFFF" });
   });
 
   it("Siang on a light system theme keeps the dark status bar and the sunrise header", async () => {
@@ -596,7 +596,7 @@ describe("appearance", () => {
     await renderRoot();
     expect(mockStatusBar.style).toBe("dark");
     expect(moodGlyphs()).toEqual(["dark-content"]);
-    expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#FFF7E9");
+    expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#FBE7C3");
   });
 
   it("the Siang / Malam toggle reads Lunch and Dinner in English", async () => {
@@ -623,7 +623,7 @@ describe("appearance", () => {
     await renderRoot();
     expect(await screen.findByText("Demo (data contoh)")).toBeTruthy();
     // Control: the mood really is Malam here, so "dark" is the demo strip's doing and not a Siang launch.
-    expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#F3F6EF");
+    expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#E2ECDD");
     expect(mockStatusBar.style).toBe("dark");
     expect(moodGlyphs()).toEqual(["dark-content"]);
     // The strip pays the status-bar inset, so the Android header adds none.

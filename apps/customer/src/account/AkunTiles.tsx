@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { PressableRow, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
+import { PressableRow, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useStackedLayout, cardEdge } from "@catera/mobile-ui";
 import { DecorativeIcon, rowLabel } from "../layout";
 
 /** A shortcut tile is at least this tall (spec 3.5); its words push it taller rather than being cut. */
@@ -129,6 +129,7 @@ const useStyles = themedStyles((c) => ({
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     backgroundColor: c.surface,
+    ...cardEdge(c),
   },
   // Three columns share the row equally; the glyph sits over the words, which sit at the tile's foot.
   tileColumn: { flex: 1, flexBasis: 0, justifyContent: "space-between", gap: nativeLayout.space.sm },

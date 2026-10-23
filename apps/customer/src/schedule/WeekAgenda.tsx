@@ -14,7 +14,7 @@ import {
 } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { PressableRow, Text, themedStyles, useColors, cardEdge } from "@catera/mobile-ui";
 import { router } from "expo-router";
 import { DecorativeIcon, ListCard, MediaRow } from "../layout";
 import { dayHref } from "../hrefs";
@@ -219,6 +219,7 @@ const useStyles = themedStyles((c) => ({
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     backgroundColor: c.surface,
+    ...cardEdge(c),
   },
   next: {
     minHeight: nativeLayout.row.single,
@@ -229,5 +230,6 @@ const useStyles = themedStyles((c) => ({
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     backgroundColor: c.surface,
+    ...cardEdge(c),
   },
 }));

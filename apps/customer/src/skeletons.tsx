@@ -3,7 +3,7 @@ import { useWindowDimensions, View, type DimensionValue, type ViewStyle } from "
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { MoodFill, sheetSidePadding, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
+import { cardEdge, MoodFill, sheetSidePadding, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
 import {
   ACTION_CIRCLE,
   DAY_ACTION_GAP,
@@ -110,6 +110,7 @@ function ListCardFrame({ children, testID, style }: { children: ReactNode; testI
           backgroundColor: c.surface,
           borderRadius: nativeLayout.radius.card,
           borderCurve: "continuous",
+          ...cardEdge(c),
           paddingHorizontal: nativeLayout.cardPadding,
         },
         style,
@@ -238,6 +239,7 @@ export function OffersSkeleton() {
               borderWidth: 1,
               borderColor: c.line,
               backgroundColor: c.surface,
+              ...cardEdge(c),
             }}
           >
             <Skeleton height={150} radius={0} />
@@ -307,6 +309,7 @@ export function PlanSkeleton() {
               backgroundColor: c.surface,
               borderRadius: nativeLayout.radius.card,
               borderCurve: "continuous",
+              ...cardEdge(c),
               paddingHorizontal: nativeLayout.cardPadding,
               overflow: "hidden",
             }}
@@ -351,6 +354,7 @@ export function PlanListSkeleton() {
             backgroundColor: c.surface,
             borderRadius: nativeLayout.radius.card,
             borderCurve: "continuous",
+            ...cardEdge(c),
             paddingHorizontal: nativeLayout.cardPadding,
             overflow: "hidden",
           }}
@@ -394,6 +398,7 @@ export function AkunSkeleton() {
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous" as const,
+    ...cardEdge(c),
     paddingHorizontal: nativeLayout.cardPadding,
     overflow: "hidden" as const,
   };
@@ -593,6 +598,7 @@ function BreakdownCard({ testID }: { testID?: string }) {
         backgroundColor: c.surface,
         borderRadius: nativeLayout.radius.card,
         borderCurve: "continuous",
+        ...cardEdge(c),
         paddingHorizontal: nativeLayout.cardPadding,
         paddingVertical: BREAKDOWN_PAD,
       }}

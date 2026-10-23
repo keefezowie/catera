@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { nutrientBounds, nutritionMetrics, packageNutrition, type Locale, type Offer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { fonts, Text, themedStyles, useStackedLayout } from "@catera/mobile-ui";
+import { fonts, Text, themedStyles, useStackedLayout, cardEdge } from "@catera/mobile-ui";
 
 type Metric = { key: string; label: string; short: string; amount: string; unit: string };
 
@@ -109,6 +109,7 @@ const useStyles = themedStyles((c) => ({
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     backgroundColor: c.surface,
+    ...cardEdge(c),
   },
   stripRow: { flexDirection: "row", gap: nativeLayout.space.sm },
   stripStacked: { flexDirection: "column", gap: nativeLayout.space.md },

@@ -8,6 +8,9 @@ const NONTEXT = 3;
 const SURFACE = 1.2;
 const EDGE_TOKEN = 1.5;
 const CREAM = "#FFF7E9";
+// Light theme, 2026-10-23: a white page with white cards. A card is told from the page by a 1px `cardBorder` hairline
+// and a faint shadow, so that edge only has to read as a hairline (1.2:1, the SURFACE rule), not as a 1.5:1 edge token.
+const HAIRLINE = 1.2;
 
 const LOOKS: { look: string; theme: ThemeName; mood: Mood }[] = [
   { look: "light-siang", theme: "light", mood: "siang" },
@@ -26,12 +29,13 @@ const r2 = (a: string, b: string) => Math.round(contrastRatio(a, b) * 100) / 100
 
 describe("direction K theme tokens", () => {
   it("light keeps today's colours except the K keys", () => {
-    const changed = ["canvas", "line", "muted"];
+    const changed = ["canvas", "surface", "sage", "line", "muted"];
     for (const [k, v] of Object.entries(colors)) {
       if (!changed.includes(k)) expect(nativeThemes.light[k as keyof typeof colors], k).toBe(v);
     }
     expect(nativeThemes.light).toMatchObject({
-      canvas: "#E4DED1", surface: "#FFFEFA", sage: "#F0F3E9", line: "#D3CEC1", tabBar: "#FFF7E9",
+      canvas: "#FFFFFF", surface: "#FFFFFF", sage: "#F4F4F2", line: "#E7E7E4", tabBar: "#FFFFFF",
+      fill: "#F4F4F2", cardBorder: "#E7E7E4", cardShadow: "0 1px 2px rgba(0,0,0,0.04)",
       charcoal: "#2E2E2E", muted: "#555B54", forest: "#163D2E", cream: "#FFF7E9",
       sunrise: "#F47B2A", sunriseInk: "#9B4309", danger: "#A33024",
       overlayInk: "#1B1B1A", photoGround: "#2E2E2E",
@@ -50,9 +54,8 @@ describe("direction K theme tokens", () => {
     expect(nativeThemes.light).toMatchObject({
       controlRing: "#858D80", disabledFill: "#CFD3C6", toast: "#2E2E2E", onToast: "#FFF7E9", toastAction: "#BFD8BB",
     });
-    // The light Android tab pill is the line step, 1.48:1 off the cream bar; dark keeps its charcoal step.
-    expect(nativeThemes.light.tabIndicator).toBe("#D3CEC1");
-    expect(nativeThemes.light.tabIndicator).toBe(nativeThemes.light.line);
+    // The light Android tab pill is a step darker than the hairline, 1.43:1 off the white bar; dark keeps its charcoal step.
+    expect(nativeThemes.light.tabIndicator).toBe("#D8D8D3");
     expect(nativeThemes.dark.tabIndicator).toBe("#444441");
   });
   it("the success disc is a literal, not the Siang header", () => {
@@ -64,14 +67,46 @@ describe("direction K theme tokens", () => {
   });
 });
 
+describe("light theme on a white page (2026-10-23)", () => {
+  const { light, dark } = nativeThemes;
+  it("the page and the card are pure white, grey is only for small fills", () => {
+    expect(light.canvas).toBe("#FFFFFF");
+    expect(light.surface).toBe("#FFFFFF");
+    expect(light.tabBar).toBe("#FFFFFF");
+    expect(light.fill).toBe("#F4F4F2");
+  });
+  it("light cards carry a hairline border and a faint boxShadow; dark cards carry neither", () => {
+    expect(light.cardBorder).toBe(light.line);
+    expect(light.cardShadow).toBe("0 1px 2px rgba(0,0,0,0.04)");
+    expect(dark.cardBorder).toBe("");
+    expect(dark.cardShadow).toBe("");
+  });
+  it("the hairline reads on white (1.2:1) and the fill sits under the text and brand colours", () => {
+    expect(contrastRatio(light.cardBorder, light.surface)).toBeGreaterThanOrEqual(HAIRLINE);
+    expect(contrastRatio(light.cardBorder, light.surface)).toBeLessThan(1.5);
+    for (const t of ["charcoal", "muted", "forest", "danger"] as const)
+      expect(contrastRatio(light[t], light.fill), t + " on fill").toBeGreaterThanOrEqual(4.5);
+    // The fill is told from white by the control's own outline (fieldBorder, secondaryBorder), never by tone alone.
+    expect(contrastRatio(light.fill, light.surface)).toBeLessThan(HAIRLINE);
+  });
+  it("dark keeps today's values", () => {
+    expect(dark.canvas).toBe("#151514");
+    expect(dark.surface).toBe("#292927");
+    expect(dark.sage).toBe("#2A2D27");
+    expect(dark.fill).toBe("#2A2D27");
+    expect(dark.inputFill).toBe(dark.surface);
+    expect(light.inputFill).toBe(light.fill);
+  });
+});
+
 describe("direction K mood tokens", () => {
   const lightShadow = "0 6px 18px rgba(46,46,46,0.10)";
   const darkShadow = "0 6px 18px rgba(0,0,0,0.35)";
   const light = {
-    headerText: "#2E2E2E", headerMeta: "#555B54", toggleTrack: "#FFFEFA", toggleActive: "#163D2E",
-    onToggleActive: "#FFFEFA", arcTrack: "#C9C6BA", markerActive: "#2E2E2E", markerIdle: "#858D80",
-    todayRing: "#163D2E", hero: "#FFFEFA", heroText: "#2E2E2E", heroMeta: "#555B54", heroShadow: lightShadow,
-    heroWarn: "#A33024", heroEdge: "#C9C6BA", stopActive: "#9B4309", pattern: null,
+    headerText: "#2E2E2E", headerMeta: "#555B54", toggleTrack: "#FFFFFF", toggleActive: "#163D2E",
+    onToggleActive: "#FFFFFF", arcTrack: "#C9C6BA", markerActive: "#2E2E2E", markerIdle: "#7E8679",
+    todayRing: "#163D2E", hero: "#FFFFFF", heroText: "#2E2E2E", heroMeta: "#555B54", heroShadow: lightShadow,
+    heroWarn: "#A33024", heroEdge: "#BDBAAE", stopActive: "#9B4309", pattern: null,
   };
   const dark = {
     headerText: "#F5F1E8", headerMeta: "#B5B2AA", toggleTrack: "#292927", toggleActive: "#9CCBAE",
@@ -81,7 +116,7 @@ describe("direction K mood tokens", () => {
   };
   it("nativeMood matches spec 2.3", () => {
     expect(nativeMood).toEqual({
-      light: { siang: { header: "#FFF7E9", ...light }, malam: { header: "#F3F6EF", ...light } },
+      light: { siang: { header: "#FBE7C3", ...light }, malam: { header: "#E2ECDD", ...light } },
       dark: { siang: { header: "#2E2B25", ...dark }, malam: { header: "#2A2D27", ...dark } },
     });
   });
@@ -95,7 +130,7 @@ describe("direction K mood tokens", () => {
 });
 
 // The pairs per look. `kind`: surface (adjacent, or carried by a named edge), text, nontext.
-type Pair = { id: string; kind: "surface" | "text" | "nontext"; a: string; b: string; edge?: string };
+type Pair = { id: string; kind: "surface" | "text" | "nontext"; a: string; b: string; edge?: string; edgeMin?: number };
 function pairs(theme: ThemeName, mood: Mood): Pair[] {
   const t = nativeThemes[theme];
   const m = nativeMood[theme][mood];
@@ -103,8 +138,9 @@ function pairs(theme: ThemeName, mood: Mood): Pair[] {
     { id: "mood header vs canvas", kind: "surface", a: m.header, b: t.canvas },
     { id: "hero vs mood header", kind: "surface", a: m.hero, b: m.header, edge: m.heroEdge },
     { id: "hero vs canvas", kind: "surface", a: m.hero, b: t.canvas, edge: m.heroEdge },
-    { id: "card vs canvas", kind: "surface", a: t.surface, b: t.canvas },
-    { id: "tab bar vs canvas", kind: "surface", a: t.tabBar, b: t.canvas },
+    // Light: white on white, carried by the card's hairline border; the tab bar by its top hairline (`line`).
+    { id: "card vs canvas", kind: "surface", a: t.surface, b: t.canvas, edge: t.cardBorder || undefined, edgeMin: HAIRLINE },
+    { id: "tab bar vs canvas", kind: "surface", a: t.tabBar, b: t.canvas, edge: theme === "light" ? t.line : undefined, edgeMin: HAIRLINE },
     { id: "demo strip vs mood header", kind: "surface", a: t.canvas, b: m.header },
     { id: "search field boundary vs mood header", kind: "nontext", a: m.markerIdle, b: m.header },
     { id: "Siang/Malam track boundary vs mood header", kind: "nontext", a: m.markerIdle, b: m.header },
@@ -164,7 +200,7 @@ describe("direction K: the pairs per look", () => {
           else if (p.kind === "nontext") expect(r, p.id).toBeGreaterThanOrEqual(NONTEXT);
           else if (r < SURFACE) {
             expect(p.edge, `${p.id} needs a named edge`).toBeDefined();
-            expect(contrastRatio(p.edge as string, p.b), `${p.id} edge`).toBeGreaterThanOrEqual(EDGE_TOKEN);
+            expect(contrastRatio(p.edge as string, p.b), `${p.id} edge`).toBeGreaterThanOrEqual(p.edgeMin ?? EDGE_TOKEN);
           }
         });
       }
@@ -208,6 +244,7 @@ describe("derived steps and component rules", () => {
     it(`${theme}: the tab indicator pill holds the forest icon at 3:1 and stands 1.4:1 off the bar`, () => {
       expect(contrastRatio(p.forest, p.tabIndicator)).toBeGreaterThanOrEqual(3);
       expect(contrastRatio(p.tabIndicator, p.tabBar)).toBeGreaterThanOrEqual(1.4);
+      expect(contrastRatio(p.sage, p.tabBar) < 1.4 || theme === "dark").toBe(true);
       expect(p.tabIndicator).not.toBe(p.canvas);
       expect(contrastRatio(p.muted, p.tabBar)).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(p.forest, p.tabBar)).toBeGreaterThanOrEqual(4.5);

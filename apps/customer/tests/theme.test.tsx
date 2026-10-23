@@ -17,7 +17,7 @@ jest.mock("expo-secure-store", () => {
   };
 });
 
-const LIGHT_CANVAS = "#E4DED1";
+const LIGHT_CANVAS = "#FFFFFF";
 const DARK_CANVAS = "#151514";
 const store = (SecureStore as unknown as { __store: Map<string, string> }).__store;
 

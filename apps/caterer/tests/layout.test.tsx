@@ -358,7 +358,7 @@ describe("appearance", () => {
     expect(mockStackOptions.value.header).toBeUndefined();
     expect(screen.queryByTestId("app-header")).toBeNull();
     // The mood never reaches the tab bar.
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFF7E9" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFFFF" });
   });
 
   it("Dapur tab bar colours come from the theme, never the mood", async () => {
@@ -482,9 +482,9 @@ describe("appearance", () => {
     render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFF7E9" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFFFF" });
     expect(mockStatusBar.style).toBe("dark");
-    expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#E4DED1", card: "#FFFEFA" } });
+    expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FFFFFF", card: "#FFFFFF" } });
   });
 });
 

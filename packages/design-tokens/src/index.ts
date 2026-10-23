@@ -79,6 +79,10 @@ export const webVariables = {
 export type PaletteKey =
   | keyof typeof colors
   | "controlRing"
+  | "fill"
+  | "inputFill"
+  | "cardBorder"
+  | "cardShadow"
   | "tabBar"
   | "disabledFill"
   | "tabIndicator"
@@ -108,13 +112,25 @@ export type ThemeName = "light" | "dark";
 export const nativeThemes: Record<ThemeName, NativePalette> = {
   light: {
     ...colors,
-    canvas: "#E4DED1",
-    line: "#D3CEC1",
+    // White page, white cards (2026-10-23): a card is told from the page by `cardBorder` and `cardShadow`, not by tone.
+    canvas: "#FFFFFF",
+    surface: "#FFFFFF",
+    // The hairline: card border, list separators, the tab bar's top edge. 1.24:1 on white.
+    line: "#E7E7E4",
     muted: "#555B54",
     controlRing: "#858D80",
-    tabBar: "#FFF7E9",
+    // Grey is kept for small fills only: chips, fields, the segmented track, skeletons (`sage` is the same step).
+    fill: "#F4F4F2",
+    // Text field and search field ground. Dark keeps the card tone it always had.
+    inputFill: "#F4F4F2",
+    sage: "#F4F4F2",
+    cardBorder: "#E7E7E4",
+    cardShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    // White bar (the Grab pattern). Its top edge is the hairline: iOS draws it itself; NativeTabs has no Android divider
+    // prop, so that edge is NOT VERIFIED on device. Fallback: tabBar = fill. The Android pill is a step darker than the line.
+    tabBar: "#FFFFFF",
     disabledFill: "#CFD3C6",
-    tabIndicator: "#D3CEC1",
+    tabIndicator: "#D8D8D3",
     toast: "#2E2E2E",
     onToast: "#FFF7E9",
     toastAction: "#BFD8BB",
@@ -139,6 +155,11 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
     attentionBorder: "#4C3322",
     danger: "#FF8F80",
     controlRing: "#8A8780",
+    // Dark is unchanged: cards stand off the page by tone, so the edge and the shadow are empty (nothing is drawn).
+    fill: "#2A2D27",
+    inputFill: "#292927",
+    cardBorder: "",
+    cardShadow: "",
     tabBar: "#292927",
     disabledFill: "#34332F",
     tabIndicator: "#444441",
@@ -172,19 +193,19 @@ const lightMood = (header: string): MoodPalette => ({
   header,
   headerText: "#2E2E2E",
   headerMeta: "#555B54",
-  toggleTrack: "#FFFEFA",
+  toggleTrack: "#FFFFFF",
   toggleActive: "#163D2E",
-  onToggleActive: "#FFFEFA",
+  onToggleActive: "#FFFFFF",
   arcTrack: "#C9C6BA",
   markerActive: "#2E2E2E",
-  markerIdle: "#858D80",
+  markerIdle: "#7E8679",
   todayRing: "#163D2E",
   hero: nativeThemes.light.surface,
   heroText: "#2E2E2E",
   heroMeta: "#555B54",
   heroShadow: "0 6px 18px rgba(46,46,46,0.10)",
   heroWarn: "#A33024",
-  heroEdge: "#C9C6BA",
+  heroEdge: "#BDBAAE",
   stopActive: "#9B4309",
   pattern: null,
 });
@@ -210,7 +231,7 @@ const darkMood = (header: string): MoodPalette => ({
 });
 
 export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
-  light: { siang: lightMood("#FFF7E9"), malam: lightMood("#F3F6EF") },
+  light: { siang: lightMood("#FBE7C3"), malam: lightMood("#E2ECDD") },
   dark: { siang: darkMood("#2E2B25"), malam: darkMood("#2A2D27") },
 };
 
