@@ -2,10 +2,11 @@ import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, PasswordField, Text } from "@catera/mobile-ui";
+import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, PasswordField } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
 import { useAction } from "./useAction";
+import { CheckEmail } from "./CheckEmail";
 
 /** Daftar dengan email: name, email and password, then a verification link opened on this phone. */
 export function Register() {
@@ -56,70 +57,68 @@ export function Register() {
 
   return (
     <AuthScreen revealKey={action.failures}>
-      <AuthHeading
-        title={sent ? t("Cek emailmu", "Check your email") : t("Daftar", "Sign up")}
-        subtitle={sent ? undefined : t("Kami kirim tautan verifikasi ke emailmu.", "We'll send a verification link to your email.")}
-      />
       {sent ? (
-        <View style={{ gap: 12 }}>
-          <Text>
-            {t(
-              "Kalau email ini bisa didaftarkan, kami sudah mengirim tautan verifikasi. Buka tautannya di HP ini untuk kembali ke Catera. Cek juga folder spam.",
-              "If this email can be registered, we've sent a verification link. Open it on this phone to come back to Catera. Check your spam folder too.",
-            )}
-          </Text>
-          {resent ? (
-            <Text variant="caption">{t("Permintaan sudah dikirim. Cek emailmu.", "Request sent. Check your email.")}</Text>
-          ) : null}
-          {failed}
-          <Button
-            variant="secondary"
-            label={t("Kirim ulang verifikasi", "Resend verification")}
-            busy={action.busy}
-            onPress={() => void resend()}
-          />
-          <Button variant="text" label={t("Ubah email", "Change email")} style={{ alignSelf: "flex-start" }} onPress={() => setSent(false)} />
-        </View>
+        <CheckEmail
+          email={email.trim()}
+          intro={t(
+            "Kalau email ini bisa didaftarkan, tautan verifikasi sudah kami kirim ke",
+            "If this email can be registered, we've sent a verification link to",
+          )}
+          resent={resent}
+          resendBusy={action.busy}
+          error={failed}
+          onResend={() => void resend()}
+          onChangeEmail={() => {
+            setResent(false);
+            setSent(false);
+          }}
+        />
       ) : (
-        <View style={{ gap: 14 }}>
-          <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={100} />
-          <Field
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoComplete="email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            maxLength={254}
-            invalid={action.code === "EMAIL_NOT_CONFIRMED"}
+        <>
+          <AuthHeading
+            title={t("Daftar", "Sign up")}
+            subtitle={t("Kami kirim tautan verifikasi ke emailmu.", "We'll send a verification link to your email.")}
           />
-          <PasswordField
-            label={t("Kata sandi", "Password")}
-            showWord={t("Tampilkan", "Show")}
-            hideWord={t("Sembunyikan", "Hide")}
-            showA11y={t("Tampilkan kata sandi", "Show password")}
-            hideA11y={t("Sembunyikan kata sandi", "Hide password")}
-            value={password}
-            onChangeText={setPassword}
-            invalid={action.code === "PASSWORD_REJECTED"}
-            autoComplete="new-password"
-            autoCapitalize="none"
-            autoCorrect={false}
-            maxLength={256}
-            hint={t(
-              "Minimal 8 karakter. Verifikasi email sebelum masuk.",
-              "At least 8 characters. Verify your email before signing in.",
-            )}
-          />
-          {failed}
-          <Button
-            label={t("Daftar & verifikasi email", "Sign up & verify email")}
-            busy={action.busy}
-            disabled={!name.trim() || !validEmail(email) || password.length < 8}
-            onPress={() => void signUp()}
-          />
-        </View>
+          <View style={{ gap: 14 }}>
+            <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={100} />
+            <Field
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoComplete="email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={254}
+              invalid={action.code === "EMAIL_NOT_CONFIRMED"}
+            />
+            <PasswordField
+              label={t("Kata sandi", "Password")}
+              showWord={t("Tampilkan", "Show")}
+              hideWord={t("Sembunyikan", "Hide")}
+              showA11y={t("Tampilkan kata sandi", "Show password")}
+              hideA11y={t("Sembunyikan kata sandi", "Hide password")}
+              value={password}
+              onChangeText={setPassword}
+              invalid={action.code === "PASSWORD_REJECTED"}
+              autoComplete="new-password"
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={256}
+              hint={t(
+                "Minimal 8 karakter. Verifikasi email sebelum masuk.",
+                "At least 8 characters. Verify your email before signing in.",
+              )}
+            />
+            {failed}
+            <Button
+              label={t("Daftar & verifikasi email", "Sign up & verify email")}
+              busy={action.busy}
+              disabled={!name.trim() || !validEmail(email) || password.length < 8}
+              onPress={() => void signUp()}
+            />
+          </View>
+        </>
       )}
       <AuthSwitch
         prompt={t("Sudah punya akun?", "Already registered?")}

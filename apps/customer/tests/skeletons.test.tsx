@@ -424,13 +424,13 @@ describe("Masuk", () => {
     expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
   });
 
-  it("a code that does not match comes back to the form with what was typed and its message", async () => {
+  it("a code that does not match comes back to the form with its message and empty slots for the next try", async () => {
+    // The sixth digit submits the code by itself (spec R9).
     await codeEntered(async () => {
       throw Object.assign(new Error("INVALID_OTP"), { code: "INVALID_OTP" });
     });
-    await act(async () => fireEvent.press(screen.getByRole("button", { name: "Masuk" })));
     expect(await screen.findByText("Kode belum cocok. Periksa SMS lalu coba lagi.")).toBeTruthy();
-    expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("123456");
+    expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("");
     expect(screen.queryByTestId("mascot-loading")).toBeNull();
   });
 });

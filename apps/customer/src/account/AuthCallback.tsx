@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, FormError, Screen, Text } from "@catera/mobile-ui";
+import { AuthHeading, AuthScreen, Button, FormError, PasswordField, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, pendingKey, type Pending } from "./emailAuth";
 import { useAction } from "./useAction";
@@ -74,57 +74,61 @@ export function AuthCallback() {
     });
 
   return (
-    <Screen>
-      <View style={{ gap: 14, paddingTop: 8 }}>
-        <Text variant="title">
-          {phase === "recovery" ? t("Kata sandi baru", "New password") : t("Verifikasi akun", "Verify account")}
-        </Text>
-        {phase === "checking" ? <Text>{t("Memeriksa tautan…", "Checking your link…")}</Text> : null}
-        {phase === "error" ? (
-          <>
-            <Text>
-              {t(
-                "Tautan tidak berlaku, sudah dipakai, atau dibuka di HP lain. Minta tautan baru dari HP ini.",
-                "The link expired, was used, or was opened on another phone. Request a new link from this phone.",
-              )}
-            </Text>
-            <Button label={t("Pulihkan kata sandi", "Recover password")} onPress={() => router.replace("/recover" as never)} />
-            <Button variant="secondary" label={t("Masuk", "Sign in")} onPress={() => router.replace("/login" as never)} />
-          </>
-        ) : null}
-        {phase === "recovery" ? (
-          <>
-            <Field
-              label={t("Kata sandi baru", "New password")}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="new-password"
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={256}
-            />
-            <Field
-              label={t("Ulangi kata sandi", "Confirm password")}
-              value={confirm}
-              onChangeText={setConfirm}
-              secureTextEntry
-              autoComplete="new-password"
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={256}
-              hint={t("Minimal 8 karakter, dan keduanya harus sama.", "At least 8 characters, and both must match.")}
-            />
-            {action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null}
-            <Button
-              label={t("Simpan kata sandi & masuk", "Save password & sign in")}
-              busy={action.busy}
-              disabled={password.length < 8 || password !== confirm}
-              onPress={() => void savePassword()}
-            />
-          </>
-        ) : null}
-      </View>
-    </Screen>
+    <AuthScreen revealKey={action.failures}>
+      <AuthHeading
+        title={phase === "recovery" ? t("Kata sandi baru", "New password") : t("Verifikasi akun", "Verify account")}
+        subtitle={phase === "checking" ? t("Memeriksa tautan…", "Checking your link…") : undefined}
+      />
+      {phase === "error" ? (
+        <View style={{ gap: 14 }}>
+          <Text>
+            {t(
+              "Tautan tidak berlaku, sudah dipakai, atau dibuka di HP lain. Minta tautan baru dari HP ini.",
+              "The link expired, was used, or was opened on another phone. Request a new link from this phone.",
+            )}
+          </Text>
+          <Button label={t("Pulihkan kata sandi", "Recover password")} onPress={() => router.replace("/recover" as never)} />
+          <Button variant="secondary" label={t("Masuk", "Sign in")} onPress={() => router.replace("/login" as never)} />
+        </View>
+      ) : null}
+      {phase === "recovery" ? (
+        <View style={{ gap: 14 }}>
+          <PasswordField
+            label={t("Kata sandi baru", "New password")}
+            value={password}
+            onChangeText={setPassword}
+            autoComplete="new-password"
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={256}
+            showWord={t("Tampilkan", "Show")}
+            hideWord={t("Sembunyikan", "Hide")}
+            showA11y={t("Tampilkan kata sandi", "Show password")}
+            hideA11y={t("Sembunyikan kata sandi", "Hide password")}
+          />
+          <PasswordField
+            label={t("Ulangi kata sandi", "Confirm password")}
+            value={confirm}
+            onChangeText={setConfirm}
+            autoComplete="new-password"
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={256}
+            hint={t("Minimal 8 karakter, dan keduanya harus sama.", "At least 8 characters, and both must match.")}
+            showWord={t("Tampilkan", "Show")}
+            hideWord={t("Sembunyikan", "Hide")}
+            showA11y={t("Tampilkan kata sandi", "Show password")}
+            hideA11y={t("Sembunyikan kata sandi", "Hide password")}
+          />
+          {action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null}
+          <Button
+            label={t("Simpan kata sandi & masuk", "Save password & sign in")}
+            busy={action.busy}
+            disabled={password.length < 8 || password !== confirm}
+            onPress={() => void savePassword()}
+          />
+        </View>
+      ) : null}
+    </AuthScreen>
   );
 }

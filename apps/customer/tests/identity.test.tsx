@@ -1,8 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
+import { Linking, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { nativeThemes } from "@catera/design-tokens";
+import { ThemeProvider } from "@catera/mobile-ui";
 import { Register } from "../src/account/Register";
 import { Recover } from "../src/account/Recover";
 import { AuthCallback } from "../src/account/AuthCallback";
@@ -30,6 +33,12 @@ jest.mock("expo-secure-store", () => {
     deleteItemAsync: jest.fn(async (k: string) => void store.delete(k)),
   };
 });
+/** The phone the screen is drawn on; a test sets it to try another width or text size. */
+let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
 
 const store = (SecureStore as unknown as { __store: Map<string, string> }).__store;
@@ -63,6 +72,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   store.clear();
   mockParams = {};
+  mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
   supabase = fakeSupabase();
   runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "catera" });
   (runtime as { supabase: unknown }).supabase = supabase;
@@ -101,15 +111,6 @@ describe("Daftar dengan email", () => {
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
     const pending = JSON.parse(store.get("catera.auth.pending") ?? "{}");
     expect(pending).toMatchObject({ purpose: "signup", next: "/beli/p-1?portions=2" });
-
-    fireEvent.press(screen.getByRole("button", { name: "Kirim ulang verifikasi" }));
-    await waitFor(() =>
-      expect(supabase.auth.resend).toHaveBeenCalledWith({
-        type: "signup",
-        email: "rani@example.test",
-        options: { emailRedirectTo: "catera://auth/callback" },
-      }),
-    );
   });
 
   it("shows a single heading: the large Daftar title, with the subtitle under it", async () => {
@@ -175,6 +176,110 @@ describe("Lupa kata sandi", () => {
   });
 });
 
+describe("Cek emailmu", () => {
+  const toRegisterSent = async () => {
+    renderWith(<Register />);
+    fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani Contoh");
+    fireEvent.changeText(screen.getByLabelText("Email"), " rani@example.test ");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+    return screen.findByTestId("check-email");
+  };
+  const toRecoverSent = async () => {
+    renderWith(<Recover />);
+    fireEvent.changeText(await screen.findByLabelText("Email"), " rani@example.test ");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
+    return screen.findByTestId("check-email");
+  };
+  /** What the shared view shows, so the two pages can be compared. */
+  const shape = () => ({
+    header: screen.getAllByRole("header").map((h) => h.props.children),
+    address: StyleSheet.flatten(screen.getByText("rani@example.test").props.style).fontFamily,
+    art: screen.queryAllByTestId(/^mascot-/, { includeHiddenElements: true }).length > 0,
+    open: !!screen.getByRole("button", { name: "Buka aplikasi email" }),
+    resend: !!screen.getByRole("button", { name: "Kirim ulang dalam 1:00" }),
+    change: !!screen.getByRole("button", { name: "Ubah email" }),
+    form: screen.queryByLabelText("Email"),
+  });
+
+  it("register and recover show the same Cek emailmu view with the address", async () => {
+    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    await toRegisterSent();
+    const register = shape();
+    expect(register).toMatchObject({ header: ["Cek emailmu"], art: true, open: true, resend: true, change: true, form: null });
+    // The address is set in bold, so a typo shows.
+    expect(register.address).toMatch(/Bold/);
+    fireEvent.press(screen.getByRole("button", { name: "Buka aplikasi email" }));
+    expect(open).toHaveBeenCalledWith("mailto:");
+    screen.unmount();
+
+    await toRecoverSent();
+    expect(shape()).toEqual(register);
+    open.mockRestore();
+  });
+
+  it("an email app that cannot open is quiet", async () => {
+    const open = jest.spyOn(Linking, "openURL").mockRejectedValue(new Error("no app"));
+    await toRecoverSent();
+    fireEvent.press(screen.getByRole("button", { name: "Buka aplikasi email" }));
+    await waitFor(() => expect(open).toHaveBeenCalled());
+    expect(screen.getByTestId("check-email")).toBeTruthy();
+    open.mockRestore();
+  });
+
+  it("resends after the 60 second countdown, and Ubah email goes back to the form", async () => {
+    jest.useFakeTimers();
+    try {
+      await toRegisterSent();
+      expect(screen.getByRole("button", { name: "Kirim ulang dalam 1:00" })).toBeDisabled();
+      act(() => jest.advanceTimersByTime(60_000));
+      fireEvent.press(screen.getByRole("button", { name: "Kirim ulang tautan" }));
+      await waitFor(() =>
+        expect(supabase.auth.resend).toHaveBeenCalledWith({
+          type: "signup",
+          email: "rani@example.test",
+          options: { emailRedirectTo: "catera://auth/callback" },
+        }),
+      );
+      expect(await screen.findByRole("button", { name: "Kirim ulang dalam 1:00" })).toBeDisabled();
+      expect(screen.getByText("Terkirim lagi. Cek emailmu.")).toBeTruthy();
+      fireEvent.press(screen.getByRole("button", { name: "Ubah email" }));
+      expect(screen.getByLabelText("Email").props.value).toBe(" rani@example.test ");
+      screen.unmount();
+
+      await toRecoverSent();
+      expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
+      act(() => jest.advanceTimersByTime(60_000));
+      fireEvent.press(screen.getByRole("button", { name: "Kirim ulang tautan" }));
+      await waitFor(() => expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledTimes(2));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("keeps every line whole at 360dp and font scale 1.3", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    await toRecoverSent();
+    for (const text of within(screen.getByTestId("check-email")).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
+  });
+
+  it("draws on the dark palette", async () => {
+    const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    render(
+      <ThemeProvider storageKey="check-email-dark-test">
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <Recover />
+        </MobileProvider>
+      </ThemeProvider>,
+    );
+    fireEvent.changeText(await screen.findByLabelText("Email"), "rani@example.test");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
+    await screen.findByTestId("check-email");
+    expect(StyleSheet.flatten(screen.getByText("rani@example.test").props.style).color).toBe(nativeThemes.dark.charcoal);
+    scheme.mockRestore();
+  });
+});
+
 describe("Masuk links", () => {
   it("offers email registration and password recovery, keeping where to return", async () => {
     mockParams = { next: "/disimpan" };
@@ -215,6 +320,36 @@ describe("Masuk with email", () => {
 describe("auth callback", () => {
   const intent = (purpose: string) =>
     store.set("catera.auth.pending", JSON.stringify({ purpose, next: "/checkout/package?cycles=3", at: Date.now() }));
+
+  it("the callback renders on AuthScreen", async () => {
+    mockParams = { code: "one-time-code" };
+    intent("recovery");
+    let finish: (v: unknown) => void = () => {};
+    supabase.auth.exchangeCodeForSession.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    renderWith(<AuthCallback />);
+    // Checking: the auth heading (its mark and one large title) and the wait under it.
+    expect(await screen.findByTestId("auth-mark")).toBeTruthy();
+    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Verifikasi akun"]);
+    expect(screen.getByText("Memeriksa tautan…")).toBeTruthy();
+    await act(async () =>
+      finish({
+        data: { user: { id: "verified-user" }, session: { access_token: "synthetic" }, redirectType: "recovery" },
+        error: null,
+      }),
+    );
+    // Recovery: the same heading, and the passwords with a show toggle like Daftar.
+    expect(await screen.findByRole("header", { name: "Kata sandi baru" })).toBeTruthy();
+    expect(screen.getByTestId("auth-mark")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Tampilkan kata sandi" }).length).toBeGreaterThan(0);
+  });
+
+  it("a dead link explains itself on the auth layout", async () => {
+    mockParams = { error: "access_denied" };
+    renderWith(<AuthCallback />);
+    expect(await screen.findByText(/Tautan tidak berlaku/)).toBeTruthy();
+    expect(screen.getByTestId("auth-mark")).toBeTruthy();
+    expect(screen.getAllByRole("header")).toHaveLength(1);
+  });
 
   it("recovery refuses a normal sign-in code even when the local intent says recovery", async () => {
     mockParams = { code: "one-time-code" };

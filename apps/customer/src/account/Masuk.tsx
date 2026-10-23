@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
@@ -7,6 +7,7 @@ import { useMobile } from "@catera/mobile-core";
 import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, MethodTabs, PasswordField, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { leaveFor } from "../nav";
+import { CodeInput, ResendButton, useResendTimer } from "./CodeInput";
 
 /** Numbers as typed in Indonesia (0812…, 62812…, +62 812…, 812…) to E.164. */
 export function e164Indonesia(input: string): string {
@@ -29,14 +30,18 @@ export function Masuk() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   // Which action is waiting, so only its button shows the spinner; the typed number and the code stay on screen.
-  const [waiting, setWaiting] = useState<"step" | "demo" | "">("");
+  const [waiting, setWaiting] = useState<"step" | "resend" | "demo" | "">("");
   const [error, setError] = useState("");
   const [failures, setFailures] = useState(0);
+  // Held from the press to the answer, so a code that fills twice in one frame is still checked once.
+  const lock = useRef(false);
+  const resend = useResendTimer(60);
 
   useEffect(() => setError(""), [method]);
 
-  async function run(step: () => Promise<void>, which: "step" | "demo" = "step") {
-    if (busy) return;
+  async function run(step: () => Promise<void>, which: "step" | "resend" | "demo" = "step") {
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     setWaiting(which);
     setError("");
@@ -51,6 +56,7 @@ export function Masuk() {
       );
       setFailures((n) => n + 1);
     } finally {
+      lock.current = false;
       setBusy(false);
       setWaiting("");
     }
@@ -67,21 +73,29 @@ export function Masuk() {
   );
   const emailCopy = t("Masuk dengan email dan kata sandi kamu.", "Sign in with your email and password.");
   const phoneStep = method === "phone";
+  // The code is checked by itself on its sixth digit (or on Masuk). One that does not match empties the slots for the next try.
+  const verify = (entered: string) =>
+    run(async () => {
+      try {
+        await finish(await runtime.verifyPhoneOtp(e164Indonesia(phone), entered, "Pelanggan", Crypto.randomUUID()));
+      } catch (e) {
+        setCode("");
+        throw e;
+      }
+    });
   const primary = phoneStep ? (
     <Button
       label={sent ? t("Masuk", "Sign in") : t("Kirim kode", "Send code")}
       busy={waiting === "step"}
-      disabled={sent ? code.trim().length < 6 : phone.replace(/\D/g, "").length < 9}
+      disabled={sent ? code.length < 6 : phone.replace(/\D/g, "").length < 9}
       onPress={() =>
-        run(async () => {
-          if (!sent) {
-            await runtime.sendPhoneOtp(e164Indonesia(phone));
-            setSent(true);
-          } else {
-            // The code stays on screen while it is checked; a code that does not match comes back to it.
-            await finish(await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), "Pelanggan", Crypto.randomUUID()));
-          }
-        })
+        sent
+          ? void verify(code)
+          : void run(async () => {
+              await runtime.sendPhoneOtp(e164Indonesia(phone));
+              setSent(true);
+              resend.restart();
+            })
       }
     />
   ) : (
@@ -117,27 +131,39 @@ export function Masuk() {
             invalid={!!error && !sent}
           />
           {sent ? (
-            <Field
+            <CodeInput
               label={t("Kode dari SMS", "Code from SMS")}
               value={code}
               onChangeText={setCode}
-              keyboardType="number-pad"
-              autoComplete="sms-otp"
-              maxLength={6}
-              autoFocus
-              invalid={!!error}
+              onFilled={(entered) => void verify(entered)}
+              invalid={!!error && !code}
             />
           ) : null}
           {sent ? (
-            <Button
-              variant="text"
-              label={t("Ganti nomor", "Change number")}
-              style={{ alignSelf: "flex-start" }}
-              onPress={() => {
-                setSent(false);
-                setCode("");
-              }}
-            />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: 16 }}>
+              <ResendButton
+                left={resend.left}
+                ready={t("Kirim ulang kode", "Resend code")}
+                waiting={(time) => t(`Kirim ulang dalam ${time}`, `Resend in ${time}`)}
+                busy={waiting === "resend"}
+                onPress={() =>
+                  void run(async () => {
+                    await runtime.sendPhoneOtp(e164Indonesia(phone));
+                    setCode("");
+                    resend.restart();
+                  }, "resend")
+                }
+              />
+              <Button
+                variant="text"
+                label={t("Ganti nomor", "Change number")}
+                style={{ alignSelf: "flex-start" }}
+                onPress={() => {
+                  setSent(false);
+                  setCode("");
+                }}
+              />
+            </View>
           ) : null}
         </View>
       ) : (
