@@ -27,6 +27,8 @@ export function mealPlates(plates: Plate[]): { lunch: Plate[]; dinner: Plate[] }
 
 export type UpcomingMeal = {
   deliveryId: string;
+  /** The plan the delivery belongs to, for its menu link (`/pilih-menu/{subscriptionId}`). */
+  subscriptionId: string;
   meal: "lunch" | "dinner";
   packageName: string;
   catererName: string;
@@ -61,6 +63,7 @@ export function upcomingDays(state: CustomerState, now: Date, days: number, loca
         start: windowStartMinutes(d.offer, meal),
         meal: {
           deliveryId: d.id,
+          subscriptionId: d.subscription_id,
           meal,
           packageName: d.offer.name,
           catererName: d.offer.caterer,

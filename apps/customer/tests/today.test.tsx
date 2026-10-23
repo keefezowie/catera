@@ -8,6 +8,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import {
   addDays,
+  changeDeadline,
   todayPlates,
   upcomingRows,
   type CustomerState,
@@ -442,6 +443,35 @@ it("offline shows the cached day and when it was updated", async () => {
   // No loose caption: the banner is the only place the copy says it is old.
   expect(screen.queryByText(/Terakhir diperbarui|tidak ada koneksi/)).toBeNull();
   expect(offline.loadCachedCustomer).toHaveBeenCalledWith("u-c1");
+});
+
+describe("the hero's change deadline", () => {
+  it("the hero says until when it can change", async () => {
+    const state = customerState({ status: "scheduled" });
+    // Changes close two hours from now: the hero names the day and the time, in its body.
+    const cutoff = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    state.deliveries = state.deliveries.map((d) => (d.id === "d-today" ? { ...d, cutoff_at: cutoff } : d));
+    renderHome(runtimeWith(async () => state));
+    const line = await screen.findByTestId("plate-deadline");
+    expect(line.props.children).toBe(`Bisa diubah sampai ${changeDeadline(cutoff, new Date(), "id")}`);
+    expect(within(screen.getByTestId("plate-body")).getByTestId("plate-deadline")).toBeTruthy();
+    expect(StyleSheet.flatten(line.props.style).fontVariant).toContain("tabular-nums");
+  });
+
+  it("a hero with no cutoff_at has no deadline line", async () => {
+    const state = customerState({ status: "scheduled" });
+    state.deliveries = state.deliveries.map((d) => (d.id === "d-today" ? { ...d, cutoff_at: "" } : d));
+    renderHome(runtimeWith(async () => state));
+    await screen.findByTestId("plate-hero");
+    expect(screen.queryByTestId("plate-deadline")).toBeNull();
+    expect(screen.queryByText(/^Bisa diubah sampai/)).toBeNull();
+  });
+
+  it("a hero whose cutoff has passed has no deadline line", async () => {
+    renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
+    await screen.findByTestId("plate-hero");
+    expect(screen.queryByTestId("plate-deadline")).toBeNull();
+  });
 });
 
 describe("customerLink", () => {

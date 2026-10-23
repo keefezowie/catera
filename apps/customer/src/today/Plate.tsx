@@ -4,7 +4,15 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { pushSheet } from "../nav";
 import { nativeLayout, nativePhoto, nativeThemes } from "@catera/design-tokens";
-import { errorLabel, journeyCaption, whatsappUrl, type Delivery, type Plate as PlateData } from "@catera/domain";
+import {
+  canChangeDay,
+  changeDeadline,
+  errorLabel,
+  journeyCaption,
+  whatsappUrl,
+  type Delivery,
+  type Plate as PlateData,
+} from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
 import {
   Button,
@@ -125,6 +133,12 @@ export const sentences = (p: PlateData, t: (id: string, en: string) => string): 
       return [p.packageName, p.window];
   }
 };
+
+/** When the hero's day stops taking changes ("besok 17.00"), or null once it has, or when it never could. */
+function heroDeadline(d: Delivery, now: Date, locale: "id" | "en"): string | null {
+  const open = canChangeDay(d, now);
+  return open.date || open.address ? changeDeadline(d.cutoff_at, now, locale) : null;
+}
 
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -332,6 +346,8 @@ function PlateContent({
   // A failed meal keeps the track, with its warning stop: it has an honest place on it. A reported one does not.
   const showTrack = hero && plate.state !== "reported" && (!!caption || plate.state === "failed");
   const detail = hero ? heroDetail(plate, t, showTrack) : "";
+  // While the day can still change, the hero says until when (spec R3): from a fresh read only.
+  const deadline = hero && !offline && delivery ? heroDeadline(delivery, new Date(), locale) : null;
   const { deliveryId, meal: mealKey, journey } = plate;
   // A meal nobody tapped has no journey to look at yet, and stale offline data is not a view of today.
   // In the pager only the card in view counts; the peeking one counts once it is swiped to.
@@ -433,6 +449,11 @@ function PlateContent({
         {detail ? (
           <Text testID="plate-detail" variant="meta" style={{ color: quiet, fontVariant: ["tabular-nums"] }}>
             {detail}
+          </Text>
+        ) : null}
+        {deadline ? (
+          <Text testID="plate-deadline" variant="meta" style={{ color: quiet, fontVariant: ["tabular-nums"] }}>
+            {t(`Bisa diubah sampai ${deadline}`, `Can be changed until ${deadline}`)}
           </Text>
         ) : null}
         {showTrack ? (

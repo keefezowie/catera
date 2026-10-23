@@ -137,6 +137,8 @@ const sites: Site[] = [
     ui: <ReviewRoute />,
     fill: async () => {
       await screen.findByTestId("review-sheet");
+      // Kirim waits for a rating.
+      fireEvent.press(screen.getByRole("button", { name: "4 bintang" }));
       return "Kirim ulasan";
     },
     calls: (r) => (r.runtime.api.command as jest.Mock).mock.calls.filter(([a]) => a === "review.save").length,

@@ -176,6 +176,11 @@ describe("upcomingDays", () => {
     expect(first.meals.map((m) => m.window)).toEqual(["11.00–13.00", "18.30–20.00"]);
   });
 
+  it("each meal carries its plan, for the menu link", () => {
+    const [first] = upcomingDays(state([delivery(day(1), [lunch()], { subscription_id: "s9" })]), NOW, 3, "id");
+    expect(first.meals[0].subscriptionId).toBe("s9");
+  });
+
   it("a menu not yet set shows no dish and the package photo", () => {
     const pending = offer({ menus: [menu("lunch", { selectionStatus: "pending", image: "https://img/template.jpg" })] });
     const [first] = upcomingDays(state([delivery(day(1), [lunch()], {}, pending)]), NOW, 3, "id");

@@ -647,10 +647,15 @@ describe("outcomes", () => {
       await go(() => router.push("/ulasan/s-1"));
       expect(screen.getByRole("header", { name: "Ulasan untuk Dapur Contoh" })).toBeTruthy();
       await go(() => fireEvent.press(screen.getByRole("button", { name: "4 bintang" })));
+      // The three sub-ratings start at the overall rating; Pengantaran is changed to 3.
+      for (const part of ["Rasa", "Pengantaran", "Harga"])
+        expect(screen.getByRole("button", { name: `${part} 4 bintang` }).props.accessibilityState.selected).toBe(true);
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Pengantaran 3 bintang" })));
+      expect(screen.getByRole("button", { name: "Pengantaran 4 bintang" }).props.accessibilityState.selected).toBe(false);
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" })));
       expect(mockCommand).toHaveBeenCalledWith(
         "review.save",
-        expect.objectContaining({ subscriptionId: "s-1", rating: 4, food: 4, delivery: 4, value: 4 }),
+        expect.objectContaining({ subscriptionId: "s-1", rating: 4, food: 4, delivery: 3, value: 4 }),
       );
       await act(async () => {});
       expect(stack("(index)")).toEqual(["index"]);
@@ -658,6 +663,55 @@ describe("outcomes", () => {
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-1", "done");
       app.unmount();
     }));
+
+  it("the review starts with no stars and Kirim is disabled with Pilih bintang dulu.", async () => {
+    answer("ulasan:s-1", stateWith([], { subscriptions: [subscription()] }));
+    const app = await mount("/");
+    await go(() => router.push("/ulasan/s-1"));
+    for (const n of [1, 2, 3, 4, 5])
+      expect(screen.getByRole("button", { name: `${n} bintang` }).props.accessibilityState.selected).toBe(false);
+    // No sub-ratings until the overall one is picked.
+    expect(screen.queryByRole("button", { name: "Rasa 1 bintang" })).toBeNull();
+    expect(screen.getByText("Pilih bintang dulu.")).toBeTruthy();
+    const send = screen.getByRole("button", { name: "Kirim ulasan" });
+    expect(send.props.accessibilityState.disabled).toBe(true);
+    await go(() => fireEvent.press(send));
+    expect(mockCommand).not.toHaveBeenCalledWith("review.save", expect.anything());
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "5 bintang" })));
+    expect(screen.queryByText("Pilih bintang dulu.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Kirim ulasan" }).props.accessibilityState.disabled).toBeFalsy();
+    app.unmount();
+  });
+
+  it("Kirim sends once while busy", async () => {
+    let finish: (v: unknown) => void = () => undefined;
+    mockCommand.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)) as never);
+    answer("ulasan:s-1", stateWith([], { subscriptions: [subscription()] }));
+    const app = await mount("/");
+    await go(() => router.push("/ulasan/s-1"));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "3 bintang" })));
+    const send = screen.getByRole("button", { name: "Kirim ulasan" });
+    fireEvent.press(send);
+    fireEvent.press(send);
+    fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
+    expect(mockCommand.mock.calls.filter(([a]) => a === "review.save")).toHaveLength(1);
+    await go(() => finish({}));
+    app.unmount();
+  });
+
+  it("the sub-ratings at font 1.3 put each label over its stars", async () => {
+    mockFontScale = 1.3;
+    answer("ulasan:s-1", stateWith([], { subscriptions: [subscription()] }));
+    const app = await mount("/");
+    await go(() => router.push("/ulasan/s-1"));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "4 bintang" })));
+    const row = screen.getByTestId("review-part-delivery");
+    expect(StyleSheet.flatten(row.props.style).flexDirection).toBe("column");
+    expect(screen.getByText("Pengantaran").props.numberOfLines).toBeUndefined();
+    const star = StyleSheet.flatten(screen.getByRole("button", { name: "Pengantaran 1 bintang" }).props.style);
+    expect([star.width, star.height]).toEqual([44, 44]);
+    app.unmount();
+  });
 
   it("asking for help closes the sheet and toasts Permintaan bantuan terkirim", () =>
     expectToastAfterBack("Permintaan bantuan terkirim", async () => {

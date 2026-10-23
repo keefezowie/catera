@@ -62,6 +62,9 @@ export function UpcomingDays({
       router.push(dayHref(first.deliveryId, day.date, locale) as never);
     else goToTab("jadwal");
   };
+  // The day's unpicked row opens the plan's menu at the first delivery without one.
+  const pick = (day: UpcomingDay, first: UpcomingMeal) =>
+    router.push(`/pilih-menu/${encodeURIComponent(first.subscriptionId)}?date=${day.date}&meal=${first.meal}` as never);
 
   const single = shown.every((d) => d.meals.length === 1);
   return (
@@ -84,7 +87,7 @@ export function UpcomingDays({
           ))}
         </ListCard>
       ) : (
-        <DayBlocks days={shown} apiBase={apiBase} onOpen={open} onMore={more} />
+        <DayBlocks days={shown} apiBase={apiBase} onOpen={open} onMore={more} onPick={pick} />
       )}
     </View>
   );

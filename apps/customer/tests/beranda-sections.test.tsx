@@ -592,8 +592,11 @@ describe("Perlu kamu urus (the full list)", () => {
     mountList(runtime);
     fireEvent.press(await screen.findByRole("button", { name: /^Bagaimana Dapur Hijau selama ini\?/ }));
     await screen.findByTestId("review-sheet");
+    fireEvent.press(screen.getByRole("button", { name: "5 bintang" }));
     fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
     expect(await screen.findByText("Ulasannya belum terkirim. Coba lagi.")).toBeTruthy();
+    // The stars stay as they were, so trying again is one tap.
+    expect(screen.getByRole("button", { name: "5 bintang" }).props.accessibilityState.selected).toBe(true);
     expect(screen.getByText("Bagaimana Dapur Hijau selama ini?")).toBeTruthy();
   });
 });
@@ -928,12 +931,72 @@ describe("Berikutnya", () => {
     expect(labels.map((l) => l.props.children)).toEqual(["Siang tidak ada pengantaran", "Malam · Dapur Bulan"]);
   });
 
-  it("a menu not set in a block is the dashed tile with Menu belum diisi", async () => {
-    const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")] });
+  it("a day's unpicked deliveries collapse into one row with one Pilih menu", async () => {
+    const state = scheduled(
+      { 2: 4 },
+      { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")], "s-3": [pendingMenu("dinner")] },
+    );
     mount(runtimeWith(async () => state).runtime, v2);
-    const tile = within((await daysBlock()).getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch"));
-    expect(tile.getByText("Menu belum diisi")).toBeTruthy();
-    expect(tile.getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch-photo-not-set")).toBeTruthy();
+    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
+    expect(monday.getByTestId("upcoming-day-count").props.children).toBe("4 pengantaran");
+    // One row for the three unpicked; no dashed tile per delivery, and nothing left behind "+n lagi".
+    const rows = monday.getAllByTestId("day-unpicked-row");
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getByText("3 pengantaran belum ada menu")).toBeTruthy();
+    expect(monday.queryByTestId(/-photo-not-set$/)).toBeNull();
+    expect(monday.queryByText("Menu belum diisi")).toBeNull();
+    expect(monday.queryByText(/lagi$/)).toBeNull();
+    // The picked one keeps its photo tile.
+    expect(monday.getAllByTestId(/^upcoming-tile-d-.*-(lunch|dinner)$/).map((t) => t.props.testID)).toEqual([
+      "upcoming-tile-d-s-4-2026-10-12-dinner",
+    ]);
+    // One action, to the first unpicked delivery's menu.
+    const pick = within(rows[0]).getAllByRole("button", { name: "Pilih menu" });
+    expect(pick).toHaveLength(1);
+    fireEvent.press(pick[0]);
+    expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-1?date=2026-10-12&meal=lunch");
+  });
+
+  it("a day with nothing picked is the one row and no tiles", async () => {
+    const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] });
+    mount(runtimeWith(async () => state).runtime, v2);
+    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
+    expect(monday.getByText("2 pengantaran belum ada menu")).toBeTruthy();
+    expect(monday.queryByTestId("upcoming-grid-2026-10-12")).toBeNull();
+    expect(monday.queryByTestId("upcoming-none")).toBeNull();
+  });
+
+  it("one unpicked delivery reads Menu belum dipilih", async () => {
+    const state = scheduled({ 2: 2 }, { "s-2": [pendingMenu("lunch")] });
+    mount(runtimeWith(async () => state).runtime, v2);
+    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
+    const row = within(monday.getByTestId("day-unpicked-row"));
+    expect(row.getByText("Menu belum dipilih")).toBeTruthy();
+    expect(monday.queryByText(/belum ada menu$/)).toBeNull();
+    expect(monday.getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch")).toBeTruthy();
+    fireEvent.press(row.getByRole("button", { name: "Pilih menu" }));
+    expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-2?date=2026-10-12&meal=lunch");
+  });
+
+  it("the unpicked row at 360dp and font 1.3 grows instead of clipping", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    const state = scheduled({ 2: 3 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] });
+    mount(runtimeWith(async () => state).runtime, v2);
+    const row = (await daysBlock()).getByTestId("day-unpicked-row");
+    expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(48);
+    expect(within(row).getByText("2 pengantaran belum ada menu").props.numberOfLines).toBeUndefined();
+    const pick = within(row).getByRole("button", { name: "Pilih menu" });
+    expect(StyleSheet.flatten(pick.props.style).minHeight).toBeGreaterThanOrEqual(44);
+    // The action keeps its words on one line; the count wraps beside it.
+    expect(within(pick).getByText("Pilih menu").props.numberOfLines).toBe(1);
+  });
+
+  it("the unpicked row takes its inks from the dark theme", async () => {
+    const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")] });
+    mount(runtimeWith(async () => state).runtime, { ...v2, scheme: "dark" });
+    const row = within((await daysBlock()).getByTestId("day-unpicked-row"));
+    expect(color(row.getByText("Pilih menu"))).toBe(nativeThemes.dark.forest);
+    expect(StyleSheet.flatten(row.getByTestId("day-unpicked-tile").props.style).backgroundColor).toBe(nativeThemes.dark.line);
   });
 
   it("shows at most three days, however many have a delivery", async () => {
