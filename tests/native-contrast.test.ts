@@ -106,12 +106,19 @@ describe("light theme on a white page (2026-10-23)", () => {
     expect(contrastRatio(light.muted, a)).toBeGreaterThanOrEqual(4.5);
     expect(light.tabBar).toBe("#FFFFFF");
   });
+  it("the address well reads its text at 4.5:1 in both themes", () => {
+    for (const t of [light, dark])
+      for (const ink of ["charcoal", "muted", "forest"] as const)
+        expect(contrastRatio(t[ink], t.well), ink + " on well").toBeGreaterThanOrEqual(4.5);
+  });
   it("dark keeps today's values", () => {
     expect(dark.canvas).toBe("#151514");
     expect(dark.surface).toBe("#292927");
     expect(dark.sage).toBe("#2A2D27");
     expect(dark.fill).toBe("#2A2D27");
     expect(dark.inputFill).toBe(dark.surface);
+    expect(light.well).toBe("#F4F4F2");
+    expect(dark.well).toBe(dark.canvas);
     expect(light.inputFill).toBe(light.fill);
   });
 });

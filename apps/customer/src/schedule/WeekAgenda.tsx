@@ -14,7 +14,7 @@ import {
 } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { PressableRow, Text, themedStyles, useColors, cardEdge } from "@catera/mobile-ui";
+import { PressableRow, Text, themedStyles, useColors, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { router } from "expo-router";
 import { DecorativeIcon, ListCard, MediaRow } from "../layout";
 import { dayHref } from "../hrefs";
@@ -215,7 +215,7 @@ const useStyles = themedStyles((c) => ({
   empty: {
     minHeight: nativeLayout.row.single,
     justifyContent: "center",
-    paddingHorizontal: nativeLayout.cardPadding,
+    paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     backgroundColor: c.surface,
@@ -226,7 +226,7 @@ const useStyles = themedStyles((c) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: nativeLayout.space.md,
-    paddingHorizontal: nativeLayout.cardPadding,
+    paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     backgroundColor: c.surface,

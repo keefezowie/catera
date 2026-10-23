@@ -765,7 +765,7 @@ describe("Jelajah mood header", () => {
     expect(within(selected).UNSAFE_getByType(Ionicons).props.name).toBe("moon");
     expect(within(idle).UNSAFE_getByType(Ionicons).props.name).toBe("sunny");
     // The track is the surface colour.
-    expect(flat(screen.getByTestId("meal-track")).backgroundColor).toBe(nativeThemes.light.fill);
+    expect(flat(screen.getByTestId("meal-track")).backgroundColor).toBe(nativeThemes.light.inputFill);
   });
 
   describe("category circles", () => {

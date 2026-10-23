@@ -81,6 +81,7 @@ export type PaletteKey =
   | "controlRing"
   | "fill"
   | "inputFill"
+  | "well"
   | "cardBorder"
   | "cardShadow"
   | "tabBar"
@@ -124,11 +125,12 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
     fill: "#F4F4F2",
     // Text field and search field ground. Dark keeps the card tone it always had.
     inputFill: "#F4F4F2",
+    // A read-only well inside a sheet (the day's address row). Dark keeps the canvas tone it always had.
+    well: "#F4F4F2",
     sage: "#F4F4F2",
     cardBorder: "#E7E7E4",
     cardShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    // White bar (the Grab pattern). Its top edge is the hairline: iOS draws it itself; NativeTabs has no Android divider
-    // prop, so that edge is NOT VERIFIED on device. Fallback: tabBar = fill. The Android pill is a step darker than the line.
+    // iOS bar: white, with the system's own top hairline. Android takes `tabBarAndroid` below.
     tabBar: "#FFFFFF",
     // Android draws no divider and takes no hairline prop, so its bar is a filled Material surface-container step,
     // 1.22:1 on white. iOS keeps the white bar (the system draws its own top hairline).
@@ -162,6 +164,7 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
     // Dark is unchanged: cards stand off the page by tone, so the edge and the shadow are empty (nothing is drawn).
     fill: "#2A2D27",
     inputFill: "#292927",
+    well: "#151514",
     cardBorder: "",
     cardShadow: "",
     tabBar: "#292927",

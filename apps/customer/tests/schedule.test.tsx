@@ -1274,7 +1274,7 @@ describe("Hari", () => {
     expect(screen.getByTestId("day-state-lunch")).toHaveTextContent("Terjadwal 11.00–13.00 · bisa diubah sampai hari ini 17.00");
     // The address row is a 56 well in the canvas tone.
     const well = screen.getByTestId("day-address");
-    expect(flat(well)).toMatchObject({ minHeight: 56, borderRadius: 12, backgroundColor: nativeThemes.light.fill });
+    expect(flat(well)).toMatchObject({ minHeight: 56, borderRadius: 12, backgroundColor: nativeThemes.light.well });
     expect(within(well).getByText("Kantor · Jl. Contoh No. 1 · Tebet")).toBeTruthy();
   });
 

@@ -3,7 +3,7 @@ import { useWindowDimensions, View, type DimensionValue, type ViewStyle } from "
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { cardEdge, MoodFill, sheetSidePadding, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
+import { cardEdge, cardEdgeWidth, MoodFill, sheetSidePadding, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
 import {
   ACTION_CIRCLE,
   DAY_ACTION_GAP,
@@ -111,7 +111,7 @@ function ListCardFrame({ children, testID, style }: { children: ReactNode; testI
           borderRadius: nativeLayout.radius.card,
           borderCurve: "continuous",
           ...cardEdge(c),
-          paddingHorizontal: nativeLayout.cardPadding,
+          paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
         },
         style,
       ]}
@@ -310,7 +310,7 @@ export function PlanSkeleton() {
               borderRadius: nativeLayout.radius.card,
               borderCurve: "continuous",
               ...cardEdge(c),
-              paddingHorizontal: nativeLayout.cardPadding,
+              paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
               overflow: "hidden",
             }}
           >
@@ -355,7 +355,7 @@ export function PlanListSkeleton() {
             borderRadius: nativeLayout.radius.card,
             borderCurve: "continuous",
             ...cardEdge(c),
-            paddingHorizontal: nativeLayout.cardPadding,
+            paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
             overflow: "hidden",
           }}
         >
@@ -399,7 +399,7 @@ export function AkunSkeleton() {
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous" as const,
     ...cardEdge(c),
-    paddingHorizontal: nativeLayout.cardPadding,
+    paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
     overflow: "hidden" as const,
   };
   const row = (key: number, first: boolean) => (
@@ -599,8 +599,8 @@ function BreakdownCard({ testID }: { testID?: string }) {
         borderRadius: nativeLayout.radius.card,
         borderCurve: "continuous",
         ...cardEdge(c),
-        paddingHorizontal: nativeLayout.cardPadding,
-        paddingVertical: BREAKDOWN_PAD,
+        paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
+        paddingVertical: BREAKDOWN_PAD - cardEdgeWidth(c),
       }}
     >
       {Array.from({ length: BREAKDOWN_SKELETON_ROWS }, (_, i) => (

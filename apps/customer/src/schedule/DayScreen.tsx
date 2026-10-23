@@ -263,7 +263,6 @@ const useStyles = themedStyles((c) => ({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: DAY_WELL_RADIUS,
-    // Light: the grey fill on the white sheet. Dark keeps the canvas tone it always had (cardBorder is empty only in dark).
-    backgroundColor: c.cardBorder ? c.fill : c.canvas,
+    backgroundColor: c.well,
   },
 }));
