@@ -506,8 +506,19 @@ describe("Jadwal", () => {
       expect(within(screen.getByTestId("agenda-row-d-cook-lunch")).getByText("Siang 11.00–13.00 · Sedang dimasak")).toBeTruthy();
       expect(within(screen.getByTestId("agenda-row-d-done-lunch")).getByText("Siang 11.00–13.00 · Sudah sampai")).toBeTruthy();
       // A past day nobody updated is settled as delivered (the server's auto_deliver reads silence so), never "Belum sampai".
-      expect(within(screen.getByTestId("agenda-row-d-old-lunch")).getByText("Siang 11.00–13.00 · Sampai")).toBeTruthy();
+      expect(within(screen.getByTestId("agenda-row-d-old-lunch")).getByText("Siang 11.00–13.00 · Sudah sampai")).toBeTruthy();
       expect(screen.queryByText(/Belum sampai/)).toBeNull();
+    });
+
+    it("says Laporan terkirim for a past meal with an open report, never Terjadwal or Sudah sampai", async () => {
+      const state = stateOf([
+        delivery("d-rep", "2026-10-06", { issue: { id: "i-9", status: "open" } } as never),
+        delivery("d-rep2", "2026-10-05", { issue: { id: "i-8", status: "open" } } as never),
+      ]);
+      renderV2(runtimeWith(state), <Jadwal />);
+      await gridReady();
+      expect(within(screen.getByTestId("agenda-row-d-rep-lunch")).getByText("Siang 11.00–13.00 · Laporan terkirim")).toBeTruthy();
+      expect(screen.queryByText(/Terjadwal/)).toBeNull();
     });
 
     it("an unpicked row of a pick-your-own package offers Pilih menu, which opens the menu choice for that day", async () => {
@@ -1703,7 +1714,7 @@ describe("Hari", () => {
       expect(screen.getByText("Ada masalah").props.numberOfLines).toBeUndefined();
     });
 
-    it("the last action row clears the bottom inset: the day's content pads the gesture bar's height", async () => {
+    it("the last action row clears the bottom inset: the sheet's foot pays the gesture bar once", async () => {
       // The safe-area mock's hook is already a jest.fn: swap its implementation and put the original back after.
       const insets = (require("react-native-safe-area-context") as { useSafeAreaInsets: jest.Mock }).useSafeAreaInsets;
       const original = insets.getMockImplementation();
@@ -1712,11 +1723,14 @@ describe("Hari", () => {
         mockWidth = 360;
         mockFontScale = 1.3;
         await showDay(four());
-        // The block that spaces the day's parts by 16 also pays the inset, whatever the sheet's own foot gives.
-        let body = screen.getByTestId("day-address").parent!;
-        for (let i = 0; i < 6 && flat(body as never).gap !== DAY_GAP; i += 1) body = body.parent!;
-        expect(flat(body as never)).toMatchObject({ gap: DAY_GAP });
-        expect(flat(body as never).paddingBottom).toBeGreaterThanOrEqual(34);
+        // Hari is a root route: the sheet's scroll content ends with the inset and its 24 foot.
+        const sheet = screen.getByTestId("sheet-body");
+        expect((StyleSheet.flatten(sheet.props.contentContainerStyle) as Record<string, number>).paddingBottom).toBeGreaterThanOrEqual(34 + 24);
+        // ... and the day's own block does not pay it a second time.
+        let day = screen.getByTestId("day-address").parent!;
+        for (let i = 0; i < 6 && flat(day as never).gap !== DAY_GAP; i += 1) day = day.parent!;
+        expect(flat(day as never)).toMatchObject({ gap: DAY_GAP });
+        expect(flat(day as never).paddingBottom ?? 0).toBe(0);
       } finally {
         insets.mockImplementation(original);
       }

@@ -118,14 +118,14 @@ export function WeekAgenda({
     const settled = !reported && date < today && (journey.stage === "scheduled" || journey.stage === "preparing");
     const state = failed(m.status)
       ? t("Gagal diantar", "Not delivered")
-      : journey.stage === "delivered"
-        ? t("Sudah sampai", "Arrived")
-        : journey.stage === "arrived"
-          ? statusLabel("arrived", locale)
-          : journey.stage === "out_for_delivery"
-            ? t("Sedang diantar", "On the way")
-            : settled
-              ? statusLabel("delivered", locale)
+      : reported
+        ? t("Laporan terkirim", "Report sent")
+        : journey.stage === "delivered" || settled
+          ? t("Sudah sampai", "Arrived")
+          : journey.stage === "arrived"
+            ? statusLabel("arrived", locale)
+            : journey.stage === "out_for_delivery"
+              ? t("Sedang diantar", "On the way")
               : due
                 ? t("Belum sampai", "Not here yet")
                 : journey.stage === "preparing"

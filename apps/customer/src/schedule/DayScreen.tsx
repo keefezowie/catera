@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { AccessibilityInfo, type Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { closeSheetFor, pushSheet } from "../nav";
 import {
   canChangeDay,
@@ -51,7 +50,7 @@ import { DecorativeIcon } from "../layout";
 /**
  * One delivery day, a form sheet over the page that opened it. Under the handle the first text is the day's own line
  * ("Jumat 23 Okt · Makan siang · caterer"); then the photo, the dish, where the day stands, where it goes, and the
- * day's actions (circles on one line, or full-width rows at large text). There is no title row: the sheet has no bar of its own.
+ * day's actions as visible circles. There is no title row: the sheet has no bar of its own.
  */
 export function DayScreen() {
   const params = useLocalSearchParams<{ id: string; title?: string }>();
@@ -100,9 +99,6 @@ function Sheet({
   children: ReactNode | ((focus: RefObject<RNText | null>) => ReactNode);
 }) {
   const focus = useSheetTitleFocus();
-  // The sheet body counts the tab bar as paying the gesture bar's inset, but over the Hari sheet that bar can sit
-  // on the content (a stacked action row, Ada masalah). The day pays the inset itself so its last row always clears it.
-  const insets = useSafeAreaInsets();
   useToastAnchor({});
   const first = useRef(swapKey);
   useEffect(() => {
@@ -115,7 +111,7 @@ function Sheet({
     <View style={{ flex: 1 }}>
       {ios ? <View style={{ height: 12 }} /> : <SheetHandle />}
       <SheetBody>
-        <FadeSwap swapKey={swapKey} style={{ gap: DAY_GAP, paddingBottom: insets.bottom }}>
+        <FadeSwap swapKey={swapKey} style={{ gap: DAY_GAP }}>
           {typeof children === "function" ? children(focus) : children}
         </FadeSwap>
       </SheetBody>
