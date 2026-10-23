@@ -1,6 +1,8 @@
 import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Pressable, Switch, Text as RNText, View } from "react-native";
+import { nativeLayout } from "@catera/design-tokens";
+import { useLayoutScale } from "../layoutScale";
 import { useHaptic } from "../motion";
 import { Skeleton, SkeletonGroup } from "../Skeleton";
 import { cardEdge, useColors } from "../theme";
@@ -12,12 +14,23 @@ import { fonts } from "../type";
  *   radius; rows are 52pt or taller, divided by a hairline from their text edge, and pressing one tints it `sage`.
  * - Android: Material list rows. The section label is the M3 list subheader (14 bold, forest); rows run edge to edge
  *   with the ripple, 56dp for one line and 72dp with a supporting line, and a row's value is its supporting line.
+ * - Customer scale (`v2`, both platforms): every section is one grouped card, the `fill` ground with the `cardBorder`
+ *   edge (none in dark), radius card (16), rows 16 in from its edge and divided by a hairline inset 16. Each row shows its
+ *   value at the trailing edge on Android too (Android draws no chevron). Dapur provides no scale and keeps the above.
  * Rows only set minimum heights and never cut a line, so they grow with the phone's text size.
  * `os` defaults to the running platform everywhere here.
  */
 
 /** The body inset of `Screen`; Android rows reach past it so their ripple and dividers run edge to edge. */
 const BODY_INSET = 20;
+/** Under the customer scale a row's text sits this far in from its card's edge, and so does its divider. */
+const CARD_INSET = nativeLayout.cardPadding;
+
+/** The text edge of a row: the card inset under the customer scale, else the platform's own. */
+function useRowInset(ios: boolean) {
+  const v2 = useLayoutScale() === "v2";
+  return { v2, inset: v2 ? CARD_INSET : ios ? 16 : BODY_INSET };
+}
 
 export function SettingsSection({
   title,
@@ -31,6 +44,7 @@ export function SettingsSection({
 }) {
   const palette = useColors();
   const ios = os === "ios";
+  const v2 = useLayoutScale() === "v2";
   const rows = Children.toArray(children).filter(isValidElement);
   const label = title ? (
     <RNText
@@ -38,12 +52,40 @@ export function SettingsSection({
       style={
         ios
           ? { fontFamily: fonts.semibold, fontSize: 13, lineHeight: 18, color: palette.muted, paddingHorizontal: 16 }
-          : { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: palette.charcoal, paddingHorizontal: BODY_INSET, paddingTop: 8, paddingBottom: 4 }
+          : v2
+            ? { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: palette.charcoal, paddingHorizontal: CARD_INSET }
+            : { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: palette.charcoal, paddingHorizontal: BODY_INSET, paddingTop: 8, paddingBottom: 4 }
       }
     >
       {title}
     </RNText>
   ) : null;
+
+  if (v2)
+    return (
+      <View testID="settings-section" style={{ gap: 8 }}>
+        {label}
+        <View
+          testID="settings-card"
+          style={{
+            backgroundColor: palette.fill,
+            borderRadius: nativeLayout.radius.card,
+            borderCurve: "continuous",
+            ...cardEdge(palette),
+            overflow: "hidden",
+          }}
+        >
+          {rows.map((row, i) => (
+            <Fragment key={row.key ?? i}>
+              {i > 0 ? (
+                <View testID="settings-divider" style={{ height: 1, marginStart: CARD_INSET, backgroundColor: palette.line }} />
+              ) : null}
+              {row}
+            </Fragment>
+          ))}
+        </View>
+      </View>
+    );
 
   if (ios)
     return (
@@ -155,17 +197,20 @@ export function SettingsRow({
 }) {
   const palette = useColors();
   const ios = os === "ios";
-  const lines = [supporting, ios ? undefined : value].filter(Boolean).join("\n") || undefined;
+  const { v2, inset } = useRowInset(ios);
+  // The value sits at the trailing edge on iOS and under the customer scale; classic Android makes it the supporting line.
+  const trailing = ios || v2;
+  const lines = [supporting, trailing ? undefined : value].filter(Boolean).join("\n") || undefined;
   const centred = ios && tone === "danger" && !value;
-  const inset = ios ? 16 : BODY_INSET;
   const body = (
     <View
       testID="settings-row-body"
       style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 12, opacity: busy ? 0.45 : 1 }}
     >
       <RowText label={label} supporting={lines} tone={tone} centred={centred} selectable={selectable} />
-      {ios && value ? (
+      {trailing && value ? (
         <RNText
+          testID={v2 ? "settings-value" : undefined}
           selectable={selectable}
           style={{
             flexShrink: 1,
@@ -217,7 +262,8 @@ export function SettingsRow({
       disabled={busy}
       onPress={onPress}
       android_ripple={{ color: palette.line }}
-      style={({ pressed }) => [frame, ios && pressed ? { backgroundColor: palette.sage } : null]}
+      // On the grey card the sage press tint would not show, so the customer scale presses to the hairline tone.
+      style={({ pressed }) => [frame, ios && pressed ? { backgroundColor: v2 ? palette.line : palette.sage } : null]}
     >
       {body}
       {indicator}
@@ -257,7 +303,7 @@ export function SettingsSwitchRow({
 }) {
   const palette = useColors();
   const ios = os === "ios";
-  const inset = ios ? 16 : BODY_INSET;
+  const { inset } = useRowInset(ios);
   return (
     <View testID="settings-switch-row" style={{ minHeight: ios ? 52 : 72, paddingVertical: ios ? 12 : 8, gap: 8 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: inset, minHeight: 48 }}>

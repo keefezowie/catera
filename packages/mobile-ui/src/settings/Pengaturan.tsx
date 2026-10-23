@@ -18,14 +18,15 @@ function useFailed(id: string, en: string) {
 
 /**
  * Notifikasi di HP ini: the phone's permission and this account's registration, read whenever the screen or the
- * app comes back (`usePushSwitch`). A phone that blocks Catera shows off with the way to the phone's settings; Expo Go
- * shows the switch disabled.
+ * app comes back (`usePushSwitch`). A phone that blocks Catera shows off with the way to the phone's settings. A build
+ * that cannot receive push (Expo Go) shows no section at all: a switch that can never move is a dead control.
  */
 function NotificationSection({ supporting, channelName }: { supporting: string; channelName: string }) {
   const { t } = useMobile();
   const push = usePushSwitch(channelName);
   const failed = useFailed("Pengaturan notifikasi belum tersimpan. Coba lagi.", "Your notification setting didn't save. Try again.");
   const { state } = push;
+  if (state === "unavailable") return null;
   return (
     <SettingsSection title={t("Notifikasi", "Notifications")}>
       <SettingsSwitchRow
@@ -34,14 +35,7 @@ function NotificationSection({ supporting, channelName }: { supporting: string; 
         value={state === "on"}
         loading={state === "loading"}
         loadingLabel={t("Memuat notifikasi", "Loading notifications")}
-        disabled={state === "unavailable"}
-        notice={
-          state === "denied"
-            ? t("Izinkan notifikasi di Pengaturan HP", "Allow notifications in your phone's Settings")
-            : state === "unavailable"
-              ? t("Tidak tersedia di versi aplikasi ini", "Not available in this version of the app")
-              : undefined
-        }
+        notice={state === "denied" ? t("Izinkan notifikasi di Pengaturan HP", "Allow notifications in your phone's Settings") : undefined}
         action={
           state === "denied" ? { label: t("Buka Pengaturan", "Open Settings"), onPress: () => void Linking.openSettings() } : undefined
         }

@@ -1,14 +1,22 @@
-import { AccessibilityInfo } from "react-native";
+import { AccessibilityInfo, StyleSheet } from "react-native";
+import { nativeThemes } from "@catera/design-tokens";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { ThemeProvider, ToastProvider } from "@catera/mobile-ui";
+import { LayoutScaleProvider, ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import { DataAkun } from "../src/account/DataAkun";
 import { HapusAkunRoute } from "../src/account/HapusAkun";
 import { customerLink } from "../src/links";
-import { customerState, offer, subscription } from "./fixtures";
+import { customerState, eightPlans, offer, subscription } from "./fixtures";
+
+/** The phone the screen is drawn on; a test sets it to try another width or text size. */
+let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
@@ -236,6 +244,23 @@ describe("Data akun", () => {
     expect(screen.queryByText(/Kami mengirim tautan/)).toBeNull();
   });
 
+  it("Data akun under the customer scale uses the same grouped cards, with trailing values", async () => {
+    const { runtime } = runtimeWith({ user: emailUser });
+    renderWith(
+      runtime,
+      <LayoutScaleProvider value="v2">
+        <DataAkun />
+      </LayoutScaleProvider>,
+    );
+    const email = await screen.findByRole("button", { name: "Email, rani@example.test" });
+    expect(within(email).getByTestId("settings-value").props.children).toBe("rani@example.test");
+    const cards = screen.getAllByTestId("settings-card");
+    // The details, then Hapus akun on its own.
+    expect(cards).toHaveLength(2);
+    expect(StyleSheet.flatten(cards[0].props.style)).toMatchObject({ backgroundColor: nativeThemes.light.fill, borderRadius: 16 });
+    expect(within(cards[1]).getByRole("button", { name: "Hapus akun" })).toBeTruthy();
+  });
+
   it("opens the delete request sheet", async () => {
     const { runtime } = runtimeWith({ user: phoneUser });
     renderWith(runtime, <DataAkun />);
@@ -248,20 +273,55 @@ describe("Hapus akun", () => {
   const running = (name: string, id: string) =>
     subscription({ id, snapshot: { offer: offer({ name }), total: 150000 } as never });
 
-  it("Hapus akun with a running plan sends the request and names the plans", async () => {
+  const consequences = [
+    "Pengantaran yang belum lewat dibatalkan.",
+    "Riwayat dan alamat dihapus.",
+    "Paket yang masih berjalan diselesaikan dulu oleh tim Catera. Kami hubungi kamu soal sisa harinya sebelum akun dihapus.",
+  ];
+
+  it("Hapus akun with 8 plans shows one callout and three consequence lines, and no plan names", async () => {
+    const state = eightPlans();
+    const { runtime } = runtimeWith({ user: phoneUser, state });
+    renderWith(runtime, <HapusAkunRoute />);
+    const callout = within(await screen.findByTestId("hapus-akun-plans"));
+    expect(callout.getByText("8 paket masih berjalan")).toBeTruthy();
+    expect(callout.getAllByTestId("hapus-akun-consequence").map((line) => line.props.children)).toEqual(consequences);
+    for (const s of state.subscriptions) expect(screen.queryByText(new RegExp(s.snapshot.offer.name))).toBeNull();
+    // Nothing in the sheet names a day, an hour or a number of days.
+    expect(screen.queryByText(/\d+ (hari|jam)|dalam \d/)).toBeNull();
+  });
+
+  it("the send button is the danger variant", async () => {
+    const { runtime } = runtimeWith({ user: phoneUser, state: eightPlans() });
+    renderWith(runtime, <HapusAkunRoute />);
+    const send = await screen.findByRole("button", { name: "Kirim permintaan hapus akun" });
+    expect(StyleSheet.flatten(send.props.style).backgroundColor).toBe(nativeThemes.light.danger);
+    expect(StyleSheet.flatten(within(send).getByText("Kirim permintaan hapus akun").props.style).color).toBe(nativeThemes.light.cream);
+    // Batal stays a quiet text button.
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Batal" }).props.style).backgroundColor).not.toBe(
+      nativeThemes.light.danger,
+    );
+  });
+
+  it("the callout reads at font 1.3 and 360dp: every line wraps, none is cut", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    const { runtime } = runtimeWith({ user: phoneUser, state: eightPlans() });
+    renderWith(runtime, <HapusAkunRoute />);
+    const callout = await screen.findByTestId("hapus-akun-plans");
+    for (const text of within(callout).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
+    expect(StyleSheet.flatten(callout.props.style).height).toBeUndefined();
+    mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+  });
+
+  it("Hapus akun with a running plan sends the request with the plan names for the team", async () => {
     const state = { ...customerState(null), subscriptions: [running("Makan Siang Rumahan", "s-1"), running("Paket Sehat", "s-2")] };
     const { runtime } = runtimeWith({ user: phoneUser, state });
     renderWith(runtime, <HapusAkunRoute />);
     const plans = within(await screen.findByTestId("hapus-akun-plans"));
-    expect(plans.getByText("Kamu masih punya 2 paket yang berjalan:")).toBeTruthy();
-    expect(plans.getByText("Makan Siang Rumahan")).toBeTruthy();
-    expect(plans.getByText("Paket Sehat")).toBeTruthy();
+    expect(plans.getByText("2 paket masih berjalan")).toBeTruthy();
+    expect(plans.queryByText("Makan Siang Rumahan")).toBeNull();
     // The approved sentence, with no promise of a time.
-    expect(
-      plans.getByText(
-        "Paket yang masih berjalan diselesaikan dulu oleh tim Catera. Kami hubungi kamu soal sisa harinya sebelum akun dihapus.",
-      ),
-    ).toBeTruthy();
+    expect(plans.getByText(consequences[2])).toBeTruthy();
     // The primary action is pinned in the sheet's footer, not in the scrolling content.
     expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim permintaan hapus akun" })).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan hapus akun" }));

@@ -148,7 +148,8 @@ export function Button({
 }: {
   label: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "text";
+  /** `danger` is the filled button in the danger ink, for an action that deletes or gives something up (Hapus akun). */
+  variant?: "primary" | "secondary" | "text" | "danger";
   disabled?: boolean;
   /**
    * An action is waiting on the API. After `BUSY_DELAY_MS` the label gives way to a spinner in the label colour; the
@@ -166,7 +167,9 @@ export function Button({
   style?: StyleProp<ViewStyle>;
   spinnerTestID?: string;
 }) {
-  const primary = variant === "primary";
+  const danger = variant === "danger";
+  // A danger button is filled like the primary one, in the danger ink.
+  const primary = variant === "primary" || danger;
   const c = useColors();
   const styles = useStyles();
   const v2 = useV2Styles();
@@ -195,6 +198,7 @@ export function Button({
       style={[
         styles.button,
         primary && styles.primary,
+        danger && { backgroundColor: c.danger },
         variant === "secondary" && styles.secondary,
         variant === "secondary" && edge !== undefined && { borderColor: edge },
         variant === "text" && styles.textButton,

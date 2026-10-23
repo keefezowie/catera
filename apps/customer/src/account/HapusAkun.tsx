@@ -14,6 +14,7 @@ import {
   Skeleton,
   SkeletonGroup,
   Text,
+  useColors,
   useToast,
 } from "@catera/mobile-ui";
 import { accountMessage } from "./accountMessages";
@@ -36,7 +37,8 @@ function Frame({ swapKey, children, footer }: { swapKey: string; children: React
 /**
  * `/hapus-akun`: the request to delete the account, as a form sheet over Data akun. It sends a request to the Catera team
  * (`accountRequest.create`, kind deletion) and does not delete anything by itself. A person with plans still running can
- * send it too: the sheet names those plans and says the team settles them first, without promising a time.
+ * send it too: one callout counts those plans and lists what the request means, without promising a time. The send
+ * button is the danger variant.
  */
 export function HapusAkunRoute() {
   const { actor, ready, t } = useMobile();
@@ -71,6 +73,7 @@ function SignInPrompt() {
 
 function HapusAkun() {
   const { runtime, command, t, locale } = useMobile();
+  const c = useColors();
   const customer = useData("hapus-akun:customer", () => runtime.api.customer());
   const action = useAction(accountMessage);
   const toast = useToast();
@@ -103,20 +106,26 @@ function HapusAkun() {
       setResult({ existing: !!made.existing });
     });
 
+  // One callout for any number of running plans: the count, then what the request means for them. The plan names go
+  // to the team in the request, not onto the sheet.
   const plans = running.length ? (
-    <View style={{ gap: 6 }} testID="hapus-akun-plans">
-      <Text>
-        {running.length === 1
-          ? t(`Kamu masih punya paket yang berjalan: ${running[0]}.`, `You still have a plan running: ${running[0]}.`)
-          : t(`Kamu masih punya ${running.length} paket yang berjalan:`, `You still have ${running.length} plans running:`)}
-      </Text>
-      {running.length > 1 ? running.map((name) => <Text key={name}>{name}</Text>) : null}
-      <Text>
-        {t(
+    <View testID="hapus-akun-plans" style={{ backgroundColor: c.fill, borderRadius: 16, borderCurve: "continuous", padding: 16, gap: 8 }}>
+      <Text variant="bodyStrong">{t(`${running.length} paket masih berjalan`, `${running.length} plans still running`)}</Text>
+      {[
+        t("Pengantaran yang belum lewat dibatalkan.", "Deliveries that have not passed yet are cancelled."),
+        t("Riwayat dan alamat dihapus.", "Your history and addresses are deleted."),
+        t(
           "Paket yang masih berjalan diselesaikan dulu oleh tim Catera. Kami hubungi kamu soal sisa harinya sebelum akun dihapus.",
           "The Catera team settles plans that are still running first. We will contact you about the days left before the account is deleted.",
-        )}
-      </Text>
+        ),
+      ].map((line) => (
+        <View key={line} style={{ flexDirection: "row", gap: 8 }}>
+          <Text aria-hidden>{"•"}</Text>
+          <Text testID="hapus-akun-consequence" style={{ flex: 1 }}>
+            {line}
+          </Text>
+        </View>
+      ))}
     </View>
   ) : null;
 
@@ -157,7 +166,7 @@ function HapusAkun() {
       footer={
         <>
           {action.error ? <FormError message={action.error} failureKey={action.failures} testID="hapus-akun-error" /> : null}
-          <Button label={t("Kirim permintaan hapus akun", "Send delete request")} busy={action.busy} onPress={() => void send()} />
+          <Button variant="danger" label={t("Kirim permintaan hapus akun", "Send delete request")} busy={action.busy} onPress={() => void send()} />
           <Button variant="text" label={t("Batal", "Cancel")} onPress={() => router.back()} />
         </>
       }

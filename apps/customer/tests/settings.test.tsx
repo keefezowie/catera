@@ -6,7 +6,7 @@ import * as Notifications from "expo-notifications";
 import * as WebBrowser from "expo-web-browser";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { ThemeProvider, themeChoiceLabels, ToastProvider } from "@catera/mobile-ui";
+import { LayoutScaleProvider, ThemeProvider, themeChoiceLabels, ToastProvider } from "@catera/mobile-ui";
 import { Akun } from "../src/account/Akun";
 import { Pengaturan } from "../src/settings/Pengaturan";
 import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
@@ -125,7 +125,15 @@ function expectFitScrolls(title: string, reachable: unknown[]) {
   expect(cap as number).toBeLessThan(Dimensions.get("window").height);
 }
 
+/** The phone the screen is drawn on; a test sets it to try another width or text size. */
+let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
+
 beforeEach(() => {
+  mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
   jest.clearAllMocks();
   mockFocus.clear();
   store().clear();
@@ -404,12 +412,15 @@ describe("notification switch", () => {
     expect(store().has(FLAG)).toBe(false);
   });
 
-  it("Expo Go shows the switch as unavailable", async () => {
+  it("Expo Go hides the notification row", async () => {
     constants().executionEnvironment = "storeClient";
     renderWith(runtimeWith(), <Pengaturan />);
-    expect(await screen.findByText("Tidak tersedia di versi aplikasi ini")).toBeTruthy();
-    expect(notificationSwitch()).not.toBeChecked();
-    expect(notificationSwitch()).toBeDisabled();
+    expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
+    // No dead control and no line explaining it: the whole Notifikasi section is gone.
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(screen.queryByText("Tidak tersedia di versi aplikasi ini")).toBeNull();
+    expect(screen.queryByText("Notifikasi")).toBeNull();
+    expect(rowNames()[0]).toBe("Bahasa");
     expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
   });
 
@@ -422,6 +433,70 @@ describe("notification switch", () => {
     await waitFor(() => expect(notificationSwitch().props.thumbTintColor).toBe(nativeThemes.dark.cream));
     expect(notificationSwitch().props.trackColorForTrue).toBe(nativeThemes.dark.forest);
     expect(nativeThemes.dark.forest).toBe("#9CCBAE");
+  });
+});
+
+describe("grouped settings cards (customer scale)", () => {
+  const renderV2 = (runtime: MobileRuntime, ui: React.ReactElement) =>
+    renderWith(runtime, <LayoutScaleProvider value="v2">{ui}</LayoutScaleProvider>);
+
+  it("v2 settings sections are grouped cards with trailing values; classic unchanged", async () => {
+    const v2 = renderV2(runtimeWith(), <Pengaturan />);
+    await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
+    const cards = screen.getAllByTestId("settings-card");
+    // Notifikasi, Aplikasi, Tentang, Akun and Keluar each sit in one card.
+    expect(cards).toHaveLength(5);
+    for (const card of cards)
+      expect(StyleSheet.flatten(card.props.style)).toMatchObject({
+        backgroundColor: nativeThemes.light.fill,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: nativeThemes.light.cardBorder,
+      });
+    // Rows are divided inside a card only, inset from the text edge: Bahasa | Tampilan and Versi | Syarat.
+    const dividers = screen.getAllByTestId("settings-divider");
+    expect(dividers).toHaveLength(2);
+    for (const d of dividers) expect(StyleSheet.flatten(d.props.style)).toMatchObject({ height: 1, marginStart: 16 });
+    // Each row's current value sits at its trailing edge, on Android too (the Jest build), not as a supporting line.
+    const bahasa = screen.getByRole("button", { name: "Bahasa, Indonesia" });
+    expect(within(bahasa).getByTestId("settings-value").props.children).toBe("Indonesia");
+    expect(within(bahasa).getAllByText(/Indonesia/)).toHaveLength(1);
+    const tampilan = screen.getByRole("button", { name: "Tampilan, Ikuti sistem" });
+    expect(within(tampilan).getByTestId("settings-value").props.children).toBe("Ikuti sistem");
+    v2.unmount();
+
+    // Dapur's classic list: no card, and the value is the Android supporting line.
+    renderWith(runtimeWith(), <Pengaturan />);
+    await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
+    expect(screen.queryByTestId("settings-card")).toBeNull();
+    expect(screen.queryByTestId("settings-value")).toBeNull();
+    expect(within(screen.getByRole("button", { name: "Bahasa, Indonesia" })).getByText("Indonesia")).toBeTruthy();
+  });
+
+  it("the cards take the dark fill and drop the light edge", async () => {
+    store().set("catera.theme", "dark");
+    renderV2(runtimeWith(), <Pengaturan />);
+    await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
+    await waitFor(() =>
+      expect(StyleSheet.flatten(screen.getAllByTestId("settings-card")[0].props.style).backgroundColor).toBe(nativeThemes.dark.fill),
+    );
+    expect(StyleSheet.flatten(screen.getAllByTestId("settings-card")[0].props.style).borderWidth).toBeUndefined();
+  });
+
+  it("at font 1.3 and 360dp the v2 rows grow and the trailing value wraps instead of clipping", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    renderV2(runtimeWith(), <Pengaturan />);
+    await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
+    for (const row of screen.getAllByTestId(/^settings-(row|switch-row)$/)) {
+      const style = StyleSheet.flatten(row.props.style) ?? {};
+      expect(style.height).toBeUndefined();
+      expect(style.minHeight).toBeGreaterThanOrEqual(48);
+    }
+    for (const value of screen.getAllByTestId("settings-value")) {
+      expect(value.props.numberOfLines).toBeUndefined();
+      expect(StyleSheet.flatten(value.props.style).flexShrink).toBe(1);
+    }
+    for (const label of screen.getAllByTestId("settings-label")) expect(label.props.numberOfLines).toBeUndefined();
   });
 });
 

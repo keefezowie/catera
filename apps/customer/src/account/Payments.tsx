@@ -89,8 +89,10 @@ function History() {
               return (
                 <Row
                   key={item.id}
+                  testID="payment-row"
                   first={i === 0}
                   label={name}
+                  status={{ label: t("Menunggu", "Waiting"), tone: "waiting" }}
                   caption={[t("Menunggu pembayaran", "Waiting for payment"), item.catererName].filter(Boolean).join(" · ")}
                 >
                   <Button
@@ -115,8 +117,10 @@ function History() {
             {inProgress.map((item, i) => (
               <Row
                 key={item.id}
+                testID="payment-row"
                 first={i === 0}
                 label={item.packageName ?? t("Pembayaran", "Payment")}
+                status={{ label: t("Diproses", "Processing"), tone: "checking" }}
                 caption={[progressWord(item, t), item.catererName].filter(Boolean).join(" · ")}
                 onPress={
                   item.status === "payment_exception"
@@ -135,8 +139,10 @@ function History() {
               return (
                 <Row
                   key={item.id}
+                  testID="payment-row"
                   first={i === 0}
                   label={name}
+                  status={{ label: t("Kedaluwarsa", "Expired"), tone: "expired" }}
                   caption={[
                     item.paymentFailed
                       ? t("Pembayaran gagal", "Payment failed")
@@ -163,9 +169,12 @@ function History() {
             {paid.map((s, i) => (
               <Row
                 key={s.id}
+                testID="payment-row"
                 first={i === 0}
                 label={s.snapshot.offer.name}
-                caption={`${s.snapshot.offer.caterer} · ${t("mulai", "starts")} ${longDay(s.starts_on, locale)}`}
+                status={{ label: t("Lunas", "Paid"), tone: "paid" }}
+                // The plan's start; the paid date is not in the customer read yet.
+                caption={`${t("Mulai", "Starts")} ${longDay(s.starts_on, locale)} · ${s.snapshot.offer.caterer}`}
                 value={currency(s.snapshot.total, locale)}
               />
             ))}

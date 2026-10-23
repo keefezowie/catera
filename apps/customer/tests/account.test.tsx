@@ -492,6 +492,86 @@ describe("Notifikasi", () => {
   it("says plainly when there is nothing yet", async () => {
     renderWith(runtimeWith({}), <NotificationsScreen />);
     expect(await screen.findByText("Belum ada kabar baru.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Tandai semua dibaca" })).toBeNull();
+  });
+
+  const note = (id: string, day: string, read: boolean, body = `Kabar ${id}`) => ({
+    id,
+    kind: "delivery",
+    body,
+    href: "/deliveries/d-1",
+    read_at: read ? `${day}T05:00:00Z` : null,
+    created_at: `${day}T03:15:00Z`,
+  });
+  const mixed = () => [
+    note("n-1", TODAY, false),
+    note("n-2", TODAY, true),
+    note("n-3", addDays(TODAY, -1), false),
+    note("n-4", addDays(TODAY, -5), false),
+    note("n-5", addDays(TODAY, -9), true),
+  ];
+
+  it("Notifikasi has no Baru label, groups by day, and Tandai semua dibaca reads each unread once then hides", async () => {
+    const notes = mixed();
+    const runtime = runtimeWith({ notifications: notes as never });
+    // The first read has three unread; the refresh after marking reads every update as read.
+    (runtime.api.customer as jest.Mock).mockImplementationOnce(async () => ({ ...customerState(null), notifications: notes }));
+    (runtime.api.customer as jest.Mock).mockImplementation(async () => ({
+      ...customerState(null),
+      notifications: notes.map((n) => ({ ...n, read_at: n.read_at ?? `${TODAY}T06:00:00Z` })),
+    }));
+    // Each read waits until the test lets it go, so a second tap lands while the first pass is still busy.
+    const pending: (() => void)[] = [];
+    (runtime.api.command as jest.Mock).mockImplementation(() => new Promise<object>((done) => pending.push(() => done({}))));
+    renderWith(runtime, <NotificationsScreen />);
+    expect(await screen.findByText("Kabar n-1")).toBeTruthy();
+    expect(screen.queryByText("Baru")).toBeNull();
+    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Hari ini", "Kemarin", "Sebelumnya"]);
+    // An unread update keeps its dot and a bolder title; a read one is regular.
+    expect(screen.getAllByTestId("unread-dot")).toHaveLength(3);
+    expect(flat(screen.getByText("Kabar n-1")).fontFamily).not.toBe(flat(screen.getByText("Kabar n-2")).fontFamily);
+
+    const markAll = screen.getByRole("button", { name: "Tandai semua dibaca" });
+    fireEvent.press(markAll);
+    fireEvent.press(markAll);
+    for (let i = 0; i < 3; i++) {
+      await waitFor(() => expect(pending.length).toBeGreaterThan(0));
+      await act(async () => pending.shift()!());
+    }
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Tandai semua dibaca" })).toBeNull());
+    const reads = (runtime.api.command as jest.Mock).mock.calls.map(([name, input]) => [name, input.id]);
+    expect(reads).toEqual([
+      ["notification.read", "n-1"],
+      ["notification.read", "n-3"],
+      ["notification.read", "n-4"],
+    ]);
+    expect(screen.queryAllByTestId("unread-dot")).toHaveLength(0);
+  });
+
+  it("all read: no mark-all action and no dots, in the dark theme too", async () => {
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.theme", "dark");
+    renderWith(
+      runtimeWith({ notifications: [note("n-2", TODAY, true), note("n-5", addDays(TODAY, -9), true)] as never }),
+      <ThemeProvider storageKey="catera.theme">
+        <NotificationsScreen />
+      </ThemeProvider>,
+    );
+    expect(await screen.findByText("Kabar n-2")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Tandai semua dibaca" })).toBeNull();
+    expect(screen.queryAllByTestId("unread-dot")).toHaveLength(0);
+    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Hari ini", "Sebelumnya"]);
+  });
+
+  it("at font 1.3 and 360dp a notification row grows and never cuts its text", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    renderWith(runtimeWith({ notifications: mixed() as never }), <NotificationsScreen />);
+    const body = await screen.findByText("Kabar n-1");
+    expect(body.props.numberOfLines).toBeUndefined();
+    for (const row of screen.getAllByTestId("notification-row")) {
+      expect(flat(row).height).toBeUndefined();
+      expect(flat(row).minHeight).toBeGreaterThanOrEqual(48);
+    }
+    mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
   });
 });
 
@@ -689,7 +769,8 @@ describe("Riwayat pembayaran", () => {
       },
     );
     renderWith(runtime, <Payments />);
-    expect(await screen.findByText("Kedaluwarsa")).toBeTruthy();
+    // The section label and each row's status chip.
+    expect(await screen.findAllByText("Kedaluwarsa")).toHaveLength(4);
     expect(screen.queryByText("Belum dibayar")).toBeNull();
     expect(screen.queryByText("Belum ada pembayaran.")).toBeNull();
     expect(screen.getAllByText(/Waktu pembayaran habis/)).toHaveLength(2);
@@ -732,6 +813,67 @@ describe("Riwayat pembayaran", () => {
   it("explains an empty history", async () => {
     renderWith(runtimeWith({ subscriptions: [] }), <Payments />);
     expect(await screen.findByText("Belum ada pembayaran.")).toBeTruthy();
+  });
+
+  const action = (id: string, status: CustomerActionItem["status"], packageName: string): CustomerActionItem => ({
+    id: `payment-${id}`,
+    kind: "payment_action",
+    status,
+    priority: 1,
+    packageName,
+    catererName: "Dapur Contoh",
+    href: `/payment/${id}`,
+    ...(status === "expired" ? { payAgain: { packageId: "p-rumahan", trial: false, portions: 1, cycles: 1 } } : {}),
+  });
+  const everyStatus = () =>
+    runtimeWith(
+      { subscriptions: [{ ...subscription({ starts_on: "2026-11-09" }), checkout_id: "ck-paid" } as never] },
+      {
+        actions: [action("ck-1", "awaiting_payment", "Paket Menunggu"), action("ck-2", "checking_payment", "Paket Dicek")],
+        ended: [action("ck-3", "expired", "Paket Habis")],
+      },
+    );
+  const statusOf = (name: string) => {
+    let row = screen.getByText(name) as unknown as { parent: unknown; props: { testID?: string } } | null;
+    while (row && row.props.testID !== "payment-row") row = row.parent as typeof row;
+    return within(row as never).getByTestId("payment-status");
+  };
+
+  it("Pembayaran rows carry Lunas / Menunggu / Diproses / Kedaluwarsa and Mulai {date}", async () => {
+    renderWith(everyStatus(), <Payments />);
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(within(statusOf("Makan Siang Rumahan")).getByText("Lunas")).toBeTruthy();
+    expect(within(statusOf("Paket Menunggu")).getByText("Menunggu")).toBeTruthy();
+    expect(within(statusOf("Paket Dicek")).getByText("Diproses")).toBeTruthy();
+    expect(within(statusOf("Paket Habis")).getByText("Kedaluwarsa")).toBeTruthy();
+    // The paid row's date line names when the plan starts; the paid date itself is not in the read yet.
+    expect(screen.getByText(/^Mulai Senin 9 November/)).toBeTruthy();
+    expect(screen.queryByText(/mulai Senin/)).toBeNull();
+  });
+
+  it("the status chips take their colours from the theme, dark included", async () => {
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.theme", "dark");
+    render(
+      <ThemeProvider storageKey="catera.theme">
+        <MobileProvider runtime={everyStatus()} linkMapper={customerLink}>
+          <Payments />
+        </MobileProvider>
+      </ThemeProvider>,
+    );
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    await waitFor(() => expect(flat(statusOf("Makan Siang Rumahan")).backgroundColor).toBe(nativeThemes.dark.fill));
+    expect(flat(within(statusOf("Makan Siang Rumahan")).getByText("Lunas")).color).toBe(nativeThemes.dark.forest);
+    expect(flat(within(statusOf("Paket Habis")).getByText("Kedaluwarsa")).color).toBe(nativeThemes.dark.danger);
+  });
+
+  it("at font 1.3 and 360dp the status chip and the date line wrap under the name instead of squeezing it", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    renderWith(everyStatus(), <Payments />);
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    const line = screen.getAllByTestId("payment-status-line")[0];
+    expect(flat(line)).toMatchObject({ flexDirection: "row", flexWrap: "wrap" });
+    expect(within(statusOf("Makan Siang Rumahan")).getByText("Lunas").props.numberOfLines).toBeUndefined();
+    mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
   });
 });
 
