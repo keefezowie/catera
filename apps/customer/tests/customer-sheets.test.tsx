@@ -239,7 +239,7 @@ const expectSheet = (route: string, detents: "form" | "fit" | "large" | "day") =
   expect({ route, presentation: s.props.stackPresentation }).toEqual({ route, presentation: "formSheet" });
   expect({ route, detents: s.props.sheetAllowedDetents }).toEqual({
     route,
-    detents: detents === "form" ? [0.6, 1] : detents === "day" ? [0.75, 1] : detents === "large" ? [1] : [-1],
+    detents: detents === "form" ? [1] : detents === "day" ? [0.75, 1] : detents === "large" ? [1] : [-1],
   });
   expect(s.props.sheetGrabberVisible).toBe(true);
   expect(s.props.sheetCornerRadius).toBe(28);

@@ -262,7 +262,7 @@ describe("stack headers", () => {
         route,
         options: {
           presentation: "formSheet",
-          sheetAllowedDetents: detents === "fit" ? "fitToContents" : detents === "large" ? [1] : [0.6, 1],
+          sheetAllowedDetents: detents === "fit" ? "fitToContents" : detents === "large" || detents === "form" ? [1] : [0.6, 1],
           sheetGrabberVisible: true,
           headerShown: false,
         },

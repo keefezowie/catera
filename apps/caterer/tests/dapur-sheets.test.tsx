@@ -221,7 +221,7 @@ describe("stop exceptions", () => {
     await waitFor(() => expect(declared["atur-antaran/[id]"]).toBeDefined());
     expect(declared["atur-antaran/[id]"]).toMatchObject({
       presentation: "formSheet",
-      sheetAllowedDetents: [0.6, 1],
+      sheetAllowedDetents: [1],
       sheetGrabberVisible: true,
       headerShown: false,
     });

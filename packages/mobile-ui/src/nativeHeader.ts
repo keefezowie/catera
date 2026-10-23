@@ -66,8 +66,15 @@ export function useStackScreenOptions(demo: boolean): NativeStackNavigationOptio
 
 /** Material 3's bottom sheet corner on Android; iOS keeps the system sheet's own corner. */
 const ANDROID_SHEET_CORNER = 28;
-/** A form sheet that can grow opens at 60% of the screen and expands to full height. */
+/** A form sheet that can grow opens at 60% of the screen and expands to full height (iOS). */
 const FORM_DETENTS = [0.6, 1];
+/**
+ * Android's form sheet has the full height only. react-native-screens 4.26 lays an Android sheet out at its tallest
+ * detent and reports where it is only once it stops, so a pinned footer cannot follow a move between detents: it rode
+ * off the screen while the sheet shrank and floated over an empty band while it grew (the address form's blink,
+ * 2026-10-24). The keyboard expanded these sheets to the full height anyway.
+ */
+const ANDROID_FORM_DETENTS = [1];
 /** The day sheet (a photo, the state, the actions) opens at 75% and expands to the full height. */
 const DAY_DETENTS = [0.75, 1];
 /** A sheet that needs the whole height at once (the calendar). */
@@ -76,7 +83,7 @@ const LARGE_DETENTS = [1];
 /**
  * The options of a route presented as a native sheet (UISheetPresentationController on iOS, the Material bottom sheet
  * on Android): `fit` sizes it to its content (choice, action and confirm sheets), `form` opens at 60% and expands to
- * the full height (forms that can grow), `day` opens at 75% and expands (the day detail), `large` opens at the full
+ * the full height (forms that can grow; full height from the start on Android), `day` opens at 75% and expands (the day detail), `large` opens at the full
  * height (the calendar). The grabber is the system's
  * on iOS; react-native-screens draws none on Android, so the sheet's own `SheetHeader` draws the drag handle there.
  * The sheet draws its own title row, so the stack header is hidden, and its ground is the theme `surface`. `os`
@@ -97,7 +104,15 @@ export function sheetOptions({
     sheetAllowedDetents:
       detents === "fit"
         ? "fitToContents"
-        : [...(detents === "large" ? LARGE_DETENTS : detents === "day" ? DAY_DETENTS : FORM_DETENTS)],
+        : [
+            ...(detents === "large"
+              ? LARGE_DETENTS
+              : detents === "day"
+                ? DAY_DETENTS
+                : os === "ios"
+                  ? FORM_DETENTS
+                  : ANDROID_FORM_DETENTS),
+          ],
     ...(os === "ios" ? null : { sheetCornerRadius: ANDROID_SHEET_CORNER }),
     contentStyle: { backgroundColor: palette.surface },
     headerShown: false,

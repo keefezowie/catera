@@ -202,9 +202,9 @@ describe("sheet routes", () => {
     await go(() => router.push("/masalah/d-today?meal=lunch"));
     overHari();
     const sheet = screenOf("masalah/[id]");
-    // Opens at 60% and grows to the full height (the keyboard expands it on Android); the sheet draws its own title.
+    // Android opens it at the full height (iOS at 60%, growing to full); the sheet draws its own title.
     expect(sheet.props.stackPresentation).toBe("formSheet");
-    expect(sheet.props.sheetAllowedDetents).toEqual([0.6, 1]);
+    expect(sheet.props.sheetAllowedDetents).toEqual([1]);
     expect(sheet.props.sheetGrabberVisible).toBe(true);
     expect(sheet.props.sheetCornerRadius).toBe(28);
     expect(screen.getByRole("header", { name: "Ada masalah" })).toBeTruthy();
