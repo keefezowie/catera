@@ -449,6 +449,7 @@ export function Screen({
   const styles = useStyles();
   const margin = useScreenMargin();
   const palette = useColors();
+  const scaled = useLayoutScale() === "v2";
   // The demo strip owns the status-bar inset while it is shown, so the screen must not add a second one. A stack
   // header above the screen pays it too.
   const topOwned = useTopInsetOwned();
@@ -461,6 +462,10 @@ export function Screen({
   const bottomEdge = useScreenBottomEdge();
   useToastAnchor({ top: underHeader && headerHeight ? headerHeight : undefined, bottom: bottomEdge });
   const ios = process.env.EXPO_OS === "ios";
+  // Outside the tabs and with no footer, the last content would sit under the Android navigation bar (a footer pays
+  // the inset itself, ScreenFooter; inside the tabs NativeTabs ends the screen above the bar; iOS insets automatically).
+  const insets = useSafeAreaInsets();
+  const bottomInset = scaled && !ios && !footer && !insideTabs(navigation as never) ? insets.bottom : 0;
   const contentTitle = !ios && nativeTitle ? nativeTitle : null;
   const lineEnd = useRef(NO_LINE);
   const [titleInBar, setTitleInBar] = useState(false);
@@ -549,7 +554,7 @@ export function Screen({
             testID="screen-scroll"
             contentInsetAdjustmentBehavior={screenInsetBehavior({ header: !!header, bleed })}
             automaticallyAdjustKeyboardInsets={ios}
-            contentContainerStyle={{ paddingBottom: 32 }}
+            contentContainerStyle={{ paddingBottom: 32 + bottomInset }}
             keyboardShouldPersistTaps="handled"
             onScroll={handleScroll}
             scrollEventThrottle={handleScroll ? 16 : undefined}
@@ -659,7 +664,7 @@ const useV2Styles = themedStyles((c) => ({
   input: { minHeight: nativeLayout.control.field },
   // No 1px border: a card stands off the canvas by its tone. The attention tone keeps its warm edge, and its padding
   // gives up that 1px so the content still sits 16 in.
-  card: { borderWidth: 0, borderRadius: nativeLayout.radius.card, padding: nativeLayout.cardPadding, gap: nativeLayout.groupGap },
+  card: { borderWidth: 0, borderRadius: nativeLayout.radius.card, borderCurve: "continuous", padding: nativeLayout.cardPadding, gap: nativeLayout.groupGap },
   cardAttention: { borderWidth: 1, padding: nativeLayout.cardPadding - 1 },
   // 16 around a 50 button makes the 82 bar; it stands off the canvas by its tone, with no hairline above it.
   // The bar is filled with the canvas tone, not the card surface: a card that scrolls under it then stays cut off by a
@@ -711,13 +716,14 @@ const useStyles = themedStyles((c) => ({
   },
   segment: { flex: 1, minHeight: 48, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   segmentOn: { backgroundColor: c.forest },
-  card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 10 },
+  card: { borderWidth: 1, borderRadius: 16, borderCurve: "continuous", padding: 16, gap: 10 },
   fieldLabel: { fontFamily: fontFor("700"), fontSize: 13, color: c.charcoal },
   input: {
     minHeight: 48,
     borderWidth: 1,
     borderColor: c.fieldBorder,
     borderRadius: 9,
+    borderCurve: "continuous",
     backgroundColor: c.surface,
     paddingHorizontal: 14,
     fontFamily: FONT,

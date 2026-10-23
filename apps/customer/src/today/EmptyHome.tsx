@@ -120,6 +120,7 @@ export function EmptyHomeBody({
 const useStyles = themedStyles((c) => ({
   card: {
     borderRadius: 16,
+    borderCurve: "continuous",
     overflow: "hidden",
     backgroundColor: c.surface,
     borderWidth: 1,

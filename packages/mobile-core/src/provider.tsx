@@ -1,14 +1,14 @@
 import {
   createContext,
   useCallback,
-  useContext,
+  use,
   useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { AppState, Platform, type AppStateStatus } from "react-native";
+import { AppState, type AppStateStatus } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import type * as NotificationTypes from "expo-notifications";
@@ -371,7 +371,8 @@ export function MobileProvider({
           "Notifications aren't available in this version of the app.",
         ),
       );
-    if (Platform.OS === "android")
+    // Channels exist on Android only; Jest compiles EXPO_OS to null, so "not iOS" keeps the test path.
+    if (process.env.EXPO_OS !== "ios")
       await Notifications.setNotificationChannelAsync("default", {
         name: channelName,
         importance: Notifications.AndroidImportance.DEFAULT,
@@ -414,7 +415,7 @@ export function MobileProvider({
   );
 }
 
-export const useMobile = () => useContext(Context);
+export const useMobile = () => use(Context);
 
 /**
  * Returns the function that counts a usage event. Its identity never changes while the runtime

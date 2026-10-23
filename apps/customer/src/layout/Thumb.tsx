@@ -38,7 +38,7 @@ export function Thumb({
 }
 
 const useStyles = themedStyles((c) => ({
-  tile: { borderRadius: nativeLayout.radius.thumb, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  tile: { borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", overflow: "hidden", alignItems: "center", justifyContent: "center" },
   photo: { backgroundColor: c.sage },
   notSet: { borderWidth: 1.5, borderStyle: "dashed", borderColor: c.controlRing },
   fill: { width: "100%", height: "100%" },

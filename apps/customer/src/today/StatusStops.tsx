@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { fontFor, PressableScale, Skeleton, Text, useColors, useMood, useMoodColors } from "@catera/mobile-ui";
+import { fontFor, PressableScale, Skeleton, Text, useColors, useMood, useMoodColors, withAlpha } from "@catera/mobile-ui";
 import type { Mood } from "@catera/design-tokens";
 import type { StopStatus } from "./stopStatus";
 
@@ -32,11 +32,7 @@ const STOPS = [
   { mood: "malam", id: "dinner" },
 ] as const satisfies readonly { mood: Mood; id: string }[];
 
-/** `hex` ("#RRGGBB") at `alpha` of its own strength, as an rgba colour. */
-export function withAlpha(hex: string, alpha: number): string {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  return `rgba(${r},${g},${b},${alpha})`;
-}
+export { withAlpha };
 
 /**
  * Beranda's two-stop status line, set on the mood band directly under the day statement: one 40 tall row, a stop at each end and the 2dp `heroEdge` track between them. A

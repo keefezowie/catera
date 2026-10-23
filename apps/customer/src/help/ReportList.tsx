@@ -300,5 +300,5 @@ const useStyles = themedStyles((c) => ({
   pillOpen: { backgroundColor: c.cream },
   pillDone: { backgroundColor: c.sage },
   pillText: { fontSize: 12, fontFamily: fontFor("700") },
-  reply: { gap: 2, padding: 12, borderRadius: 12, backgroundColor: c.sage },
+  reply: { gap: 2, padding: 12, borderRadius: 12, borderCurve: "continuous", backgroundColor: c.sage },
 }));

@@ -472,7 +472,7 @@ describe("Jadwal", () => {
       expect(flat(within(row).getByText("Nasi putih"))).toMatchObject({ fontSize: 17 });
       expect(within(row).getByText("Siang 11.00–13.00 · Sudah sampai")).toBeTruthy();
       expect(flat(within(row).getByText("Siang 11.00–13.00 · Sudah sampai")).fontSize).toBe(13);
-      expect(within(row).getByTestId("agenda-row-d-today-lunch-chevron")).toBeTruthy();
+      expect(within(row).queryByTestId("agenda-row-d-today-lunch-chevron")).toBeNull(); // chevron is iOS-only
       // A day's rows share one card.
       expect(within(agendaDay("2026-10-09")!).getAllByTestId("list-card")).toHaveLength(1);
     });

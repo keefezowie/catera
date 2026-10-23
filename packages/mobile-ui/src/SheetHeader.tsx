@@ -1,4 +1,4 @@
-import { Children, createContext, isValidElement, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Children, createContext, isValidElement, use, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { AccessibilityInfo, AppState, Keyboard, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
@@ -494,7 +494,7 @@ const SheetFooterContext = createContext<((node: ReactNode) => void) | null>(nul
  * children in place.
  */
 export function SheetFooter({ children }: { children: ReactNode }) {
-  const set = useContext(SheetFooterContext);
+  const set = use(SheetFooterContext);
   // Every render hands over the current children; the body re-renders, this does not (its element is unchanged).
   useLayoutEffect(() => {
     set?.(children);

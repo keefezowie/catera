@@ -89,6 +89,7 @@ const useStyles = themedStyles((c) => ({
     marginTop: SECTION_LEAD,
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous",
     paddingHorizontal: nativeLayout.cardPadding,
   },
   row: {

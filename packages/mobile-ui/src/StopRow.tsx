@@ -59,6 +59,7 @@ export function StopRow({
               width: 24,
               height: 24,
               borderRadius: 12,
+              borderCurve: "continuous",
               borderWidth: selection?.selected ? 2 : 1.5,
               borderColor: selection?.selected ? c.forest : c.muted,
               alignItems: "center",

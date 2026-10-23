@@ -1024,7 +1024,7 @@ describe("Paket kamu", () => {
     expect(StyleSheet.flatten(row.props.style).minHeight).toBe(72);
     expect(within(row).getByText("Makan Siang Rumahan")).toBeTruthy();
     expect(within(row).getByText("Dapur Contoh · sisa 8 hari")).toBeTruthy();
-    expect(within(row).getByTestId("plan-row-s-1-chevron")).toBeTruthy();
+    expect(within(row).queryByTestId("plan-row-s-1-chevron")).toBeNull(); // chevron is iOS-only
     expect(StyleSheet.flatten(within(row).getByTestId("plan-row-s-1-thumb").props.style)).toMatchObject({ width: 56, height: 56 });
     fireEvent.press(row);
     expect(router.push).toHaveBeenLastCalledWith("/subscriptions/s-1?title=Makan%20Siang%20Rumahan");

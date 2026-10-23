@@ -18,6 +18,7 @@ import {
   useThemePreference,
   useTopInsetOwned,
   type MascotPose,
+  withAlpha,
 } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { loadCachedCustomer } from "../today/offline";
@@ -234,7 +235,7 @@ function StoryPage({
           left: 0,
           right: 0,
           height: 48,
-          experimental_backgroundImage: "linear-gradient(rgba(27,27,26,0.7), rgba(27,27,26,0))",
+          experimental_backgroundImage: `linear-gradient(${withAlpha(ink.overlayInk, 0.7)}, ${withAlpha(ink.overlayInk, 0)})`,
         }}
       />
       <View
@@ -245,7 +246,7 @@ function StoryPage({
           paddingBottom: 24,
           gap: 12,
           experimental_backgroundImage:
-            "linear-gradient(rgba(27,27,26,0), rgba(27,27,26,0.9) 48px, rgba(27,27,26,0.92) 100%)",
+            `linear-gradient(${withAlpha(ink.overlayInk, 0)}, ${withAlpha(ink.overlayInk, 0.9)} 48px, ${withAlpha(ink.overlayInk, 0.92)} 100%)`,
         }}
       >
         {/* The one fact on the screen, and the only accent. */}

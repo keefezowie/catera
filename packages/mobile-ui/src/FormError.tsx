@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { AccessibilityInfo, Platform, View } from "react-native";
+import { AccessibilityInfo, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Button, Text } from "./components";
 import { themedStyles, useColors } from "./theme";
@@ -19,18 +19,21 @@ export function FormError({
   retry,
   failureKey,
   testID = "form-error",
+  os = process.env.EXPO_OS,
 }: {
   message: string;
   retry?: () => void;
   failureKey?: string | number;
   testID?: string;
+  /** The platform; defaults to the running one (a test passes it, because `process.env.EXPO_OS` is compiled in). */
+  os?: string;
 }) {
   const c = useColors();
   const styles = useStyles();
   const t = useT();
   useEffect(() => {
-    if (Platform.OS === "ios" && message) AccessibilityInfo.announceForAccessibility(message);
-  }, [message, failureKey]);
+    if (os === "ios" && message) AccessibilityInfo.announceForAccessibility(message);
+  }, [message, failureKey, os]);
   return (
     <View testID={testID} accessibilityLiveRegion="polite" style={styles.box}>
       <View key={failureKey === undefined ? "once" : `failure-${failureKey}`} style={styles.row}>
@@ -54,7 +57,7 @@ export function FormError({
 }
 
 const useStyles = themedStyles((c) => ({
-  box: { backgroundColor: c.surface, borderColor: c.line, borderWidth: 1, borderRadius: 12, padding: 12, gap: 4 },
+  box: { backgroundColor: c.surface, borderColor: c.line, borderWidth: 1, borderRadius: 12, borderCurve: "continuous", padding: 12, gap: 4 },
   row: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
   icon: { marginTop: 1 },
   retry: { alignSelf: "flex-start" },

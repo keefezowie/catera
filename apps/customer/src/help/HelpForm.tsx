@@ -332,7 +332,7 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
 
 const useStyles = themedStyles((c) => ({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  pick: { minHeight: 48, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: c.secondaryBorder, justifyContent: "center" },
+  pick: { minHeight: 48, paddingHorizontal: 14, borderRadius: 10, borderCurve: "continuous", borderWidth: 1, borderColor: c.secondaryBorder, justifyContent: "center" },
   pickOn: { backgroundColor: c.forest, borderColor: c.forest },
   pickText: { fontSize: 13, fontFamily: fontFor("700") },
 }));

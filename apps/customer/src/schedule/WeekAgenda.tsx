@@ -193,7 +193,7 @@ export function WeekAgenda({
           <Text variant="rowTitle" style={{ flex: 1 }}>
             {t(`Minggu depan, ${rangeLabel(next, locale)}`, `Next week, ${rangeLabel(next, locale)}`)}
           </Text>
-          <DecorativeIcon name="chevron-forward" size={20} color={c.muted} />
+          {process.env.EXPO_OS === "ios" ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : null}
         </PressableRow>
       </View>
     </View>
@@ -217,6 +217,7 @@ const useStyles = themedStyles((c) => ({
     justifyContent: "center",
     paddingHorizontal: nativeLayout.cardPadding,
     borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous",
     backgroundColor: c.surface,
   },
   next: {
@@ -226,6 +227,7 @@ const useStyles = themedStyles((c) => ({
     gap: nativeLayout.space.md,
     paddingHorizontal: nativeLayout.cardPadding,
     borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous",
     backgroundColor: c.surface,
   },
 }));

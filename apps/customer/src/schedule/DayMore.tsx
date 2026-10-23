@@ -49,7 +49,7 @@ export function DayMore({
   const button = <HeaderIconButton icon="more" label={label} tint={tint} onPress={() => void open()} />;
   if (!ground) return button;
   return (
-    <View testID="day-more-ground" style={{ borderRadius: 24, backgroundColor: ground }}>
+    <View testID="day-more-ground" style={{ borderRadius: 24, borderCurve: "continuous", backgroundColor: ground }}>
       {button}
     </View>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Platform, View } from "react-native";
+import { AccessibilityInfo, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import NetInfo, { type NetInfoState } from "@react-native-community/netinfo";
 import { Button, Text } from "./components";
@@ -29,7 +29,7 @@ const isOffline = (state: Pick<NetInfoState, "isConnected" | "isInternetReachabl
  * unconditionally above that data and lets the banner decide when to appear; it needs no state of its own. A screen
  * with nothing cached shows a `ReadError` when its load fails and mounts the banner without `lastSeen` beside it.
  */
-export function ConnectionBanner({ lastSeen, onRetry }: { lastSeen?: Date; onRetry: () => void }) {
+export function ConnectionBanner({ lastSeen, onRetry, os = process.env.EXPO_OS }: { lastSeen?: Date; onRetry: () => void; os?: string }) {
   const c = useColors();
   const styles = useStyles();
   const t = useT();
@@ -64,8 +64,8 @@ export function ConnectionBanner({ lastSeen, onRetry }: { lastSeen?: Date; onRet
   spoken.current = line ? `${title}. ${line}` : title;
   useEffect(() => {
     // Android speaks through the live region; iOS has none, so each offline episode is announced once here.
-    if (offline && Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(spoken.current);
-  }, [offline]);
+    if (offline && os === "ios") AccessibilityInfo.announceForAccessibility(spoken.current);
+  }, [offline, os]);
   if (!offline) return null;
   return (
     <View testID="connection-banner" accessibilityLiveRegion="polite" style={styles.box}>
@@ -96,6 +96,7 @@ const useStyles = themedStyles((c) => ({
     borderColor: c.line,
     borderWidth: 1,
     borderRadius: 12,
+    borderCurve: "continuous",
     padding: 12,
   },
   text: { flex: 1, gap: 2 },

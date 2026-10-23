@@ -259,7 +259,7 @@ export function BuyScreen({
       <View testID="buy-footer-row" style={[styles.footer, stacked && styles.footerStacked]}>
         <View style={stacked ? undefined : styles.total}>
           <Text variant="meta">{t("Total", "Total")}</Text>
-          <Text variant="section" accessibilityRole="text" style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
+          <Text variant="section" selectable accessibilityRole="text" style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
             {shown ? currency(shown.total, locale) : "-"}
           </Text>
         </View>

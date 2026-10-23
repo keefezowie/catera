@@ -283,6 +283,7 @@ const useStyles = themedStyles((c) => ({
     flex: 1,
     height: CELL_HEIGHT,
     borderRadius: 12,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 0,

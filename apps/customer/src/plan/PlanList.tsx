@@ -70,7 +70,7 @@ function PlanSections({
       image={s.snapshot.offer.image ? photoUri(s.snapshot.offer.image, runtime.apiBase) : null}
       title={s.status === "active" ? planLabel(s, all, locale) : s.snapshot.offer.name}
       meta={meta}
-      trailing={<DecorativeIcon name="chevron-forward" size={20} color={c.muted} />}
+      trailing={process.env.EXPO_OS === "ios" ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : undefined}
       onPress={() => router.push(planHref(s.id, s.snapshot.offer.name) as never)}
     />
   );

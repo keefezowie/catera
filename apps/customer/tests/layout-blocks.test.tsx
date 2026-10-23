@@ -54,7 +54,8 @@ describe("row labels for a screen reader", () => {
     const label = screen.getByTestId("row").props.accessibilityLabel as string;
     expect(label).toBe("Makan Siang Rumahan");
     expect(wellFormedLabel(label)).toBe(true);
-    for (const id of ["row-chevron", "row-thumb-not-set"]) {
+    expect(screen.queryByTestId("row-chevron")).toBeNull();
+    for (const id of ["row-thumb-not-set"]) {
       const glyph = screen.getByTestId(id).findByProps({ accessibilityElementsHidden: true });
       expect(glyph.props.importantForAccessibility).toBe("no");
     }
@@ -92,7 +93,7 @@ describe("layout blocks", () => {
     render(<MediaRow testID="row" title="Satu" trailing="chevron" onPress={onPress} />);
     fireEvent.press(screen.getByTestId("row"));
     expect(onPress).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId("row-chevron")).toBeTruthy();
+    expect(screen.queryByTestId("row-chevron")).toBeNull(); // iOS-only; Jest is the Android build
     render(<MediaRow testID="row2" title="Dua" trailing={<Text testID="tail">x</Text>} />);
     expect(screen.getByTestId("tail")).toBeTruthy();
     expect(screen.queryByTestId("row2-chevron")).toBeNull();

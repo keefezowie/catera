@@ -257,7 +257,7 @@ describe("Plan detail states", () => {
     for (const row of rows) {
       expect(flat(row)).toMatchObject({ minHeight: 72 });
       expect(flat(within(row).getByTestId("plan-upcoming-row-thumb"))).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
-      expect(within(row).getByTestId("plan-upcoming-row-chevron")).toBeTruthy();
+      expect(within(row).queryByTestId("plan-upcoming-row-chevron")).toBeNull(); // chevron is iOS-only
     }
     // Today's lunch is still to come, so today leads (dated as Beranda dates today), then tomorrow and the dinner day.
     expect(within(rows[0]).getByText(shortDate(DAY, "id"))).toBeTruthy();

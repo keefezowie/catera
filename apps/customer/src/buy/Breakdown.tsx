@@ -71,7 +71,7 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
       <Text variant="bodyL" style={[styles.rowLabel, tabular]}>
         {label}
       </Text>
-      <Text variant="bodyL" style={[styles.rowValue, tabular]}>
+      <Text variant="bodyL" selectable style={[styles.rowValue, tabular]}>
         {value}
       </Text>
     </View>
@@ -130,7 +130,7 @@ export function Breakdown({
 
 const useStyles = themedStyles((c) => ({
   options: { flexDirection: "row", gap: 10 },
-  option: { flex: 1, minHeight: 56, borderRadius: 12, paddingHorizontal: 12, justifyContent: "center" },
+  option: { flex: 1, minHeight: 56, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 12, justifyContent: "center" },
   optionOn: { backgroundColor: c.forest },
   optionOff: { borderWidth: 1, borderColor: c.secondaryBorder, backgroundColor: c.surface },
   optionLabel: { fontSize: 15, fontFamily: fontFor("700"), color: c.charcoal },
@@ -139,6 +139,7 @@ const useStyles = themedStyles((c) => ({
   breakdown: {
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous",
     paddingHorizontal: nativeLayout.cardPadding,
     paddingVertical: BREAKDOWN_PAD,
   },

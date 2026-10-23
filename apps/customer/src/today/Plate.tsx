@@ -19,6 +19,7 @@ import {
   useColors,
   useMoodColors,
   useToast,
+  withAlpha,
 } from "@catera/mobile-ui";
 import { HeroPhotoFrame } from "./HeroPhoto";
 import { dayHasActions } from "../schedule/dayActions";
@@ -33,7 +34,7 @@ const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 // The photo overlay looks the same in light and dark (cream text on the neutral overlay ink), so its inks are the light
 // palette on purpose: the themed tokens swap roles in dark and would put dark text on the dark overlay.
 const fixedInk = nativeThemes.light;
-const OVERLAY = (alpha: number) => `rgba(27,27,26,${alpha})`;
+const OVERLAY = (alpha: number) => withAlpha(fixedInk.overlayInk, alpha);
 
 /**
  * journey_viewed is counted once per delivery, meal and stage for the life of the app process (ruling C12). The hero is
@@ -587,6 +588,7 @@ const useStyles = themedStyles((c) => ({
   proof: { width: PROOF_SIZE, height: PROOF_SIZE, borderRadius: 12, borderCurve: "continuous", overflow: "hidden", backgroundColor: fixedInk.photoGround },
   card: {
     borderRadius: 22,
+    borderCurve: "continuous",
     overflow: "hidden",
     backgroundColor: c.surface,
     borderWidth: 1,
@@ -601,6 +603,7 @@ const useStyles = themedStyles((c) => ({
     flex: 1,
     minHeight: 56,
     borderRadius: 10,
+    borderCurve: "continuous",
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",

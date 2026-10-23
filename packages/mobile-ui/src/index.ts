@@ -80,3 +80,4 @@ export * from "./CalendarSheet";
 export * from "./stackedLayout";
 export * from "./windowEdge";
 export * from "./layoutScale";
+export * from "./withAlpha";

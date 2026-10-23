@@ -42,6 +42,7 @@ import {
   useMoodColors,
   useScreenMargin,
   useScreenNavigation,
+  withAlpha,
 } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
@@ -439,7 +440,7 @@ const useStyles = themedStyles((c) => ({
     left: 0,
     right: 0,
     height: SCRIM,
-    experimental_backgroundImage: "linear-gradient(rgba(27,27,26,0.6), rgba(27,27,26,0))",
+    experimental_backgroundImage: `linear-gradient(${withAlpha(nativeThemes.light.overlayInk, 0.6)}, ${withAlpha(nativeThemes.light.overlayInk, 0)})`,
   },
   back: {
     width: nativeLayout.control.icon,

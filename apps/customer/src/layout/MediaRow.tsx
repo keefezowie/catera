@@ -52,9 +52,11 @@ export function MediaRow({
         ) : null}
       </View>
       {trailing === "chevron" ? (
-        <View testID={testID ? `${testID}-chevron` : undefined}>
-          <DecorativeIcon name="chevron-forward" size={20} color={c.muted} />
-        </View>
+        process.env.EXPO_OS === "ios" ? (
+          <View testID={testID ? `${testID}-chevron` : undefined}>
+            <DecorativeIcon name="chevron-forward" size={20} color={c.muted} />
+          </View>
+        ) : null
       ) : (
         trailing
       )}

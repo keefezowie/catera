@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, use, type ReactNode } from "react";
 
 const TopInsetOwned = createContext(false);
 
@@ -12,5 +12,5 @@ export function TopInsetOwner({ owned, children }: { owned: boolean; children: R
 
 /** True when something above this screen already covers the status-bar inset. */
 export function useTopInsetOwned(): boolean {
-  return useContext(TopInsetOwned);
+  return use(TopInsetOwned);
 }

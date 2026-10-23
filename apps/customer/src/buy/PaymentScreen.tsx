@@ -295,7 +295,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         ) : null}
         <View style={styles.total}>
           <Text variant="caption">Total</Text>
-          <Text variant="title" style={[{ fontSize: 32, color: palette.charcoal }, tabular]}>
+          <Text variant="title" selectable style={[{ fontSize: 32, color: palette.charcoal }, tabular]}>
             {total}
           </Text>
           {deadline > 0 ? (
@@ -397,6 +397,7 @@ const useStyles = themedStyles((c) => ({
     width: 26,
     height: 26,
     borderRadius: 13,
+    borderCurve: "continuous",
     textAlign: "center",
     lineHeight: 26,
     fontFamily: fontFor("800"),

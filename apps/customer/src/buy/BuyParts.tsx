@@ -218,6 +218,7 @@ const useStyles = themedStyles((c) => ({
     gap: nativeLayout.space.md,
     padding: SUMMARY_PAD,
     borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous",
     backgroundColor: c.surface,
   },
   summaryText: { flex: 1, minWidth: 0 },

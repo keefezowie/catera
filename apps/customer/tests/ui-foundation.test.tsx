@@ -864,3 +864,48 @@ describe("layout scale", () => {
     expect(nativeLayout.space).toEqual({ xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 });
   });
 });
+
+describe("Screen bottom inset without a footer", () => {
+  const insets = () => require("react-native-safe-area-context").useSafeAreaInsets as jest.Mock;
+  const withNavBar = (run: () => void) => {
+    const original = insets().getMockImplementation();
+    insets().mockImplementation(() => ({ top: 0, bottom: 24, left: 0, right: 0 }));
+    try {
+      run();
+    } finally {
+      insets().mockImplementation(original);
+    }
+  };
+  const nav = (type: string) => ({ isFocused: () => true, getState: () => ({ type }), getParent: () => undefined, setOptions: jest.fn(), addListener: jest.fn(() => () => {}) });
+  const mount = (type: string, footer?: boolean) =>
+    render(
+      <LayoutScaleProvider value="v2">
+        <NavigationContext.Provider value={nav(type) as never}>
+          <Screen footer={footer ? <Text>Kaki</Text> : undefined}>
+            <Text>Isi</Text>
+          </Screen>
+        </NavigationContext.Provider>
+      </LayoutScaleProvider>,
+    );
+  const bottom = () =>
+    (StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle) as { paddingBottom: number }).paddingBottom;
+
+  it("adds the navigation-bar inset outside the tabs", () => {
+    withNavBar(() => {
+      mount("stack");
+      expect(bottom()).toBe(32 + 24);
+    });
+  });
+  it("adds nothing inside the tabs", () => {
+    withNavBar(() => {
+      mount("tab");
+      expect(bottom()).toBe(32);
+    });
+  });
+  it("does not add it twice when a footer exists", () => {
+    withNavBar(() => {
+      mount("stack", true);
+      expect(bottom()).toBe(32);
+    });
+  });
+});

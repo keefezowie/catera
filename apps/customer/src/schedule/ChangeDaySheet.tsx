@@ -425,6 +425,7 @@ const useStyles = themedStyles((c) => ({
     gap: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: c.line,
     backgroundColor: c.surface,

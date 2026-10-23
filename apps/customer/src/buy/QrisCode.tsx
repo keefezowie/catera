@@ -50,6 +50,7 @@ const useStyles = themedStyles((c) => ({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 16,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: c.line,
     // The quiet zone stays pure white in every theme: scanners need dark modules on a light field.

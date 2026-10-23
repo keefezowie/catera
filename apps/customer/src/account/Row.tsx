@@ -32,12 +32,12 @@ export function Row({
         ) : null}
       </View>
       {value ? (
-        <Text variant="caption" style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
+        <Text variant="caption" selectable={!onPress} style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
           {value}
         </Text>
       ) : null}
       {children}
-      {onPress ? <DecorativeIcon name="chevron-forward" size={18} color={c.muted} /> : null}
+      {onPress && process.env.EXPO_OS === "ios" ? <DecorativeIcon name="chevron-forward" size={18} color={c.muted} /> : null}
     </>
   );
   if (!onPress) return <View style={[styles.row, !first && styles.divider]}>{body}</View>;

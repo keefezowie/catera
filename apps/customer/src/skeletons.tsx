@@ -109,6 +109,7 @@ function ListCardFrame({ children, testID, style }: { children: ReactNode; testI
         {
           backgroundColor: c.surface,
           borderRadius: nativeLayout.radius.card,
+          borderCurve: "continuous",
           paddingHorizontal: nativeLayout.cardPadding,
         },
         style,
@@ -305,6 +306,7 @@ export function PlanSkeleton() {
             style={{
               backgroundColor: c.surface,
               borderRadius: nativeLayout.radius.card,
+              borderCurve: "continuous",
               paddingHorizontal: nativeLayout.cardPadding,
               overflow: "hidden",
             }}
@@ -348,6 +350,7 @@ export function PlanListSkeleton() {
           style={{
             backgroundColor: c.surface,
             borderRadius: nativeLayout.radius.card,
+            borderCurve: "continuous",
             paddingHorizontal: nativeLayout.cardPadding,
             overflow: "hidden",
           }}
@@ -390,6 +393,7 @@ export function AkunSkeleton() {
   const card = {
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous" as const,
     paddingHorizontal: nativeLayout.cardPadding,
     overflow: "hidden" as const,
   };
@@ -588,6 +592,7 @@ function BreakdownCard({ testID }: { testID?: string }) {
       style={{
         backgroundColor: c.surface,
         borderRadius: nativeLayout.radius.card,
+        borderCurve: "continuous",
         paddingHorizontal: nativeLayout.cardPadding,
         paddingVertical: BREAKDOWN_PAD,
       }}

@@ -35,6 +35,7 @@ const useStyles = themedStyles((c) => ({
   card: {
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous",
     paddingHorizontal: nativeLayout.cardPadding,
     overflow: "hidden",
   },
