@@ -230,8 +230,15 @@ const darkMood = (header: string): MoodPalette => ({
   pattern: null,
 });
 
+/**
+ * Light mood header tints, deepened to 1.2:1 on the white page (owner confirmation pending). To revert, set them back to
+ * the old cream and pale sage ("#FFF7E9", "#F3F6EF"); then `markerIdle` can return to "#858D80" and `heroEdge` to
+ * "#C9C6BA", and the mood-header pair in `tests/native-contrast.test.ts` needs a named edge.
+ */
+const LIGHT_HEADER = { siang: "#FBE7C3", malam: "#E2ECDD" } as const;
+
 export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
-  light: { siang: lightMood("#FBE7C3"), malam: lightMood("#E2ECDD") },
+  light: { siang: lightMood(LIGHT_HEADER.siang), malam: lightMood(LIGHT_HEADER.malam) },
   dark: { siang: darkMood("#2E2B25"), malam: darkMood("#2A2D27") },
 };
 
