@@ -70,7 +70,7 @@ The final reviewer (Opus, on `d4dee269`) found no Critical issue. It raised two 
 
 Beranda:
 - Pager mode shows the count in the band and on the stop; a reported plate's state shows only in its detail line (L2).
-- A pager box as tall as its tallest page could leave a blank under a shorter card (G2a). The final fix makes each page its own height in Jest; the device result waits for the re-check.
+- A pager box as tall as its tallest page could leave a blank under a shorter card (G2a). The final fix makes each page its own height; the emulator re-check confirmed it (each page ends 16dp under its content).
 - A stop's 2dp bottom `hitSlop` overlaps the hero's top edge (G2a).
 - A past meal still "preparing" reads "Belum sampai" (final fix wave).
 - The same plan is described two ways: "selesai hari ini" on the Beranda rail, "1 hari lagi" in Paket saya and the plan hero (gate 2 note; L3, L8 and L9 to agree on one wording).
@@ -110,12 +110,12 @@ Fixed later, per the ledger and task reports: PackageDetail's -20 pulls (L7), th
 
 ## NOT VERIFIED
 
-- The emulator re-check of the final gate's items 6 to 9 (pager page heights, the plans rail peek at 360dp, the Buy footer above the navigation bar, the 44 terms link) is pending. It was running in parallel when this file was written; its captures go to `output/native-review/layout-2026-10-23/recheck/`, and no re-check report existed yet.
+- The emulator re-check of the final gate's items 6 to 9 on `709e08a8` passed (`output/native-review/layout-2026-10-23/recheck/`, report `.superpowers/sdd/2026-10-23-customer-layout/recheck-report.md`): pager pages keep their own heights; the 360dp plans rail shows a 28dp third-card sliver; Bayar ends 16dp above the navigation bar inset and the in-tab footers stay flush with the tab bar; the terms link is 44dp. The final gate's own report file was overwritten by the fix agent; the two items it marked partly fixed were the pager padding (G2-2) and the 360dp rail peek (G2-4), both fixed by `709e08a8`.
+- Final checks on `709e08a8`: `npm run typecheck` pass, root Vitest 1044/1044, customer Jest 1726/1727 (the one failure is the recorded baseline "outcomes › moving a day toasts the new date", which derives its dates from the real clock), caterer Jest 618/618, `npm run build` pass.
 - Anything on iOS (no Mac): the bar's back and heart circles (a `headerRight` view may get the glass button wrapper), swipe back with a custom `headerLeft`, two root sheets pushed in one tick, VoiceOver.
 - The production build without the demo strip: the Jelajah fold (about 9dp spare with two-line names) and the Beranda hero heights are computed for production, not measured.
 - From the gates: Beranda with one or two plans (Jest only); a status stop in its "now" state; the "Malam tidak ada pengantaran" tile; the "Perlu kamu urus" screen and the "+n lagi" targets on a device; the day sheet's Ubah hari and Pilih menu circles (no open demo day offered them); Jelajah at font scale 1.3 and 360dp after the gate fixes; the area picker, search, filtered-empty, save-error and loading grid states; the package reviews block and a two-meal package page.
 - Live TalkBack and VoiceOver passes (label structure is tested in Jest only).
-- `npm run build` after the baseline.
 
 ## Environment notes
 
@@ -128,5 +128,5 @@ Fixed later, per the ledger and task reports: PackageDetail's -20 pulls (L7), th
 
 ## Next step
 
-1. Owner review on a device: Beranda (rulings 20 and 23, the 16:10 photo and the hero height, need the owner's eye), the day sheet, Jelajah, package detail, Akun, plan detail and Buy, in light and dark, Siang and Malam. Read the re-check result first.
+1. Owner review on a device: Beranda (rulings 20 and 23, the 16:10 photo and the hero height, need the owner's eye), the day sheet, Jelajah, package detail, Akun, plan detail and Buy, in light and dark, Siang and Malam.
 2. Then the Catera Dapur layout pass. Spec section 4 kept Dapur on its current layout until its own pass. Today Dapur provides no `LayoutScaleProvider`, and `apps/caterer/tests/layout-classic.test.tsx` pins its classic geometry.
