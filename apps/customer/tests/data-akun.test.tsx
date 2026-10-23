@@ -314,3 +314,48 @@ describe("Hapus akun", () => {
     expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith("https://api.example.test/syarat-dan-privasi#privasi");
   });
 });
+
+
+describe("Data akun reads", () => {
+  it("holds the session rows as a skeleton while the session is read, never 'Belum ada'", async () => {
+    const { runtime, auth } = runtimeWith({ user: phoneUser });
+    auth.getSession.mockImplementation(() => new Promise(() => undefined));
+    renderWith(runtime, <DataAkun />);
+    expect(await screen.findByRole("button", { name: /^Nama, / })).toBeTruthy();
+    expect(screen.getByLabelText("Memuat data akun")).toBeTruthy();
+    expect(screen.getAllByTestId("list-skeleton-row")).toHaveLength(3);
+    expect(screen.queryByText("Belum ada")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Nomor HP/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Hapus akun" })).toBeTruthy();
+  });
+
+  it("a failed session read says so with Coba lagi, and the retry brings the rows", async () => {
+    const { runtime, auth } = runtimeWith({ user: phoneUser });
+    auth.getSession.mockRejectedValueOnce(new Error("offline"));
+    renderWith(runtime, <DataAkun />);
+    expect(await screen.findByText(/^Belum bisa memuat nomor HP dan email/)).toBeTruthy();
+    expect(screen.queryByText("Belum ada")).toBeNull();
+    expect(screen.queryByTestId("list-skeleton")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByRole("button", { name: /^Nomor HP, 0812-3456-7890/ })).toBeTruthy();
+    expect(screen.queryByText(/^Belum bisa memuat nomor HP/)).toBeNull();
+  });
+
+  it("a person with no phone or email still reads 'Belum ada' once the session answered", async () => {
+    const { runtime } = runtimeWith({ user: { id: "u-c1", app_metadata: { provider: "email" } } });
+    renderWith(runtime, <DataAkun />);
+    expect(await screen.findByRole("button", { name: /^Nomor HP, Belum ada/ })).toBeTruthy();
+  });
+
+  it("a failed read of the deletion request offers a retry for that section only", async () => {
+    const { runtime } = runtimeWith({ user: phoneUser });
+    (runtime.api.request as jest.Mock).mockRejectedValueOnce(new Error("REQUEST_TIMEOUT"));
+    renderWith(runtime, <DataAkun />);
+    expect(await screen.findByText(/^Belum bisa memeriksa permintaan hapus akun/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Nomor HP, 0812/ })).toBeTruthy();
+    (runtime.api.request as jest.Mock).mockResolvedValueOnce([{ id: "r1", kind: "deletion", status: "open" }]);
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByText("Permintaan sudah terkirim")).toBeTruthy();
+    expect(screen.queryByText(/^Belum bisa memeriksa permintaan/)).toBeNull();
+  });
+});

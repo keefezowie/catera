@@ -1326,6 +1326,22 @@ describe("Paket on the layout scale (v2)", () => {
     expect(flat(screen.getByTestId("paket-review")).borderWidth).toBeUndefined();
   });
 
+  it("a failed reviews read shows a compact retry in the Ulasan block, not a missing block", async () => {
+    let fail = true;
+    const request = jest.fn(async (path: string) => {
+      if (fail && path.startsWith("reviews/")) throw new Error("REQUEST_TIMEOUT");
+      return path.startsWith("reviews/") ? [{ id: "r1", customer: "Dewi", rating: 5, body: "Enak sekali." }] : [];
+    });
+    await open(withNutrition, { request });
+    expect(await screen.findByText(/^Belum bisa memuat ulasan/)).toBeTruthy();
+    expect(screen.getByText("Ulasan")).toBeTruthy();
+    expect(screen.getByTestId("paket-name")).toBeTruthy();
+    fail = false;
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByText("Dewi · 5/5")).toBeTruthy();
+    expect(screen.queryByText(/^Belum bisa memuat ulasan/)).toBeNull();
+  });
+
   it("in the dark theme and in Malam the surfaces and the meal tints come from the dark palette", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {

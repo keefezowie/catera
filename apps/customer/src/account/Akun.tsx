@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
-import { fonts, MoodHeader, Screen, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useMoodColors } from "@catera/mobile-ui";
+import { fonts, MoodHeader, ReadError, Screen, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useMoodColors } from "@catera/mobile-ui";
 import { localPhone } from "./localPhone";
 import { AkunTiles } from "./AkunTiles";
 import { SignInFirst } from "./SignInFirst";
@@ -180,6 +180,16 @@ function Account() {
     >
       <View style={styles.sections}>
         <AkunTiles plans={plans} addresses={addresses} loading={customer.loading} />
+        {/* The counts did not load and nothing earlier is kept: the tiles still open, and this line retries the read. */}
+        {customer.error && !customer.data ? (
+          <ReadError
+            message={t(
+              "Belum bisa memuat jumlah paket dan alamat. Cek koneksi lalu coba lagi.",
+              "Couldn't load the plan and address counts. Check your connection and try again.",
+            )}
+            onRetry={() => void customer.reload()}
+          />
+        ) : null}
         <View style={styles.cards}>
           <ListCard inset={BARE_GLYPH_INSET}>
             <AccountRow glyph="person-outline" title={t("Data akun", "Account details")} href="/data-akun" />

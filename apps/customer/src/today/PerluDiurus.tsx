@@ -32,7 +32,7 @@ function Waiting({ actorId, title }: { actorId: string; title: string }) {
   const c = useColors();
   const home = useData("perlu-diurus:customer", () => loadCustomer(runtime, actorId), { cached: () => keptCustomer(actorId) });
   // Menu choices that are due; the list still shows the rest without them (offline or a failed feed).
-  const actions = useData("perlu-diurus:actions", () => runtime.api.customerActions(20).catch(() => null));
+  const actions = useData("perlu-diurus:actions", () => runtime.api.customerActions(20));
   const pull = usePullToRefresh(() => Promise.all([home.reload(), actions.reload()]));
   const state = home.data?.data;
   const savedAt = home.data?.savedAt;
@@ -52,6 +52,12 @@ function Waiting({ actorId, title }: { actorId: string; title: string }) {
             <ConnectionBanner lastSeen={savedAt ? new Date(savedAt) : undefined} onRetry={() => void home.reload()} />
             {!savedAt && home.error ? <ReadError message={home.error} onRetry={() => void home.reload()} /> : null}
             <StaleCopy savedAt={savedAt} onRetry={home.reload} />
+            {!savedAt && actions.error && !actions.data ? (
+              <ReadError message={t(
+                "Belum bisa memuat menu yang perlu dipilih. Cek koneksi lalu coba lagi.",
+                "Couldn't load the menus waiting for a choice. Check your connection and try again.",
+              )} onRetry={() => void actions.reload()} />
+            ) : null}
             <WaitingList
               state={state!}
               actions={actions.data?.items ?? null}

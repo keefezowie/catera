@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, type TextInput } from "react-native";
+import { AccessibilityInfo, View, type TextInput } from "react-native";
 import { router } from "expo-router";
 import {
   changePassword,
@@ -11,7 +11,7 @@ import {
   useMobile,
   verifyPhoneChangeCode,
 } from "@catera/mobile-core";
-import { Button, Card, Field, FormError, Screen, SettingsRow, SettingsSection, Text, useToast } from "@catera/mobile-ui";
+import { Button, Card, Field, FormError, ReadError, Screen, SettingsRow, SettingsSection, Text, useToast } from "@catera/mobile-ui";
 import { pushSheet } from "../nav";
 import { ListSkeleton } from "../skeletons";
 import { localPhone } from "./localPhone";
@@ -42,22 +42,40 @@ type SessionInfo = { phone: string; email: string; provider: string };
 function useSessionInfo() {
   const { runtime } = useMobile();
   const [info, setInfo] = useState<SessionInfo | null>(null);
+  // Without a session client (a demo account) there is nothing to read, so nothing waits.
+  const [status, setStatus] = useState<"loading" | "ready" | "failed">(runtime.supabase ? "loading" : "ready");
   const [round, setRound] = useState(0);
   useEffect(() => {
+    if (!runtime.supabase) {
+      setStatus("ready");
+      return;
+    }
     let live = true;
-    void runtime.supabase?.auth
+    void runtime.supabase.auth
       .getSession()
       .then(({ data }) => {
+        if (!live) return;
         const user = data.session?.user;
-        if (live && user)
+        if (user)
           setInfo({ phone: user.phone ?? "", email: user.email ?? "", provider: String(user.app_metadata?.provider ?? "") });
+        setStatus("ready");
       })
-      .catch(() => undefined);
+      .catch(() => live && setStatus("failed"));
     return () => {
       live = false;
     };
   }, [runtime, round]);
-  return { info, reload: () => setRound((n) => n + 1) };
+  return {
+    info,
+    status,
+    // After a phone change the rows stay on screen while the session is read again.
+    reload: () => setRound((n) => n + 1),
+    // A retry after a failed read shows the skeleton again.
+    retry: () => {
+      setStatus("loading");
+      setRound((n) => n + 1);
+    },
+  };
 }
 
 /**
@@ -89,9 +107,9 @@ export function DataAkun() {
 
 function Details() {
   const { actor, demo, runtime, t } = useMobile();
-  const { info, reload } = useSessionInfo();
+  const { info, status, reload, retry } = useSessionInfo();
   const [open, setOpen] = useState<Open>("");
-  const requests = useData("data-akun:requests", () => listAccountRequests(runtime.api).catch(() => null));
+  const requests = useData("data-akun:requests", () => listAccountRequests(runtime.api));
   const deletionOpen = !!requests.data?.some((r) => r.kind === "deletion" && r.status === "open");
   // The password belongs to an email account; a person who signs in with the HP number has none to change.
   const hasPassword = demo || (!!info?.email && info.provider !== "phone");
@@ -110,16 +128,32 @@ function Details() {
       ) : null}
       <SettingsSection>
         <SettingsRow label={t("Nama", "Name")} value={actor?.name ?? ""} expanded={open === "nama"} onPress={() => toggle("nama")} />
-        <SettingsRow
-          label={t("Nomor HP", "Phone number")}
-          value={info?.phone ? localPhone(info.phone) : none}
-          expanded={open === "hp"}
-          onPress={() => toggle("hp")}
-        />
-        <SettingsRow label="Email" value={info?.email || none} expanded={open === "email"} onPress={() => toggle("email")} />
-        {hasPassword ? (
-          <SettingsRow label={t("Kata sandi", "Password")} expanded={open === "sandi"} onPress={() => toggle("sandi")} />
-        ) : null}
+        {status === "loading" ? (
+          <ListSkeleton rows={3} label={t("Memuat data akun", "Loading account details")} />
+        ) : status === "failed" ? (
+          <View style={{ padding: 16 }}>
+            <ReadError
+              message={t(
+                "Belum bisa memuat nomor HP dan email. Cek koneksi lalu coba lagi.",
+                "Couldn't load the phone number and email. Check your connection and try again.",
+              )}
+              onRetry={retry}
+            />
+          </View>
+        ) : (
+          <>
+            <SettingsRow
+              label={t("Nomor HP", "Phone number")}
+              value={info?.phone ? localPhone(info.phone) : none}
+              expanded={open === "hp"}
+              onPress={() => toggle("hp")}
+            />
+            <SettingsRow label="Email" value={info?.email || none} expanded={open === "email"} onPress={() => toggle("email")} />
+            {hasPassword ? (
+              <SettingsRow label={t("Kata sandi", "Password")} expanded={open === "sandi"} onPress={() => toggle("sandi")} />
+            ) : null}
+          </>
+        )}
       </SettingsSection>
       {open === "nama" ? <NameEditor key="nama" current={actor?.name ?? ""} onDone={() => setOpen("")} /> : null}
       {open === "hp" ? <PhoneEditor key="hp" onChanged={reload} onDone={() => setOpen("")} /> : null}
@@ -133,6 +167,15 @@ function Details() {
           onPress={() => pushSheet("/hapus-akun")}
         />
       </SettingsSection>
+      {requests.error && !requests.data ? (
+        <ReadError
+          message={t(
+            "Belum bisa memeriksa permintaan hapus akun. Cek koneksi lalu coba lagi.",
+            "Couldn't check the account deletion request. Check your connection and try again.",
+          )}
+          onRetry={() => void requests.reload()}
+        />
+      ) : null}
     </Screen>
   );
 }

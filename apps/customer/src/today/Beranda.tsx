@@ -215,7 +215,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
   // A launch paints the copy kept for this account first (`fromCache`); the fresh read replaces it.
   const home = useData(`home:customer`, () => loadCustomer(runtime, actorId), { cached: () => keptCustomer(actorId) });
   // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
-  const actions = useData("home:actions", () => runtime.api.customerActions(20).catch(() => null));
+  const actions = useData("home:actions", () => runtime.api.customerActions(20));
   // The pager's card in view, per meal, so a mood switch never counts the other meal's card as seen.
   const [page, setPage] = useState<{ meal: string; index: number }>({ meal: "", index: 0 });
   // Whether the "Paket selesai" recap is on the page (undefined while it reads its seen marks). Its food photo is never
@@ -398,6 +398,14 @@ function SignedInHome({ actorId }: { actorId: string }) {
         {/* A copy kept while the phone is online means the read failed: say how old it is, never let it pass as current. */}
         <StaleCopy savedAt={savedAt} onRetry={home.reload} />
         {recap}
+        {/* The menu choices that are due did not load: the rest of the section stands, and this line retries that read only.
+            Offline the connection banner already speaks, and a feed read earlier keeps its rows. */}
+        {!savedAt && actions.error && !actions.data ? (
+          <ReadError message={t(
+            "Belum bisa memuat menu yang perlu dipilih. Cek koneksi lalu coba lagi.",
+            "Couldn't load the menus waiting for a choice. Check your connection and try again.",
+          )} onRetry={() => void actions.reload()} />
+        ) : null}
         <LiveSlot state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
         <UpcomingDays days={days} apiBase={runtime.apiBase} tomorrow={tomorrow} />
         <PlansRow subscriptions={state.subscriptions} today={today} apiBase={runtime.apiBase} />

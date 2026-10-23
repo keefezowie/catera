@@ -392,6 +392,18 @@ export function PackageDetail() {
           </View>
         </View>
 
+        {!shown.length && reviews.error && !reviews.data ? (
+          <View testID="paket-reviews" style={styles.section}>
+            <SectionHeader title={t("Ulasan", "Reviews")} />
+            <ReadError
+              message={t(
+                "Belum bisa memuat ulasan. Cek koneksi lalu coba lagi.",
+                "Couldn't load the reviews. Check your connection and try again.",
+              )}
+              onRetry={() => void reviews.reload()}
+            />
+          </View>
+        ) : null}
         {shown.length ? (
           <View testID="paket-reviews" style={styles.section}>
             <SectionHeader title={t("Ulasan", "Reviews")} />

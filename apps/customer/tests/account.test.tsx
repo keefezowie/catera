@@ -18,6 +18,7 @@ import { NotificationsScreen } from "../src/account/Notifications";
 import { Pengaturan } from "../src/settings/Pengaturan";
 import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
 import { Beranda } from "../src/today/Beranda";
+import { PerluDiurus } from "../src/today/PerluDiurus";
 import { customerLink } from "../src/links";
 import { AddressForm } from "../src/account/AddressForm";
 import { customerState, eightPlans, subscription, offer, TODAY } from "./fixtures";
@@ -865,5 +866,74 @@ describe("customerLink is the one mapper for every old href", () => {
     ["https://evil.example/x", "/"],
   ])("%s → %s", (href, route) => {
     expect(customerLink(href)).toBe(route);
+  });
+});
+
+
+describe("Secondary reads keep their copy or offer a retry", () => {
+  const failing = () => {
+    const runtime = runtimeWith({});
+    (runtime.api.customerActions as jest.Mock).mockRejectedValueOnce(new Error("REQUEST_TIMEOUT"));
+    return runtime;
+  };
+
+  it("Beranda: a failed action feed shows a retry for Perlu kamu urus only, and the retry reads it again", async () => {
+    const runtime = failing();
+    renderWith(runtime, <Beranda />);
+    expect(await screen.findByText(/^Siang ini,/)).toBeTruthy();
+    expect(await screen.findByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeNull());
+  });
+
+  it("Beranda: an action feed that loaded keeps its place when a later read fails", async () => {
+    const runtime = runtimeWith({});
+    renderWith(runtime, <Beranda />);
+    expect(await screen.findByText(/^Siang ini,/)).toBeTruthy();
+    await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalled());
+    expect(screen.queryByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeNull();
+  });
+
+  it("Perlu kamu urus: a failed action feed shows the same retry", async () => {
+    const runtime = failing();
+    renderWith(runtime, <PerluDiurus />);
+    expect(await screen.findByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalledTimes(2));
+  });
+
+  it("Akun: a failed customer read offers a retry under the tiles, and the tiles stay", async () => {
+    const runtime = runtimeWith({}, { phone: "6281234567890" });
+    (runtime.api.customer as jest.Mock).mockRejectedValueOnce(new Error("REQUEST_TIMEOUT"));
+    renderWith(runtime, <Akun />);
+    expect(await screen.findByText(/^Belum bisa memuat jumlah paket dan alamat/)).toBeTruthy();
+    expect(screen.getByTestId("akun-tile-paket")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await waitFor(() => expect(screen.queryByText(/^Belum bisa memuat jumlah paket/)).toBeNull());
+    expect(runtime.api.customer).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("Simpan alamat says what is missing", () => {
+  it("hints the street length and names the missing fields while the button is off, then goes quiet", async () => {
+    const runtime = runtimeWith({ addresses: [] });
+    renderWith(runtime, withForm);
+    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeDisabled();
+    expect(screen.getByText("Isi dulu: jalan.")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Label alamat"), "");
+    fireEvent.changeText(screen.getByLabelText("Kota"), "");
+    expect(screen.getByText("Isi dulu: label, jalan, kota.")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. A");
+    expect(screen.getByText("Isi dulu: label, kota.")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl");
+    expect(screen.getByText("Tulis jalan dan nomornya, minimal 5 huruf.")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
+    fireEvent.changeText(screen.getByLabelText("Label alamat"), "Rumah");
+    fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta");
+    expect(screen.queryByText(/^Isi dulu:/)).toBeNull();
+    expect(screen.queryByText(/minimal 5 huruf/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Simpan alamat" })).not.toBeDisabled();
   });
 });

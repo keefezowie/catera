@@ -121,6 +121,7 @@ function Book({ actorId, id, title }: { actorId: string; id: string; title: stri
 
 function Form({ actorId, address, title }: { actorId: string; address: Address | null; title: string }) {
   const { command, t, locale } = useMobile();
+  const c = useColors();
   const toast = useToast();
   const draftKey = `${actorId}:${address?.id ?? "baru"}`;
   const [start] = useState(() => blank(t, address));
@@ -157,6 +158,12 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
     });
   const areas = !areaOptions.includes(draft.area) ? [draft.area, ...areaOptions] : areaOptions;
 
+  // What still keeps the button off, in the order of the form: [Indonesian, English].
+  const missing: [string, string][] = [];
+  if (!draft.label.trim()) missing.push(["label", "label"]);
+  if (draft.line.trim().length < 5) missing.push(["jalan", "street"]);
+  if (!draft.city.trim()) missing.push(["kota", "city"]);
+
   async function save() {
     if (busy) return;
     setBusy(true);
@@ -187,10 +194,15 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
       footer={
         <>
           {error ? <FormError message={error} failureKey={failures} testID="address-error" /> : null}
+          {missing.length ? (
+            <Text variant="caption" style={{ color: c.muted }}>
+              {t(`Isi dulu: ${missing.map((m) => m[0]).join(", ")}.`, `Fill in first: ${missing.map((m) => m[1]).join(", ")}.`)}
+            </Text>
+          ) : null}
           <Button
             label={t("Simpan alamat", "Save address")}
             busy={busy}
-            disabled={!draft.label.trim() || draft.line.trim().length < 5 || !draft.city.trim()}
+            disabled={missing.length > 0}
             onPress={() => void save()}
           />
         </>
@@ -199,6 +211,11 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
       <Field label={t("Label alamat", "Address label")} value={draft.label} onChangeText={(label) => set({ label })} maxLength={60} />
       <Field
         label={t("Jalan, nomor, detail", "Street, number, details")}
+        hint={
+          draft.line.trim().length > 0 && draft.line.trim().length < 5
+            ? t("Tulis jalan dan nomornya, minimal 5 huruf.", "Write the street and number, at least 5 characters.")
+            : undefined
+        }
         value={draft.line}
         onChangeText={(line) => set({ line })}
         multiline
