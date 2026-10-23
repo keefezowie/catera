@@ -92,20 +92,21 @@ const renderBook = () =>
   );
 /** Hapus lives in the edit form: open the address's row, then find "Hapus alamat" at the bottom of the form. */
 const openForm = async (label = "Rumah") => {
-  fireEvent.press(await screen.findByRole("button", { name: `Ubah ${label}` }));
+  fireEvent.press(await screen.findByRole("button", { name: new RegExp(`^${label}, `) }));
   return screen.findByRole("button", { name: "Hapus alamat" });
 };
 const pressDelete = async (label = "Rumah") => fireEvent.press(await openForm(label));
 
 it("Alamat has no Makanan diantar ke mana? heading", async () => {
   renderBook();
-  await screen.findByRole("button", { name: "Ubah Rumah" });
+  await screen.findByRole("button", { name: /^Rumah, / });
   expect(screen.queryByText("Makanan diantar ke mana?")).toBeNull();
 });
 
-it("a row opens its edit form; the trailing pencil is labelled Ubah {label}", async () => {
+it("a row speaks its address, says it edits, and opens its edit form", async () => {
   renderBook();
-  const row = await screen.findByRole("button", { name: "Ubah Kantor" });
+  const row = await screen.findByRole("button", { name: "Kantor, Jl. Contoh No. 8, Jakarta Pusat, Jakarta" });
+  expect(row.props.accessibilityHint).toBe("Ubah alamat");
   // One press target per address: the row holds the address and the pencil, and there is no Hapus beside it.
   expect(within(row).getByText(OFFICE.line)).toBeTruthy();
   expect(within(row).getByTestId("address-edit-icon")).toBeTruthy();
@@ -214,13 +215,35 @@ it("days that stayed are counted, dated and blamed on the kitchen outside the ne
   expect(router.replace).not.toHaveBeenCalled();
 });
 
-it("Tambah alamat baru opens the address form instead of moving", async () => {
+it("Tambah alamat baru opens a new address form in the edit form's place instead of moving", async () => {
   addressUse.mockResolvedValue(inUse);
   mockAsk.mockResolvedValueOnce("baru");
   renderBook();
   await pressDelete();
-  await waitFor(() => expect(router.push).toHaveBeenCalledWith("/alamat-form"));
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/alamat-form"));
+  // A push of /alamat-form over /alamat-form?id= would stack one form on another (or be dropped as the same sheet).
+  expect(router.push).not.toHaveBeenCalledWith("/alamat-form");
   expect(command).not.toHaveBeenCalled();
+});
+
+it("Simpan is off while Hapus runs, and Hapus while Simpan runs", async () => {
+  let answer!: (use: AddressUse) => void;
+  addressUse.mockImplementationOnce(() => new Promise<AddressUse>((resolve) => (answer = resolve)));
+  mockConfirm.mockResolvedValue(false);
+  renderBook();
+  fireEvent.press(await openForm());
+  await waitFor(() => expect(addressUse).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeDisabled();
+  await act(async () => answer(unused));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Simpan alamat" })).not.toBeDisabled());
+  let saved!: () => void;
+  command.mockImplementationOnce(() => new Promise((resolve) => (saved = () => resolve({}))));
+  fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+  await waitFor(() => expect(command).toHaveBeenCalledWith("address.save", expect.anything(), expect.any(String)));
+  expect(screen.getByRole("button", { name: "Hapus alamat" })).toBeDisabled();
+  fireEvent.press(screen.getByRole("button", { name: "Hapus alamat" }));
+  expect(addressUse).toHaveBeenCalledTimes(1);
+  await act(async () => saved());
 });
 
 it("Hapus is busy until the removal settles and a second press sends nothing", async () => {

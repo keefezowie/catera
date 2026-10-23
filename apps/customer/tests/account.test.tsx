@@ -612,7 +612,7 @@ describe("Alamat", () => {
   it("edits an address with the same address.save payload", async () => {
     const runtime = runtimeWith({ addresses: [kantor] });
     renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Kantor" }));
+    fireEvent.press(await screen.findByRole("button", { name: /^Kantor, / }));
     // The form is a native sheet over Alamat, opened with the address's id.
     expect(router.push).toHaveBeenCalledWith("/alamat-form?id=a-1");
     // An edit reads the book for the address's version first.
@@ -675,6 +675,7 @@ describe("Alamat", () => {
     expect(chip("Rumah").props.accessibilityState).toMatchObject({ selected: true });
     expect(chip("Kantor").props.accessibilityState).toMatchObject({ selected: false });
     expect(chip("Lainnya").props.accessibilityState).toMatchObject({ selected: false });
+    expect(screen.getByText("Simpan sebagai")).toBeTruthy();
     // A preset label needs no typing.
     expect(screen.queryByLabelText("Label alamat")).toBeNull();
     fireEvent.press(chip("Lainnya"));
@@ -704,7 +705,7 @@ describe("Alamat", () => {
   it("a custom label opens as Lainnya with its text", async () => {
     const runtime = runtimeWith({ addresses: [{ ...kantor, id: "a-9", label: "Kos adik" }] });
     renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Kos adik" }));
+    fireEvent.press(await screen.findByRole("button", { name: /^Kos adik, / }));
     expect((await screen.findByRole("button", { name: "Lainnya" })).props.accessibilityState).toMatchObject({ selected: true });
     expect(screen.getByLabelText("Label alamat").props.value).toBe("Kos adik");
   });
@@ -712,7 +713,7 @@ describe("Alamat", () => {
   it("an existing Kantor opens with Kantor chosen", async () => {
     const runtime = runtimeWith({ addresses: [kantor] });
     renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Kantor" }));
+    fireEvent.press(await screen.findByRole("button", { name: /^Kantor, / }));
     await screen.findByLabelText("Petunjuk pengantaran");
     // The row under the sheet reads "Kantor" too; the chip is the one in the form.
     const form = within(screen.getByTestId("sheet-host"));
@@ -741,8 +742,8 @@ describe("Alamat", () => {
         runtimeWith({ addresses: [kantor, { ...long, id: "a-2", label: "Rumah" }, { ...kantor, id: "a-3", label: "Kos adik" }] }),
         withForm,
       );
-      await screen.findByRole("button", { name: "Ubah Kos adik" });
-      for (const name of ["Ubah Kantor", "Ubah Rumah", "Ubah Kos adik"]) {
+      await screen.findByRole("button", { name: /^Kos adik, / });
+      for (const name of [/^Kantor, /, /^Rumah, /, /^Kos adik, /]) {
         const row = screen.getByRole("button", { name });
         expect(Number(flat(row).minHeight)).toBeGreaterThanOrEqual(48);
         for (const text of within(row).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
@@ -762,7 +763,7 @@ describe("Alamat", () => {
           </MobileProvider>
         </ThemeProvider>,
       );
-      await screen.findByRole("button", { name: "Ubah Kantor" });
+      await screen.findByRole("button", { name: /^Kantor, / });
       expect(flat(screen.getByTestId("address-card")).backgroundColor).toBe(nativeThemes.dark.surface);
     } finally {
       scheme.mockRestore();
@@ -824,7 +825,7 @@ describe("Alamat", () => {
     const runtime = runtimeWith({ addresses: [kantor] });
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CONFLICT"), { code: "CONFLICT" }));
     renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Kantor" }));
+    fireEvent.press(await screen.findByRole("button", { name: /^Kantor, / }));
     fireEvent.press(await screen.findByRole("button", { name: "Simpan alamat" }));
     expect(await screen.findByTestId("address-error")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeTruthy();

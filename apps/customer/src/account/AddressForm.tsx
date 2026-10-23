@@ -170,7 +170,8 @@ function Form({
   const [removed, setRemoved] = useState(false);
   const closed = useRef(false);
   const typed = typedChange(draft, start);
-  const removal = useAddressRemoval(addressFormHref(flow));
+  // "Tambah alamat baru" while deleting: the new form takes this one's place (the guard still asks about typing here).
+  const removal = useAddressRemoval(addressFormHref(flow), () => router.replace(addressFormHref(flow) as never));
   // Hapus stays busy from the press until the whole removal settles, so a second press sends nothing.
   const [removing, remove] = useBusy(async (retry: () => void) => {
     if (!address) return;
@@ -178,7 +179,10 @@ function Form({
     drafts.delete(draftKey);
     setRemoved(true);
   });
-  const pressRemove = () => void remove(pressRemove);
+  // Saving and deleting never overlap: each button is off while the other runs.
+  const pressRemove = () => {
+    if (!busy) void remove(pressRemove);
+  };
 
   useUnsavedGuard(!saved && !removed && typed, t("alamat", "address"), {
     t,
@@ -222,7 +226,7 @@ function Form({
   );
 
   async function save() {
-    if (busy) return;
+    if (busy || removing) return;
     setBusy(true);
     setError("");
     try {
@@ -260,13 +264,13 @@ function Form({
             label={t("Simpan alamat", "Save address")}
             accessibilityHint={missing.length ? missingText : undefined}
             busy={busy}
-            disabled={missing.length > 0}
+            disabled={missing.length > 0 || removing}
             onPress={() => void save()}
           />
         </>
       }
     >
-      <Text variant="label">{t("Label", "Label")}</Text>
+      <Text variant="label">{t("Simpan sebagai", "Save as")}</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {PRESET_LABELS.map(([id, en]) => {
           const label = t(id, en);
@@ -326,7 +330,7 @@ function Form({
       </Text>
       {address ? (
         <View style={{ alignItems: "flex-start", paddingTop: 8 }}>
-          <Button variant="text" label={t("Hapus alamat", "Delete address")} ink={c.danger} busy={removing} onPress={pressRemove} />
+          <Button variant="text" label={t("Hapus alamat", "Delete address")} ink={c.danger} busy={removing} disabled={busy} onPress={pressRemove} />
         </View>
       ) : null}
     </Frame>

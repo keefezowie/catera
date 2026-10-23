@@ -644,6 +644,27 @@ describe("Beli / Perpanjang", () => {
     expect(router.push).not.toHaveBeenCalledWith("/pembelian/alamat-form");
   });
 
+  it("the pick sheet's two buttons take a line each at font 1.3", async () => {
+    const basis = async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+      const sheet = within(await screen.findByTestId("choice-sheet"));
+      return ["Tambah alamat", "Kelola alamat"].map((name) => StyleSheet.flatten(sheet.getByRole("button", { name }).props.style).flexBasis);
+    };
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await bayarReady();
+    expect(await basis()).toEqual(["100%", "100%"]);
+  });
+
+  it("the pick sheet's two buttons sit side by side at font 1", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1 };
+    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await bayarReady();
+    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    const sheet = within(await screen.findByTestId("choice-sheet"));
+    expect(["Tambah alamat", "Kelola alamat"].map((name) => StyleSheet.flatten(sheet.getByRole("button", { name }).props.style).flexBasis)).toEqual([140, 140]);
+  });
+
   it("falls back to a remaining address when the chosen one is removed in Kelola alamat", async () => {
     const rt = server();
     function Remove() {

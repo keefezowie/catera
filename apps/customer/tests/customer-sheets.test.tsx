@@ -121,7 +121,7 @@ jest.mock("../src/buy/BuyScreen", () => ({
             { id: "a-2", label: "Rumah", detail: "Jl. Mawar No. 9" },
           ],
           selected: "a-1",
-          extra: { key: "kelola", label: "Kelola alamat", href: "/pembelian/alamat" },
+          extras: [{ key: "kelola", label: "Kelola alamat", href: "/pembelian/alamat" }],
         }),
       ),
       // A long address book: thirty saved addresses, more than one screen of rows.
@@ -130,7 +130,7 @@ jest.mock("../src/buy/BuyScreen", () => ({
           title: "Alamat pengantaran",
           items: Array.from({ length: 30 }, (_, i) => ({ id: `a-${i + 1}`, label: `Alamat ${i + 1}`, detail: `Jl. Contoh No. ${i + 1}` })),
           selected: "a-1",
-          extra: { key: "kelola", label: "Kelola alamat", href: "/pembelian/alamat" },
+          extras: [{ key: "kelola", label: "Kelola alamat", href: "/pembelian/alamat" }],
         }),
       ),
       button("Ganti tanggal mulai", () =>
@@ -596,12 +596,12 @@ describe("outcomes", () => {
     const back = hardwareBack();
     try {
       const app = await mount("/alamat");
-      await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah Rumah" })));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
       expect(screen.getByRole("header", { name: "Ubah alamat" })).toBeTruthy();
       expect(screen.getByLabelText("Jalan, nomor, detail").props.value).toBe("Jl. Mawar No. 9");
       await go(() => void back.press());
       expect(stack("(index)")).toEqual(["index", "alamat"]);
-      await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah Rumah" })));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
       fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
       await act(async () => {});
       await go(() => void back.press());
@@ -609,12 +609,45 @@ describe("outcomes", () => {
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
       expect(stack("(index)")).toEqual(["index", "alamat"]);
       // The edit sends the address's version.
-      await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah Rumah" })));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" })));
       expect(mockCommand).toHaveBeenCalledWith("address.save", expect.objectContaining({ id: "a-2", version: 3 }));
       app.unmount();
     } finally {
       back.restore();
+    }
+  });
+
+  it("Tambah alamat baru from Hapus in the edit form opens the new form in its place", async () => {
+    answer("alamat:customer", stateWith([]));
+    answer("alamat-form:a-2", stateWith([]));
+    const api = mockRuntime.api as Record<string, unknown>;
+    api.addressUse = async () => ({
+      addressId: "a-2",
+      count: 3,
+      from: addDays(TODAY, 1),
+      to: addDays(TODAY, 3),
+      kitchens: [],
+      pendingCheckouts: 0,
+    });
+    try {
+      const app = await mount("/alamat");
+      await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
+      // The edit form (/alamat-form?id=a-2) is the sheet on top: a push of /alamat-form would read as the same sheet.
+      overAlamat();
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Hapus alamat" })));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Pindahkan ke alamat lain" })));
+      await sheetClosed();
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Tambah alamat baru" })));
+      await sheetClosed();
+      await act(async () => {});
+      expect(screen.getByRole("header", { name: "Alamat baru" })).toBeTruthy();
+      // One form over Alamat, not one stacked on another.
+      overAlamat();
+      expect(mockCommand).not.toHaveBeenCalled();
+      app.unmount();
+    } finally {
+      delete api.addressUse;
     }
   });
 
@@ -780,7 +813,7 @@ describe("handing off once a sheet has closed", () => {
     const back = hardwareBack();
     try {
       const app = await mount("/alamat");
-      await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah Rumah" })));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
       fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
       await act(async () => {});
       await go(() => void back.press());
@@ -940,7 +973,7 @@ describe("every fit sheet scrolls once it outgrows the screen", () => {
     const back = hardwareBack();
     try {
       app = await mount("/alamat");
-      await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah Rumah" })));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
       fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
       await act(async () => {});
       await go(() => void back.press());

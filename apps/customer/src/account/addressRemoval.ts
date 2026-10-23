@@ -14,11 +14,12 @@ const NEW_ADDRESS = "baru";
  *   "Pindahkan ke alamat lain", then the other addresses to pick from, then `address.replace`. When every day moved the
  *   server archives the old address too; otherwise a sheet says how many stayed, until when and which kitchen;
  * - only a payment still open: an error toast, since nothing can be moved yet.
- * `newAddressHref` is the form sheet for a new address in the list's context. A failed read or command ends in an
+ * `newAddressHref` is the form sheet for a new address in the list's context; `onNewAddress`, when given, opens it
+ * instead (the edit form replaces itself, since a push of the new form over it would read as the same sheet). A failed read or command ends in an
  * error toast whose "Coba lagi" runs `retry`. It resolves true when the address left the book, so the form it was
  * pressed in can close.
  */
-export function useAddressRemoval(newAddressHref: string) {
+export function useAddressRemoval(newAddressHref: string, onNewAddress?: () => void) {
   const { runtime, command, t, locale } = useMobile();
   const confirm = useConfirm();
   const ask = useActionSheet();
@@ -70,7 +71,8 @@ export function useAddressRemoval(newAddressHref: string) {
         });
         if (!choice) return false;
         if (choice === NEW_ADDRESS) {
-          pushSheet(newAddressHref);
+          if (onNewAddress) onNewAddress();
+          else pushSheet(newAddressHref);
           return false;
         }
         const result = await command<AddressReplaceResult>("address.replace", { fromAddressId: address.id, toAddressId: choice });
@@ -108,6 +110,6 @@ export function useAddressRemoval(newAddressHref: string) {
         return false;
       }
     },
-    [runtime, command, t, locale, confirm, ask, toast, newAddressHref],
+    [runtime, command, t, locale, confirm, ask, toast, newAddressHref, onNewAddress],
   );
 }

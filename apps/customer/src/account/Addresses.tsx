@@ -73,8 +73,8 @@ function AddressBook({ flow }: { flow: boolean }) {
 }
 
 /**
- * One address as one press target: the whole card opens its edit form, with a pencil at the end edge. The row is
- * named "Ubah {label}" and the pencil is drawn for the eye only, so a screen reader hears one button per address.
+ * One address as one press target: the whole card opens its edit form, with a pencil at the end edge. A screen reader
+ * hears the address ("{label}, {line}, {area}, {city}") and the hint "Ubah alamat"; the pencil is drawn for the eye only.
  */
 function AddressRow({ address: a, onEdit }: { address: Address; onEdit: () => void }) {
   const { t } = useMobile();
@@ -82,7 +82,8 @@ function AddressRow({ address: a, onEdit }: { address: Address; onEdit: () => vo
   return (
     <PressableRow
       accessibilityRole="button"
-      accessibilityLabel={t(`Ubah ${a.label}`, `Edit ${a.label}`)}
+      accessibilityLabel={`${a.label}, ${a.line}, ${a.area}, ${a.city}`}
+      accessibilityHint={t("Ubah alamat", "Edit address")}
       onPress={onEdit}
       style={{ minHeight: 48 }}
     >

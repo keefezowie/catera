@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
 import {
@@ -33,10 +33,8 @@ export type ChoiceInput = {
   title: string;
   items: ChoiceItem[];
   selected?: string | null;
-  /** The buttons under the list, side by side and wrapping when they do not fit. */
+  /** The buttons under the list: side by side at the default font, one per line at a larger one. */
   extras?: ChoiceExtra[];
-  /** One button under the list; the same as a one-item `extras`, drawn before them. */
-  extra?: ChoiceExtra;
 };
 
 const waiting: QuestionRegistry<ChoiceInput, string | null> = new Map();
@@ -54,10 +52,11 @@ export function useChoice(): (pathname: string, input: ChoiceInput) => Promise<s
  */
 export function ChoiceRoute({ os }: { os?: string } = {}) {
   const { t } = useMobile();
+  const { fontScale } = useWindowDimensions();
   const { input, close } = useQuestionRoute(waiting, null, os);
   if (!input) return null;
   const choose = (result: string, href?: string) => close(result, href ? () => router.replace(href as never) : undefined);
-  const extras = [...(input.extra ? [input.extra] : []), ...(input.extras ?? [])];
+  const extras = input.extras ?? [];
   return (
     // A long list (a full address book, a larger font) scrolls under the fixed title row.
     <SheetFitBody header={<SheetHeader title={input.title} closeLabel={t("Tutup", "Close")} />}>
@@ -78,8 +77,15 @@ export function ChoiceRoute({ os }: { os?: string } = {}) {
           }}
         >
           {extras.map((x) => (
-            // Two fit beside each other on a phone; at a larger font each takes the full width.
-            <Button key={x.key} variant="secondary" label={x.label} onPress={() => choose(x.key, x.href)} style={{ flexGrow: 1, flexBasis: 140 }} />
+            // Two fit beside each other on a phone at the default font; at a larger one each takes the full width, so a
+            // label such as "Kelola alamat" never breaks mid-word.
+            <Button
+              key={x.key}
+              variant="secondary"
+              label={x.label}
+              onPress={() => choose(x.key, x.href)}
+              style={{ flexGrow: 1, flexBasis: fontScale > 1 ? "100%" : 140 }}
+            />
           ))}
         </View>
       ) : null}
