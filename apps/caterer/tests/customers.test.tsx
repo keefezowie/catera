@@ -219,6 +219,10 @@ describe("Pelanggan mood header", () => {
     const first = renderMood(pending);
     expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
     expect(within(screen.getByTestId("pelanggan-header")).getByText("Pelanggan")).toBeTruthy();
+    // Dapur keeps the classic 48 top row even with nothing in it, so Pelanggan's title sits where the other tabs' do.
+    const row = screen.getByTestId("mood-header-row");
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48 });
+    expect(StyleSheet.flatten(screen.getByTestId("pelanggan-header").props.style)).toMatchObject({ paddingTop: 12 });
     first.unmount();
 
     const broken = runtimeWith("approved", true);

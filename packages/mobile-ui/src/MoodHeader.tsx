@@ -137,10 +137,11 @@ const isText = (node: ReactNode): node is string | number => typeof node === "st
  * over it. Its fill is `MoodFill`: two stacked layers, Siang and Malam, and the Malam one fades in and out.
  * - A string `title` is set in the `title` variant (30/39), which holds a long, dynamic name at large font scales. A
  *   short fixed headline can opt into `titleVariant="display"` (34/40).
- * - The top row is 48dp whenever it holds the meta line, a trailing control or the toggle, so switching between such
- *   tabs never moves the headline. A header with none of them draws no row and no gap, and pays 8 above instead of 12. The toggle's 48dp tabs ride on a 3dp track that overhangs the row
- *   evenly above and below. The meta line carries a fact (a date, the area), never the tab's own name. With both a
- *   toggle and a trailing control, the toggle comes first and the trailing control (Dapur's settings gear for a helper
+ * - The top row is 48dp on every screen, whether it holds the meta line, a trailing control, the toggle or nothing,
+ *   so switching tabs never moves the headline. The one exception is the customer v2 layout scale: there a header with
+ *   no meta, toggle or trailing control draws no row and no gap, and pays 16 above instead of 12. The toggle's 48dp
+ *   tabs ride on a 3dp track that overhangs the row evenly above and below. The meta line carries a fact (a date, the
+ *   area), never the tab's own name. With both a toggle and a trailing control, the toggle comes first and the trailing control (Dapur's settings gear for a helper
  *   on Menu) sits at the end.
  * - Under the v2 layout scale the top row is 44 (`nativeLayout.control.icon`), the icon button size; classic keeps 48.
  * - `plain` is a header with no mood band: no fill, no rounded corners, the screen's canvas behind it, 8 above the row
@@ -194,9 +195,11 @@ export function MoodHeader({
   const { mood } = useMood();
   const { scheme } = useThemePreference();
   const radius = overlap > 0 ? 32 : 28;
-  // A header with no meta, no visible toggle and no trailing control has nothing for the row to hold: it is not drawn.
+  // On the customer v2 scale a header with no meta, no visible toggle and no trailing control has nothing for the row to
+  // hold, so it is not drawn. Dapur (classic) keeps the row so a tab switch never moves the title.
   const hasMeta = meta != null && meta !== false && meta !== "";
-  const hasRow = hasMeta || (toggle && !arc) || trailing != null;
+  const hasTrailing = trailing != null && trailing !== false;
+  const hasRow = !v2 || hasMeta || (toggle && !arc) || hasTrailing;
   const rowHeight = band ? BAND_ROW_HEIGHT : v2 ? nativeLayout.control.icon : ROW_HEIGHT;
   const [height, setHeight] = useState<number>();
   const above = topOwned ? insets.top + DEMO_STRIP_HEIGHT : insets.top - topInset;
@@ -211,8 +214,8 @@ export function MoodHeader({
           ? { paddingTop: topInset + 8 }
           : {
               overflow: "hidden",
-              // Without the row the headline starts 8 under the status bar (the plain header's 8), not under 12 + 48 + 12.
-              paddingTop: topInset + (hasRow ? 12 : 8),
+              // Without the row the headline starts 8 under the status bar 16 under the status bar, level with the 16 below, not under 12 + 44 + 12.
+              paddingTop: topInset + (hasRow ? 12 : 16),
               paddingBottom: 16 + overlap,
               borderBottomLeftRadius: radius,
               borderBottomRightRadius: radius,
@@ -233,23 +236,23 @@ export function MoodHeader({
         }}
       >
         {hasRow ? (
-        <View testID="mood-header-row" style={{ minHeight: rowHeight, flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            {isText(meta) ? (
-              <Text variant="label" style={{ color: plain ? canvasInk.muted : palette.headerMeta, lineHeight: 18 }}>
-                {meta}
-              </Text>
-            ) : (
-              meta
-            )}
-          </View>
-          {toggle && !arc ? (
-            <View style={{ flexShrink: 0, marginVertical: -TRACK_PADDING }}>
-              <MoodToggle />
+          <View testID="mood-header-row" style={{ minHeight: rowHeight, flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              {isText(meta) ? (
+                <Text variant="label" style={{ color: plain ? canvasInk.muted : palette.headerMeta, lineHeight: 18 }}>
+                  {meta}
+                </Text>
+              ) : (
+                meta
+              )}
             </View>
-          ) : null}
-          {trailing != null ? <View style={{ flexShrink: 0 }}>{trailing}</View> : null}
-        </View>
+            {toggle && !arc ? (
+              <View style={{ flexShrink: 0, marginVertical: -TRACK_PADDING }}>
+                <MoodToggle />
+              </View>
+            ) : null}
+            {hasTrailing ? <View style={{ flexShrink: 0 }}>{trailing}</View> : null}
+          </View>
         ) : null}
         {isText(title) ? (
           <Text variant={titleVariant} accessibilityRole="header" style={{ color: plain ? canvasInk.charcoal : palette.headerText }}>

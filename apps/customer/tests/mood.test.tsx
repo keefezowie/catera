@@ -55,11 +55,13 @@ function mockSystemScheme(scheme: "light" | "dark") {
   jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
 }
 
-function mount(ui: ReactElement, { now = SIANG_NOW, scheme = "light" as "light" | "dark" } = {}) {
+function mount(ui: ReactElement, { now = SIANG_NOW, scheme = "light" as "light" | "dark", v2 = false } = {}) {
   mockSystemScheme(scheme);
   return render(
     <ThemeProvider storageKey="mood-test">
-      <MoodProvider now={now}>{ui}</MoodProvider>
+      <LayoutScaleProvider value={v2 ? "v2" : "classic"}>
+        <MoodProvider now={now}>{ui}</MoodProvider>
+      </LayoutScaleProvider>
     </ThemeProvider>,
   );
 }
@@ -266,9 +268,11 @@ describe("MoodHeader", () => {
     fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     view.rerender(
       <ThemeProvider storageKey="mood-test">
-        <MoodProvider now={SIANG_NOW}>
-          <MoodHeader title="Halo" toggle />
-        </MoodProvider>
+        <LayoutScaleProvider value="classic">
+          <MoodProvider now={SIANG_NOW}>
+            <MoodHeader title="Halo" toggle />
+          </MoodProvider>
+        </LayoutScaleProvider>
       </ThemeProvider>,
     );
     expect(flat("mood-fill-malam").opacity).toBe(1);
@@ -290,18 +294,24 @@ describe("MoodHeader", () => {
     for (const ui of [
       <MoodHeader key="none" title="Halo" />,
       <MoodHeader key="blank" title="Halo" meta="" trailing={null} />,
+      <MoodHeader key="false" title="Halo" meta={false} trailing={false} />,
       <MoodHeader key="off" title="Halo" toggle={false} />,
     ]) {
-      mount(ui);
+      mount(ui, { v2: true });
       expect(screen.queryByTestId("mood-header-row")).toBeNull();
       expect(screen.getByTestId("mood-header-content").children).toHaveLength(1);
       expect(screen.getByRole("header", { name: "Halo" })).toBeTruthy();
-      // The title starts 8 under the top padding instead of 12 plus a 48 row and a 12 gap.
-      expect(StyleSheet.flatten(screen.getByTestId("mood-header").props.style)).toMatchObject({ paddingTop: 8, paddingBottom: 16 });
+      // The title starts 16 under the top edge instead of 12 plus a 48 row and a 12 gap.
+      expect(StyleSheet.flatten(screen.getByTestId("mood-header").props.style)).toMatchObject({ paddingTop: 16, paddingBottom: 16 });
       screen.unmount();
     }
-    mount(<MoodHeader title="Halo" meta="Jumat" />);
+    mount(<MoodHeader title="Halo" meta="Jumat" />, { v2: true });
     expect(StyleSheet.flatten(screen.getByTestId("mood-header").props.style)).toMatchObject({ paddingTop: 12, paddingBottom: 16 });
+    screen.unmount();
+    // The classic scale (Dapur) keeps its empty 48 row, so a tab switch never moves the title.
+    mount(<MoodHeader title="Halo" />);
+    expect(StyleSheet.flatten(screen.getByTestId("mood-header-row").props.style)).toMatchObject({ minHeight: 48 });
+    expect(StyleSheet.flatten(screen.getByTestId("mood-header").props.style)).toMatchObject({ paddingTop: 12 });
   });
 
   it("keeps a 48dp top row whenever it holds a meta line, a trailing control or the toggle", () => {
