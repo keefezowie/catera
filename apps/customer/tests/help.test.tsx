@@ -686,6 +686,7 @@ describe("Bantuan: Minta bantuan", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
     fireEvent.press(await screen.findByRole("button", { name: "Paket, Makan Siang Rumahan" }));
     const pick = screen.getByRole("radio", { name: "Makan Malam Sehat" });
+    (Haptics.selectionAsync as jest.Mock).mockClear();
     expect(StyleSheet.flatten(pick.props.style).minHeight).toBeGreaterThanOrEqual(48);
     fireEvent.press(pick);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
@@ -697,8 +698,8 @@ describe("Bantuan: Minta bantuan", () => {
     const cancel = await topic("Pembatalan");
     expect(screen.queryByRole("tab")).toBeNull();
     for (const [name, example] of [
-      ["Pembatalan", "Berhenti langganan atau batalkan paket"],
-      ["Pembayaran", "Sudah bayar tapi paket belum aktif"],
+      ["Pembatalan", "Batalkan paket atau sisa harinya"],
+      ["Pembayaran", "Sudah bayar, tapi paket belum aktif"],
       ["Lainnya", "Pertanyaan lain soal paket atau pengantaran"],
     ]) {
       const row = screen.getByRole("radio", { name: `${name}, ${example}` });
@@ -745,6 +746,26 @@ describe("Bantuan: Minta bantuan", () => {
     fireEvent.press(screen.getByRole("radio", { name: "Makan Malam Sehat" }));
     expect(screen.queryByRole("radio", { name: "Makan Siang Rumahan" })).toBeNull();
     expect(screen.getByRole("button", { name: "Paket, Makan Malam Sehat" })).toBeTruthy();
+  });
+
+  it("eight packages open as eight radio rows, and choosing the last closes the list", async () => {
+    mockParams = { kind: "help" };
+    const state = customerState(null);
+    const first = state.subscriptions[0];
+    state.subscriptions = Array.from({ length: 8 }, (_, i) => ({
+      ...first,
+      id: `s-${i + 1}`,
+      snapshot: { ...first.snapshot, offer: { ...first.snapshot.offer, name: `Paket Nomor ${i + 1}` } },
+    }));
+    renderWith(runtimeWith({ state }), <HelpForm />, { toast: true });
+    fireEvent.press(await screen.findByRole("button", { name: "Paket, Paket Nomor 1" }));
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole("radio", { name: /^Paket Nomor / })).toHaveLength(8);
+    fireEvent.press(screen.getByRole("radio", { name: "Paket Nomor 8" }));
+    expect(screen.queryAllByRole("radio", { name: /^Paket Nomor / })).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Paket, Paket Nomor 8" }).props.accessibilityState).toMatchObject({
+      expanded: false,
+    });
   });
 
   it("one package is named on a plain Paket row, and an unknown paket param falls back to it", async () => {

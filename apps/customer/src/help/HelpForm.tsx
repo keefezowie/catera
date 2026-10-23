@@ -19,6 +19,7 @@ import {
   SkeletonGroup,
   Text,
   useColors,
+  useHaptic,
   useToast,
   useUnsavedGuard,
 } from "@catera/mobile-ui";
@@ -30,12 +31,12 @@ const TOPICS = [
   {
     id: "Pembatalan",
     en: "Cancellation",
-    example: { id: "Berhenti langganan atau batalkan paket", en: "Stop a subscription or cancel a package" },
+    example: { id: "Batalkan paket atau sisa harinya", en: "Cancel a package or its remaining days" },
   },
   {
     id: "Pembayaran",
     en: "Payment",
-    example: { id: "Sudah bayar tapi paket belum aktif", en: "Paid, but the package isn't active" },
+    example: { id: "Sudah bayar, tapi paket belum aktif", en: "Paid, but the package isn't active" },
   },
   {
     id: "Lainnya",
@@ -182,6 +183,7 @@ function PaketRow({
 }) {
   const { t } = useMobile();
   const palette = useColors();
+  const haptic = useHaptic();
   const [open, setOpen] = useState(false);
   const ios = process.env.EXPO_OS === "ios";
   const label = t("Paket", "Package");
@@ -213,7 +215,10 @@ function PaketRow({
           accessibilityRole="button"
           accessibilityLabel={`${label}, ${name}`}
           accessibilityState={{ expanded: open }}
-          onPress={() => setOpen((v) => !v)}
+          onPress={() => {
+            haptic.select();
+            setOpen((v) => !v);
+          }}
           android_ripple={{ color: palette.line }}
           style={({ pressed }) => [frame, ios && pressed ? { backgroundColor: palette.sage } : null]}
         >

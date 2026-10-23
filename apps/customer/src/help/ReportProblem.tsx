@@ -258,7 +258,7 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
       }
     >
       <Card testID="delivery-card" style={{ gap: 2 }}>
-        <Text variant="heading" style={{ fontVariant: ["tabular-nums"] }}>
+        <Text variant="heading">
           {`${day} · ${mealLabel(current.meal, locale)}`}
         </Text>
         <Text numberOfLines={2} style={{ color: c.muted }}>
