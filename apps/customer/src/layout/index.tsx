@@ -1,8 +1,14 @@
-export { GlyphCircle } from "./GlyphCircle";
-export { DecorativeIcon } from "./DecorativeIcon";
-export { GlyphRow } from "./GlyphRow";
-export { BARE_GLYPH_INSET, GLYPH_INSET, ListCard, MEDIA_INSET } from "./ListCard";
-export { MediaRow } from "./MediaRow";
-export { rowLabel } from "./rowLabel";
-export { SectionHeader } from "./SectionHeader";
-export { Thumb } from "./Thumb";
+// The layout blocks live in @catera/mobile-ui (Dapur layout spec 2.5); this folder re-exports them for the customer screens.
+export {
+  BARE_GLYPH_INSET,
+  DecorativeIcon,
+  GLYPH_INSET,
+  GlyphCircle,
+  GlyphRow,
+  ListCard,
+  MEDIA_INSET,
+  MediaRow,
+  rowLabel,
+  SectionHeader,
+  Thumb,
+} from "@catera/mobile-ui";

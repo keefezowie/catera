@@ -25,8 +25,8 @@ describe("copyable money", () => {
 describe("continuous corners", () => {
   const lines: [string, number[]][] = [
     [M + "components.tsx", [667, 719, 725]],
-    [A + "layout/ListCard.tsx", [37]],
-    [A + "layout/Thumb.tsx", [41]],
+    [M + "layout/ListCard.tsx", [39]],
+    [M + "layout/Thumb.tsx", [41]],
     [A + "today/LiveSlot.tsx", [91]],
     [A + "buy/BuyParts.tsx", [220]],
     [A + "schedule/WeekAgenda.tsx", [219, 228]],
@@ -41,7 +41,7 @@ describe("continuous corners", () => {
 });
 
 describe("iOS-only trailing chevrons", () => {
-  it.each([A + "layout/MediaRow.tsx", A + "account/Row.tsx", A + "plan/PlanList.tsx", A + "schedule/WeekAgenda.tsx"])(
+  it.each([M + "layout/MediaRow.tsx", A + "account/Row.tsx", A + "plan/PlanList.tsx", A + "schedule/WeekAgenda.tsx"])(
     "%s gates chevron-forward on iOS",
     (file) => {
       const src = read(file);
