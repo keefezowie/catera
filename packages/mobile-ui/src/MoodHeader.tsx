@@ -214,7 +214,7 @@ export function MoodHeader({
           ? { paddingTop: topInset + 8 }
           : {
               overflow: "hidden",
-              // Without the row the headline starts 8 under the status bar 16 under the status bar, level with the 16 below, not under 12 + 44 + 12.
+              // Without the row the headline starts 16 under the status bar, level with the 16 below, not under 12 + 44 + 12.
               paddingTop: topInset + (hasRow ? 12 : 16),
               paddingBottom: 16 + overlap,
               borderBottomLeftRadius: radius,
