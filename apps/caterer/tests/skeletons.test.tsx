@@ -405,9 +405,15 @@ describe("staff", () => {
   });
 });
 
+/** The nearest drawn ancestor of a node that satisfies a test (the skeleton's own wrappers sit between). */
+function ancestor(node: Node, test: (n: Node) => boolean): Node | null {
+  for (let n = node.parent as Node | null; n; n = n.parent as Node | null) if (host(n) && test(n)) return n;
+  return null;
+}
+
 describe("Menu", () => {
   it("while the week loads the header and controls are live and the day card is a skeleton", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => menuOps()), menuMonth: jest.fn(never) }), <MenuWeek />);
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => menuOps()), menuMonth: jest.fn(never) }), withDapurScale(<MenuWeek />));
     expect(await screen.findByRole("button", { name: "Bagikan menu" })).toBeTruthy();
     expect(skeletonNames()).toEqual(["Memuat menu"]);
     // Only the day card waits: the package chips and buttons are real, so they are not drawn twice.
@@ -418,18 +424,19 @@ describe("Menu", () => {
 
   it("Menu's first load draws the loaded header's shape on the Malam surface and keeps the day card on the page", async () => {
     const read = held<unknown>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn, menuMonth: jest.fn(never) }), <MenuWeek />, MALAM);
+    renderWith(runtimeWith(owner, { sellerOperations: read.fn, menuMonth: jest.fn(never) }), withDapurScale(<MenuWeek />), MALAM);
     const header = await screen.findByTestId("mood-header");
-    // The week line is already true (the screen opens on this week), and the title row keeps the step buttons' 48dp.
+    // The week line is already true (the screen opens on this week), and the title row keeps the step buttons' 44dp.
     expect(within(header).getByText("Minggu ini")).toBeTruthy();
-    expect(flat(within(header).getByTestId("menu-title-row")).minHeight).toBe(48);
-    // One row of five day blocks at the day buttons' 64dp, on the Malam surface, hidden from screen readers.
+    expect(flat(within(header).getByTestId("menu-title-row")).minHeight).toBe(44);
+    // One row of five day blocks at the day tiles' 56dp and radius 12, on the Malam surface, hidden from screen readers.
     const strip = within(header).getByTestId("menu-strip-skeleton", { includeHiddenElements: true });
     expect(strip.props.accessibilityElementsHidden).toBe(true);
     const days = strip.findAll((n) => host(n) && /^menu-strip-skeleton-day-/.test(String(n.props.testID ?? "")));
     expect(days).toHaveLength(5);
     for (const day of days) {
-      expect(flat(day).height).toBe(64);
+      expect(flat(day).height).toBe(56);
+      expect(flat(day).borderRadius).toBe(12);
       expect(flat(day).backgroundColor).toBe(nativeMood.light.malam.arcTrack);
     }
     expect(nativeMood.light.malam.arcTrack).not.toBe(nativeMood.light.malam.header);
@@ -442,15 +449,50 @@ describe("Menu", () => {
     await screen.findByTestId("menu-strip");
     const buttons = within(screen.getByTestId("mood-header")).getAllByTestId(/^menu-day-/);
     expect(buttons).toHaveLength(5);
-    for (const button of buttons) expect(flat(button).minHeight).toBe(64);
-    expect(flat(within(screen.getByTestId("mood-header")).getByTestId("menu-title-row")).minHeight).toBe(48);
+    for (const button of buttons) expect(flat(button).minHeight).toBe(56);
+    expect(flat(within(screen.getByTestId("mood-header")).getByTestId("menu-title-row")).minHeight).toBe(44);
+  });
+
+  it("the strip skeleton shares one row evenly and keeps the 4 gap of the loaded strip", async () => {
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
+    const strip = await screen.findByTestId("menu-strip-skeleton", { includeHiddenElements: true });
+    const row = strip.findAll((n) => host(n) && flat(n).flexDirection === "row")[0];
+    expect(flat(row)).toMatchObject({ gap: 4 });
+    expect(flat(row).flexWrap).not.toBe("wrap");
+  });
+
+  it("the controls skeleton is built from the loaded controls' constants: a 34 chip in a 48 frame, then two 50 buttons", async () => {
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
+    const chip = await screen.findByTestId("menu-skeleton-chip", { includeHiddenElements: true });
+    expect(flat(chip).height).toBe(34);
+    // The frame around the chip is 48 tall, like the package chips' frame once loaded.
+    expect(flat(ancestor(chip, (n) => flat(n).height === 48)!)).toMatchObject({ height: 48, justifyContent: "center" });
+    for (const id of ["menu-skeleton-copy", "menu-skeleton-share"]) {
+      expect(flat(screen.getByTestId(id, { includeHiddenElements: true }))).toMatchObject({ height: 50 });
+    }
+    // The buttons sit side by side, 8 apart, as the loaded row does.
+    const copy = screen.getByTestId("menu-skeleton-copy", { includeHiddenElements: true });
+    expect(flat(ancestor(copy, (n) => flat(n).flexDirection === "row")!)).toMatchObject({ flexDirection: "row", gap: 8 });
+  });
+
+  it("the day card's skeleton is a section header line over 64 rows with 48 thumbs, like the loaded day", async () => {
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
+    const day = await screen.findByTestId("menu-skeleton-day", { includeHiddenElements: true });
+    const rows = day.findAll((n) => host(n) && flat(n).minHeight === 64);
+    expect(rows).toHaveLength(3);
+    const thumbs = day.findAll((n) => host(n) && flat(n).width === 48 && flat(n).height === 48);
+    expect(thumbs).toHaveLength(3);
+    for (const thumb of thumbs) expect(flat(thumb).borderRadius).toBe(8);
+    // Rows sit in a list card, not in a card of their own: no Card border, the list card's radius 16.
+    expect(within(day).getByTestId("list-card", { includeHiddenElements: true })).toBeTruthy();
+    expect(textsIn(day)).toEqual([]);
   });
 
   it("the day card's skeleton stays in place when the packages arrive, so it fades in once", async () => {
     const ops = held<unknown>();
     const month = held<unknown>();
     const timing = spyFades();
-    renderWith(runtimeWith(owner, { sellerOperations: ops.fn, menuMonth: month.fn }), <MenuWeek />);
+    renderWith(runtimeWith(owner, { sellerOperations: ops.fn, menuMonth: month.fn }), withDapurScale(<MenuWeek />));
     const day = await screen.findByTestId("menu-skeleton-day", { includeHiddenElements: true });
     await act(async () => ops.answer(menuOps()));
     expect(await screen.findByRole("button", { name: "Bagikan menu" })).toBeTruthy();
@@ -470,7 +512,7 @@ describe("Menu", () => {
   it("a kitchen with no packages yet fades its empty state in from the skeleton", async () => {
     const ops = held<unknown>();
     const timing = spyFades();
-    renderWith(runtimeWith(owner, { sellerOperations: ops.fn }), <MenuWeek />);
+    renderWith(runtimeWith(owner, { sellerOperations: ops.fn }), withDapurScale(<MenuWeek />));
     expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
     await act(async () => ops.answer({ ...menuOps(), offers: [] }));
     expect(await screen.findByRole("button", { name: "Buat paket" })).toBeTruthy();
@@ -479,13 +521,13 @@ describe("Menu", () => {
   });
 
   it("a failed Menu read keeps Menu belum bisa dimuat with Coba lagi", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => menuOps()), menuMonth: jest.fn(async () => Promise.reject(new Error("400"))) }), <MenuWeek />);
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => menuOps()), menuMonth: jest.fn(async () => Promise.reject(new Error("400"))) }), withDapurScale(<MenuWeek />));
     expect(await screen.findByText("Menu belum bisa dimuat.")).toBeTruthy();
     expect(skeletonNames()).toEqual([]);
   });
 
   it("the day screen waits behind the menu skeleton", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <MenuDayScreen date="2026-10-08" packageId="p-1" meal="lunch" />);
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuDayScreen date="2026-10-08" packageId="p-1" meal="lunch" />));
     expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
     expect(screen.queryByText("Memuat…")).toBeNull();
   });

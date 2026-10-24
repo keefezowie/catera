@@ -1,7 +1,8 @@
-import { withMobile } from "./with-mobile";
+import type { ComponentProps, ReactNode } from "react";
+import { withMobile as withMobileBare } from "./with-mobile";
+import { withDapurScale } from "./dapur-scale";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { ActivityIndicator, Image, StyleSheet } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { ActivityIndicator, StyleSheet } from "react-native";
 import { Image as PhotoImage } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import type { LibraryDish, MealMenu } from "@catera/domain";
@@ -10,6 +11,13 @@ import { MoodProvider } from "@catera/mobile-ui";
 import { uploadPhoto } from "../src/business/upload";
 import { copyWeekBatches, dayComplete, saveMenuDay, suggestDishes, weekDates, weekRange } from "../src/menu/logic";
 import { SlotEditor } from "../src/menu/SlotEditor";
+
+/** Everything here mounts under the scale the Dapur root provides: v2 with a 48 touch target. */
+const withMobile = (ui: ReactNode) => withDapurScale(withMobileBare(ui));
+const scaled = (Provider: typeof import("@catera/mobile-core").MobileProvider) =>
+  function ScaledProvider(props: ComponentProps<typeof Provider>) {
+    return withDapurScale(<Provider {...props} />);
+  };
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
@@ -116,7 +124,7 @@ describe("weekDates", () => {
   });
 });
 
-it("keeps Simpan disabled until every category is filled exactly", () => {
+it("SlotEditor draws one section header per group with its count, and no Save button: Simpan menu is the screen's pinned footer", () => {
   render(
     withMobile(<SlotEditor
       composition={composition}
@@ -125,17 +133,20 @@ it("keeps Simpan disabled until every category is filled exactly", () => {
       usage={new Map()}
       onChange={() => undefined}
       onCreate={async () => dish("n", "x")}
-      onSave={() => undefined}
-      saving={false}
       canEdit
     />),
   );
-  expect(screen.getByText("Lauk · 1 dari 2")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Simpan menu" }).props.accessibilityState.disabled).toBe(true);
+  const headers = screen.getAllByTestId("section-header");
+  expect(headers).toHaveLength(3);
+  expect(within(headers[1]).getByText("Lauk")).toBeTruthy();
+  expect(within(headers[1]).getByText("1 dari 2")).toBeTruthy();
+  expect(within(headers[0]).getByText("1 dari 1")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Simpan menu" })).toBeNull();
 });
 
 it("does not offer helpers package creation on an empty menu", async () => {
-  const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+  const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+  const MobileProvider = scaled(BaseProvider);
   const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "m" });
   runtime.api = {
@@ -162,8 +173,6 @@ it("gives a re-added dish a free slot id instead of reusing a taken one", () => 
       usage={new Map()}
       onChange={onChange}
       onCreate={async () => dish("n", "x")}
-      onSave={() => undefined}
-      saving={false}
       canEdit
     />),
   );
@@ -175,7 +184,8 @@ it("gives a re-added dish a free slot id instead of reusing a taken one", () => 
 
 describe("menu reads", () => {
   function setup(menuMonth: jest.Mock) {
-    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const MobileProvider = scaled(BaseProvider);
     const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
     const { MenuDayScreen } = jest.requireActual("../src/menu/MenuDayScreen") as typeof import("../src/menu/MenuDayScreen");
     const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mm" });
@@ -270,12 +280,12 @@ describe("menu reads", () => {
     });
   });
 
-  it("MenuDayScreen has one heading: the header, not a second raw date", async () => {
+  it("MenuDayScreen's only headings are its groups: the header carries the date, never a second raw one", async () => {
     const { wrap, MenuDayScreen } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
     render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.queryByText("2026-10-07")).toBeNull();
-    expect(screen.queryAllByRole("header")).toHaveLength(0);
+    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Nasi", "Lauk", "Sayur"]);
   });
 
   it("reads a single day with the same month format", async () => {
@@ -318,7 +328,8 @@ describe("menu reads", () => {
 describe("menu day with an unknown package", () => {
   it("says the package wasn't found and offers Kembali instead of loading forever", async () => {
     const { router } = require("expo-router") as { router: { back: jest.Mock } };
-    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const MobileProvider = scaled(BaseProvider);
     const { MenuDayScreen } = jest.requireActual("../src/menu/MenuDayScreen") as typeof import("../src/menu/MenuDayScreen");
     const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mp" });
     runtime.api = {
@@ -341,7 +352,8 @@ describe("menu day with an unknown package", () => {
 
 describe("menu loading and sharing states", () => {
   function runtimeFor(menuMonth: jest.Mock, sellerOperations?: jest.Mock) {
-    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const MobileProvider = scaled(BaseProvider);
     const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
     const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "ms" });
     runtime.api = {
@@ -491,13 +503,15 @@ describe("SlotEditor touch targets", () => {
         usage={new Map()}
         onChange={() => undefined}
         onCreate={async () => dish("n", "x")}
-        onSave={() => undefined}
-        saving={false}
         canEdit
       />),
     );
     const remove = StyleSheet.flatten(screen.getByRole("button", { name: "Hapus Tempe bacem" }).props.style);
     expect([remove.width, remove.height]).toEqual([48, 48]);
+    // A chosen dish is a 48 row in the group's list card, and the input that follows it is 48 too.
+    expect(StyleSheet.flatten(screen.getByTestId("menu-slot-row-body").props.style)).toMatchObject({ minHeight: 48 });
+    expect(within(screen.getAllByTestId("list-card")[1]).getByTestId("menu-slot-row-body")).toBeTruthy();
+    expect(StyleSheet.flatten(screen.getByLabelText("Tambah lauk").props.style).minHeight).toBe(48);
     fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
     expect(StyleSheet.flatten(screen.getByRole("button", { name: /Ikan bakar/ }).props.style).minHeight).toBeGreaterThanOrEqual(48);
     const create = screen.getByRole("button", { name: /Buat hidangan baru/ });
@@ -600,7 +614,8 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     launch?: string;
     unread?: boolean;
   } = {}) {
-    const { createMobileRuntime, MobileProvider, useMobile } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { createMobileRuntime, MobileProvider: BaseProvider, useMobile } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const MobileProvider = scaled(BaseProvider);
     const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
     const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mw" });
     // `unread` keeps the week's read pending forever, to look at the screen while it loads.
@@ -644,6 +659,23 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(StyleSheet.flatten(title.props.style).color).toBe(nativeMood.light.siang.headerText);
     });
 
+    it("sets the week range in heroTitle (24/30) between two 44 chevrons, in one 44 row", async () => {
+      mount();
+      const title = await screen.findByText("5–9 Okt");
+      expect(StyleSheet.flatten(title.props.style)).toMatchObject({ fontSize: 24, lineHeight: 30, textAlign: "center" });
+      const row = screen.getByTestId("menu-title-row");
+      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between" });
+      // The range is the one text between the two arrows, and each arrow is a 44 square that reaches 48 by its slop.
+      const [back, next] = [within(row).getByRole("button", { name: "Minggu sebelumnya" }), within(row).getByRole("button", { name: "Minggu berikutnya" })];
+      for (const chevron of [back, next]) {
+        expect(StyleSheet.flatten(chevron.props.style)).toMatchObject({ width: 44, height: 44 });
+        expect(chevron.props.hitSlop).toEqual({ top: 2, bottom: 2, left: 2, right: 2 });
+      }
+      expect(within(row).getAllByRole("header")).toHaveLength(1);
+      // The week label ("Minggu ini") is the header's own 44 row above it.
+      expect(within(screen.getByTestId("mood-header-row")).getByText("Minggu ini")).toBeTruthy();
+    });
+
     it("steps to the other week and renames the range", async () => {
       mount();
       await screen.findByText("5–9 Okt");
@@ -653,37 +685,49 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(await screen.findByText("5–9 Okt")).toBeTruthy();
     });
 
-    it("a helper's loaded week keeps the Siang / Malam toggle and the Pengaturan gear in one header row", async () => {
+    it("a helper's loaded week keeps the Pengaturan gear in the header row, and the Siang / Malam toggle in its own 48 frame", async () => {
       const { menuMonth } = mount({ offers: [bothOffer()], role: "staff" });
       await screen.findByText("5–9 Okt");
       const row = screen.getByTestId("mood-header-row");
-      // The toggle first, then the gear at the end of the row.
-      expect(within(row).getAllByRole(/^(tab|button)$/).map((n) => n.props.accessibilityRole)).toEqual(["tab", "tab", "button"]);
+      // The week label and the gear share the 44 row; the toggle is not in it any more.
+      expect(within(row).getAllByRole("button").map((n) => n.props.accessibilityLabel)).toEqual(["Pengaturan"]);
+      expect(within(row).queryAllByRole("tab")).toHaveLength(0);
       fireEvent.press(within(row).getByRole("button", { name: "Pengaturan" }));
       expect(require("expo-router").router.push).toHaveBeenLastCalledWith("/pengaturan");
-      // The toggle still works beside it.
-      fireEvent.press(within(row).getByRole("tab", { name: "Malam" }));
-      expect(within(row).getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+      // The toggle still picks the meal, from its frame under the week range.
+      const frame = screen.getByTestId("menu-meal-frame");
+      fireEvent.press(within(frame).getByRole("tab", { name: "Malam" }));
+      expect(within(frame).getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
       await waitFor(() => expect(mealsAsked(menuMonth)).toContain("dinner"));
       await act(async () => {});
     });
 
-    it("keeps the classic header geometry on Dapur: a 48 top row, a 12 gap and the mood band behind it", async () => {
-      // Dapur mounts no layout scale, so the shared header keeps today's values (the customer app's v2 row is 44).
+    it("sits on the v2 header: a 44 top row, a 12 gap, the mood band behind it", async () => {
+      // Dapur's root mounts the v2 scale, so the shared header takes the 44 row (it was 48 on the classic scale).
       mount({ offers: [bothOffer()] });
       await screen.findByText("5–9 Okt");
-      expect(StyleSheet.flatten(screen.getByTestId("mood-header-row").props.style)).toMatchObject({ minHeight: 48 });
-      expect(StyleSheet.flatten(screen.getByTestId("mood-header-content").props.style)).toMatchObject({ gap: 12 });
+      expect(StyleSheet.flatten(screen.getByTestId("mood-header-row").props.style)).toMatchObject({ minHeight: 44 });
+      expect(StyleSheet.flatten(screen.getByTestId("mood-header-content").props.style)).toMatchObject({ gap: 12, paddingHorizontal: 16 });
       expect(StyleSheet.flatten(screen.getByTestId("mood-header").props.style)).toMatchObject({ overflow: "hidden", paddingBottom: 16 });
       expect(screen.getByTestId("mood-fill-siang")).toBeTruthy();
     });
 
-    it("an owner's loaded week has the toggle and no gear: Pengaturan lives on Usaha", async () => {
+    it("puts Siang / Malam in a 48 frame, only for a package that serves both meals", async () => {
       mount({ offers: [bothOffer()] });
       await screen.findByText("5–9 Okt");
       await act(async () => {});
-      expect(within(screen.getByTestId("mood-header-row")).getByRole("tab", { name: "Siang" })).toBeTruthy();
+      const frame = screen.getByTestId("menu-meal-frame");
+      expect(StyleSheet.flatten(frame.props.style)).toMatchObject({ height: 48, alignItems: "center", justifyContent: "center" });
+      expect(within(frame).getByRole("tab", { name: "Siang" })).toBeTruthy();
+      // An owner has no gear: Pengaturan lives on Usaha.
       expect(screen.queryByRole("button", { name: "Pengaturan" })).toBeNull();
+    });
+
+    it("draws no meal frame for a single-meal package", async () => {
+      mount();
+      await screen.findByText("5–9 Okt");
+      expect(screen.queryByTestId("menu-meal-frame")).toBeNull();
+      expect(screen.queryAllByRole("tab")).toHaveLength(0);
     });
 
     it("the toggle picks the meal for a package that serves both", async () => {
@@ -717,7 +761,8 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("keeps the header while the packages load", async () => {
-      const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+      const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+      const MobileProvider = scaled(BaseProvider);
       const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
       const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mh" });
       runtime.api = {
@@ -737,7 +782,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
   });
 
   describe("day strip", () => {
-    it("renders one 64dp button per delivery date, with weekday, date and a check for a filled day", async () => {
+    it("renders one 56dp tile per delivery date, with weekday, date and a 6dp dot for a filled day", async () => {
       mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("5–9 Okt");
       const buttons = screen.getAllByTestId(/^menu-day-/);
@@ -748,13 +793,16 @@ describe("Menu week header, strip, day card and photo prompt", () => {
         "menu-day-2026-10-08",
         "menu-day-2026-10-09",
       ]);
-      for (const b of buttons) expect(StyleSheet.flatten(b.props.style).minHeight).toBe(64);
+      for (const b of buttons) expect(StyleSheet.flatten(b.props.style)).toMatchObject({ minHeight: 56, borderRadius: 12 });
       const thursday = screen.getByTestId("menu-day-2026-10-08");
-      expect(within(thursday).getByText("Kam")).toBeTruthy();
-      expect(within(thursday).getByText("8")).toBeTruthy();
-      await waitFor(() => expect(within(thursday).UNSAFE_queryByType(Ionicons)).not.toBeNull());
-      expect(within(thursday).UNSAFE_getByType(Ionicons).props.name).toBe("checkmark-circle");
-      expect(within(screen.getByTestId("menu-day-2026-10-09")).UNSAFE_queryByType(Ionicons)).toBeNull();
+      // The weekday is a meta line over the date in bodyStrong.
+      expect(StyleSheet.flatten(within(thursday).getByText("Kam").props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+      expect(StyleSheet.flatten(within(thursday).getByText("8").props.style)).toMatchObject({ fontSize: 15, lineHeight: 22 });
+      // The state mark is a 6 dot, there only for a filled day (the empty days keep the same 6 square, so dates line up).
+      await waitFor(() => expect(within(thursday).queryByTestId("menu-dot-2026-10-08")).not.toBeNull());
+      expect(StyleSheet.flatten(within(thursday).getByTestId("menu-dot-2026-10-08").props.style)).toMatchObject({ width: 6, height: 6, borderRadius: 3 });
+      expect(within(screen.getByTestId("menu-day-2026-10-09")).queryByTestId("menu-dot-2026-10-09")).toBeNull();
+      expect(StyleSheet.flatten(within(screen.getByTestId("menu-day-2026-10-09")).getByTestId("menu-mark-2026-10-09").props.style)).toMatchObject({ width: 6, height: 6 });
       expect(thursday.props.accessibilityLabel).toBe("Kamis 8 Okt, hari ini, menu terisi");
       expect(screen.getByTestId("menu-day-2026-10-09").props.accessibilityLabel).toBe("Jumat 9 Okt, menu belum diisi");
     });
@@ -815,28 +863,38 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(flatOf("menu-day-2026-10-06").backgroundColor).toBe("transparent");
     });
 
-    it("spreads seven delivery days over balanced rows, with no stretched button", async () => {
+    // The old test "spreads seven delivery days over balanced rows" (4 + 3 on a 320 strip, width 75) is replaced by
+    // these two: the strip is one row for any package, so seven days no longer wrap (Dapur layout spec 3.3).
+    it.each([
+      [412, 380, 51],
+      [360, 328, 44],
+    ])("lays seven delivery days in one row at %idp (strip %i): tile width (inner - 6 x 4) / 7, about %i, height 56", async (_dp, inner, about) => {
       mount({ offers: [offerOf({ weekdays: [0, 1, 2, 3, 4, 5, 6] })] });
       await screen.findByText("5–11 Okt");
-      // A 360dp phone leaves 320dp inside the header: 4 buttons then 3, never 6 then 1.
-      fireEvent(screen.getByTestId("menu-strip"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 64 } } });
+      // The strip's own width is the window less the 16 margins: 412 - 32 = 380, 360 - 32 = 328.
+      fireEvent(screen.getByTestId("menu-strip"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: inner, height: 56 } } });
+      const strip = flatOf("menu-strip");
+      expect(strip).toMatchObject({ flexDirection: "row", gap: 4 });
+      expect(strip.flexWrap).not.toBe("wrap");
       const buttons = screen.getAllByTestId(/^menu-day-/);
       expect(buttons).toHaveLength(7);
       const styles = buttons.map((b) => StyleSheet.flatten(b.props.style));
-      expect(new Set(styles.map((s) => s.width)).size).toBe(1);
-      expect(styles[0].width).toBe(75);
-      for (const s of styles) expect(s.flexGrow).toBe(0);
-      expect(4 * (styles[0].width as number) + 3 * 6).toBeLessThanOrEqual(320);
-      expect(5 * (styles[0].width as number) + 4 * 6).toBeGreaterThan(320);
+      const width = (inner - 6 * 4) / 7;
+      for (const s of styles) expect(s).toMatchObject({ flexGrow: 0, flexShrink: 0, minHeight: 56 });
+      for (const s of styles) expect(s.width as number).toBeCloseTo(width, 5);
+      expect(Math.abs(width - about)).toBeLessThan(1);
+      // Seven tiles and six gaps fill the row exactly.
+      expect(7 * (styles[0].width as number) + 6 * 4).toBeCloseTo(inner, 5);
     });
 
-    it("keeps one row of equal buttons for five days", async () => {
+    it("keeps one row of equal tiles for five days, by the same formula", async () => {
       mount();
       await screen.findByText("5–9 Okt");
-      fireEvent(screen.getByTestId("menu-strip"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 64 } } });
-      const widths = screen.getAllByTestId(/^menu-day-/).map((b) => StyleSheet.flatten(b.props.style).width);
-      expect(new Set(widths).size).toBe(1);
-      expect(widths[0]).toBe(59);
+      fireEvent(screen.getByTestId("menu-strip"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 380, height: 56 } } });
+      const widths = screen.getAllByTestId(/^menu-day-/).map((b) => StyleSheet.flatten(b.props.style).width as number);
+      expect(widths).toHaveLength(5);
+      for (const w of widths) expect(w).toBeCloseTo((380 - 4 * 4) / 5, 5);
+      expect(flatOf("menu-strip").flexWrap).not.toBe("wrap");
     });
 
     it("does not call a day unfilled before the week has been read", async () => {
@@ -845,9 +903,46 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       const buttons = screen.getAllByTestId(/^menu-day-/);
       for (const b of buttons) {
         expect(b.props.accessibilityLabel).not.toMatch(/belum diisi/);
-        expect(within(b).UNSAFE_queryByType(Ionicons)).toBeNull();
+        expect(within(b).queryByTestId(/^menu-dot-/)).toBeNull();
       }
       expect(screen.getByTestId("menu-day-2026-10-08").props.accessibilityLabel).toBe("Kamis 8 Okt, hari ini");
+    });
+  });
+
+  describe("controls", () => {
+    const twoOffers = () => [offerOf(), offerOf({ id: "p-2", name: "Rantang Nusantara" })];
+
+    it("holds the package chips in a 48 frame that scrolls sideways, each chip 34 with a 7 slop", async () => {
+      mount({ offers: twoOffers() });
+      await screen.findByText("5–9 Okt");
+      const chips = screen.getByTestId("menu-package-chips");
+      expect(chips.props.horizontal).toBe(true);
+      // The frame is the scroll view's content: at least 48 tall, so the horizontal scroller never clips the slop.
+      expect(StyleSheet.flatten(chips.props.contentContainerStyle).minHeight).toBeGreaterThanOrEqual(48);
+      for (const name of ["Makan Siang Rumahan", "Rantang Nusantara"]) {
+        const chip = within(chips).getByRole("button", { name });
+        expect(chip.props.hitSlop).toEqual({ top: 7, bottom: 7 });
+        expect(StyleSheet.flatten(chip.props.style).minHeight).toBe(34);
+      }
+    });
+
+    it("an owner has Salin minggu lalu and Bagikan menu side by side, two 50 secondary buttons", async () => {
+      mount();
+      await screen.findByText("5–9 Okt");
+      const row = screen.getByTestId("menu-actions");
+      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: "row", gap: 8 });
+      const buttons = within(row).getAllByRole("button");
+      expect(buttons.map((b) => b.props.accessibilityLabel)).toEqual(["Salin minggu lalu", "Bagikan menu"]);
+      for (const b of buttons) expect(StyleSheet.flatten(b.props.style)).toMatchObject({ flex: 1, minHeight: 50, borderWidth: 1 });
+    });
+
+    it("a helper has Bagikan menu alone, across the full width", async () => {
+      mount({ role: "staff" });
+      await screen.findByText("5–9 Okt");
+      const buttons = within(screen.getByTestId("menu-actions")).getAllByRole("button");
+      expect(buttons.map((b) => b.props.accessibilityLabel)).toEqual(["Bagikan menu"]);
+      expect(StyleSheet.flatten(buttons[0].props.style).flex).toBe(1);
+      expect(screen.queryByRole("button", { name: "Salin minggu lalu" })).toBeNull();
     });
   });
 
@@ -855,19 +950,47 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("lists the dishes under their composition group, with a dashed camera tile where a photo is missing", async () => {
       mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
-      for (const label of ["Nasi", "Lauk", "Sayur"]) expect(screen.getByText(label)).toBeTruthy();
+      // Each group is a meta label over its own list card.
+      for (const label of ["Nasi", "Lauk", "Sayur"]) expect(StyleSheet.flatten(screen.getByText(label).props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+      expect(screen.getAllByTestId("list-card")).toHaveLength(3);
       expect(screen.getByText("Ayam goreng")).toBeTruthy();
       expect(screen.getByText("Tempe bacem")).toBeTruthy();
-      expect(flatOf("menu-photo-tile-i-ayam")).toMatchObject({ borderStyle: "dashed", borderColor: nativeThemes.light.controlRing });
+      // The not-set tile is a 48 dashed square with the camera glyph, radius 8, like Thumb's.
+      expect(flatOf("menu-photo-tile-i-ayam")).toMatchObject({ width: 48, height: 48, borderRadius: 8, borderStyle: "dashed", borderColor: nativeThemes.light.controlRing });
       expect(screen.getByTestId("menu-photo-tile-i-sayur", { includeHiddenElements: true })).toBeTruthy();
-      // The dishes that have a photo show it and offer nothing.
+      // The dishes that have a photo show it in a 48 r8 thumb and offer nothing.
       expect(screen.queryByTestId("menu-photo-tile-i-nasi", { includeHiddenElements: true })).toBeNull();
-      expect(within(screen.getByTestId("menu-dish-photo-i-nasi")).UNSAFE_getByType(Image).props.source).toEqual({ uri: "https://cdn.test/nasi.jpg" });
-      // The corners are rounded by the Image itself, not clipped by its parent: on Android a photo that finishes loading
-      // inside an `overflow: hidden` rounded view stayed blank until the screen was reopened.
-      expect(flatOf("menu-dish-photo-i-nasi").overflow).toBeUndefined();
-      expect(StyleSheet.flatten(within(screen.getByTestId("menu-dish-photo-i-nasi")).UNSAFE_getByType(Image).props.style)).toMatchObject({ borderRadius: 12 });
-      expect(screen.getAllByText("Tambah foto")).toHaveLength(2);
+      expect(flatOf("menu-dish-photo-i-nasi")).toMatchObject({ width: 48, height: 48, borderRadius: 8 });
+      expect(within(screen.getByTestId("menu-dish-photo-i-nasi")).UNSAFE_getByType(PhotoImage).props.source).toEqual({ uri: "https://cdn.test/nasi.jpg" });
+      // The owner's Tambah foto is the tile itself (the pill is gone), named by its dish.
+      expect(screen.getAllByRole("button", { name: /^Tambah foto, / })).toHaveLength(2);
+      expect(screen.queryByText("Tambah foto")).toBeNull();
+    });
+
+    it("every dish row is a 64 compact media row, with a photo or without", async () => {
+      mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("Nasi putih");
+      for (const id of ["i-nasi", "i-ayam", "i-tempe", "i-sayur"]) {
+        expect(flatOf(`menu-dish-${id}`)).toMatchObject({ minHeight: 64, flexDirection: "row", alignItems: "center" });
+      }
+      // A dish's title is bodyStrong.
+      expect(StyleSheet.flatten(screen.getByText("Ayam goreng").props.style)).toMatchObject({ fontSize: 15, lineHeight: 22 });
+    });
+
+    it("a dish row's one meta line is its serving, when it has one", async () => {
+      const served = dishes.map((d) => (d.id === "i-nasi" ? { ...d, serving: "180 g" } : d));
+      mount({ dates: [filled("2026-10-08", served)] });
+      await screen.findByText("Nasi putih");
+      expect(within(screen.getByTestId("menu-dish-i-nasi")).getByText("180 g")).toBeTruthy();
+      expect(StyleSheet.flatten(screen.getByText("180 g").props.style)).toMatchObject({ fontSize: 13 });
+    });
+
+    it("the day's header holds its date and, for an owner, Ubah menu in its trailing slot", async () => {
+      mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("Nasi putih");
+      const header = screen.getAllByTestId("section-header").find((h) => within(h).queryByText("Kamis 8 Okt"))!;
+      const edit = within(within(header).getByTestId("section-header-trailing")).getByRole("button", { name: "Ubah menu" });
+      expect(StyleSheet.flatten(edit.props.style).minHeight).toBe(48);
     });
 
     it("calls an empty day past its change cutoff closed, in muted ink with no action", async () => {
@@ -891,9 +1014,13 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       mount({ dates: [filled("2026-10-08")], role: "staff" });
       await screen.findByText("Nasi putih");
       expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
-      expect(screen.queryByText("Tambah foto")).toBeNull();
-      // The dish still shows, without a pill; the tile is not a control.
-      expect(screen.getByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^Tambah foto/ })).toBeNull();
+      // The dish row is the same 64 row; the not-set tile is there, and inert.
+      expect(flatOf("menu-dish-i-ayam").minHeight).toBe(64);
+      const tile = screen.getByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true });
+      expect(tile.props.onPress).toBeUndefined();
+      expect(tile.props.accessibilityRole).toBeUndefined();
+      expect(within(screen.getByTestId("menu-dish-i-ayam")).queryByRole("button")).toBeNull();
     });
   });
 
@@ -935,7 +1062,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(command.mock.calls.every((call) => (call as unknown[])[0] === "menu.saveBatch")).toBe(true);
     });
 
-    it("says Mengunggah… on the pill while the photo is on its way", async () => {
+    it("says Mengunggah… on the dish while the photo is on its way", async () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockReturnValue(new Promise(() => undefined));
       const { command } = mount({ dates: [filled("2026-10-08")] });
@@ -1035,7 +1162,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       phase = "fresh";
       await refresh();
       await waitFor(() => expect(screen.queryByRole("button", { name: "Tambah foto, Ayam goreng" })).toBeNull());
-      expect(within(screen.getByTestId("menu-dish-photo-i-ayam")).UNSAFE_getByType(Image).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
+      expect(within(screen.getByTestId("menu-dish-photo-i-ayam")).UNSAFE_getByType(PhotoImage).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
       expect(screen.queryByText("Mengunggah…")).toBeNull();
       expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBeFalsy();
     });
@@ -1085,7 +1212,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(screen.getByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeTruthy();
     });
 
-    it("shows a hidden system spinner in the pill while uploading, and none otherwise", async () => {
+    it("shows a hidden system spinner in the tile while uploading, and none otherwise", async () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockReturnValue(new Promise(() => undefined));
       mount({ dates: [filled("2026-10-08")] });
@@ -1098,7 +1225,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(spinner.props.color).toBe(nativeThemes.light.forest);
       expect(spinner.props.accessibilityElementsHidden).toBe(true);
       expect(spinner.props.importantForAccessibility).toBe("no-hide-descendants");
-      // It sits inside the pill, beside the text, and only on the dish being uploaded.
+      // It sits inside the tile, and only on the dish being uploaded.
       expect(within(ayamPill()).getByTestId("menu-photo-spinner-i-ayam", { includeHiddenElements: true })).toBeTruthy();
       expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(1);
     });
@@ -1224,7 +1351,8 @@ describe("Menu week header, strip, day card and photo prompt", () => {
   });
 
   it("MenuDayScreen saves through saveMenuDay", async () => {
-    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const MobileProvider = scaled(BaseProvider);
     const { MenuDayScreen } = jest.requireActual("../src/menu/MenuDayScreen") as typeof import("../src/menu/MenuDayScreen");
     const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "md" });
     const command = jest.fn(async () => ({}));
@@ -1250,5 +1378,53 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     expect(payload.details.contentModel).toBe("slots");
     expect(payload.details.items).toHaveLength(4);
     expect(require("expo-router").router.back).toHaveBeenCalled();
+  });
+
+  describe("day editor footer", () => {
+    function mountDay(role: string, items: typeof dishes) {
+      const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+      const MobileProvider = scaled(BaseProvider);
+      const { MenuDayScreen } = jest.requireActual("../src/menu/MenuDayScreen") as typeof import("../src/menu/MenuDayScreen");
+      const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mf" });
+      runtime.api = {
+        ...runtime.api,
+        me: jest.fn(async () => ({ actor: { id: "u-1", role, catererId: "k-1" }, demo: false })),
+        sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur" }, dishes: [], datedMenus: [], offers: [offerOf()] })),
+        menuMonth: jest.fn(async () => ({ dates: [filled("2026-10-07", items)], categories: [] })),
+        command: jest.fn(async () => ({})),
+      } as unknown as typeof runtime.api;
+      render(
+        <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
+          <MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />
+        </MobileProvider>,
+      );
+    }
+
+    it("pins Simpan menu in the screen footer for an owner, disabled until every group is filled", async () => {
+      mountDay("owner", [dishes[0], dishes[1], dishes[3]]);
+      const footer = await screen.findByTestId("screen-footer");
+      const save = within(footer).getByRole("button", { name: "Simpan menu" });
+      expect(save.props.accessibilityState.disabled).toBe(true);
+      // The button is the footer's only content and 50 tall; it is not in the scrolling body any more.
+      expect(StyleSheet.flatten(save.props.style).minHeight).toBe(50);
+      expect(within(screen.getByTestId("screen-body")).queryByRole("button", { name: "Simpan menu" })).toBeNull();
+      // The completeness caption stays in the body.
+      expect(screen.getByText("Paket ini berisi 1 nasi, 2 lauk, 1 sayur. Tambah 1 lagi.")).toBeTruthy();
+    });
+
+    it("enables Simpan menu once the day is complete", async () => {
+      mountDay("owner", dishes);
+      const footer = await screen.findByTestId("screen-footer");
+      await waitFor(() => expect(within(footer).getByRole("button", { name: "Simpan menu" }).props.accessibilityState.disabled).toBeFalsy());
+    });
+
+    it("a helper's day editor is read-only: no footer, no Simpan menu, no remove, no input", async () => {
+      mountDay("staff", dishes);
+      await screen.findByText("Ayam goreng");
+      expect(screen.queryByTestId("screen-footer")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Simpan menu" })).toBeNull();
+      expect(screen.queryByRole("button", { name: /^Hapus / })).toBeNull();
+      expect(screen.queryByLabelText(/^Tambah /)).toBeNull();
+    });
   });
 });

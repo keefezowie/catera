@@ -1,6 +1,6 @@
 import { View, type DimensionValue } from "react-native";
 import { useMobile } from "@catera/mobile-core";
-import { Card, Skeleton, SkeletonGroup, trackLabelLines } from "@catera/mobile-ui";
+import { Card, COMPACT_MEDIA_INSET, Skeleton, SkeletonGroup, trackLabelLines } from "@catera/mobile-ui";
 import { nativeLayout } from "@catera/design-tokens";
 import { ListCard, useScreenMargin, useTouchTarget } from "@catera/mobile-ui";
 
@@ -114,9 +114,9 @@ export function TodaySkeleton() {
 }
 
 /**
- * Menu's day strip while the packages load, in the header: one row of day blocks at the day buttons' height, sharing
- * the row evenly as the buttons do, on the mood surface. The days a package delivers are not known yet, so the row
- * shows a working week (five). Hidden from screen readers: the day card names the wait.
+ * Menu's day strip while the packages load, in the header: one row of day blocks at the day tiles' height (56) and
+ * radius (12), sharing the row evenly as the tiles do, on the mood surface. The days a package delivers are not known
+ * yet, so the row shows a working week (five). Hidden from screen readers: the day card names the wait.
  */
 export function MenuStripSkeleton({ days = 5, height, gap }: { days?: number; height: number; gap: number }) {
   return (
@@ -129,7 +129,7 @@ export function MenuStripSkeleton({ days = 5, height, gap }: { days?: number; he
         <View style={{ flexDirection: "row", gap }}>
           {Array.from({ length: days }, (_, i) => (
             <View key={i} style={{ flex: 1 }}>
-              <Skeleton height={height} radius={16} onMood testID={`menu-strip-skeleton-day-${i}`} />
+              <Skeleton height={height} radius={12} onMood testID={`menu-strip-skeleton-day-${i}`} />
             </View>
           ))}
         </View>
@@ -139,23 +139,26 @@ export function MenuStripSkeleton({ days = 5, height, gap }: { days?: number; he
 }
 
 /**
- * Menu's controls while the packages load: the package chip and the buttons under the header, Salin minggu lalu only
- * for the owner (the one who can copy), Bagikan menu for both. Hidden from screen readers: the day card names the wait.
+ * Menu's controls while the packages load, from the loaded controls' constants: a 34 package chip centred in its 48
+ * frame, then the 50 buttons side by side, Salin minggu lalu only for the owner (the one who can copy), Bagikan menu
+ * for both. Hidden from screen readers: the day card names the wait.
  */
 export function MenuControlsSkeleton({ owner = false }: { owner?: boolean }) {
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <SkeletonGroup label="">
-        <View style={{ gap: 16 }}>
-          <Skeleton width={168} height={40} radius={20} testID="menu-skeleton-chip" />
+        <View style={{ gap: 12 }}>
+          <View style={{ height: 48, justifyContent: "center" }}>
+            <Skeleton width={168} height={34} radius={17} testID="menu-skeleton-chip" />
+          </View>
           <View style={{ flexDirection: "row", gap: 8 }}>
             {owner ? (
               <View style={{ flex: 1 }}>
-                <Skeleton height={48} radius={12} testID="menu-skeleton-copy" />
+                <Skeleton height={50} radius={12} testID="menu-skeleton-copy" />
               </View>
             ) : null}
             <View style={{ flex: 1 }}>
-              <Skeleton height={48} radius={12} testID="menu-skeleton-share" />
+              <Skeleton height={50} radius={12} testID="menu-skeleton-share" />
             </View>
           </View>
         </View>
@@ -165,23 +168,32 @@ export function MenuControlsSkeleton({ owner = false }: { owner?: boolean }) {
 }
 
 /**
- * Menu's day card while its week reads ("Memuat menu"). It sits in its own block below the controls from the first
- * frame, so it waits through the packages' read and the week's in the same place and enters once.
+ * Menu's day while its week reads ("Memuat menu"): the section header's 26 line, 12 above a group's meta line and a list
+ * card of three 64 rows with 48 thumbs, as the loaded day draws them. It sits in its own block below the controls from
+ * the first frame, so it waits through the packages' read and the week's in the same place and enters once.
  */
 export function MenuWeekSkeleton() {
   const { t } = useMobile();
   return (
     <SkeletonGroup label={t("Memuat menu", "Loading the menu")}>
       <View testID="menu-skeleton-day">
-        <Card>
-          <Line width={132} block={18} line={28} />
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={{ height: 48, flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Skeleton width={48} height={48} radius={12} />
-              <Skeleton width={i === 1 ? "45%" : "60%"} height={14} radius={7} />
-            </View>
-          ))}
-        </Card>
+        <View style={{ marginBottom: 12 }}>
+          <Line width={132} block={18} line={26} />
+        </View>
+        <View style={{ gap: 8 }}>
+          <Line width={56} block={12} line={18} />
+          <ListCard inset={COMPACT_MEDIA_INSET}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={{ minHeight: 64, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <Skeleton width={48} height={48} radius={8} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Skeleton width={i === 1 ? "45%" : "60%"} height={14} radius={7} />
+                  <Skeleton width="25%" height={10} radius={5} />
+                </View>
+              </View>
+            ))}
+          </ListCard>
+        </View>
       </View>
     </SkeletonGroup>
   );

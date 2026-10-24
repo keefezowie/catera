@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { errorLabel, type Dish, type LibraryDish } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, FadeSwap, FormError, Screen, Text, useBusy, useToast } from "@catera/mobile-ui";
-import { dishUsage, mealOf, saveMenuDay, weekdayName } from "./logic";
+import { dayComplete, dishUsage, mealOf, saveMenuDay, weekdayName } from "./logic";
 import { loadMenus, MenuLoadError } from "./MenuWeek";
 import { SlotEditor } from "./SlotEditor";
 import { DetailSkeleton } from "../skeletons";
@@ -59,6 +60,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
       </Screen>
     );
   const template = mealOf(offer, meal);
+  const canEdit = actor?.role === "owner";
 
   async function create(name: string, categoryId: string | undefined) {
     return command<LibraryDish>("dish.save", {
@@ -67,11 +69,22 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
     });
   }
 
-
   return (
-    <Screen>
-      <FadeSwap swapKey="day" style={{ gap: 16 }}>
-        <Text variant="caption">{offer.name}</Text>
+    // Simpan menu is pinned under the scrolling groups (owner only); a helper reads the day without it.
+    <Screen
+      footer={
+        canEdit ? (
+          <Button
+            label={t("Simpan menu", "Save menu")}
+            busy={saving}
+            disabled={!dayComplete(template.composition ?? [], items)}
+            onPress={() => void save()}
+          />
+        ) : undefined
+      }
+    >
+      <FadeSwap swapKey="day" style={{ gap: nativeLayout.dense.sectionGap }}>
+        <Text variant="meta">{offer.name}</Text>
         <SlotEditor
           composition={template.composition ?? []}
           items={items}
@@ -79,9 +92,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
           usage={dishUsage((ops.data?.datedMenus ?? []).map((m) => m.details))}
           onChange={setItems}
           onCreate={create}
-          onSave={() => void save()}
-          saving={saving}
-          canEdit={actor?.role === "owner"}
+          canEdit={canEdit}
         />
         {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
       </FadeSwap>

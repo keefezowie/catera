@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, Share, useWindowDimensions, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ActivityIndicator, ScrollView, Share, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -18,22 +18,30 @@ import {
   type SellerOffer,
 } from "@catera/domain";
 import { plural, useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
+import { nativeLayout } from "@catera/design-tokens";
 import {
   Button,
-  Card,
   Chip,
+  COMPACT_MEDIA_INSET,
+  DecorativeIcon,
   FadeSwap,
   fontFor,
   FormError,
+  ListCard,
+  MediaRow,
   MoodHeader,
+  MoodToggle,
   PressableScale,
   Screen,
+  SectionHeader,
   StoryCover,
   Text,
+  Thumb,
   useBusy,
   useColors,
   useMood,
   useMoodColors,
+  useScreenMargin,
 } from "@catera/mobile-ui";
 import { copyWeekBatches, mealOf, saveMenuDay, weekdayShort, weekDates, weekRange } from "./logic";
 import { uploadPhoto } from "../business/upload";
@@ -72,12 +80,16 @@ export async function loadMenus(
  */
 function MenuTitle() {
   const { t, actor } = useMobile();
-  // Short and fixed, and the loaded header sets its week range in the display variant, so this one matches it.
+  const m = useMoodColors();
+  // Short and fixed, and the loaded header sets its week range in heroTitle, so this one matches it.
   // A helper (staff) has no Usaha, so Menu's header carries the way to Pengaturan; an owner finds it on Usaha.
   return (
     <MoodHeader
-      title={t("Menu", "Menu")}
-      titleVariant="display"
+      title={
+        <Text variant="heroTitle" style={{ color: m.headerText }}>
+          {t("Menu", "Menu")}
+        </Text>
+      }
       trailing={actor?.role === "staff" ? <SettingsGear /> : undefined}
     />
   );
@@ -93,14 +105,24 @@ export function MenuLoadError({ onRetry, title = true }: { onRetry: () => void; 
   );
 }
 
-const SLOT = 48;
-// A day button needs about 48dp plus its gap; the strip fits as many per row as the width allows, evenly.
-const STRIP_SLOT = 54;
-const STRIP_GAP = 6;
-/** A day button's height in the strip (its weekday over its date); the strip's skeleton holds the same. */
-const DAY_HEIGHT = 64;
+/** The strip's gap between day tiles; the tiles share the row's width evenly after it. */
+const STRIP_GAP = 4;
+/** A day tile's height in the strip (its weekday over its date); the strip's skeleton holds the same. */
+const DAY_HEIGHT = 56;
+/** The package chips' frame: a 34 chip with its 48 target (hitSlop 7) must not be clipped by the scroller. */
+const CHIP_FRAME = 48;
+/** The Siang / Malam frame under the week range. */
+const MEAL_FRAME = 48;
+/** The customer story cover's width on the day's page (the board draws 160 by 200). */
+const COVER_WIDTH = 160;
+/** The photo tile: the dish thumb's size in a compact row. */
+const THUMB = nativeLayout.thumb.compact;
 
-/** One dish in the day card: its photo, or a dashed camera tile with a pill to add one. */
+/**
+ * One dish in the day's list: a 64 compact media row with its photo in a 48 thumb, or a dashed not-set tile with the
+ * camera glyph. For the owner the tile is the "Tambah foto" action (a 48 target); for a helper, and on a day that can no
+ * longer change, it is inert. While a photo is on its way the same tile shows the spinner and the row's meta line says so.
+ */
 function DishRow({
   dish,
   canAddPhoto,
@@ -116,92 +138,68 @@ function DishRow({
 }) {
   const { runtime, t } = useMobile();
   const c = useColors();
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: SLOT }}>
-      {dish.image ? (
-        <View
-          testID={`menu-dish-photo-${dish.id}`}
-          style={{ width: SLOT, height: SLOT, borderRadius: 12, backgroundColor: c.sage }}
-        >
-          <Image
-            accessibilityIgnoresInvertColors
-            source={{ uri: photoUri(dish.image, runtime.apiBase) }}
-            resizeMode="cover"
-            style={{ width: SLOT, height: SLOT, borderRadius: 12 }}
+  const tile = {
+    width: THUMB,
+    height: THUMB,
+    borderRadius: nativeLayout.radius.thumb,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+  } as const;
+  const dashed = { ...tile, borderWidth: 1.5, borderStyle: "dashed", borderColor: c.controlRing } as const;
+  let leading: ReactNode;
+  if (dish.image) {
+    leading = <Thumb testID={`menu-dish-photo-${dish.id}`} size={THUMB} uri={photoUri(dish.image, runtime.apiBase)} />;
+  } else if (canAddPhoto || uploading) {
+    // A photo is on its way (uploading, or saved and waiting for the fresh week): not the empty "no photo" tile.
+    leading = (
+      <PressableScale
+        testID={uploading ? `menu-photo-pending-${dish.id}` : `menu-photo-tile-${dish.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={`${t("Tambah foto", "Add photo")}, ${dish.name}`}
+        accessibilityState={{ disabled: busy, busy: uploading }}
+        disabled={busy}
+        haptic="tap"
+        onPress={onAdd}
+        style={[uploading ? { ...tile, backgroundColor: c.sage } : dashed, { opacity: busy && !uploading ? 0.45 : 1 }]}
+      >
+        {/* The loading state per DESIGN.md: a spinner where the glyph was. The small system spinner (about 20dp) sits
+            inside the 48dp tile, so the row keeps its height. `busy` carries the meaning for screen readers, so the
+            spinner is hidden from them. */}
+        {uploading ? (
+          <ActivityIndicator
+            testID={`menu-photo-spinner-${dish.id}`}
+            size="small"
+            color={c.forest}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
           />
-        </View>
-      ) : uploading ? (
-        // A photo is on its way (uploading, or saved and waiting for the fresh week): not the empty "no photo" tile.
-        <View
-          testID={`menu-photo-pending-${dish.id}`}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{ width: SLOT, height: SLOT, borderRadius: 12, borderCurve: "continuous", backgroundColor: c.sage, alignItems: "center", justifyContent: "center" }}
-        >
-          <Ionicons name="cloud-upload-outline" size={20} color={c.muted} />
-        </View>
-      ) : (
-        <View
-          testID={`menu-photo-tile-${dish.id}`}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            width: SLOT,
-            height: SLOT,
-            borderRadius: 12,
-            borderCurve: "continuous",
-            borderWidth: 1.5,
-            borderStyle: "dashed",
-            borderColor: c.controlRing,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Ionicons name="camera-outline" size={20} color={c.muted} />
-        </View>
-      )}
-      <View style={{ flex: 1, gap: 4, alignItems: "flex-start" }}>
-        <Text>{dish.name}</Text>
-        {!dish.image && canAddPhoto ? (
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={`${t("Tambah foto", "Add photo")}, ${dish.name}`}
-            accessibilityState={{ disabled: busy, busy: uploading }}
-            disabled={busy}
-            haptic="tap"
-            onPress={onAdd}
-            style={{
-              minHeight: 48,
-              paddingHorizontal: 16,
-              borderRadius: 999,
-              backgroundColor: c.sage,
-              flexDirection: "row",
-              gap: 8,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: busy && !uploading ? 0.45 : 1,
-            }}
-          >
-            {/* The loading state per DESIGN.md: a spinner beside the saving text. The small system spinner (about
-                20dp) sits inside the 48dp pill, so the row keeps its height. `busy` carries the meaning for screen
-                readers, so the spinner is hidden from them. */}
-            {uploading ? (
-              <ActivityIndicator
-                testID={`menu-photo-spinner-${dish.id}`}
-                size="small"
-                color={c.forest}
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-              />
-            ) : null}
-            {/* forest: action (the label inside its button) */}
-            <Text variant="label" style={{ color: c.forest }}>
-              {uploading ? t("Mengunggah…", "Uploading…") : t("Tambah foto", "Add photo")}
-            </Text>
-          </PressableScale>
-        ) : null}
+        ) : (
+          <DecorativeIcon name="camera-outline" size={20} color={c.muted} />
+        )}
+      </PressableScale>
+    );
+  } else {
+    leading = (
+      <View
+        testID={`menu-photo-tile-${dish.id}`}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={dashed}
+      >
+        <DecorativeIcon name="camera-outline" size={20} color={c.muted} />
       </View>
-    </View>
+    );
+  }
+  return (
+    <MediaRow
+      testID={`menu-dish-${dish.id}`}
+      size="compact"
+      titleVariant="bodyStrong"
+      leading={leading}
+      title={dish.name}
+      meta={uploading ? t("Mengunggah…", "Uploading…") : dish.serving || undefined}
+    />
   );
 }
 
@@ -212,6 +210,7 @@ export function MenuWeek() {
   const m = useMoodColors();
   const { mood } = useMood();
   const { width: windowWidth } = useWindowDimensions();
+  const margin = useScreenMargin();
   const catererId = actor?.catererId ?? "";
   const canEdit = actor?.role === "owner";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
@@ -260,7 +259,7 @@ export function MenuWeek() {
   // The newest read of the week, so a save made after a slow picker uses the day's current version, not the tapped one.
   const latestDays = useRef(new Map<string, MenuDay>());
   // The strip lays itself out from the width it is given; until it is measured, the window stands in.
-  const [stripWidth, setStripWidth] = useState(Math.min(windowWidth, 760) - 40);
+  const [stripWidth, setStripWidth] = useState(Math.min(windowWidth, 760) - 2 * margin);
   const template = offer ? mealOf(offer, meal) : undefined;
   // Copying and sharing both act on the visible week, so they wait for it and for something in it.
   const weekLoaded = !!days.data;
@@ -419,7 +418,8 @@ export function MenuWeek() {
         setWeek((w) => w + delta);
         setPhotoError("");
       }}
-      style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
+      hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
+      style={{ width: nativeLayout.control.icon, height: nativeLayout.control.icon, alignItems: "center", justifyContent: "center" }}
     >
       <Ionicons name={icon} size={24} color={m.headerText} />
     </PressableScale>
@@ -432,167 +432,220 @@ export function MenuWeek() {
     (waitingForWeek && awaiting?.date === selectedDate && awaiting.dishId === dishId);
   const past = selectedDate < today;
   const onlyMeal = offer?.meal !== "both" ? offer?.meal : undefined;
-  const coverWidth = Math.min(220, Math.min(windowWidth, 760) - 40 - 34);
-  // Seven 54dp slots to a row is the most that reads comfortably; the days are spread evenly over as few rows as fit.
-  const stripRows = Math.max(1, Math.ceil((dates.length * STRIP_SLOT) / stripWidth));
-  const perRow = Math.max(1, Math.ceil(dates.length / stripRows));
-  const buttonWidth = Math.floor((stripWidth - STRIP_GAP * (perRow - 1)) / perRow);
+  // One row for any package: the tiles share the row's width, whatever the day count (7 at 412dp are about 51 wide, at 360dp about 44).
+  const tileWidth = (stripWidth - STRIP_GAP * (dates.length - 1)) / Math.max(1, dates.length);
+  const hasNotes =
+    (canEdit && weekLoaded && (lastWeekPending || lastWeekEmpty)) || (weekLoaded && !hasMenu) || !!note || !!error;
 
   return (
     <Screen
       header={
         <MoodHeader
           meta={weekLabel}
-          toggle={offer?.meal === "both"}
           trailing={actor?.role === "staff" ? <SettingsGear /> : undefined}
           title={
-            // The step buttons' 48dp sets the row; before the packages are known the week has no dates to step
-            // through, so the row holds the screen's name at that height until they arrive.
-            <View testID="menu-title-row" style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4 }}>
+            // The step buttons' 44dp sets the row; before the packages are known the week has no dates to step
+            // through, so the row holds the screen's name at that height until they arrive. The header's own 12 gap
+            // above it is 8 too many for the board (the week line and the range sit 4 apart), so it pulls up by 8.
+            <View
+              testID="menu-title-row"
+              style={{
+                minHeight: nativeLayout.control.icon,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginTop: -8,
+              }}
+            >
               {waiting ? null : step(-1, "chevron-back", t("Minggu sebelumnya", "Previous week"))}
-              <Text variant="display" accessibilityRole="header" style={{ color: m.headerText, flexShrink: 1 }}>
+              <Text variant="heroTitle" style={{ color: m.headerText, flex: 1, flexShrink: 1, textAlign: waiting ? "left" : "center" }}>
                 {weekRange(dates, locale) || t("Menu", "Menu")}
               </Text>
               {waiting ? null : step(1, "chevron-forward", t("Minggu berikutnya", "Next week"))}
             </View>
           }
         >
-          {/* The day strip enters from its blocks as one piece, in the same place on the header. */}
-          <FadeSwap swapKey={waiting ? "loading" : "loaded"}>
-            {waiting ? (
-              <MenuStripSkeleton height={DAY_HEIGHT} gap={STRIP_GAP} />
-            ) : (
-              <View
-                testID="menu-strip"
-                onLayout={(e) => {
-                  const width = Math.floor(e.nativeEvent.layout.width);
-                  if (width > 0) setStripWidth(width);
-                }}
-                style={{ flexDirection: "row", flexWrap: "wrap", gap: STRIP_GAP }}
-              >
-                {dates.map((date) => {
-                  // Until the week has been read, a day's fill is not known: say nothing about it rather than "not filled".
-                  const filled = weekLoaded && !!byDate.get(date)?.details?.items?.length;
-                  const isToday = date === today;
-                  const isSelected = date === selectedDate;
-                  // The chosen day is a selection (direction K rule 3): a forest fill with the selected segment's ink, in the
-                  // mood tokens, so it stands out on every header, Malam included.
-                  const ink = isSelected ? m.onToggleActive : m.headerText;
-                  const fill = weekLoaded ? (filled ? t("menu terisi", "menu filled") : t("menu belum diisi", "menu not filled")) : "";
-                  return (
-                    <PressableScale
-                      key={date}
-                      testID={`menu-day-${date}`}
-                      accessibilityRole="button"
-                      accessibilityLabel={[shortDate(date, locale), isToday ? t("hari ini", "today") : "", fill].filter(Boolean).join(", ")}
-                      accessibilityState={{ selected: isSelected }}
-                      haptic="select"
-                      onPress={() => {
-                        setPicked(date);
-                        setPhotoError("");
-                      }}
-                      style={{
-                        // Rows are balanced by width, so the last row never stretches.
-                        flexGrow: 0,
-                        flexShrink: 0,
-                        width: buttonWidth,
-                        minHeight: DAY_HEIGHT,
-                        paddingVertical: 6,
-                        borderRadius: 16,
-                        borderCurve: "continuous",
-                        borderWidth: 2,
-                        // The ring is today; the fill is the chosen day. A day that is neither keeps a quiet outline.
-                        borderColor: isToday ? m.todayRing : isSelected ? m.toggleActive : m.markerIdle,
-                        backgroundColor: isSelected ? m.toggleActive : "transparent",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text variant="caption" style={{ color: ink, lineHeight: 16 }}>
-                        {weekdayShort(date, locale)}
-                      </Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                        <Text
-                          variant="heading"
-                          accessibilityRole="text"
-                          style={{ color: ink, fontVariant: ["tabular-nums"] }}
-                        >
-                          {String(Number(date.slice(8)))}
-                        </Text>
-                        {filled ? <Ionicons name="checkmark-circle" size={14} color={ink} /> : null}
-                      </View>
-                    </PressableScale>
-                  );
-                })}
+          <View style={{ gap: 12 }}>
+            {/* Siang / Malam picks the meal of a package that serves both: its own 48 frame under the week range. */}
+            {offer?.meal === "both" ? (
+              <View testID="menu-meal-frame" style={{ height: MEAL_FRAME, alignItems: "center", justifyContent: "center" }}>
+                <MoodToggle />
               </View>
-            )}
-          </FadeSwap>
-          {onlyMeal ? (
-            <Text variant="caption" style={{ color: m.headerMeta }}>
-              {onlyMeal === "lunch"
-                ? t("Paket ini hanya untuk makan siang", "This package is lunch only")
-                : t("Paket ini hanya untuk makan malam", "This package is dinner only")}
-            </Text>
-          ) : null}
+            ) : null}
+            {/* The day strip enters from its blocks as one piece, in the same place on the header. */}
+            <FadeSwap swapKey={waiting ? "loading" : "loaded"}>
+              {waiting ? (
+                <MenuStripSkeleton height={DAY_HEIGHT} gap={STRIP_GAP} />
+              ) : (
+                <View
+                  testID="menu-strip"
+                  onLayout={(e) => {
+                    const width = Math.floor(e.nativeEvent.layout.width);
+                    if (width > 0) setStripWidth(width);
+                  }}
+                  style={{ flexDirection: "row", gap: STRIP_GAP }}
+                >
+                  {dates.map((date) => {
+                    // Until the week has been read, a day's fill is not known: say nothing about it rather than "not filled".
+                    const filled = weekLoaded && !!byDate.get(date)?.details?.items?.length;
+                    const isToday = date === today;
+                    const isSelected = date === selectedDate;
+                    // The chosen day is a selection (direction K rule 3): a forest fill with the selected segment's ink, in the
+                    // mood tokens, so it stands out on every header, Malam included.
+                    const ink = isSelected ? m.onToggleActive : m.headerText;
+                    const fill = weekLoaded ? (filled ? t("menu terisi", "menu filled") : t("menu belum diisi", "menu not filled")) : "";
+                    return (
+                      <PressableScale
+                        key={date}
+                        testID={`menu-day-${date}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={[shortDate(date, locale), isToday ? t("hari ini", "today") : "", fill].filter(Boolean).join(", ")}
+                        accessibilityState={{ selected: isSelected }}
+                        haptic="select"
+                        onPress={() => {
+                          setPicked(date);
+                          setPhotoError("");
+                        }}
+                        style={{
+                          // Every tile is the same width, so a short week and a full one both fill one row.
+                          flexGrow: 0,
+                          flexShrink: 0,
+                          width: tileWidth,
+                          minHeight: DAY_HEIGHT,
+                          borderRadius: nativeLayout.radius.control,
+                          borderCurve: "continuous",
+                          borderWidth: 1.5,
+                          // The ring is today; the fill is the chosen day. A day that is neither keeps a quiet outline.
+                          borderColor: isToday ? m.todayRing : isSelected ? m.toggleActive : m.markerIdle,
+                          backgroundColor: isSelected ? m.toggleActive : "transparent",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text variant="meta" style={{ color: ink }}>
+                          {weekdayShort(date, locale)}
+                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                          <Text variant="bodyStrong" accessibilityRole="text" style={{ color: ink, fontVariant: ["tabular-nums"] }}>
+                            {String(Number(date.slice(8)))}
+                          </Text>
+                          {/* The state mark: a 6 dot for a filled day; an empty 6 square otherwise, so the dates line up. */}
+                          {filled ? (
+                            <View testID={`menu-dot-${date}`} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: ink }} />
+                          ) : (
+                            <View testID={`menu-mark-${date}`} style={{ width: 6, height: 6 }} />
+                          )}
+                        </View>
+                      </PressableScale>
+                    );
+                  })}
+                </View>
+              )}
+            </FadeSwap>
+            {onlyMeal ? (
+              // 8 under the strip on the board; the wrapper's 12 gap is pulled in by 4.
+              <Text variant="meta" style={{ color: m.headerMeta, marginTop: -4 }}>
+                {onlyMeal === "lunch"
+                  ? t("Paket ini hanya untuk makan siang", "This package is lunch only")
+                  : t("Paket ini hanya untuk makan malam", "This package is dinner only")}
+              </Text>
+            ) : null}
+          </View>
         </MoodHeader>
       }
     >
-      <FadeSwap swapKey={waiting ? "loading" : "loaded"} style={{ gap: 16 }}>
+      <FadeSwap swapKey={waiting ? "loading" : "loaded"} style={{ gap: 12 }}>
         {waiting ? (
           <MenuControlsSkeleton owner={canEdit} />
         ) : (
           <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            {/* The chips are 34 with a 48 target: the scroller's content is a 48 frame so nothing clips the slop, and it
+                bleeds to the screen's edges so the chips scroll under them. */}
+            <ScrollView
+              testID="menu-package-chips"
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0, marginHorizontal: -margin }}
+              contentContainerStyle={{ gap: 8, minHeight: CHIP_FRAME, alignItems: "center", paddingHorizontal: margin }}
+            >
               {offers.map((o) => (
                 <Chip key={o.id} label={o.name} selected={o.id === offer?.id} onPress={() => setPackageId(o.id)} />
               ))}
             </ScrollView>
-            <View style={{ flexDirection: "row", gap: 8 }}>
+            <View testID="menu-actions" style={{ flexDirection: "row", gap: 8 }}>
               {canEdit ? (
                 <Button style={{ flex: 1 }} variant="secondary" busy={busy} disabled={!weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
               ) : null}
               <Button style={{ flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
             </View>
-            {canEdit && weekLoaded && lastWeekPending ? (
-              <Text variant="caption">{t("Memuat minggu lalu…", "Loading last week…")}</Text>
+            {hasNotes ? (
+              // Under the buttons, the captions and the copy result: 8 below them on the board, 4 apart.
+              <View style={{ gap: 4, marginTop: -4 }}>
+                {canEdit && weekLoaded && lastWeekPending ? (
+                  <Text variant="meta">{t("Memuat minggu lalu…", "Loading last week…")}</Text>
+                ) : null}
+                {canEdit && weekLoaded && lastWeekEmpty ? (
+                  <Text variant="meta">{t("Minggu lalu belum ada menu untuk disalin", "Last week has no menu to copy")}</Text>
+                ) : null}
+                {weekLoaded && !hasMenu ? (
+                  <Text variant="meta">{t("Belum ada menu untuk dibagikan", "No menu to share yet")}</Text>
+                ) : null}
+                {note ? <Text variant="meta">{note}</Text> : null}
+                {error ? <FormError message={error} failureKey={errorState.key} /> : null}
+              </View>
             ) : null}
-            {canEdit && weekLoaded && lastWeekEmpty ? (
-              <Text variant="caption">{t("Minggu lalu belum ada menu untuk disalin", "Last week has no menu to copy")}</Text>
-            ) : null}
-            {weekLoaded && !hasMenu ? (
-              <Text variant="caption">{t("Belum ada menu untuk dibagikan", "No menu to share yet")}</Text>
-            ) : null}
-            {note ? <Text variant="caption">{note}</Text> : null}
-            {error ? <FormError message={error} failureKey={errorState.key} /> : null}
           </>
         )}
       </FadeSwap>
-      {/* The day card is its own block from the first frame: it waits behind its skeleton through the packages' read
-          and the week's, and enters once. */}
-      <FadeSwap swapKey={weekReady ? "week" : "loading"} style={{ gap: 16 }}>
+      {/* The day is its own block from the first frame: it waits behind its skeleton through the packages' read and
+          the week's, and enters once. Sections sit 24 apart (the body's 16 and 8 more). */}
+      <FadeSwap swapKey={weekReady ? "week" : "loading"} style={{ gap: nativeLayout.dense.sectionGap, marginTop: nativeLayout.dense.sectionGap - 16 }}>
         {!weekReady ? <MenuWeekSkeleton /> : null}
         {selected ? (
-          <Card>
-            <Text variant="heading">{shortDate(selected.date, locale)}</Text>
+          <View testID="menu-day">
+            <SectionHeader
+              title={shortDate(selected.date, locale)}
+              action={
+                canEdit && selected.editable ? (
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel={t("Ubah menu", "Edit menu")}
+                    haptic="tap"
+                    onPress={() => router.push(`/menu/${selected.date}?pkg=${offer.id}&meal=${meal}` as never)}
+                    // 48 tall, and its label ends at the screen margin.
+                    style={{ minHeight: 48, paddingHorizontal: 12, marginRight: -12, justifyContent: "center" }}
+                  >
+                    {/* forest: action (the section's link) */}
+                    <Text variant="bodyStrong" style={{ color: c.forest }}>
+                      {t("Ubah menu", "Edit menu")}
+                    </Text>
+                  </PressableScale>
+                ) : undefined
+              }
+            />
             {items.length ? (
-              (template?.composition ?? []).map((g) => {
-                const rows = items.filter((i) => i.groupId === g.id);
-                return rows.length ? (
-                  <View key={g.id} style={{ gap: 8 }}>
-                    <Text variant="caption">{componentLabel(g, locale)}</Text>
-                    {rows.map((dish) => (
-                      <DishRow
-                        key={dish.id}
-                        dish={dish}
-                        canAddPhoto={canEdit && selected.editable}
-                        uploading={uploadingHere(dish.id)}
-                        busy={photoBusy || waitingForWeek}
-                        onAdd={() => void addPhoto(selected, dish)}
-                      />
-                    ))}
-                  </View>
-                ) : null;
-              })
+              <View style={{ gap: 12 }}>
+                {(template?.composition ?? []).map((g) => {
+                  const rows = items.filter((i) => i.groupId === g.id);
+                  return rows.length ? (
+                    <View key={g.id} style={{ gap: 8 }}>
+                      <Text variant="meta">{componentLabel(g, locale)}</Text>
+                      <ListCard inset={COMPACT_MEDIA_INSET}>
+                        {rows.map((dish) => (
+                          <DishRow
+                            key={dish.id}
+                            dish={dish}
+                            canAddPhoto={canEdit && selected.editable}
+                            uploading={uploadingHere(dish.id)}
+                            busy={photoBusy || waitingForWeek}
+                            onAdd={() => void addPhoto(selected, dish)}
+                          />
+                        ))}
+                      </ListCard>
+                    </View>
+                  ) : null;
+                })}
+              </View>
             ) : past || !selected.editable ? (
               // An empty day nobody can fill any more: past, or past its change cutoff. It is not a to-do, so it is muted.
               <Text variant="caption" style={{ color: c.muted }}>
@@ -604,37 +657,36 @@ export function MenuWeek() {
                 {t("Belum diisi", "Not filled")}
               </Text>
             )}
-            {photoError ? <FormError message={photoError} failureKey={photoErrorState.key} /> : null}
-            {canEdit && selected.editable ? (
-              <Button
-                variant="secondary"
-                label={t("Ubah menu", "Edit menu")}
-                onPress={() => router.push(`/menu/${selected.date}?pkg=${offer.id}&meal=${meal}` as never)}
-              />
+            {photoError ? (
+              <View style={{ marginTop: 12 }}>
+                <FormError message={photoError} failureKey={photoErrorState.key} />
+              </View>
             ) : null}
-          </Card>
+          </View>
         ) : null}
         {selected && items.length ? (
-          <Card>
-            <Text variant="heading">{t("Tampilan di aplikasi pelanggan", "How customers see it")}</Text>
-            <View style={{ alignSelf: "center" }}>
-              <StoryCover
-                uri={photoUri(menuCoverImage(selected.details, offer.image || ""), runtime.apiBase)}
-                title={`${mealLabel(meal, locale)} · ${shortDate(selected.date, locale)}`}
-                // The customer story has one slide per meal of the package: lunch, and dinner when it serves both.
-                segments={offer.meal === "both" ? 2 : 1}
-                active={offer.meal === "both" && meal === "dinner" ? 2 : 1}
-                width={coverWidth}
-                height={Math.round(coverWidth * 1.25)}
-              />
+          <View testID="menu-cover">
+            <SectionHeader title={t("Tampilan di aplikasi pelanggan", "How customers see it")} />
+            <View style={{ gap: 8 }}>
+              <View style={{ alignSelf: "center" }}>
+                <StoryCover
+                  uri={photoUri(menuCoverImage(selected.details, offer.image || ""), runtime.apiBase)}
+                  title={`${mealLabel(meal, locale)} · ${shortDate(selected.date, locale)}`}
+                  // The customer story has one slide per meal of the package: lunch, and dinner when it serves both.
+                  segments={offer.meal === "both" ? 2 : 1}
+                  active={offer.meal === "both" && meal === "dinner" ? 2 : 1}
+                  width={COVER_WIDTH}
+                  height={Math.round(COVER_WIDTH * 1.25)}
+                />
+              </View>
+              <Text variant="meta">
+                {t(
+                  "Foto lauk utama jadi sampul menu besok. Menu tanpa foto memakai foto paket.",
+                  "The main dish photo becomes the cover of tomorrow's menu. A menu without photos uses the package photo.",
+                )}
+              </Text>
             </View>
-            <Text variant="caption">
-              {t(
-                "Foto lauk utama jadi sampul menu besok. Menu tanpa foto memakai foto paket.",
-                "The main dish photo becomes the cover of tomorrow's menu. A menu without photos uses the package photo.",
-              )}
-            </Text>
-          </Card>
+          </View>
         ) : null}
       </FadeSwap>
     </Screen>

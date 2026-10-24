@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
+import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
 import { selectLibraryDish, type ComponentGroup, type Dish, type LibraryDish } from "@catera/domain";
 import {
-  Button,
+  DecorativeIcon,
   FONT,
-  fontFor,
+  ListCard,
   PressableRow,
   PressableScale,
+  SectionHeader,
   Text,
   useColors,
   useListMotion,
@@ -16,9 +18,13 @@ import {
 } from "@catera/mobile-ui";
 import { dayComplete, suggestDishes } from "./logic";
 
+/** One chosen dish, one input and one suggestion: every row of the editor is 48 tall. */
+const ROW = 48;
+
 /**
- * One day's menu: a line per category with exactly the package's dish count.
- * Typing suggests dishes already used; a new name becomes a dish quietly.
+ * One day's menu: a section per category (its name, "n dari m", then a list card of 48 rows) with exactly the package's
+ * dish count. Typing suggests dishes already used; a new name becomes a dish quietly. The save button is the screen's
+ * pinned footer (`MenuDayScreen`), so the editor holds only the day's content.
  */
 export function SlotEditor({
   composition,
@@ -27,8 +33,6 @@ export function SlotEditor({
   usage,
   onChange,
   onCreate,
-  onSave,
-  saving,
   canEdit,
 }: {
   composition: ComponentGroup[];
@@ -37,8 +41,6 @@ export function SlotEditor({
   usage: Map<string, number>;
   onChange: (items: Dish[]) => void;
   onCreate: (name: string, categoryId: string | undefined) => Promise<LibraryDish>;
-  onSave: () => void;
-  saving: boolean;
   canEdit: boolean;
 }) {
   const { t } = useMobile();
@@ -50,7 +52,7 @@ export function SlotEditor({
     0,
   );
   return (
-    <View style={{ gap: 18 }}>
+    <View style={{ gap: nativeLayout.dense.sectionGap }}>
       {composition.map((group) => (
         <GroupLine
           key={group.id}
@@ -65,15 +67,12 @@ export function SlotEditor({
         />
       ))}
       {!complete && missing > 0 ? (
-        <Text variant="caption" style={{ textAlign: "center" }}>
+        <Text variant="meta" style={{ textAlign: "center" }}>
           {t(
             `Paket ini berisi ${composition.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}. Tambah ${missing} lagi.`,
             `This package holds ${composition.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}. ${missing} more to go.`,
           )}
         </Text>
-      ) : null}
-      {canEdit ? (
-        <Button label={t("Simpan menu", "Save menu")} busy={saving} disabled={!complete} onPress={onSave} />
       ) : null}
     </View>
   );
@@ -123,84 +122,82 @@ function GroupLine({
     setQuery("");
   }
 
-  return (
-    <View style={{ gap: 8 }}>
-      <Text variant="label" style={{ color: c.charcoal }}>
-        {t(`${group.name} · ${filled.length} dari ${group.slots}`, `${group.name} · ${filled.length} of ${group.slots}`)}
-      </Text>
-      {filled.map((i) => (
-        <Animated.View key={i.id} testID="menu-slot-row" {...rowMotion(i.id)}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              minHeight: 48,
-              paddingLeft: 14,
-              borderWidth: 1,
-              borderColor: c.line,
-              borderRadius: 10,
-              backgroundColor: c.surface,
-            }}
+  // The group's rows in one list card: the chosen dishes, then (while a slot is open) the input and its suggestions.
+  const rows: ReactNode[] = filled.map((i) => (
+    <Animated.View key={i.id} testID="menu-slot-row" {...rowMotion(i.id)}>
+      <View testID="menu-slot-row-body" style={{ flexDirection: "row", alignItems: "center", minHeight: ROW }}>
+        <Text variant="bodyL" style={{ flex: 1 }}>
+          {i.name}
+        </Text>
+        {canEdit ? (
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={t(`Hapus ${i.name}`, `Remove ${i.name}`)}
+            onPress={() => onChange(items.filter((x) => x.id !== i.id))}
+            // The glyph is 18 in a 48 target; the target overhangs the card's 16 padding by 12 so the glyph sits near its edge.
+            style={{ width: ROW, height: ROW, marginRight: -12, alignItems: "center", justifyContent: "center" }}
           >
-            <Text style={{ flex: 1 }}>{i.name}</Text>
-            {canEdit ? (
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel={t(`Hapus ${i.name}`, `Remove ${i.name}`)}
-                onPress={() => onChange(items.filter((x) => x.id !== i.id))}
-                style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
-              >
-                <Text style={{ color: c.muted, fontSize: 18 }}>×</Text>
-              </PressableScale>
-            ) : null}
-          </View>
-        </Animated.View>
-      ))}
-      {open && canEdit ? (
-        <View style={{ gap: 6 }}>
-          <TextInput
-            accessibilityLabel={t(`Tambah ${group.name.toLowerCase()}`, `Add ${group.name.toLowerCase()}`)}
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t(`Ketik nama ${group.name.toLowerCase()}…`, `Type a ${group.name.toLowerCase()} name…`)}
-            placeholderTextColor={c.muted}
-            style={{
-              minHeight: 48,
-              borderWidth: 1,
-              borderColor: c.fieldBorder,
-              borderRadius: 10,
-              paddingHorizontal: 14,
-              fontFamily: FONT,
-              fontSize: 15,
-              // The platform default ink is near black, which vanishes on the dark surface.
-              color: c.charcoal,
-              backgroundColor: c.surface,
-            }}
-          />
-          {query.trim() ? (
-            <View style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, backgroundColor: c.surface }}>
-              {suggestions.map((d) => (
-                <PressableRow
-                  key={d.id}
-                  accessibilityRole="button"
-                  onPress={() => add(d)}
-                  style={{ minHeight: 48, paddingHorizontal: 12, flexDirection: "row", alignItems: "center" }}
-                >
-                  <Text style={{ flex: 1 }}>{d.name}</Text>
-                  <Text variant="caption">{t(`dipakai ${usage.get(d.id) ?? 0} kali`, `used ${usage.get(d.id) ?? 0} ${usage.get(d.id) === 1 ? "time" : "times"}`)}</Text>
-                </PressableRow>
-              ))}
-              <PressableRow
-                accessibilityRole="button"
-                onPress={() => void onCreate(query.trim(), group.categoryId).then(add)}
-                style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: "center", borderTopWidth: 1, borderTopColor: c.line }}
-              >
-                <Text style={{ fontFamily: fontFor("700") }}>{t(`+ Buat hidangan baru “${query.trim()}”`, `+ Create new dish “${query.trim()}”`)}</Text>
-              </PressableRow>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
+            <DecorativeIcon name="close" size={18} color={c.muted} />
+          </PressableScale>
+        ) : null}
+      </View>
+    </Animated.View>
+  ));
+  if (open && canEdit) {
+    rows.push(
+      <View key="input" style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: ROW }}>
+        <DecorativeIcon name="search-outline" size={20} color={c.muted} />
+        <TextInput
+          accessibilityLabel={t(`Tambah ${group.name.toLowerCase()}`, `Add ${group.name.toLowerCase()}`)}
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t(`Ketik nama ${group.name.toLowerCase()}…`, `Type a ${group.name.toLowerCase()} name…`)}
+          placeholderTextColor={c.muted}
+          style={{
+            flex: 1,
+            minHeight: ROW,
+            padding: 0,
+            fontFamily: FONT,
+            fontSize: 15,
+            lineHeight: 22,
+            // The platform default ink is near black, which vanishes on the dark surface.
+            color: c.charcoal,
+          }}
+        />
+      </View>,
+    );
+    if (query.trim()) {
+      for (const d of suggestions)
+        rows.push(
+          <PressableRow
+            key={`suggest-${d.id}`}
+            accessibilityRole="button"
+            onPress={() => add(d)}
+            style={{ minHeight: ROW, flexDirection: "row", alignItems: "center", gap: 12 }}
+          >
+            <Text variant="bodyL" style={{ flex: 1 }}>
+              {d.name}
+            </Text>
+            <Text variant="meta">{t(`dipakai ${usage.get(d.id) ?? 0} kali`, `used ${usage.get(d.id) ?? 0} ${usage.get(d.id) === 1 ? "time" : "times"}`)}</Text>
+          </PressableRow>,
+        );
+      rows.push(
+        <PressableRow
+          key="create"
+          accessibilityRole="button"
+          onPress={() => void onCreate(query.trim(), group.categoryId).then(add)}
+          style={{ minHeight: ROW, justifyContent: "center" }}
+        >
+          <Text variant="bodyStrong">{t(`+ Buat hidangan baru “${query.trim()}”`, `+ Create new dish “${query.trim()}”`)}</Text>
+        </PressableRow>,
+      );
+    }
+  }
+
+  return (
+    <View>
+      <SectionHeader title={group.name} count={t(`${filled.length} dari ${group.slots}`, `${filled.length} of ${group.slots}`)} />
+      {rows.length ? <ListCard inset={0}>{rows}</ListCard> : null}
     </View>
   );
 }
