@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { errorLabel, mealLabel, type Dish, type LibraryDish } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, FormError, Screen, Text, useBusy, useToast } from "@catera/mobile-ui";
+import { Button, FadeSwap, FormError, Screen, Text, useBusy, useToast, useUnsavedGuard } from "@catera/mobile-ui";
 import { dayComplete, dishUsage, mealOf, saveMenuDay, weekdayName } from "./logic";
 import { loadMenus, MenuLoadError } from "./MenuWeek";
 import { SlotEditor } from "./SlotEditor";
@@ -20,6 +20,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
     offer ? loadMenus(runtime, offer, meal, [date]) : Promise.resolve([]),
   );
   const [items, setItems] = useState<Dish[] | null>(null);
+  const [saved, setSaved] = useState(false);
   const [failure, setFailure] = useState<{ message: string; key: number } | null>(null);
   const current = day.data?.[0];
   useEffect(() => {
@@ -29,6 +30,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
     setFailure(null);
     try {
       await saveMenuDay({ command }, { catererId, offer: offer!, meal, day: current!, items: items! });
+      setSaved(true);
       router.back();
       toast.show({
         message: t(`Menu ${weekdayName(date, "id")} tersimpan`, `${weekdayName(date, "en")} menu saved`),
@@ -41,6 +43,9 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
       }));
     }
   });
+  // Unsaved: the slots differ from the loaded day. Off while the save runs and once it went through.
+  const dirty = !saved && !saving && !!current && items !== null && JSON.stringify(items) !== JSON.stringify(current.details?.items ?? []);
+  useUnsavedGuard(dirty, t("menu", "menu"), { t, nounEn: "menu", voice: "kamu" });
   if ((ops.error && !ops.data) || (day.error && !day.data))
     return <MenuLoadError title={false} onRetry={() => void (ops.error && !ops.data ? ops.reload() : day.reload())} />;
   if (ops.data && !offer)
@@ -74,12 +79,15 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
     <Screen
       footer={
         canEdit ? (
-          <Button
-            label={t("Simpan menu", "Save menu")}
-            busy={saving}
-            disabled={!dayComplete(template.composition ?? [], items)}
-            onPress={() => void save()}
-          />
+          <>
+            {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
+            <Button
+              label={t("Simpan menu", "Save menu")}
+              busy={saving}
+              disabled={!dayComplete(template.composition ?? [], items)}
+              onPress={() => void save()}
+            />
+          </>
         ) : undefined
       }
     >
@@ -94,7 +102,6 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
           onCreate={create}
           canEdit={canEdit}
         />
-        {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
       </FadeSwap>
     </Screen>
   );

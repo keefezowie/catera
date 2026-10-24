@@ -3,15 +3,17 @@ import { TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { selectLibraryDish, type ComponentGroup, type Dish, type LibraryDish } from "@catera/domain";
+import { errorLabel, selectLibraryDish, type ComponentGroup, type Dish, type LibraryDish } from "@catera/domain";
 import {
   DecorativeIcon,
   FONT,
+  FormError,
   ListCard,
   PressableRow,
   PressableScale,
   SectionHeader,
   Text,
+  useBusy,
   useColors,
   useListMotion,
   type RowMotion,
@@ -97,9 +99,10 @@ function GroupLine({
   onCreate: (name: string, categoryId: string | undefined) => Promise<LibraryDish>;
   rowMotion: (key: string) => RowMotion;
 }) {
-  const { t } = useMobile();
+  const { t, locale } = useMobile();
   const c = useColors();
   const [query, setQuery] = useState("");
+  const [createError, setCreateError] = useState<{ message: string; key: number } | null>(null);
   const filled = items.filter((i) => i.groupId === group.id);
   const open = filled.length < group.slots;
   const suggestions = query.trim() ? suggestDishes(library, group.categoryId, query, usage).slice(0, 4) : [];
@@ -121,6 +124,20 @@ function GroupLine({
     onChange([...items, selectLibraryDish(slot, dish)]);
     setQuery("");
   }
+
+  const [creating, create] = useBusy(async (name: string) => {
+    setCreateError(null);
+    try {
+      add(await onCreate(name, group.categoryId));
+    } catch (e) {
+      setCreateError((f) => ({
+        message:
+          errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
+          t("Hidangan belum tersimpan. Coba lagi.", "The dish was not saved. Try again."),
+        key: (f?.key ?? 0) + 1,
+      }));
+    }
+  });
 
   // The group's rows in one list card: the chosen dishes, then (while a slot is open) the input and its suggestions.
   const rows: ReactNode[] = filled.map((i) => (
@@ -185,8 +202,9 @@ function GroupLine({
         <PressableRow
           key="create"
           accessibilityRole="button"
-          onPress={() => void onCreate(query.trim(), group.categoryId).then(add)}
-          style={{ minHeight: ROW, justifyContent: "center" }}
+          accessibilityState={{ busy: creating, disabled: creating }}
+          onPress={() => void create(query.trim())}
+          style={{ minHeight: ROW, justifyContent: "center", opacity: creating ? 0.5 : 1 }}
         >
           <Text variant="bodyStrong">{t(`+ Buat hidangan baru “${query.trim()}”`, `+ Create new dish “${query.trim()}”`)}</Text>
         </PressableRow>,
@@ -198,6 +216,7 @@ function GroupLine({
     <View>
       <SectionHeader title={group.name} count={t(`${filled.length} dari ${group.slots}`, `${filled.length} of ${group.slots}`)} />
       {rows.length ? <ListCard inset={0}>{rows}</ListCard> : null}
+      {createError ? <FormError message={createError.message} failureKey={createError.key} /> : null}
     </View>
   );
 }
