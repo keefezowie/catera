@@ -141,6 +141,10 @@ describe("Ada masalah", () => {
   beforeEach(() => {
     mockParams = { id: "d-today", meal: "lunch", jenis: "belum" };
   });
+  // The theme tests spy on useColorScheme; restoring here keeps a failed assertion from leaking the dark scheme.
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
   it("preselects Belum sampai from the link and sends the report", async () => {
     const command = jest.fn(async () => ({ id: "i-9" }));
@@ -387,7 +391,6 @@ describe("Ada masalah", () => {
       // The label stays ink on the page, not cream on a forest pill.
       expect(StyleSheet.flatten(within(chosen).getByText(name).props.style).color).toBe(palette.charcoal);
     }
-    jest.restoreAllMocks();
   });
 
   it.each(["light", "dark"] as const)("the delivery card stands off the sheet surface (%s)", async (scheme) => {
@@ -403,7 +406,6 @@ describe("Ada masalah", () => {
     const ground = flat(card).backgroundColor;
     expect(ground).toBe(palette.well);
     expect(ground).not.toBe(palette.surface);
-    jest.restoreAllMocks();
   });
 
   it("uses 44pt targets for the choices", async () => {

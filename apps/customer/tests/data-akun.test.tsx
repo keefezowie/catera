@@ -271,6 +271,11 @@ describe("Data akun", () => {
 });
 
 describe("Hapus akun", () => {
+  let scheme: jest.SpyInstance | undefined;
+  afterEach(() => {
+    scheme?.mockRestore();
+    scheme = undefined;
+  });
   const running = (name: string, id: string) =>
     subscription({ id, snapshot: { offer: offer({ name }), total: 150000 } as never });
 
@@ -292,14 +297,13 @@ describe("Hapus akun", () => {
     expect(screen.queryByText(/\d+ (hari|jam)|dalam \d/)).toBeNull();
   });
 
-  it.each(["light", "dark"] as const)("the plans callout stands off the sheet surface (%s)", async (scheme) => {
-    const spy = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+  it.each(["light", "dark"] as const)("the plans callout stands off the sheet surface (%s)", async (name) => {
+    scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(name);
     const { runtime } = runtimeWith({ user: phoneUser, state: eightPlans() });
     renderWith(runtime, <HapusAkunRoute />);
     const ground = StyleSheet.flatten((await screen.findByTestId("hapus-akun-plans")).props.style).backgroundColor;
-    expect(ground).toBe(nativeThemes[scheme].well);
-    expect(ground).not.toBe(nativeThemes[scheme].surface);
-    spy.mockRestore();
+    expect(ground).toBe(nativeThemes[name].well);
+    expect(ground).not.toBe(nativeThemes[name].surface);
   });
 
   it("the send button is the danger variant", async () => {

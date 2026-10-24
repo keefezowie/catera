@@ -345,25 +345,30 @@ describe("Pilih menu as photo cards (R4)", () => {
 
     const soon = new Date(Date.now() + 3 * 3600_000).toISOString();
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes([day({ cutoffAt: soon })]));
-    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    render(
-      <ThemeProvider storageKey="choose-menu-test">
-        <MobileProvider runtime={runtime} linkMapper={customerLink}>
-          <ChooseMenu />
-        </MobileProvider>
-      </ThemeProvider>,
-    );
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
-    // Under a day away the line sits on the attention ground, from the dark palette's own tokens.
-    const warn = screen.getByTestId("menu-deadline");
-    expect(within(warn).getByText(/^Pilih sebelum /)).toBeTruthy();
-    const ground = StyleSheet.flatten(warn.props.style).backgroundColor;
-    expect(ground).toBe(nativeThemes.dark.fill);
-    // Never forest-filled (spec §0): not the inverted `cream` ground, nor the forest itself, and off the page canvas.
-    expect(ground).not.toBe(nativeThemes.dark.cream);
-    expect(ground).not.toBe(nativeThemes.dark.forest);
-    expect(ground).not.toBe(nativeThemes.dark.canvas);
-    jest.restoreAllMocks();
+    for (const scheme of ["light", "dark"] as const) {
+      const palette = nativeThemes[scheme];
+      jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+      const shown = render(
+        <ThemeProvider storageKey={`choose-menu-test-${scheme}`}>
+          <MobileProvider runtime={runtime} linkMapper={customerLink}>
+            <ChooseMenu />
+          </MobileProvider>
+        </ThemeProvider>,
+      );
+      fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+      // Under a day away the line sits on the `fill` ground with the warm attention edge, from the palette's own tokens.
+      const warn = screen.getByTestId("menu-deadline");
+      expect(within(warn).getByText(/^Pilih sebelum /)).toBeTruthy();
+      const style = StyleSheet.flatten(warn.props.style);
+      expect(style.backgroundColor).toBe(palette.fill);
+      expect(style.borderColor).toBe(palette.attentionBorder);
+      expect(style.borderWidth).toBe(1);
+      // Never forest-filled (spec §0): not the inverted `cream` ground, nor the forest itself, and off the page canvas.
+      expect(style.backgroundColor).not.toBe(palette.cream);
+      expect(style.backgroundColor).not.toBe(palette.forest);
+      expect(style.backgroundColor).not.toBe(palette.canvas);
+      shown.unmount();
+    }
   });
 
   it("{x} dari {n} hari sudah dipilih", async () => {
