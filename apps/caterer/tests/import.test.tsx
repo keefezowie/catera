@@ -538,28 +538,28 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
   });
 
   it("tells portions other than 1 on the row's line, with the phone and area", async () => {
-  setup(jest.fn(), response([row(1), row(2, { portions: 2 }), row(3, { portions: 1 })]));
-  await read();
-  expect(await screen.findByText("+6281234567802 · Setiabudi · 2 porsi")).toBeTruthy();
-  expect(screen.getByText("+6281234567801 · Setiabudi")).toBeTruthy();
-  expect(screen.getByText("+6281234567803 · Setiabudi")).toBeTruthy();
-  expect(screen.getByTestId("import-row-2")).toBeTruthy();
-});
+    setup(jest.fn(), response([row(1), row(2, { portions: 2 }), row(3, { portions: 1 })]));
+    await read();
+    expect(await screen.findByText("+6281234567802 · 2 porsi · Setiabudi")).toBeTruthy();
+    expect(screen.getByText("+6281234567801 · Setiabudi")).toBeTruthy();
+    expect(screen.getByText("+6281234567803 · Setiabudi")).toBeTruthy();
+    expect(screen.getByTestId("import-row-2")).toBeTruthy();
+  });
 
-it("the row editor tells a portion count other than 1 under the fields, and says nothing for 1", async () => {
-  setup(jest.fn(), response([row(1, { portions: 3 }), row(2)]));
-  await read();
-  fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 1" }));
-  const told = await screen.findByTestId("import-row-portions");
-  expect(told.props.children).toBe("3 porsi per hari");
-  expect(flatStyle(told)).toMatchObject({ fontSize: 13, lineHeight: 18 });
-  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
-  fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
-  await screen.findByLabelText("Nama");
-  expect(screen.queryByTestId("import-row-portions")).toBeNull();
-});
+  it("the row editor tells a portion count other than 1 under the fields, and says nothing for 1", async () => {
+    setup(jest.fn(), response([row(1, { portions: 3 }), row(2)]));
+    await read();
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 1" }));
+    const told = await screen.findByTestId("import-row-portions");
+    expect(told.props.children).toBe("3 porsi per hari");
+    expect(flatStyle(told)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
+    await screen.findByLabelText("Nama");
+    expect(screen.queryByTestId("import-row-portions")).toBeNull();
+  });
 
-it("the buttons under the card are Tambah baris and Mulai lagi", async () => {
+  it("the buttons under the card are Tambah baris and Mulai lagi", async () => {
     setup(jest.fn(), response([row(1)]));
     await read();
     fireEvent.press(await screen.findByRole("button", { name: "Tambah baris" }));

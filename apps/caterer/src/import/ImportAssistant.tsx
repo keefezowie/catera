@@ -338,8 +338,8 @@ export function ImportAssistant() {
                       meta={
                         r.needsReview
                           ? r.reason
-                          : // Portions are saved with the row and shown nowhere else before the save, so a count other than 1 rides on the line.
-                            [r.phone, r.area, r.portions !== 1 ? t(`${r.portions} porsi`, plural(r.portions, "portion")) : ""].filter(Boolean).join(" · ")
+                          : // Portions are saved with the row and shown nowhere else before the save, so a count other than 1 rides on the line, before the area, which is the part a narrow line may cut.
+                            [r.phone, r.portions !== 1 ? t(`${r.portions} porsi`, plural(r.portions, "portion")) : "", r.area].filter(Boolean).join(" · ")
                       }
                       // The label names the row, and a problem row's state and reason, so a screen reader hears what it needs.
                       accessibilityLabel={`${t("Ubah", "Edit")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}${r.needsReview ? `, ${t("perlu dicek", "to check")}: ${r.reason}` : ""}`}
