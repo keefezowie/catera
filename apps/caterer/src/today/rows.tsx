@@ -8,21 +8,22 @@ export const ACTION = 48;
 
 /**
  * A 48 icon button for a section header's trailing slot (Bagikan, Cetak): the glyph in forest on no ground, so a row of
- * them is a line of marks and not a row of discs. The first of two sits 8 from the count; the last passes `edge` (-12) to
- * pull its glyph to the card's edge, as the board draws it.
+ * them is a line of marks and not a row of discs. `flush` sets the glyph against the target's end (1 in), so it sits at
+ * the card's edge as the board draws it while the whole 48 stays inside its parents: Android delivers a touch only inside
+ * every ancestor's bounds, so a target pulled past its parent's edge by a negative margin is dead area there.
  */
 export function IconAction({
   icon,
   label,
   onPress,
-  edge,
+  flush,
   testID,
 }: {
   icon: ComponentProps<typeof DecorativeIcon>["name"];
   label: string;
   onPress: () => void;
-  /** A negative right margin that pulls the last button's glyph to the edge of the column. */
-  edge?: number;
+  /** Sets the glyph against the end of the target, so it reaches the column's edge without the target leaving it. */
+  flush?: boolean;
   testID?: string;
 }) {
   const c = useColors();
@@ -33,27 +34,37 @@ export function IconAction({
       accessibilityLabel={label}
       haptic="tap"
       onPress={onPress}
-      style={{ width: ACTION, height: ACTION, alignItems: "center", justifyContent: "center", marginRight: edge }}
+      style={{
+        width: ACTION,
+        height: ACTION,
+        alignItems: flush ? "flex-end" : "center",
+        justifyContent: "center",
+        paddingRight: flush ? 1 : 0,
+      }}
     >
       <DecorativeIcon name={icon} size={22} color={c.forest} />
     </PressableScale>
   );
 }
 
-/** A text action in a section header ("Pilih", "Selesai", "Pilih semua"): forest `bodyStrong`, a 48 target. */
+/**
+ * A text action in a section header ("Pilih", "Selesai", "Pilih semua"): forest `bodyStrong`, a 48 target at least 48
+ * wide. `flush` ends (or starts) the label on the column's edge by taking that side's padding off the target instead of
+ * pulling it past the edge, so the whole target stays inside its parents.
+ */
 export function TextAction({
   label,
   onPress,
   accessibilityLabel,
-  edge,
+  flush,
   style,
   testID,
 }: {
   label: string;
   onPress: () => void;
   accessibilityLabel?: string;
-  /** A negative right margin that pulls the label's end to the card's edge. */
-  edge?: number;
+  /** Which edge of the column the label sits on: its padding on that side is dropped and the label is held against it. */
+  flush?: "start" | "end";
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }) {
@@ -65,7 +76,17 @@ export function TextAction({
       accessibilityLabel={accessibilityLabel ?? label}
       haptic="tap"
       onPress={onPress}
-      style={[{ minHeight: ACTION, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", marginRight: edge }, style]}
+      style={[
+        {
+          minHeight: ACTION,
+          minWidth: ACTION,
+          paddingLeft: flush === "start" ? 0 : 12,
+          paddingRight: flush === "end" ? 0 : 12,
+          alignItems: flush === "end" ? "flex-end" : flush === "start" ? "flex-start" : "center",
+          justifyContent: "center",
+        },
+        style,
+      ]}
     >
       {/* forest: action */}
       <Text variant="bodyStrong" style={{ color: c.forest }}>
@@ -125,9 +146,9 @@ export const SUMMARY_HEIGHT = 48;
 export const HEADING_LINE = 26;
 export const HEADING_GAP = 12;
 
-/** Header actions side by side, pulled 4 left so the count and the first action sit 8 apart (the board's 4 + 4) where `SectionHeader` leaves 12. */
+/** Header actions side by side. No negative margin: a target that leaves its parent's bounds is dead area on Android. */
 export function ActionPair({ children }: { children: ReactNode }) {
-  return <View style={{ flexDirection: "row", alignItems: "center", marginLeft: -4 }}>{children}</View>;
+  return <View style={{ flexDirection: "row", alignItems: "center" }}>{children}</View>;
 }
 
 /** The header's figure strip sits 12 under the date (the band's 4 plus 8) and the compact track 12 under the strip. */

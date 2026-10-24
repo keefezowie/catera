@@ -10,14 +10,15 @@ type SectionLink = { label: string; onPress: () => void };
 const isLink = (action: unknown): action is SectionLink =>
   typeof action === "object" && action !== null && !isValidElement(action) && "label" in action && "onPress" in action;
 
-/** The `section` line (26): a 48 control in the trailing slot overhangs it by 11 above and below instead of growing it. */
-const TRAILING_OVERHANG = -(nativeLayout.space.xxxl - 26) / 2;
+/** The touch target a node action holds (Dapur's icon buttons and text actions): the header row grows to this. */
+const NODE_ACTION_HEIGHT = nativeLayout.space.xxxl;
 
 /**
  * A section's heading, 12 above its content, with an optional trailing link ("Lihat semua"). `count` is a `meta` figure
  * at the right, before the trailing slot ("9 menu", "14 alamat"). `action` is the link, or any node for the trailing
- * slot (Dapur's 48 icon buttons, "Pilih"); a node is held in a slot that overhangs the 26 heading line, so a 48 button
- * does not make the header taller.
+ * slot (Dapur's 48 icon buttons, "Pilih"). A header with a node action is at least 48 tall, the title centred in it: the
+ * row has to hold the whole 48 target, because Android delivers a touch only inside every ancestor's bounds and a
+ * button that overhangs a 26 row loses the part outside it. A header without one stays one heading line.
  */
 export function SectionHeader({
   title,
@@ -30,8 +31,9 @@ export function SectionHeader({
 }) {
   const c = useColors();
   const styles = useStyles();
+  const node = !!action && !isLink(action);
   return (
-    <View testID="section-header" style={styles.row}>
+    <View testID="section-header" style={[styles.row, node && styles.rowWithAction]}>
       <Text variant="section" accessibilityRole="header" style={styles.title}>
         {title}
       </Text>
@@ -70,6 +72,7 @@ const useStyles = themedStyles(() => ({
     marginBottom: nativeLayout.headingGap,
   },
   title: { flex: 1 },
+  rowWithAction: { minHeight: NODE_ACTION_HEIGHT },
   count: { flexShrink: 0 },
-  trailing: { flexDirection: "row", alignItems: "center", flexShrink: 0, marginVertical: TRAILING_OVERHANG },
+  trailing: { flexDirection: "row", alignItems: "center", flexShrink: 0 },
 }));

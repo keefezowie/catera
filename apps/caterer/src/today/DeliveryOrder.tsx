@@ -18,7 +18,7 @@ import {
   StopRow,
   Text,
 } from "@catera/mobile-ui";
-import { ACTION, ActionPair, HEADING_GAP, HEADING_LINE, LinkRow, TextAction } from "./rows";
+import { ACTION, ActionPair, HEADING_GAP, LinkRow, TextAction } from "./rows";
 import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
 import { areaRuns, selectableStops, stopChoices, type Selection } from "./selection";
 
@@ -172,7 +172,7 @@ export function DeliveryOrder({
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            minHeight: HEADING_LINE,
+            minHeight: ACTION,
             marginBottom: HEADING_GAP,
           }}
         >
@@ -183,8 +183,8 @@ export function DeliveryOrder({
                 : t("Pilih pengantaran", "Select deliveries")}
             </Text>
           </View>
-          <View style={{ flexShrink: 0, marginVertical: -(ACTION - HEADING_LINE) / 2 }}>
-            <TextAction label={t("Selesai", "Done")} edge={-12} onPress={selection!.stop} />
+          <View style={{ flexShrink: 0 }}>
+            <TextAction label={t("Selesai", "Done")} flush="end" onPress={selection!.stop} />
           </View>
         </View>
       ) : (
@@ -195,7 +195,7 @@ export function DeliveryOrder({
             action={
               canPick ? (
                 <ActionPair>
-                  <TextAction label={t("Pilih", "Select")} edge={-12} onPress={selection!.start} />
+                  <TextAction label={t("Pilih", "Select")} flush="end" onPress={selection!.start} />
                 </ActionPair>
               ) : undefined
             }
@@ -219,7 +219,7 @@ export function DeliveryOrder({
                         <TextAction
                           label={every ? t("Lepas semua", "Clear all") : t("Pilih semua", "Select all")}
                           accessibilityLabel={`${every ? t("Lepas semua", "Clear all") : t("Pilih semua", "Select all")}: ${run.area || t("Tanpa area", "No area")}`}
-                          edge={-12}
+                          flush="end"
                           onPress={() => selection!.setMany(open.map((x) => x.deliveryId), !every)}
                         />
                       ) : null}

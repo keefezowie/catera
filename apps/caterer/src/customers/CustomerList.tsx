@@ -115,7 +115,7 @@ export function CustomerList() {
               accessibilityLabel={addLabel}
               haptic="tap"
               onPress={() => router.push("/impor" as never)}
-              style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, marginRight: -8, marginVertical: -2 }}
+              style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 8, paddingRight: 0, marginVertical: -2 }}
             >
               <Ionicons name="add" size={20} color={palette.forest} />
               {/* forest: action */}

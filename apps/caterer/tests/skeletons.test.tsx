@@ -413,12 +413,13 @@ describe("Hari ini", () => {
     expect(flat(parts[1])).toMatchObject({ width: 40, height: 40, borderRadius: 8 });
     expect(flat(parts[3])).toMatchObject({ width: 48, height: 48 });
     for (const i of [0, 1]) expect(flat(within(body).getByTestId(`today-skeleton-package-${i}`, hiddenToo)).height).toBe(40);
-    // Two sections under one 24 gap, each a 26 heading line and 12 above its card, the card with its hairline inset.
+    // Two sections under one 24 gap, each a heading line and 12 above its card (Daftar masak 48: its buttons; Per paket 26), the card with its hairline inset.
     const sections = drawnChildren(drawnChildren(body)[0]);
     expect(flat(drawnChildren(body)[0]).gap).toBe(24);
     expect(sections).toHaveLength(2);
-    expect(flat(drawnChildren(sections[0])[0]).height).toBe(26);
+    expect(flat(drawnChildren(sections[0])[0]).height).toBe(48);
     expect(flat(drawnChildren(sections[0])[1]).height).toBe(12);
+    expect(flat(drawnChildren(sections[1])[0]).height).toBe(26);
   });
 });
 
@@ -532,6 +533,8 @@ describe("Menu", () => {
     const day = await screen.findByTestId("menu-skeleton-day", { includeHiddenElements: true });
     const rows = day.findAll((n) => host(n) && flat(n).minHeight === 64);
     expect(rows).toHaveLength(3);
+    // The owner's header holds "Ubah menu", so its line is the 48 target.
+    expect(flat(drawnChildren(drawnChildren(day)[0])[0]).height).toBe(48);
     const thumbs = day.findAll((n) => host(n) && flat(n).width === 48 && flat(n).height === 48);
     expect(thumbs).toHaveLength(3);
     for (const thumb of thumbs) expect(flat(thumb).borderRadius).toBe(8);

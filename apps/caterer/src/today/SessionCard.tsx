@@ -110,6 +110,7 @@ export function SessionCard({
               <ActionPair>
                 <IconAction
                   icon="share-outline"
+                  flush
                   label={t("Bagikan", "Share")}
                   onPress={() => void Share.share({ message: `${caterer}
 ${recapLines(recap, sharedTitle, missingForSharing)}` })}
@@ -117,7 +118,7 @@ ${recapLines(recap, sharedTitle, missingForSharing)}` })}
                 <IconAction
                   icon="print-outline"
                   label={t("Cetak", "Print")}
-                  edge={-12}
+                  flush
                   onPress={() =>
                     void Print.printAsync({
                       html: `<h2>${caterer} · ${sharedTitle}: ${recap.total} porsi</h2><ul>${recap.byDish
@@ -141,7 +142,7 @@ ${recapLines(recap, sharedTitle, missingForSharing)}` })}
                         <TextAction
                           label={t("Isi menu", "Fill in menu")}
                           accessibilityLabel={`${t("Isi menu", "Fill in menu")} ${m.packageName}`}
-                          style={{ marginLeft: -12 }}
+                          flush="start"
                           onPress={() => router.push(`/menu/${date}?pkg=${m.packageId}&meal=${meal}` as never)}
                         />
                       ) : null}

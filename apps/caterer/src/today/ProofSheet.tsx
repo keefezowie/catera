@@ -113,7 +113,8 @@ function Tile({
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text variant="rowTitle">{stop.name}</Text>
-          <Text variant="meta">
+          {/* One line, cut at the end, so the row holds its 72 whatever the package name. */}
+          <Text variant="meta" numberOfLines={1}>
             {/* A missing photo is a to-do on the tile, in words: bold charcoal, never a danger caption. */}
             <Text testID={`proof-state-${stop.deliveryId}`} variant="meta" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
               {failed

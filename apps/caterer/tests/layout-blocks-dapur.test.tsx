@@ -18,6 +18,7 @@ import {
   TwoLineRow,
   fontFor,
 } from "@catera/mobile-ui";
+import { IconAction, TextAction } from "../src/today/rows";
 import { withDapurScale } from "./dapur-scale";
 
 /** The phone the block is drawn on; a test sets it. */
@@ -220,8 +221,20 @@ describe("SectionHeader count and node action", () => {
     );
     expect(screen.getByTestId("pilih")).toBeTruthy();
     expect(screen.getByText("14 alamat")).toBeTruthy();
-    expect(flat(screen.getByTestId("section-header-trailing"))).toMatchObject({ marginVertical: -11, flexShrink: 0 });
+    expect(flat(screen.getByTestId("section-header-trailing"))).toMatchObject({ flexShrink: 0 });
+    expect(flat(screen.getByTestId("section-header-trailing")).marginVertical).toBeUndefined();
     expect(screen.queryByRole("button", { name: "Pilih" })).toBeTruthy();
+  });
+
+  it("holds a 48 node action inside the row: the row is at least 48 tall, the title centred, the 12 under it kept", () => {
+    render(withDapurScale(<SectionHeader title="Daftar masak" action={<Text accessibilityRole="button">Bagikan</Text>} />));
+    expect(flat(screen.getByTestId("section-header"))).toMatchObject({ minHeight: 48, alignItems: "center", marginBottom: 12 });
+  });
+
+  it("keeps a header with no action, or a link, one heading line", () => {
+    render(withDapurScale(<SectionHeader title="Paket" />));
+    render(<SectionHeader title="Minggu ini" action={{ label: "Lihat semua", onPress: jest.fn() }} />);
+    for (const header of screen.getAllByTestId("section-header")) expect(flat(header).minHeight).toBeUndefined();
   });
 
   it("still takes the link action", () => {
@@ -299,5 +312,39 @@ describe("CheckRow and StopRow take the Dapur geometry from the 48 touch target,
     screen.unmount();
     render(stopRow());
     expect(screen.queryByTestId("sr-actions")).toBeNull();
+  });
+});
+
+describe("header actions stay inside their parents", () => {
+  it("TextAction is at least 48 x 48 and flush drops the padding on the edge side instead of pulling the target past it", () => {
+    render(
+      <>
+        <TextAction label="Selesai" flush="end" onPress={jest.fn()} />
+        <TextAction label="Isi menu" flush="start" onPress={jest.fn()} />
+        <TextAction label="Plain" onPress={jest.fn()} />
+      </>,
+    );
+    const end = flat(screen.getByRole("button", { name: "Selesai" }));
+    const start = flat(screen.getByRole("button", { name: "Isi menu" }));
+    const plain = flat(screen.getByRole("button", { name: "Plain" }));
+    expect(end).toMatchObject({ minHeight: 48, minWidth: 48, paddingLeft: 12, paddingRight: 0, alignItems: "flex-end" });
+    expect(start).toMatchObject({ minHeight: 48, minWidth: 48, paddingLeft: 0, paddingRight: 12, alignItems: "flex-start" });
+    expect(plain).toMatchObject({ minHeight: 48, minWidth: 48, paddingLeft: 12, paddingRight: 12, alignItems: "center" });
+    for (const style of [end, start, plain]) {
+      expect(style.marginRight).toBeUndefined();
+      expect(style.marginLeft).toBeUndefined();
+    }
+  });
+
+  it("IconAction is 48 x 48 and flush holds the glyph against the end without a margin", () => {
+    render(
+      <>
+        <IconAction icon="print-outline" label="Cetak" flush onPress={jest.fn()} />
+        <IconAction icon="share-outline" label="Bagikan" onPress={jest.fn()} />
+      </>,
+    );
+    expect(flat(screen.getByRole("button", { name: "Cetak" }))).toMatchObject({ width: 48, height: 48, alignItems: "flex-end", paddingRight: 1 });
+    expect(flat(screen.getByRole("button", { name: "Cetak" })).marginRight).toBeUndefined();
+    expect(flat(screen.getByRole("button", { name: "Bagikan" }))).toMatchObject({ width: 48, height: 48, alignItems: "center", paddingRight: 0 });
   });
 });

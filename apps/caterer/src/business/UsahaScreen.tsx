@@ -149,13 +149,13 @@ export function UsahaScreen() {
             title={t("Paket", "Packages")}
             action={
               ops.data ? (
-                // A 48 target in the heading's 26 line: it overhangs by 11 above and below, and ends on the margin.
+                // A 48 target the header row grows to hold; its label ends on the margin (no padding on that side).
                 <PressableScale
                   accessibilityRole="button"
                   accessibilityLabel={addLabel}
                   haptic="none"
                   onPress={() => router.push("/paket/baru" as never)}
-                  style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, marginRight: -8 }}
+                  style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 8, paddingRight: 0 }}
                 >
                   <DecorativeIcon name="add" size={20} color={c.forest} />
                   {/* forest: action */}

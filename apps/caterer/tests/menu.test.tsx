@@ -1071,7 +1071,11 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       await screen.findByText("Nasi putih");
       const header = screen.getAllByTestId("section-header").find((h) => within(h).queryByText("Kamis 8 Okt"))!;
       const edit = within(within(header).getByTestId("section-header-trailing")).getByRole("button", { name: "Ubah menu" });
-      expect(StyleSheet.flatten(edit.props.style).minHeight).toBe(48);
+      expect(StyleSheet.flatten(edit.props.style)).toMatchObject({ minHeight: 48, minWidth: 48, paddingRight: 0 });
+      expect(StyleSheet.flatten(edit.props.style).marginRight).toBeUndefined();
+      // The row holds the whole 48 target (a 26 row clipped it to 37), with no negative margin on the slot either.
+      expect(StyleSheet.flatten(header.props.style).minHeight).toBeGreaterThanOrEqual(48);
+      expect(StyleSheet.flatten(within(header).getByTestId("section-header-trailing").props.style).marginVertical).toBeUndefined();
     });
 
     it("calls an empty day past its change cutoff closed, in muted ink with no action", async () => {

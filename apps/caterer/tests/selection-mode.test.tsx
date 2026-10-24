@@ -664,3 +664,68 @@ describe("Pilih on the Dapur scale", () => {
     expect(screen.getByRole("button", { name: "Sampai (0)" })).toBeTruthy();
   });
 });
+
+describe("residual layout: targets inside their parents, one-line status and meta", () => {
+  const sheetFlat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
+  /** Android delivers a touch only inside every ancestor's bounds: no box from the target up to `top` may be pulled out by a negative margin. */
+  function expectInside(target: { parent: unknown }, top: string) {
+    let node = target as { props?: { testID?: string; style?: unknown }; parent: unknown } | null;
+    const seen: string[] = [];
+    while (node && node.props?.testID !== top) {
+      const style = node.props?.style ? sheetFlat(node as { props: { style?: unknown } }) : {};
+      for (const side of ["margin", "marginLeft", "marginRight", "marginTop", "marginBottom", "marginHorizontal", "marginVertical"]) {
+        const value = (style as Record<string, unknown>)[side];
+        if (typeof value === "number" && value < 0) seen.push(`${side} ${value}`);
+      }
+      node = node.parent as typeof node;
+    }
+    expect(node).not.toBeNull();
+    expect(seen).toEqual([]);
+  }
+
+  it("Pilih, after departure, is a 48 x 48 target whose label ends on the card edge and which no negative margin pulls out of its parents", async () => {
+    renderToday(runtimeFor(() => dayWith([cooking, out])));
+    const pilihButton = await screen.findByRole("button", { name: "Pilih" });
+    expect(sheetFlat(pilihButton)).toMatchObject({ minHeight: 48, minWidth: 48, paddingRight: 0, alignItems: "flex-end" });
+    expectInside(pilihButton, "delivery-order");
+    // The header row holds the whole 48: a 26 row would clip the target's top and bottom.
+    const header = within(screen.getByTestId("delivery-order")).getByTestId("section-header");
+    expect(sheetFlat(header).minHeight).toBeGreaterThanOrEqual(48);
+  });
+
+  it("Selesai and Pilih semua are inside their parents too, and the picking heading holds 48", async () => {
+    renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
+    await pilih();
+    for (const name of ["Selesai", /^Pilih semua: Tebet/]) {
+      const action = screen.getByRole("button", { name });
+      expect(sheetFlat(action)).toMatchObject({ minHeight: 48, minWidth: 48, paddingRight: 0 });
+      expectInside(action, "delivery-order");
+    }
+    let row = screen.getByTestId("order-title") as { props: { style?: unknown }; parent: unknown } | null;
+    while (row && sheetFlat(row).minHeight === undefined) row = row.parent as typeof row;
+    expect(sheetFlat(row!).minHeight).toBe(48);
+  });
+
+  it.each([[412, 1], [360, 1.3]])("a stop in Pilih mode shows its status on one line at %idp, font scale %f", async (width, fontScale) => {
+    mockWindow = { width, height: 760, scale: 3, fontScale };
+    renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
+    await pilih();
+    expect(screen.getByText("Sudah berangkat, tinggal ditandai Sampai.").props.numberOfLines).toBe(1);
+    expect(screen.getByText("Belum dimasak.").props.numberOfLines).toBe(1);
+  });
+
+  it("a proof row's meta is one line, so the row holds its 72", async () => {
+    mockWindow = { width: 412, height: 860, scale: 3, fontScale: 1 };
+    const day = dayWith([out, out, out, out]);
+    renderToday(runtimeFor(() => day));
+    await pilih();
+    fireEvent.press(stopBox(/Bu Sari/));
+    fireEvent.press(screen.getByRole("button", { name: "Sampai (1)" }));
+    await screen.findByText("Foto bukti sampai");
+    const state = screen.getByTestId(`proof-state-${day.deliveries[0].id}`);
+    let meta = state.parent as { props: { numberOfLines?: number }; parent: unknown } | null;
+    while (meta && meta.props.numberOfLines === undefined) meta = meta.parent as typeof meta;
+    expect(meta?.props.numberOfLines).toBe(1);
+    expect(sheetFlat(screen.getByTestId(`proof-tile-${day.deliveries[0].id}`)).minHeight).toBe(72);
+  });
+});

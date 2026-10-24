@@ -3,7 +3,7 @@ import { useMobile } from "@catera/mobile-core";
 import { Card, CHECK_ROW_INSET, COMPACT_MEDIA_INSET, ListCard, Skeleton, SkeletonGroup, trackLabelLines, useScreenMargin, useTouchTarget } from "@catera/mobile-ui";
 import { nativeLayout } from "@catera/design-tokens";
 import { useActionPairStacked } from "./layout/useActionPairStacked";
-import { CHECK_HEIGHT, FIGURE_GAP, FIGURE_TOP, HEADING_GAP, HEADING_LINE, PACKAGE_HEIGHT, SECTION_GAP } from "./today/rows";
+import { ACTION, CHECK_HEIGHT, FIGURE_GAP, FIGURE_TOP, HEADING_GAP, HEADING_LINE, PACKAGE_HEIGHT, SECTION_GAP } from "./today/rows";
 
 /**
  * Dapur's loading shapes (Phase F task 6). Each one is drawn in the place and roughly the size of what it stands for, so
@@ -83,7 +83,8 @@ export function TodayCountSkeleton() {
 /**
  * Hari ini's sections while the day loads: "Daftar masak" with four checklist rows at CheckRow's 56dp (the 48 quantity
  * column, the 40 dish photo, the name and the 48 round tick) and "Per paket" with two package rows at KeyValueRow's 40,
- * each heading 26 tall with 12 under it, 24 between the sections, built from the loaded layout's own constants.
+ * each heading 12 above its card, 24 between the sections, built from the loaded layout's own constants. "Daftar masak"
+ * carries the Bagikan and Cetak buttons, so its heading row is their 48; "Per paket" has none and stays 26.
  */
 export function TodaySkeleton() {
   const { t } = useMobile();
@@ -91,7 +92,7 @@ export function TodaySkeleton() {
     <SkeletonGroup label={t("Memuat dapur", "Loading the kitchen")}>
       <View style={{ gap: SECTION_GAP }}>
         <View>
-          <Line width={120} block={14} line={HEADING_LINE} />
+          <Line width={120} block={14} line={ACTION} />
           <View style={{ height: HEADING_GAP }} />
           <ListCard inset={CHECK_ROW_INSET}>
             {[0, 1, 2, 3].map((i) => (
@@ -189,17 +190,18 @@ export function MenuControlsSkeleton({ owner = false }: { owner?: boolean }) {
 }
 
 /**
- * Menu's day while its week reads ("Memuat menu"): the section header's 26 line, 12 above a group's meta line and a list
+ * Menu's day while its week reads ("Memuat menu"): the section header's line (26; 48 for the owner, whose header holds
+ * "Ubah menu"), 12 above a group's meta line and a list
  * card of three 64 rows with 48 thumbs, as the loaded day draws them. It sits in its own block below the controls from
  * the first frame, so it waits through the packages' read and the week's in the same place and enters once.
  */
-export function MenuWeekSkeleton() {
+export function MenuWeekSkeleton({ owner = false }: { owner?: boolean } = {}) {
   const { t } = useMobile();
   return (
     <SkeletonGroup label={t("Memuat menu", "Loading the menu")}>
       <View testID="menu-skeleton-day">
         <View style={{ marginBottom: 12 }}>
-          <Line width={132} block={18} line={26} />
+          <Line width={132} block={18} line={owner ? ACTION : 26} />
         </View>
         <View style={{ gap: 8 }}>
           <Line width={56} block={12} line={18} />

@@ -258,7 +258,8 @@ function StopRowV2({
         </Text>
       ) : null}
       {selection?.note ? (
-        <Text testID={`${testID}-note`} variant="meta">
+        // One line, cut at the end: a picking row is title, meta and this status (and the delivery note), never a fifth line.
+        <Text testID={`${testID}-note`} variant="meta" numberOfLines={1}>
           {selection.note}
         </Text>
       ) : null}

@@ -134,8 +134,8 @@ function GroupLine({
             accessibilityRole="button"
             accessibilityLabel={t(`Hapus ${i.name}`, `Remove ${i.name}`)}
             onPress={() => onChange(items.filter((x) => x.id !== i.id))}
-            // The glyph is 18 in a 48 target; the target overhangs the card's 16 padding by 12 so the glyph sits near its edge.
-            style={{ width: ROW, height: ROW, marginRight: -12, alignItems: "center", justifyContent: "center" }}
+            // The glyph is 18 in a 48 target that stays inside the row; it is held against the end (3 in) so it sits near the card's edge.
+            style={{ width: ROW, height: ROW, paddingRight: 3, alignItems: "flex-end", justifyContent: "center" }}
           >
             <DecorativeIcon name="close" size={18} color={c.muted} />
           </PressableScale>

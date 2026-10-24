@@ -600,7 +600,7 @@ export function MenuWeek() {
       {/* The day is its own block from the first frame: it waits behind its skeleton through the packages' read and
           the week's, and enters once. Sections sit 24 apart (the body's 16 and 8 more). */}
       <FadeSwap swapKey={weekReady ? "week" : "loading"} style={{ gap: nativeLayout.dense.sectionGap, marginTop: nativeLayout.dense.sectionGap - 16 }}>
-        {!weekReady ? <MenuWeekSkeleton /> : null}
+        {!weekReady ? <MenuWeekSkeleton owner={canEdit} /> : null}
         {selected ? (
           <View testID="menu-day">
             <SectionHeader
@@ -612,8 +612,8 @@ export function MenuWeek() {
                     accessibilityLabel={t("Ubah menu", "Edit menu")}
                     haptic="tap"
                     onPress={() => router.push(`/menu/${selected.date}?pkg=${offer.id}&meal=${meal}` as never)}
-                    // 48 tall, and its label ends at the screen margin.
-                    style={{ minHeight: 48, paddingHorizontal: 12, marginRight: -12, justifyContent: "center" }}
+                    // 48 x 48 at least, inside the header row, and its label ends at the screen margin (no padding on that side).
+                    style={{ minHeight: 48, minWidth: 48, paddingLeft: 12, paddingRight: 0, alignItems: "flex-end", justifyContent: "center" }}
                   >
                     {/* forest: action (the section's link) */}
                     <Text variant="bodyStrong" style={{ color: c.forest }}>
