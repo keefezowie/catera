@@ -712,20 +712,27 @@ describe("Pelanggan on the Dapur scale", () => {
       phone(360, 1.3);
       const list = [record([{ ...running, package_name: "Family Lunch Package Deluxe 30" }])];
       const runtime = runtimeWith("approved", true, list);
-      (jest.requireMock("expo-secure-store") as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
-      open(list, runtime);
-      const name = await screen.findByText("Family Lunch Package Deluxe 30");
-      const row = screen.getByLabelText("Package, Family Lunch Package Deluxe 30");
-      expect(name.props.numberOfLines).toBeUndefined();
-      // The value sits at the right edge (auto left margin, no grow) and wraps within 60%; the label keeps its width.
-      expect(sty(name)).toMatchObject({ marginLeft: "auto", flexShrink: 1, maxWidth: "60%", textAlign: "right" });
-      expect(sty(name).flex).toBeUndefined();
-      expect(sty(name).flexGrow).toBeUndefined();
-      expect(sty(within(row).getByText("Package"))).toMatchObject({ flexShrink: 0, maxWidth: "40%" });
-      // The date rows keep the default value (no wrap, no shrink), right-aligned with a label that grows to push it to the edge.
-      const date = within(screen.getByLabelText(/^Starts,/)).getByText(shortDate(running.starts_on, "en"));
-      expect(sty(date)).toMatchObject({ flexShrink: 0, textAlign: "right" });
-      expect(sty(within(screen.getByLabelText(/^Starts,/)).getByText("Starts")).flex).toBe(1);
+      // The stored locale is shared by every later test, so it is removed again however this one ends.
+      const store = (jest.requireMock("expo-secure-store") as { __store: Map<string, string> }).__store;
+      const key = runtime.storageKey("locale");
+      store.set(key, "en");
+      try {
+        open(list, runtime);
+        const name = await screen.findByText("Family Lunch Package Deluxe 30");
+        const row = screen.getByLabelText("Package, Family Lunch Package Deluxe 30");
+        expect(name.props.numberOfLines).toBeUndefined();
+        // The value sits at the right edge (auto left margin, no grow) and wraps within 60%; the label keeps its width.
+        expect(sty(name)).toMatchObject({ marginLeft: "auto", flexShrink: 1, maxWidth: "60%", textAlign: "right" });
+        expect(sty(name).flex).toBeUndefined();
+        expect(sty(name).flexGrow).toBeUndefined();
+        expect(sty(within(row).getByText("Package"))).toMatchObject({ flexShrink: 0, maxWidth: "40%" });
+        // The date rows keep the default value (no wrap, no shrink), right-aligned with a label that grows to push it to the edge.
+        const date = within(screen.getByLabelText(/^Starts,/)).getByText(shortDate(running.starts_on, "en"));
+        expect(sty(date)).toMatchObject({ flexShrink: 0, textAlign: "right" });
+        expect(sty(within(screen.getByLabelText(/^Starts,/)).getByText("Starts")).flex).toBe(1);
+      } finally {
+        store.delete(key);
+      }
     });
 
     it("puts the two buttons side by side from 400 effective width (412dp at scale 1.0), each sharing the row, wrapping if they do not fit", async () => {

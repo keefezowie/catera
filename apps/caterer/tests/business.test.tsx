@@ -971,7 +971,11 @@ describe("the package photo is not clipped by an ancestor", () => {
 });
 
 describe("the delivery days read as a range", () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => {
+    jest.restoreAllMocks();
+    // The English test stored a locale; it must not reach a later test.
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
+  });
 
   it.each([
     [[1, 2, 3, 4, 5], "id", "Senin–Jumat"],
