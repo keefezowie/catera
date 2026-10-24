@@ -475,22 +475,25 @@ describe("grouped settings cards (customer scale)", () => {
 
   it("a fragment of three rows is divided between all of them, not counted as one row", async () => {
     const error = jest.spyOn(console, "error").mockImplementation(() => undefined);
-    renderV2(
-      runtimeWith(),
-      <SettingsSection title="Akun">
-        <SettingsRow label="Nama" />
-        <>
-          <SettingsRow label="Nomor HP" />
-          <SettingsRow label="Email" />
-          <SettingsRow label="Kata sandi" />
-        </>
-      </SettingsSection>,
-    );
-    expect(await screen.findByText("Kata sandi")).toBeTruthy();
-    expect(screen.getAllByTestId("settings-divider")).toHaveLength(3);
-    // No duplicate-key warning from the flattened rows.
-    expect(error).not.toHaveBeenCalled();
-    error.mockRestore();
+    try {
+      renderV2(
+        runtimeWith(),
+        <SettingsSection title="Akun">
+          <SettingsRow label="Nama" />
+          <>
+            <SettingsRow label="Nomor HP" />
+            <SettingsRow label="Email" />
+            <SettingsRow label="Kata sandi" />
+          </>
+        </SettingsSection>,
+      );
+      expect(await screen.findByText("Kata sandi")).toBeTruthy();
+      expect(screen.getAllByTestId("settings-divider")).toHaveLength(3);
+      // No duplicate-key warning from the flattened rows.
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
   });
 
   it("the cards take the dark fill and drop the light edge", async () => {
