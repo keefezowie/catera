@@ -357,7 +357,13 @@ describe("Pilih menu as photo cards (R4)", () => {
     // Under a day away the line sits on the attention ground, from the dark palette's own tokens.
     const warn = screen.getByTestId("menu-deadline");
     expect(within(warn).getByText(/^Pilih sebelum /)).toBeTruthy();
-    expect(StyleSheet.flatten(warn.props.style).backgroundColor).toBe(nativeThemes.dark.cream);
+    const ground = StyleSheet.flatten(warn.props.style).backgroundColor;
+    expect(ground).toBe(nativeThemes.dark.fill);
+    // Never forest-filled (spec §0): not the inverted `cream` ground, nor the forest itself, and off the page canvas.
+    expect(ground).not.toBe(nativeThemes.dark.cream);
+    expect(ground).not.toBe(nativeThemes.dark.forest);
+    expect(ground).not.toBe(nativeThemes.dark.canvas);
+    jest.restoreAllMocks();
   });
 
   it("{x} dari {n} hari sudah dipilih", async () => {

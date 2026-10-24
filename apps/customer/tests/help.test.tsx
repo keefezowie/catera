@@ -390,6 +390,22 @@ describe("Ada masalah", () => {
     jest.restoreAllMocks();
   });
 
+  it.each(["light", "dark"] as const)("the delivery card stands off the sheet surface (%s)", async (scheme) => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+    renderWith(
+      runtimeWith(),
+      <ThemeProvider storageKey={`masalah-card-${scheme}`}>
+        <ReportProblem />
+      </ThemeProvider>,
+    );
+    const card = await screen.findByTestId("delivery-card");
+    const palette = nativeThemes[scheme];
+    const ground = flat(card).backgroundColor;
+    expect(ground).toBe(palette.well);
+    expect(ground).not.toBe(palette.surface);
+    jest.restoreAllMocks();
+  });
+
   it("uses 44pt targets for the choices", async () => {
     renderWith(runtimeWith(), <ReportProblem />);
     const radio = await screen.findByRole("radio", { name: "Belum sampai" });

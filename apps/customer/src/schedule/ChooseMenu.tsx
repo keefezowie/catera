@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, View } from "react-native";
+import { nativeLayout } from "@catera/design-tokens";
 import { useLocalSearchParams } from "expo-router";
 import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import {
@@ -434,9 +435,9 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
             </View>
             {deadline ? (
               soon ? (
-                <Card tone="attention" testID="menu-deadline">
+                <View testID="menu-deadline" style={styles.soon}>
                   {deadline}
-                </Card>
+                </View>
               ) : (
                 <View testID="menu-deadline">{deadline}</View>
               )
@@ -572,4 +573,14 @@ const useStyles = themedStyles((c) => ({
   // Dish cards: two columns 12 apart, 16 between rows (the cards carry their own 2dp ring and 4 inset).
   grid: { flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 16 },
   deadlineRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  // Under a day: the page's `fill` step with the warm attention edge, never the shared attention card (its `cream`
+  // ground is forest in dark). The ink stays charcoal.
+  soon: {
+    backgroundColor: c.fill,
+    borderColor: c.attentionBorder,
+    borderWidth: 1,
+    borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous",
+    padding: nativeLayout.cardPadding - 1,
+  },
 }));

@@ -1,3 +1,4 @@
+import * as ReactNative from "react-native";
 import { AccessibilityInfo, StyleSheet } from "react-native";
 import { nativeLayout, nativeThemes } from "@catera/design-tokens";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
@@ -289,6 +290,16 @@ describe("Hapus akun", () => {
     for (const s of state.subscriptions) expect(screen.queryByText(new RegExp(s.snapshot.offer.name))).toBeNull();
     // Nothing in the sheet names a day, an hour or a number of days.
     expect(screen.queryByText(/\d+ (hari|jam)|dalam \d/)).toBeNull();
+  });
+
+  it.each(["light", "dark"] as const)("the plans callout stands off the sheet surface (%s)", async (scheme) => {
+    const spy = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+    const { runtime } = runtimeWith({ user: phoneUser, state: eightPlans() });
+    renderWith(runtime, <HapusAkunRoute />);
+    const ground = StyleSheet.flatten((await screen.findByTestId("hapus-akun-plans")).props.style).backgroundColor;
+    expect(ground).toBe(nativeThemes[scheme].well);
+    expect(ground).not.toBe(nativeThemes[scheme].surface);
+    spy.mockRestore();
   });
 
   it("the send button is the danger variant", async () => {

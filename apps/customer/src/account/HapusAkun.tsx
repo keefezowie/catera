@@ -110,7 +110,7 @@ function HapusAkun() {
   // One callout for any number of running plans: the count, then what the request means for them. The plan names go
   // to the team in the request, not onto the sheet.
   const plans = running.length ? (
-    <View testID="hapus-akun-plans" style={{ backgroundColor: c.fill, borderRadius: nativeLayout.radius.card, borderCurve: "continuous", padding: 16, gap: 8 }}>
+    <View testID="hapus-akun-plans" style={{ backgroundColor: c.well, borderRadius: nativeLayout.radius.card, borderCurve: "continuous", padding: 16, gap: 8 }}>
       <Text variant="bodyStrong">{t(`${running.length} paket masih berjalan`, running.length === 1 ? "1 plan still running" : `${running.length} plans still running`)}</Text>
       {[
         t("Pengantaran yang belum lewat dibatalkan.", "Deliveries that have not passed yet are cancelled."),
