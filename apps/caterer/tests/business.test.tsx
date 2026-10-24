@@ -566,6 +566,20 @@ describe("Usaha on the Dapur scale", () => {
     expect(screen.getAllByTestId("list-card")).toHaveLength(count ? 2 : 1);
   });
 
+  it("the payments card's heading is the v2 section variant (20/26, still a header), not the classic 21/28 heading", async () => {
+    scaled(usahaWith([packageNamed(1)], false), <UsahaScreen />);
+    const heading = await screen.findByRole("header", { name: "Terima pembayaran lewat Catera" });
+    expect(bag(heading)).toMatchObject({ fontSize: 20, lineHeight: 26 });
+  });
+
+  it("a package name wraps at 360dp and font scale 1.3 instead of ending in an ellipsis; its meta stays one line", async () => {
+    jest.spyOn(ReactNativeModule, "useWindowDimensions").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
+    scaled(usahaWith([packageNamed(1, { name: "Ayam Panggang Hari Raya Spesial" })], true), <UsahaScreen />);
+    const name = await screen.findByText("Ayam Panggang Hari Raya Spesial");
+    expect(name.props.numberOfLines).toBeUndefined();
+    expect(screen.getByText(/^Rp\s?28\.000 \/ makan · tayang$/).props.numberOfLines).toBe(1);
+  });
+
   it("a draft with no price names only its state; the row never reads a price it does not have", async () => {
     scaled(usahaWith([packageNamed(1, { status: "draft", price: null })], true), <UsahaScreen />);
     expect(await screen.findByText("draf")).toBeTruthy();
@@ -905,6 +919,21 @@ describe("the package photo is not clipped by an ancestor", () => {
     expect(bag(screen.getByTestId("paket-photo-inset")).borderTopLeftRadius).toBeUndefined();
   });
 
+  it("on Usaha: a package's photo carries its own radius and no ancestor, the card included, clips it", async () => {
+    scaled(usahaWith([packageNamed(1), packageNamed(3)], true), <UsahaScreen />);
+    for (const id of ["p-1", "p-3"]) {
+      const image = await screen.findByTestId(`usaha-package-${id}-thumb-image`);
+      expect(bag(image)).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+      expect(clippers(image)).toEqual([]);
+      // The tile behind it is 56 r8 too, and is not a clipping view either.
+      expect(bag(screen.getByTestId(`usaha-package-${id}-thumb`))).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+    }
+    // The package card is the open ListCard; the Kelola card keeps its clip (it holds no photo).
+    const [packages, kelola] = screen.getAllByTestId("list-card");
+    expect(bag(packages).overflow).toBe("visible");
+    expect(bag(kelola).overflow).toBe("hidden");
+  });
+
   it("in the editor: the same for a photo that arrives after the screen has mounted, and for an edit's own", async () => {
     const picker = require("expo-image-picker") as { launchImageLibraryAsync: jest.Mock };
     picker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///x.jpg" }] });
@@ -958,14 +987,29 @@ describe("the delivery days read as a range", () => {
     expect(weekdayLabel([...days], locale)).toBe(text);
   });
 
-  it("a seven-day package stays whole in its 40 row at 360dp and font scale 1.3", () => {
+  it("text values wrap beside a label that keeps its width, at 360dp and font scale 1.3 in English; the price stays whole", async () => {
     jest.spyOn(ReactNativeModule, "useWindowDimensions").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
-    scaled(runtimeWith({}), <PackageDetail offer={{ ...photoOffer, weekdays: [1, 2, 3, 4, 5, 6, 0] } as typeof photoOffer} />);
-    const value = within(screen.getByTestId("paket-fact-hari")).getByText("Senin–Minggu");
+    const runtime = runtimeWith({});
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
+    scaled(runtime, <PackageDetail offer={{ ...photoOffer, weekdays: [1, 2, 4, 5, 0], capacity: { "1": 40 } } as typeof photoOffer} />);
+    await screen.findByText("Delivery days");
+    const days = screen.getByTestId("paket-fact-hari");
+    const label = within(days).getByText("Delivery days");
+    const value = within(days).getByText("Mon, Tue, Thu, Fri, Sun");
+    // The value may wrap (no line cap) and takes at most 60% of the row, on the right edge.
     expect(value.props.numberOfLines).toBeUndefined();
-    // About 100dp at 1.3x of the 296 inner width, so the label keeps its room beside it.
-    expect("Senin–Minggu".length * 8.3 * 1.3).toBeLessThan(296 - 120);
-    expect(within(screen.getByTestId("paket-fact-hari")).getByText("Hari antar")).toBeTruthy();
+    expect(bag(value)).toMatchObject({ maxWidth: "60%", textAlign: "right", flex: 1 });
+    // The label keeps its own width (it breaks between words, never inside one) instead of being squeezed by the value.
+    expect(bag(label)).toMatchObject({ flexShrink: 0, maxWidth: "40%" });
+    expect(bag(label).flex).toBeUndefined();
+    // The capacity ("n portions a day") is text too.
+    const capacity = within(screen.getByTestId("paket-fact-kapasitas")).getByText("40 portions a day");
+    expect(bag(capacity)).toMatchObject({ maxWidth: "60%" });
+    // Money is unchanged: the price never shrinks and has no width cap.
+    const price = within(screen.getByTestId("paket-fact-harga")).getByText(/per portion$/);
+    expect(bag(price)).toMatchObject({ flexShrink: 0 });
+    expect(bag(price).maxWidth).toBeUndefined();
+    expect(bag(within(screen.getByTestId("paket-fact-harga")).getByText("Price")).flex).toBe(1);
   });
 });
 

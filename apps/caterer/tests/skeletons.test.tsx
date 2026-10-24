@@ -505,18 +505,26 @@ describe("Menu", () => {
     expect(flat(row).flexWrap).not.toBe("wrap");
   });
 
-  it("the controls skeleton is built from the loaded controls' constants: a 34 chip in a 48 frame, then two 50 buttons", async () => {
+  it("the controls skeleton is built from the loaded controls' constants: a 34 chip in a 48 frame, then two 50 pill buttons", async () => {
+    jest.spyOn(require("react-native") as typeof ReactNative, "useWindowDimensions").mockReturnValue({ width: 412, height: 860, scale: 3, fontScale: 1 });
     renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
     const chip = await screen.findByTestId("menu-skeleton-chip", { includeHiddenElements: true });
     expect(flat(chip).height).toBe(34);
     // The frame around the chip is 48 tall, like the package chips' frame once loaded.
     expect(flat(ancestor(chip, (n) => flat(n).height === 48)!)).toMatchObject({ height: 48, justifyContent: "center" });
     for (const id of ["menu-skeleton-copy", "menu-skeleton-share"]) {
-      expect(flat(screen.getByTestId(id, { includeHiddenElements: true }))).toMatchObject({ height: 50 });
+      expect(flat(screen.getByTestId(id, { includeHiddenElements: true }))).toMatchObject({ height: 50, borderRadius: 25 });
     }
     // The buttons sit side by side, 8 apart, as the loaded row does.
     const copy = screen.getByTestId("menu-skeleton-copy", { includeHiddenElements: true });
     expect(flat(ancestor(copy, (n) => flat(n).flexDirection === "row")!)).toMatchObject({ flexDirection: "row", gap: 8 });
+  });
+
+  it("the controls skeleton stacks its two buttons where the loaded pair stacks (360 at font scale 1.3)", async () => {
+    jest.spyOn(require("react-native") as typeof ReactNative, "useWindowDimensions").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
+    const copy = await screen.findByTestId("menu-skeleton-copy", { includeHiddenElements: true });
+    expect(flat(ancestor(copy, (n) => flat(n).flexDirection === "column" && flat(n).gap === 8)!)).toMatchObject({ gap: 8 });
   });
 
   it("the day card's skeleton is a section header line over 64 rows with 48 thumbs, like the loaded day", async () => {

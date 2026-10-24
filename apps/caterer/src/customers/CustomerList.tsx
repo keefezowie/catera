@@ -113,7 +113,7 @@ export function CustomerList() {
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={addLabel}
-              haptic="none"
+              haptic="tap"
               onPress={() => router.push("/impor" as never)}
               style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, marginRight: -8, marginVertical: -2 }}
             >

@@ -8,7 +8,7 @@ import { MoodArc, type MoodArcProps } from "./brand/MoodArc";
 import { DEMO_STRIP_HEIGHT } from "./DemoStrip";
 import { useMoodProgress } from "./brand/useMoodProgress";
 import { Text } from "./components";
-import { useLayoutScale, useScreenMargin } from "./layoutScale";
+import { useLayoutScale, useScreenMargin, useTouchTarget } from "./layoutScale";
 import { MoodFill } from "./MoodFill";
 import { statusBarStyle, useMood, useMoodColors, useMoodLabels } from "./mood";
 import { PressableScale } from "./motion";
@@ -32,13 +32,24 @@ const TRACK_EDGE = 1.5;
 const TRACK_INNER = TRACK_PADDING - TRACK_EDGE;
 const TAB_MIN_WIDTH = 84;
 const TAB_PADDING = 12;
+/** The compact toggle (Dapur's Hari ini band and Menu): a 34 track holding 30 pills, its 1 edge and 1 padding around them. */
+const COMPACT_TRACK = 34;
+const COMPACT_EDGE = 1;
+const COMPACT_INNER = 1;
 
 /**
  * The Siang / Malam switch: a two-tab tablist on a pill track, with the active pill sliding to the chosen tab.
  * Reads and writes the app's mood; the labels come from `MoodLabelsProvider`. Both tabs are as wide as the wider label, so the
- * pill is the same size on either one and never overhangs the narrower tab.
+ * pill is the same size on either one and never overhangs the narrower tab. `size="compact"` (Dapur's Hari ini band and Menu) draws
+ * a 34 track holding 30 pills, with a whole-dp width, whose tabs keep the root's touch target through `hitSlop` (7 above and
+ * below under Dapur's 48), like the v2 `Segmented`; the default is unchanged.
  */
-export function MoodToggle() {
+export function MoodToggle({ size = "regular" }: { size?: "regular" | "compact" }) {
+  const compact = size === "compact";
+  const edge = compact ? COMPACT_EDGE : TRACK_EDGE;
+  const inner = compact ? COMPACT_INNER : TRACK_INNER;
+  // A compact tab is the whole 34 of the track and reaches the root's touch target through its hit area, like the v2 Segmented.
+  const slop = Math.max(0, (useTouchTarget() - COMPACT_TRACK) / 2);
   const { mood, setMood } = useMood();
   const labels = useMoodLabels();
   const palette = useMoodColors();
@@ -52,7 +63,9 @@ export function MoodToggle() {
       return index === 0 ? [width, prev[1]] : [prev[0], width];
     });
   };
-  const tabWidth = Math.max(TAB_MIN_WIDTH, Math.max(content[0], content[1]) + TAB_PADDING * 2);
+  // A compact track has a whole-dp width, so a screen that centres it never lands on a half pixel.
+  const natural = Math.max(TAB_MIN_WIDTH, Math.max(content[0], content[1]) + TAB_PADDING * 2);
+  const tabWidth = compact ? Math.ceil(natural) : natural;
 
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: progress.value * tabWidth }] }));
   const rest = { transform: [{ translateX: target * tabWidth }] };
@@ -67,11 +80,13 @@ export function MoodToggle() {
       accessibilityRole="tablist"
       style={{
         flexDirection: "row",
-        padding: TRACK_INNER,
+        alignItems: compact ? "center" : undefined,
+        padding: inner,
         borderRadius: 999,
         backgroundColor: palette.toggleTrack,
-        borderWidth: TRACK_EDGE,
+        borderWidth: edge,
         borderColor: palette.markerIdle,
+        ...(compact ? { width: tabWidth * 2 + (edge + inner) * 2 } : null),
       }}
     >
       <Animated.View
@@ -80,9 +95,9 @@ export function MoodToggle() {
         style={[
           {
             position: "absolute",
-            top: TRACK_INNER,
-            bottom: TRACK_INNER,
-            left: TRACK_INNER,
+            top: inner,
+            bottom: inner,
+            left: inner,
             width: tabWidth,
             borderRadius: 999,
             // The selected segment is a pill in the card colour with a forest ring and label (direction K).
@@ -105,8 +120,9 @@ export function MoodToggle() {
             // The tab that is already chosen has nothing to confirm.
             haptic={active ? "none" : "select"}
             onPress={() => setMood(option.value)}
+            hitSlop={compact && slop > 0 ? { top: slop, bottom: slop } : undefined}
             style={{
-              minHeight: 48,
+              ...(compact ? { height: COMPACT_TRACK, marginVertical: -(edge + inner) } : { minHeight: 48 }),
               width: tabWidth,
               alignItems: "center",
               justifyContent: "center",
@@ -143,6 +159,7 @@ const isText = (node: ReactNode): node is string | number => typeof node === "st
  *   tabs ride on a 3dp track that overhangs the row evenly above and below. The meta line carries a fact (a date, the
  *   area), never the tab's own name. With both a toggle and a trailing control, the toggle comes first and the trailing control (Dapur's settings gear for a helper
  *   on Menu) sits at the end.
+ * - `toggleSize="compact"` draws that toggle as the 34 track, so a 36 `band` row stays 36 (the regular 54 track grows it to 48).
  * - Under the v2 layout scale the top row is 44 (`nativeLayout.control.icon`), the icon button size; classic keeps 48.
  * - `plain` is a header with no mood band: no fill, no rounded corners, the screen's canvas behind it, 8 above the row
  *   and nothing below (the screen body's own 16 follows), and its own meta text in the muted ink. The caller colours the
@@ -167,6 +184,7 @@ export function MoodHeader({
   overlap = 0,
   band = false,
   plain = false,
+  toggleSize = "regular",
   testID = "mood-header",
 }: {
   meta?: ReactNode;
@@ -182,6 +200,8 @@ export function MoodHeader({
   band?: boolean;
   /** No mood fill or rounded band: the header sits on the canvas (v2 Jelajah). */
   plain?: boolean;
+  /** `compact` draws the Siang / Malam toggle as a 34 track, so a 36 band row stays 36 (Dapur's Hari ini). */
+  toggleSize?: "regular" | "compact";
   testID?: string;
 }) {
   const insets = useSafeAreaInsets();
@@ -247,8 +267,8 @@ export function MoodHeader({
               )}
             </View>
             {toggle && !arc ? (
-              <View style={{ flexShrink: 0, marginVertical: -TRACK_PADDING }}>
-                <MoodToggle />
+              <View style={{ flexShrink: 0, marginVertical: toggleSize === "compact" ? 0 : -TRACK_PADDING }}>
+                <MoodToggle size={toggleSize} />
               </View>
             ) : null}
             {hasTrailing ? <View style={{ flexShrink: 0 }}>{trailing}</View> : null}

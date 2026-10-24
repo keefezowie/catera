@@ -484,6 +484,16 @@ describe("Pelanggan on the Dapur scale", () => {
       expect(router.push).toHaveBeenCalledWith("/impor");
     });
 
+    it("gives + Pelanggan lama the tap haptic the Button had, once per press", async () => {
+      const Haptics = require("expo-haptics") as { impactAsync: jest.Mock };
+      dapur(runtimeWith("approved", true), <CustomerList />);
+      const add = await screen.findByRole("button", { name: "+ Pelanggan lama" });
+      Haptics.impactAsync.mockClear();
+      fireEvent.press(add);
+      expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+      expect(router.push).toHaveBeenLastCalledWith("/impor");
+    });
+
     it("stays the same while the list loads and when the read fails", async () => {
       const first = dapur(hold(runtimeWith("approved", true)), <CustomerList />);
       const header = await screen.findByTestId("pelanggan-header");
@@ -696,6 +706,18 @@ describe("Pelanggan on the Dapur scale", () => {
         expect(sty(screen.getByTestId("customer-actions")).flexDirection).toBe("column");
         view.unmount();
       }
+    });
+
+    it("lets a long package name wrap beside its label at 360dp and font scale 1.3, the label keeping its width", async () => {
+      phone(360, 1.3);
+      open([record([{ ...running, package_name: "Makan Siang Keluarga Besar Rumahan" }])]);
+      const name = await screen.findByText("Makan Siang Keluarga Besar Rumahan");
+      const row = screen.getByLabelText("Paket, Makan Siang Keluarga Besar Rumahan");
+      expect(name.props.numberOfLines).toBeUndefined();
+      expect(sty(name)).toMatchObject({ maxWidth: "60%", textAlign: "right" });
+      expect(sty(within(row).getByText("Paket"))).toMatchObject({ flexShrink: 0, maxWidth: "40%" });
+      // A money-free numeric row keeps the default value: the dates never wrap or shrink.
+      expect(sty(within(screen.getByLabelText(/^Mulai,/)).getByText(shortDate(running.starts_on, "id")))).toMatchObject({ flexShrink: 0 });
     });
 
     it("puts the two buttons side by side from 400 effective width (412dp at scale 1.0), each sharing the row, wrapping if they do not fit", async () => {

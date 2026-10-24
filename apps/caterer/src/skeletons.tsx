@@ -2,6 +2,7 @@ import { View, type DimensionValue } from "react-native";
 import { useMobile } from "@catera/mobile-core";
 import { Card, CHECK_ROW_INSET, COMPACT_MEDIA_INSET, ListCard, Skeleton, SkeletonGroup, trackLabelLines, useScreenMargin, useTouchTarget } from "@catera/mobile-ui";
 import { nativeLayout } from "@catera/design-tokens";
+import { useActionPairStacked } from "./layout/useActionPairStacked";
 import { CHECK_HEIGHT, FIGURE_GAP, FIGURE_TOP, HEADING_GAP, HEADING_LINE, PACKAGE_HEIGHT, SECTION_GAP } from "./today/rows";
 
 /**
@@ -159,10 +160,11 @@ export function MenuStripSkeleton({ days = 5, height, gap }: { days?: number; he
 
 /**
  * Menu's controls while the packages load, from the loaded controls' constants: a 34 package chip centred in its 48
- * frame, then the 50 buttons side by side, Salin minggu lalu only for the owner (the one who can copy), Bagikan menu
+ * frame, then the 50 pill buttons (radius 25) side by side, or stacked where the loaded pair stacks, Salin minggu lalu only for the owner (the one who can copy), Bagikan menu
  * for both. Hidden from screen readers: the day card names the wait.
  */
 export function MenuControlsSkeleton({ owner = false }: { owner?: boolean }) {
+  const stacked = useActionPairStacked() && owner;
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <SkeletonGroup label="">
@@ -170,14 +172,14 @@ export function MenuControlsSkeleton({ owner = false }: { owner?: boolean }) {
           <View style={{ height: 48, justifyContent: "center" }}>
             <Skeleton width={168} height={34} radius={17} testID="menu-skeleton-chip" />
           </View>
-          <View style={{ flexDirection: "row", gap: 8 }}>
+          <View style={{ flexDirection: stacked ? "column" : "row", gap: 8 }}>
             {owner ? (
-              <View style={{ flex: 1 }}>
-                <Skeleton height={50} radius={12} testID="menu-skeleton-copy" />
+              <View style={stacked ? undefined : { flex: 1 }}>
+                <Skeleton height={50} radius={25} testID="menu-skeleton-copy" />
               </View>
             ) : null}
-            <View style={{ flex: 1 }}>
-              <Skeleton height={50} radius={12} testID="menu-skeleton-share" />
+            <View style={stacked ? undefined : { flex: 1 }}>
+              <Skeleton height={50} radius={25} testID="menu-skeleton-share" />
             </View>
           </View>
         </View>

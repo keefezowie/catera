@@ -422,6 +422,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           band
           meta={[catererName, dayWord].filter(Boolean).join(" · ")}
           toggle
+          toggleSize="compact"
           title={
             <PressableScale
               accessibilityRole="button"

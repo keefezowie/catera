@@ -1,7 +1,6 @@
-import { Children, Fragment, isValidElement, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, ScrollView, Share, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Image as PhotoImage } from "expo-image";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -22,14 +21,13 @@ import { plural, useData, useMobile, type MobileRuntime } from "@catera/mobile-c
 import { nativeLayout } from "@catera/design-tokens";
 import {
   Button,
-  cardEdge,
-  cardEdgeWidth,
   Chip,
   COMPACT_MEDIA_INSET,
   DecorativeIcon,
   FadeSwap,
   fontFor,
   FormError,
+  ListCard,
   MediaRow,
   MoodHeader,
   MoodToggle,
@@ -45,6 +43,8 @@ import {
   useMoodColors,
   useScreenMargin,
 } from "@catera/mobile-ui";
+import { PhotoThumb } from "../layout/PhotoThumb";
+import { useActionPairStacked } from "../layout/useActionPairStacked";
 import { copyWeekBatches, mealOf, saveMenuDay, weekdayShort, weekDates, weekRange } from "./logic";
 import { uploadPhoto } from "../business/upload";
 import { photoUri } from "../photo";
@@ -113,42 +113,12 @@ const STRIP_GAP = 4;
 const DAY_HEIGHT = 56;
 /** The package chips' frame: a 34 chip with its 48 target (hitSlop 7) must not be clipped by the scroller. */
 const CHIP_FRAME = 48;
-/** The Siang / Malam frame under the week range: a minimum, as the toggle's 48 tabs on a 3 track are 54 tall. */
+/** The Siang / Malam frame under the week range: a minimum, so the compact 34 track (48 target) sits inside it. */
 const MEAL_FRAME = 48;
 /** The customer story cover's width on the day's page (the board draws 160 by 200). */
 const COVER_WIDTH = 160;
 /** The photo tile: the dish thumb's size in a compact row. */
 const THUMB = nativeLayout.thumb.compact;
-
-/**
- * A day group's list: the look of `ListCard` (surface, radius 16, 16 side padding, a hairline from the text column between
- * rows) but without its `overflow: hidden`. The dish photos load late, and on Android a photo that finishes loading inside an
- * overflow-hidden rounded view stayed blank until the screen was reopened; the rows never touch the corners, so nothing
- * here needs clipping.
- */
-function DishList({ children }: { children: ReactNode }) {
-  const c = useColors();
-  const rows = Children.toArray(children);
-  return (
-    <View
-      testID="menu-dish-list"
-      style={{
-        backgroundColor: c.surface,
-        borderRadius: nativeLayout.radius.card,
-        borderCurve: "continuous",
-        paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
-        ...cardEdge(c),
-      }}
-    >
-      {rows.map((child, i) => (
-        <Fragment key={isValidElement(child) && child.key != null ? child.key : i}>
-          {i > 0 ? <View style={{ height: 1, marginLeft: COMPACT_MEDIA_INSET, backgroundColor: c.line }} /> : null}
-          {child}
-        </Fragment>
-      ))}
-    </View>
-  );
-}
 
 /**
  * One dish in the day's list: a 64 compact media row with its photo in a 48 thumb, or a dashed not-set tile with the
@@ -181,20 +151,8 @@ function DishRow({
   const dashed = { ...tile, borderWidth: 1.5, borderStyle: "dashed", borderColor: c.controlRing } as const;
   let leading: ReactNode;
   if (dish.image) {
-    // The image rounds its own corners and no ancestor clips it (see `DishList`).
-    leading = (
-      <View
-        testID={`menu-dish-photo-${dish.id}`}
-        style={{ width: THUMB, height: THUMB, borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", backgroundColor: c.sage }}
-      >
-        <PhotoImage
-          source={{ uri: photoUri(dish.image, runtime.apiBase) }}
-          contentFit="cover"
-          accessible={false}
-          style={{ width: THUMB, height: THUMB, borderRadius: nativeLayout.radius.thumb }}
-        />
-      </View>
-    );
+    // The image rounds its own corners and no ancestor clips it (the day's group is a `ListCard clip={false}`).
+    leading = <PhotoThumb testID={`menu-dish-photo-${dish.id}`} uri={photoUri(dish.image, runtime.apiBase)} size={THUMB} />;
   } else if (canAddPhoto || uploading) {
     // A photo is on its way (uploading, or saved and waiting for the fresh week): not the empty "no photo" tile.
     leading = (
@@ -250,6 +208,8 @@ export function MenuWeek() {
   const { mood } = useMood();
   const { width: windowWidth } = useWindowDimensions();
   const margin = useScreenMargin();
+  // Copy and share stack below the shared effective width, like the customer's action pair.
+  const stacked = useActionPairStacked();
   const catererId = actor?.catererId ?? "";
   const canEdit = actor?.role === "owner";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
@@ -505,10 +465,11 @@ export function MenuWeek() {
           }
         >
           <View style={{ gap: 12 }}>
-            {/* Siang / Malam picks the meal of a package that serves both: its own 48 frame under the week range. */}
+            {/* Siang / Malam picks the meal of a package that serves both: a compact 34 track (a whole-dp width, so the
+                centring never lands on a half pixel) in its own 48 frame under the week range. */}
             {offer?.meal === "both" ? (
               <View testID="menu-meal-frame" style={{ minHeight: MEAL_FRAME, alignItems: "center", justifyContent: "center" }}>
-                <MoodToggle />
+                <MoodToggle size="compact" />
               </View>
             ) : null}
             {/* The day strip enters from its blocks as one piece, in the same place on the header. */}
@@ -611,11 +572,11 @@ export function MenuWeek() {
                 <Chip key={o.id} label={o.name} selected={o.id === offer?.id} onPress={() => setPackageId(o.id)} />
               ))}
             </ScrollView>
-            <View testID="menu-actions" style={{ flexDirection: "row", gap: 8 }}>
+            <View testID="menu-actions" style={{ flexDirection: canEdit && stacked ? "column" : "row", gap: 8 }}>
               {canEdit ? (
-                <Button style={{ flex: 1 }} variant="secondary" busy={busy} disabled={!weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
+                <Button style={canEdit && stacked ? undefined : { flex: 1 }} variant="secondary" busy={busy} disabled={!weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
               ) : null}
-              <Button style={{ flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
+              <Button style={canEdit && stacked ? undefined : { flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
             </View>
             {hasNotes ? (
               // Under the buttons, the captions and the copy result: 8 below them on the board, 4 apart.
@@ -669,7 +630,7 @@ export function MenuWeek() {
                   return rows.length ? (
                     <View key={g.id} style={{ gap: 8 }}>
                       <Text variant="meta">{componentLabel(g, locale)}</Text>
-                      <DishList>
+                      <ListCard inset={COMPACT_MEDIA_INSET} clip={false}>
                         {rows.map((dish) => (
                           <DishRow
                             key={dish.id}
@@ -680,7 +641,7 @@ export function MenuWeek() {
                             onAdd={() => void addPhoto(selected, dish)}
                           />
                         ))}
-                      </DishList>
+                      </ListCard>
                     </View>
                   ) : null;
                 })}

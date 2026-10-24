@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { errorLabel, kitchenSession, type KitchenMeal, type Stop } from "@catera/domain";
@@ -22,6 +21,7 @@ import {
   useToast,
 } from "@catera/mobile-ui";
 import { FooterSkeleton, Frame, SkeletonLine, takeParkedDay } from "./ExceptionSheet";
+import { PhotoThumb } from "../layout/PhotoThumb";
 import { shrinkProof, uploadProof } from "./proof";
 import { selectedFor } from "./selection";
 import { ReadError } from "../ReadError";
@@ -99,18 +99,14 @@ function Tile({
       <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md, flexShrink: 1, flex: stacked ? undefined : 1 }}>
         {photo ? (
           // The photo rounds its own corners and no ancestor clips it (the list is `clip={false}`); the tile behind it is the surface.
-          <View
+          <PhotoThumb
             testID={`proof-thumb-${stop.deliveryId}`}
-            style={{ width: THUMB, height: THUMB, borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", backgroundColor: c.surface }}
-          >
-            <Image
-              testID={`proof-photo-${stop.deliveryId}`}
-              source={{ uri: photo.uri }}
-              contentFit="cover"
-              style={{ width: THUMB, height: THUMB, borderRadius: nativeLayout.radius.thumb }}
-              accessibilityLabel={`${t("Foto bukti", "Proof photo")}: ${stop.name}`}
-            />
-          </View>
+            imageTestID={`proof-photo-${stop.deliveryId}`}
+            uri={photo.uri}
+            size={THUMB}
+            backdrop="surface"
+            accessibilityLabel={`${t("Foto bukti", "Proof photo")}: ${stop.name}`}
+          />
         ) : (
           // No photo yet: the dashed not-set tile. It holds no image, so its own clip is harmless.
           <Thumb notSet icon="camera-outline" size={THUMB} testID={`proof-thumb-${stop.deliveryId}`} />

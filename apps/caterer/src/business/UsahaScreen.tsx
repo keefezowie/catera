@@ -26,6 +26,7 @@ import {
 } from "@catera/mobile-ui";
 import { usePaymentsActive } from "../customers/usePayments";
 import { packageHref } from "../hrefs";
+import { PhotoThumb } from "../layout/PhotoThumb";
 import { photoUri } from "../photo";
 import { ReadError } from "../ReadError";
 
@@ -137,7 +138,7 @@ export function UsahaScreen() {
         {payments === false ? (
           <View testID="usaha-payments">
             <Card tone="attention">
-              <Text variant="heading">{t("Terima pembayaran lewat Catera", "Take payments through Catera")}</Text>
+              <Text variant="section">{t("Terima pembayaran lewat Catera", "Take payments through Catera")}</Text>
               <Text>{t("Supaya pelanggan bisa memperpanjang lewat Catera.", "So customers can renew through Catera.")}</Text>
               <Button label={t("Aktifkan pembayaran", "Turn on payments")} onPress={() => router.push("/aktifkan" as never)} />
             </Card>
@@ -171,7 +172,8 @@ export function UsahaScreen() {
             <FadeSwap swapKey={ops.data ? "packages" : "loading"}>
               {ops.data ? (
                 offers.length ? (
-                  <ListCard>
+                  // clip={false}: the package photo carries its own radius (`PhotoThumb`); inside a clipping card a late photo can stay blank on Android.
+                  <ListCard clip={false}>
                     {offers.map((o) => {
                       // A draft with no price yet shows only its state: no stand-in for a value the read does not hold.
                       const state = o.status === "published" ? t("tayang", "live") : t("draf", "draft");
@@ -184,7 +186,9 @@ export function UsahaScreen() {
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <MediaRow
                               testID={`usaha-package-${o.id}`}
-                              image={image}
+                              leading={<PhotoThumb testID={`usaha-package-${o.id}-thumb`} uri={image} size={nativeLayout.thumb.sm} />}
+                              // A package name is identity: it wraps rather than ending in an ellipsis at 360.
+                              wrap="title"
                               title={o.name}
                               meta={meta}
                               accessibilityLabel={o.name}

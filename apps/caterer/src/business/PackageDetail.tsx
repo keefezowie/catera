@@ -16,7 +16,7 @@ const FULL_DAYS = {
 /**
  * The delivery days as short as they read: a run of three or more in a row is a range ("Senin–Jumat", "Senin–Minggu"),
  * and days apart stay a short list ("Sen, Rab, Jum"). When the days are one group they use whole names; with several
- * groups they use the short ones, so the value stays inside its 40 row at large text (a `KeyValueRow` value never shrinks).
+ * groups they use the short ones, so the value stays short; the row lets a text value wrap (`valueWraps`).
  */
 export function weekdayLabel(weekdays: number[], locale: Locale): string {
   const places = [...new Set(weekdays.map((d) => (d + 6) % 7))].sort((a, b) => a - b);
@@ -61,10 +61,11 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
               label={t("Harga", "Price")}
               value={offer.price === null ? t("Belum ada harga", "No price yet") : `${currency(offer.price, locale)} ${t("per porsi", "per portion")}`}
             />
-            <KeyValueRow testID="paket-fact-hari" label={t("Hari antar", "Delivery days")} value={weekdayLabel(offer.weekdays, locale)} />
+            <KeyValueRow testID="paket-fact-hari" valueWraps label={t("Hari antar", "Delivery days")} value={weekdayLabel(offer.weekdays, locale)} />
             {capacity !== undefined ? (
               <KeyValueRow
                 testID="paket-fact-kapasitas"
+                valueWraps
                 label={t("Kapasitas", "Capacity")}
                 value={t(`${capacity} porsi per hari`, `${plural(capacity, "portion")} a day`)}
               />

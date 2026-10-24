@@ -734,6 +734,22 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(screen.queryByRole("button", { name: "Pengaturan" })).toBeNull();
     });
 
+    it("draws the toggle compact in the frame: a 34 track of a whole-dp width (so centring never lands on a half pixel), tabs reaching 48 by hitSlop 7", async () => {
+      mount({ offers: [bothOffer()] });
+      await screen.findByText("5–9 Okt");
+      const frame = screen.getByTestId("menu-meal-frame");
+      const [track] = frame.findAll((n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist");
+      const style = StyleSheet.flatten(track.props.style);
+      expect(style).toMatchObject({ borderWidth: 1, padding: 1 });
+      expect(Number.isInteger(style.width)).toBe(true);
+      // Both tabs are as wide as the wider label and the track holds exactly the two plus its 2 + 2 edge: an even width.
+      expect((style.width as number) % 2).toBe(0);
+      for (const tab of within(frame).getAllByRole("tab")) {
+        expect(StyleSheet.flatten(tab.props.style)).toMatchObject({ height: 34, marginVertical: -2 });
+        expect(tab.props.hitSlop).toEqual({ top: 7, bottom: 7 });
+      }
+    });
+
     it("draws no meal frame for a single-meal package", async () => {
       mount();
       await screen.findByText("5–9 Okt");
@@ -947,6 +963,48 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       for (const b of buttons) expect(StyleSheet.flatten(b.props.style)).toMatchObject({ flex: 1, minHeight: 50, borderWidth: 1 });
     });
 
+    it("stacks Salin minggu lalu over Bagikan menu below 400 effective width (360dp at font scale 1.3), each on its own line", async () => {
+      mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+      try {
+        mount();
+        await screen.findByText("5–9 Okt");
+        const row = screen.getByTestId("menu-actions");
+        expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: "column", gap: 8 });
+        const buttons = within(row).getAllByRole("button");
+        expect(buttons.map((b) => b.props.accessibilityLabel)).toEqual(["Salin minggu lalu", "Bagikan menu"]);
+        for (const b of buttons) {
+          expect(StyleSheet.flatten(b.props.style).flex).toBeUndefined();
+          expect(StyleSheet.flatten(b.props.style).minHeight).toBe(50);
+        }
+      } finally {
+        mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+      }
+    });
+
+    it("keeps the pair side by side from 400 effective width (412dp at font scale 1.0), the same rule the customer's pair uses", async () => {
+      mockWindow = { width: 412, height: 860, scale: 3, fontScale: 1 };
+      try {
+        mount();
+        await screen.findByText("5–9 Okt");
+        expect(StyleSheet.flatten(screen.getByTestId("menu-actions").props.style).flexDirection).toBe("row");
+        for (const b of within(screen.getByTestId("menu-actions")).getAllByRole("button")) expect(StyleSheet.flatten(b.props.style).flex).toBe(1);
+      } finally {
+        mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+      }
+    });
+
+    it("a helper's lone Bagikan menu keeps its full-width row even where an owner's pair stacks", async () => {
+      mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+      try {
+        mount({ role: "staff" });
+        await screen.findByText("5–9 Okt");
+        expect(StyleSheet.flatten(screen.getByTestId("menu-actions").props.style).flexDirection).toBe("row");
+        expect(StyleSheet.flatten(within(screen.getByTestId("menu-actions")).getByRole("button").props.style).flex).toBe(1);
+      } finally {
+        mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+      }
+    });
+
     it("a helper has Bagikan menu alone, across the full width", async () => {
       mount({ role: "staff" });
       await screen.findByText("5–9 Okt");
@@ -963,7 +1021,13 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       await screen.findByText("Nasi putih");
       // Each group is a meta label over its own list card.
       for (const label of ["Nasi", "Lauk", "Sayur"]) expect(StyleSheet.flatten(screen.getByText(label).props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
-      expect(screen.getAllByTestId("menu-dish-list")).toHaveLength(3);
+      // Each group is the shared ListCard, open (`clip={false}`) so a late photo is never inside an overflow-hidden view, its
+      // separators inset to the 48 thumb's text column.
+      const cards = screen.getAllByTestId("list-card");
+      expect(cards).toHaveLength(3);
+      for (const card of cards) expect(StyleSheet.flatten(card.props.style).overflow).toBe("visible");
+      expect(StyleSheet.flatten(screen.getAllByTestId("list-card-separator")[0].props.style).marginLeft).toBe(60);
+      expect(screen.queryByTestId("menu-dish-list")).toBeNull();
       expect(screen.getByText("Ayam goreng")).toBeTruthy();
       expect(screen.getByText("Tempe bacem")).toBeTruthy();
       // The not-set tile is a 48 dashed square with the camera glyph, radius 8, like Thumb's.

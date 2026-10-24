@@ -18,8 +18,8 @@ import {
   Text,
   useBusy,
   useColors,
-  useStackedLayout,
 } from "@catera/mobile-ui";
+import { useActionPairStacked } from "../layout/useActionPairStacked";
 import { activeSubscriptions, customerStatus, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
@@ -30,13 +30,6 @@ import { DetailSkeleton } from "../skeletons";
 const SCHEDULE_CAP = 5;
 /** The screen body spaces its blocks 16 apart; the address and the schedules sit the Dapur section gap (24) apart. */
 const SECTION_LIFT = nativeLayout.dense.sectionGap - 16;
-/**
- * Below this effective width (`width / fontScale`) the two action buttons stack, so neither label wraps inside its 50
- * pill: at 360 the renew label gets about half of the 328 inner width and does not fit. From 400 up they share a row
- * (WhatsApp's label about 100 and renew's about 180, with 16 padding each side and the 8 gap, is near 350 of the 380 at
- * 412); the row wraps, so if they still do not fit the renew button drops to its own full-width line.
- */
-const STACK_BELOW = 400;
 /** In a row each action takes its own width and shares what is left, so one alone fills the row. */
 const GROW = { flexGrow: 1, flexShrink: 0 } as const;
 
@@ -56,7 +49,8 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const [which, setWhich] = useState("");
   // Which packages' schedules were opened past the first five.
   const [opened, setOpened] = useState<Record<string, boolean>>({});
-  const stacked = useStackedLayout(STACK_BELOW);
+  // Below 400 effective dp the two action buttons stack (the shared pair rule); from 400 up the row wraps if they do not fit.
+  const stacked = useActionPairStacked();
   const c = record.data;
   const [busy, renew] = useBusy(async (s: CustomerSubscription) => {
     if (!c) return;
@@ -137,13 +131,13 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
           return (
             <Fragment key={s.id}>
               <ListCard inset={0}>
-                <KeyValueRow label={t("Paket", "Package")} value={s.package_name} />
+                <KeyValueRow label={t("Paket", "Package")} value={s.package_name} valueWraps />
                 <KeyValueRow label={t("Mulai", "Starts")} value={shortDate(s.starts_on, locale)} />
                 {pastEnd ? null : <KeyValueRow label={t("Selesai", "Ends")} value={shortDate(s.ends_on, locale)} />}
                 {s.remaining > 0 ? (
                   <KeyValueRow label={t("Sisa", "Left")} value={t(`${s.remaining} hari`, s.remaining === 1 ? "1 day" : `${s.remaining} days`)} />
                 ) : null}
-                <KeyValueRow label={t("Porsi", "Portions")} value={t(`${s.portions} per hari`, `${s.portions} per day`)} />
+                <KeyValueRow label={t("Porsi", "Portions")} value={t(`${s.portions} per hari`, `${s.portions} per day`)} valueWraps />
               </ListCard>
               {chat || renewable ? (
                 <View style={{ gap: 8 }}>

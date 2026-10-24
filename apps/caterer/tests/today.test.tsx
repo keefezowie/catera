@@ -501,6 +501,26 @@ describe("Hari ini by mood", () => {
     expect(screen.queryByText("Masak")).toBeNull();
   });
 
+  it("draws the band's Siang / Malam toggle compact: a 34 track that keeps the 36 row, its tabs reaching 48 by hitSlop 7", async () => {
+    renderMood(runtimeWith(same(canvasDay())));
+    await screen.findByTestId("session-count");
+    const row = within(screen.getByTestId("mood-header")).getByTestId("mood-header-row");
+    expect(StyleSheet.flatten(row.props.style).minHeight).toBe(36);
+    const [track] = screen.UNSAFE_root.findAll((n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist");
+    // 34 = the 1 edge, the 1 padding and the 30 pills: shorter than the row, so the row stays 36 (the 54 regular track grew it to 48).
+    expect(StyleSheet.flatten(track.props.style)).toMatchObject({ borderWidth: 1, padding: 1 });
+    expect(Number.isInteger(StyleSheet.flatten(track.props.style).width)).toBe(true);
+    // The toggle's wrapper in the row takes no negative margin: the track is shorter than the row.
+    let wrapper = track.parent;
+    while (wrapper && StyleSheet.flatten(wrapper.props.style as never)?.flexShrink !== 0) wrapper = wrapper.parent;
+    expect(StyleSheet.flatten(wrapper!.props.style as never).marginVertical).toBe(0);
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(StyleSheet.flatten(tab.props.style)).toMatchObject({ height: 34, marginVertical: -2 });
+      expect(tab.props.hitSlop).toEqual({ top: 7, bottom: 7 });
+    }
+    expect(StyleSheet.flatten(screen.getByTestId("mood-toggle-pill").props.style)).toMatchObject({ top: 1, bottom: 1, left: 1 });
+  });
+
   describe("the figure strip", () => {
     it("is the theme's surface under the date, leading with the mood's portions", async () => {
       renderMood(runtimeWith(async () => timedDay()));
