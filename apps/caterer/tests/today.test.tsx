@@ -886,8 +886,15 @@ describe("the live slot", () => {
     const all = card.findAll((n) => typeof n.type === "string");
     const places = labels.map((label) => all.indexOf(within(card).getByText(label)));
     expect(places).toEqual([...places].sort((a, b) => a - b));
-    expect(within(slot).queryByRole("button", { name: /hal lainnya/ })).toBeNull();
+    // The link stays where it is and now reads expanded, so focus is never left on a control that vanished.
+    const open = within(slot).getByRole("button", { name: "2 hal lainnya" });
+    expect(open.props.accessibilityState).toMatchObject({ expanded: true });
     expect(router.push).not.toHaveBeenCalled();
+    // Pressing it again closes the two.
+    fireEvent.press(open);
+    expect(within(slot).queryByText("Pertanyaan pelanggan menunggu")).toBeNull();
+    expect(within(slot).getByRole("button", { name: "2 hal lainnya" }).props.accessibilityState).toMatchObject({ expanded: false });
+    fireEvent.press(within(slot).getByRole("button", { name: "2 hal lainnya" }));
     // Every row is a 64.
     for (const row of [within(card).getByRole("button", { name: "Buka laporan: Nadia Putri" }), within(card).getByTestId("attention-a-1")])
       expect(box(row).minHeight).toBe(64);

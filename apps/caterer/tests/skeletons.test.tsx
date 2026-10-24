@@ -253,12 +253,18 @@ describe("Hari ini", () => {
     const skeleton = within(header).getByTestId("today-count-skeleton", { includeHiddenElements: true });
     const waitingStrip = stackHeight(within(skeleton).getByTestId("today-count-strip", { includeHiddenElements: true }));
     const waitingFlow = flat(skeleton);
-    await act(async () => read.answer(today()));
+    // Most kitchens have a delivery window, so the strip carries its "Antar" line: 12 + (18 + 40) + 6 + 18 + 12 = 106.
+    const windowed = today();
+    windowed.deliveries = windowed.deliveries.map(
+      (d) => ({ ...d, offer: { ...d.offer, windows: { ...d.offer?.windows, lunch: "11.30-13.00" } } }) as typeof d,
+    );
+    await act(async () => read.answer(windowed));
     const loadedStrip = stackHeight(await screen.findByTestId("session-figures"));
     const loadedFlow = flat(screen.getByTestId("session-count"));
-    // 12 + (18 + 40) + 12 = 82 in both: the day has no window, so the strip has no "Antar" line yet.
-    expect(loadedStrip).toBe(82);
-    expect(waitingStrip).toBe(82);
+    expect(screen.getByText("Antar 11.30")).toBeTruthy();
+    // The measure leaves the subline's 6 margin out; the skeleton holds it as a gap.
+    expect(loadedStrip + 6).toBe(106);
+    expect(waitingStrip).toBe(106);
     expect(waitingFlow).toMatchObject({ gap: 12, marginTop: 8 });
     expect(loadedFlow).toMatchObject({ gap: 12, marginTop: 8 });
   });

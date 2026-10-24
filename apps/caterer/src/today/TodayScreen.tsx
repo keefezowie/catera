@@ -132,7 +132,8 @@ function KitchenAction({
   const asking = useRef(false);
   const [busy, setBusy] = useState(false);
   // Nothing changed ("someone got there first") is a note; a failure is an error toast with Coba lagi (spec 5.2).
-  const [note, setNote] = useState("");
+  // It belongs to the stage it was made in (`cook`): once the stage moves on, the note is not shown any more.
+  const [noted, setNote] = useState<{ text: string; cook: boolean } | null>(null);
   const toast = useToast();
   const { meal } = session;
   const cook = session.canCook;
@@ -142,16 +143,17 @@ function KitchenAction({
     if (running.current) return;
     running.current = true;
     setBusy(true);
-    setNote("");
+    setNote(null);
     try {
       const result = await command<{ moved?: number }>(cook ? "delivery.cook" : "delivery.depart", { catererId, date, meal });
       if (result?.moved === 0) {
         // Someone else got there first, or the meal had already moved on: nothing changed, and the day reads again.
-        setNote(
-          cook
+        setNote({
+          cook,
+          text: cook
             ? t("Sudah ditandai dimasak.", "Already marked as cooking.")
             : t("Sudah ditandai berangkat.", "Already marked as out for delivery."),
-        );
+        });
       } else {
         haptic.success();
         track(cook ? "cook_started" : "depart_tapped");
@@ -211,6 +213,8 @@ function KitchenAction({
   // Once some stops have left, the button takes whatever is still waiting, and the portions say how many.
   const left = session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0;
   const portions = left ? session.remaining.portions : session.portions;
+  // The note of this stage, if any. It takes the caption's place, so the slot never holds more than its reserved lines.
+  const note = noted && noted.cook === cook ? noted.text : "";
   // The push reaches only customers with an account, and the kitchen cannot count them, so no number is promised.
   const caption = cook
     ? undefined
@@ -227,8 +231,9 @@ function KitchenAction({
           <Text selectable variant="meta">
             {note}
           </Text>
+        ) : caption ? (
+          <Text variant="meta">{caption}</Text>
         ) : null}
-        {caption ? <Text variant="meta">{caption}</Text> : null}
       </View>
       <Button
         label={

@@ -25,8 +25,8 @@ function Line({ width, block, line, onMood, testID }: { width: DimensionValue; b
 const STOPS = [0, 1, 2, 3] as const;
 
 /**
- * The header's figures while the day loads: the porsi, paket and alamat strip (label and value lines in the strip's own
- * 12 16 padding, without its "Antar" subline) and the compact rantang track (its 40 rail and the stop labels and
+ * The header's figures while the day loads: the porsi, paket and alamat strip (label and value lines, then the "Antar" subline's room, in the
+ * strip's own 12 16 padding) and the compact rantang track (its 40 rail and the stop labels and
  * counts, 8dp apart), 12dp apart under the date like the loaded pair. The track block is as tall as `RantangTrack
  * size="compact"` and the strip as tall as `FigureStrip`, so the header keeps its height when the figures replace it. The
  * blocks take the mood's toggle track, which stands off the header fill in Siang and Malam, light and dark (the strip's
@@ -45,9 +45,9 @@ export function TodayCountSkeleton() {
     >
       <SkeletonGroup label="">
         <View style={{ gap: FIGURE_GAP }}>
-          {/* The strip: three cells (the 13 label line over the 40 figure) inside 12 16. Its "Antar" subline is left out: a
-              kitchen may have no window to show, and a skeleton is never taller than what replaces it. */}
-          <View testID="today-count-strip" style={{ paddingVertical: 12, paddingHorizontal: 16 }}>
+          {/* The strip: three cells (the 13 label line over the 40 figure), then the room of the "Antar" subline (6 and an
+              18 line), inside 12 16. Most kitchens have a window, so the header does not grow when the figures land. */}
+          <View testID="today-count-strip" style={{ gap: 6, paddingVertical: 12, paddingHorizontal: 16 }}>
             <View style={{ flexDirection: "row", gap: 16 }}>
               {[0, 1, 2].map((i) => (
                 <View key={i} style={{ flex: 1 }}>
@@ -57,6 +57,7 @@ export function TodayCountSkeleton() {
                 </View>
               ))}
             </View>
+            <Line width={96} block={10} line={18} onMood testID="today-count-block-subline" />
           </View>
           <View testID="today-count-track" style={{ gap: 8 }}>
             {/* The track's rail (stops and line) as one bar through the middle of its 40. */}

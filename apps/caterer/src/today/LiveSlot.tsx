@@ -22,7 +22,8 @@ type Item = { key: string; kind: "card" | "row"; node: ReactNode };
  * The one slot for what needs the caterer before the cooking list: the setup card of a new kitchen, the customers'
  * delivery reports still waiting, and the attention items, in that order. It shows the first of them as one card
  * (attention tone for a report or an item, as before); when more wait, a 48 link row "n hal lainnya" opens the rest in
- * place, in the same card. Nothing waiting leaves the slot out.
+ * place, in the same card. The link stays where it is and reads "expanded" while open (it closes them again), so focus
+ * is never left on a control that vanished. Nothing waiting leaves the slot out.
  */
 export function LiveSlot({
   setup,
@@ -53,9 +54,9 @@ export function LiveSlot({
       testID="live-more"
       label={t(`${more} hal lainnya`, `${more} more`)}
       inset={first.kind === "row" ? TEXT_INSET : 0}
-      expanded={false}
-      trailing={<DecorativeIcon name="chevron-down" size={18} color={c.forest} />}
-      onPress={() => setOpen(true)}
+      expanded={open}
+      trailing={<DecorativeIcon name={open ? "chevron-up" : "chevron-down"} size={18} color={c.forest} />}
+      onPress={() => setOpen((was) => !was)}
     />
   );
   const separator = (key: string) => (
@@ -70,7 +71,7 @@ export function LiveSlot({
           {item.node}
         </View>
       ))}
-      {!open && more && first.kind === "row" ? (
+      {more && first.kind === "row" ? (
         <>
           {separator("more-separator")}
           {expand}
@@ -81,8 +82,8 @@ export function LiveSlot({
   return (
     <View testID="live-slot" style={{ gap: 8 }}>
       {first.kind === "card" ? first.node : null}
+      {first.kind === "card" && more ? expand : null}
       {first.kind === "row" ? rows(open ? items : [first]) : open && more ? rows(rest) : null}
-      {first.kind === "card" && !open && more ? expand : null}
     </View>
   );
 }

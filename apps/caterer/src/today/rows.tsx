@@ -125,9 +125,8 @@ export const SUMMARY_HEIGHT = 48;
 export const HEADING_LINE = 26;
 export const HEADING_GAP = 12;
 
-/** Space a flexible row of icons gets from the view: a plain wrapper used where a header lays two actions side by side. */
+/** Header actions side by side, pulled 4 left so the count and the first action sit 8 apart (the board's 4 + 4) where `SectionHeader` leaves 12. */
 export function ActionPair({ children }: { children: ReactNode }) {
-  // The count and the first action sit 8 apart (the board's 4 + 4), where `SectionHeader` leaves 12.
   return <View style={{ flexDirection: "row", alignItems: "center", marginLeft: -4 }}>{children}</View>;
 }
 

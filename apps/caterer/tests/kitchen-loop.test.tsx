@@ -1354,6 +1354,42 @@ describe("Hari ini on the Dapur scale", () => {
     });
   });
 
+  describe("the footer note", () => {
+    const texts = (slot: Node) => slot.findAll((n) => n.type === "Text").length;
+
+    it("does not carry a Mulai masak note into the Berangkat stage: the slot holds one line group, as before", async () => {
+      let served = kitchenDay([scheduled]);
+      const command = jest.fn(async () => {
+        // Someone else started the cooking first: nothing moved here, and the day reads again as cooking.
+        served = kitchenDay([cooking]);
+        return { moved: 0 };
+      });
+      renderToday(runtimeWith(async () => served, command));
+      const cookSlot = box(await screen.findByTestId("kitchen-action-caption"));
+      fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+      await lastConfirm().press("Mulai");
+      await screen.findByText("Berangkat antar · 34 porsi");
+      const slot = screen.getByTestId("kitchen-action-caption");
+      expect(within(slot).queryByText("Sudah ditandai dimasak.")).toBeNull();
+      expect(within(slot).getByText(/notifikasi/)).toBeTruthy();
+      expect(texts(slot)).toBe(1);
+      expect(box(slot)).toEqual(cookSlot);
+    });
+
+    it("lets a Berangkat note take the caption's place, so the slot never holds more than its reserved lines", async () => {
+      const command = jest.fn(async () => ({ moved: 0 }));
+      renderToday(runtimeWith(async () => kitchenDay([cooking]), command));
+      const slot0 = box(await screen.findByTestId("kitchen-action-caption"));
+      fireEvent.press(await screen.findByRole("button", { name: "Berangkat antar · 34 porsi" }));
+      await lastConfirm().press("Berangkat");
+      expect(await screen.findByText("Sudah ditandai berangkat.")).toBeTruthy();
+      const slot = screen.getByTestId("kitchen-action-caption");
+      expect(within(slot).queryByText(/notifikasi/)).toBeNull();
+      expect(texts(slot)).toBe(1);
+      expect(box(slot)).toEqual(slot0);
+    });
+  });
+
   describe("staff", () => {
     const staff = { id: "u-2", role: "staff", name: "Mbak Sari", catererId: "k-1" };
     const staffRuntime = (day: SellerOperationsState) => {
