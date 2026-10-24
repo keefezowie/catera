@@ -90,17 +90,16 @@ export function UsahaScreen() {
   }
   const name = ops.data?.caterer.name;
   const addLabel = t("+ Paket baru", "+ New package");
-  const ios = process.env.EXPO_OS === "ios";
-  // The gear is 44 on iOS and 48 on Android; pulled out by half the room round its glyph, it ends on the margin.
+  // The gear is 44 on iOS and 48 on Android, inside the header row (48 in Dapur); its glyph is held against the end so it
+  // ends on the margin without the target leaving the row.
   const gear = (
-    <View style={{ marginRight: ios ? -11 : -12, marginVertical: ios ? 0 : -2 }}>
-      <HeaderIconButton
-        icon="settings"
-        label={t("Pengaturan", "Settings")}
-        tint={c.charcoal}
-        onPress={() => router.push("/pengaturan" as never)}
-      />
-    </View>
+    <HeaderIconButton
+      icon="settings"
+      flush
+      label={t("Pengaturan", "Settings")}
+      tint={c.charcoal}
+      onPress={() => router.push("/pengaturan" as never)}
+    />
   );
   const kelola = [
     { icon: "wallet-outline", label: t("Uang", "Money"), href: "/uang" },
@@ -119,7 +118,7 @@ export function UsahaScreen() {
     <Screen
       plainHeader
       header={
-        // No mood band: the kitchen name and the gear share a 44 row on the canvas (spec 3.4); no line above the name.
+        // No mood band: the kitchen name and the gear share the 48 row on the canvas (spec 3.4); no line above the name.
         <MoodHeader
           plain
           testID="usaha-header"

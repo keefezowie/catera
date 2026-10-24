@@ -98,7 +98,7 @@ export function CustomerList() {
     <Screen
       plainHeader
       header={
-        // No mood band: the title and the one action share a 44 row on the canvas (spec 3.2); no empty row above.
+        // No mood band: the title and the one action share the 48 row on the canvas (spec 3.2); no empty row above.
         <MoodHeader
           plain
           testID="pelanggan-header"
@@ -109,13 +109,13 @@ export function CustomerList() {
             </Text>
           }
           trailing={
-            // A 48 target in the 44 row: it overhangs the row by 2 above and below, and its label ends on the margin.
+            // A 48 target in the 48 row, and its label ends on the margin (no padding on that side).
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={addLabel}
               haptic="tap"
               onPress={() => router.push("/impor" as never)}
-              style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 8, paddingRight: 0, marginVertical: -2 }}
+              style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 8, paddingRight: 0 }}
             >
               <Ionicons name="add" size={20} color={palette.forest} />
               {/* forest: action */}

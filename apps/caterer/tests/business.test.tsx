@@ -323,13 +323,17 @@ describe("Usaha mood header", () => {
     const title = await within(header).findByText("Dapur Bu Rina");
     expect(title.props.accessibilityRole).toBe("header");
     expect(flat(title)).toMatchObject({ fontSize: 24, lineHeight: 30, color: nativeThemes.light.charcoal });
-    // The name is the only text: the "Usaha" line above it is gone, and the 44 row holds the name and the gear.
+    // The name is the only text: the "Usaha" line above it is gone, and the 48 row holds the name and the gear.
     expect(within(header).queryByText("Usaha")).toBeNull();
     expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
     const row = within(header).getByTestId("mood-header-row");
-    expect(flat(row).minHeight).toBe(44);
+    expect(flat(row).minHeight).toBe(48);
     expect(within(row).getByText("Dapur Bu Rina")).toBeTruthy();
-    expect(within(row).getByRole("button", { name: "Pengaturan" })).toBeTruthy();
+    const gear = within(row).getByRole("button", { name: "Pengaturan" });
+    // The gear is a full target inside the row: no margin pulls it out, its glyph is held against the end instead.
+    expect(flat(gear)).toMatchObject({ alignItems: "flex-end" });
+    expect(flat(gear).marginRight).toBeUndefined();
+    expect(flat(gear).marginVertical).toBeUndefined();
     // The Paket heading is on the page, not in the header.
     await screen.findByText("Paket");
     expect(within(header).queryByText("Paket")).toBeNull();

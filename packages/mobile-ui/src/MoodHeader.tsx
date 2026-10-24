@@ -160,7 +160,8 @@ const isText = (node: ReactNode): node is string | number => typeof node === "st
  *   area), never the tab's own name. With both a toggle and a trailing control, the toggle comes first and the trailing control (Dapur's settings gear for a helper
  *   on Menu) sits at the end.
  * - `toggleSize="compact"` draws that toggle as the 34 track, so a 36 `band` row stays 36 (the regular 54 track grows it to 48).
- * - Under the v2 layout scale the top row is 44 (`nativeLayout.control.icon`), the icon button size; classic keeps 48.
+ * - Under the v2 layout scale the top row is 44 (`nativeLayout.control.icon`), the icon button size, or the root's touch target
+ *   when that is larger (48 in Dapur); classic keeps 48.
  * - `plain` is a header with no mood band: no fill, no rounded corners, the screen's canvas behind it, 8 above the row
  *   and nothing below (the screen body's own 16 follows), and its own meta text in the muted ink. The caller colours the
  *   controls it puts inside (Jelajah). The Screen draws a canvas status band for it (`Screen plainHeader`).
@@ -212,6 +213,7 @@ export function MoodHeader({
   const palette = useMoodColors();
   const canvasInk = useColors();
   const v2 = useLayoutScale() === "v2";
+  const touchTarget = useTouchTarget();
   const { mood } = useMood();
   const { scheme } = useThemePreference();
   const radius = overlap > 0 ? 32 : 28;
@@ -220,7 +222,9 @@ export function MoodHeader({
   const hasMeta = meta != null && meta !== false && meta !== "";
   const hasTrailing = trailing != null && trailing !== false;
   const hasRow = !v2 || hasMeta || (toggle && !arc) || hasTrailing;
-  const rowHeight = band ? BAND_ROW_HEIGHT : v2 ? nativeLayout.control.icon : ROW_HEIGHT;
+  // The v2 top row is the icon button size, or the root's touch target when that is larger (Dapur's 48), so a control in it
+  // keeps its whole target inside the row. The band's 36 row holds only the compact toggle, whose slop reaches the target.
+  const rowHeight = band ? BAND_ROW_HEIGHT : v2 ? Math.max(nativeLayout.control.icon, touchTarget) : ROW_HEIGHT;
   const [height, setHeight] = useState<number>();
   const above = topOwned ? insets.top + DEMO_STRIP_HEIGHT : insets.top - topInset;
   useToastAnchor(height === undefined ? null : { top: above + height });

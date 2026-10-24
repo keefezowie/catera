@@ -39,6 +39,7 @@ export function HeaderIconButton({
   onPress,
   slot,
   tint: tintOverride,
+  flush = false,
   os = process.env.EXPO_OS,
 }: {
   icon: HeaderIcon;
@@ -48,6 +49,8 @@ export function HeaderIconButton({
   slot?: "leading" | "trailing";
   /** The icon colour where the ground is not the bar's (a mood header's `headerText`). */
   tint?: string;
+  /** Holds the glyph against the button's end (no `slot`), so it reaches the margin while the whole target stays in its row. */
+  flush?: boolean;
   /** The running platform, for tests. */
   os?: string;
 }) {
@@ -68,7 +71,7 @@ export function HeaderIconButton({
         style={({ pressed }) => ({
           width: size,
           height: size,
-          alignItems: "center",
+          alignItems: flush ? "flex-end" : "center",
           justifyContent: "center",
           opacity: ios && pressed ? 0.5 : 1,
         })}

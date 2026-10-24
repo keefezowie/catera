@@ -231,9 +231,9 @@ describe("Pelanggan plain header", () => {
     const first = renderMood(pending);
     expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
     expect(within(screen.getByTestId("pelanggan-header")).getByText("Pelanggan")).toBeTruthy();
-    // The row holds the title and the action: 44 tall, 8 under the status bar, no empty 48 row.
+    // The row holds the title and the action: 48 tall under Dapur's 48 target, 8 under the status bar, no empty row.
     const row = screen.getByTestId("mood-header-row");
-    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 44 });
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48 });
     expect(StyleSheet.flatten(screen.getByTestId("pelanggan-header").props.style)).toMatchObject({ paddingTop: 8 });
     first.unmount();
 
@@ -466,13 +466,13 @@ describe("Pelanggan on the Dapur scale", () => {
   };
 
   describe("header", () => {
-    it("is a plain 44 row: Pelanggan in heroTitle, the + Pelanggan lama action 48 tall, no mood band and no empty row", async () => {
+    it("is a plain 48 row: Pelanggan in heroTitle, the + Pelanggan lama action 48 tall, no mood band and no empty row", async () => {
       dapur(runtimeWith("approved", true), <CustomerList />);
       const header = await screen.findByTestId("pelanggan-header");
       expect(within(header).queryByTestId("mood-fill", { includeHiddenElements: true })).toBeNull();
       const rows = within(header).getAllByTestId("mood-header-row");
       expect(rows).toHaveLength(1);
-      expect(sty(rows[0]).minHeight).toBe(44);
+      expect(sty(rows[0]).minHeight).toBe(48);
       const title = within(header).getByText("Pelanggan");
       expect(title.props.accessibilityRole).toBe("header");
       expect(sty(title)).toMatchObject({ fontSize: 24, lineHeight: 30 });
@@ -480,6 +480,9 @@ describe("Pelanggan on the Dapur scale", () => {
       expect(within(rows[0]).getByText("Pelanggan")).toBe(title);
       const add = within(rows[0]).getByRole("button", { name: "+ Pelanggan lama" });
       expect(sty(add).minHeight).toBe(48);
+      // The whole 48 is inside the 48 row: no negative margin pulls it out (a touch outside a parent's bounds is lost on Android).
+      expect(sty(add).marginVertical).toBeUndefined();
+      expect(sty(add).marginRight).toBeUndefined();
       fireEvent.press(add);
       expect(router.push).toHaveBeenCalledWith("/impor");
     });
@@ -498,7 +501,7 @@ describe("Pelanggan on the Dapur scale", () => {
       const first = dapur(hold(runtimeWith("approved", true)), <CustomerList />);
       const header = await screen.findByTestId("pelanggan-header");
       expect(within(header).getByRole("button", { name: "+ Pelanggan lama" })).toBeTruthy();
-      expect(sty(within(header).getByTestId("mood-header-row")).minHeight).toBe(44);
+      expect(sty(within(header).getByTestId("mood-header-row")).minHeight).toBe(48);
       first.unmount();
       const runtime = runtimeWith("approved", true);
       (runtime.api.sellerCustomers as jest.Mock).mockRejectedValue(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));

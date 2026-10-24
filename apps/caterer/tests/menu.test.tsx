@@ -710,11 +710,11 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       await act(async () => {});
     });
 
-    it("sits on the v2 header: a 44 top row, a 12 gap, the mood band behind it", async () => {
-      // Dapur's root mounts the v2 scale, so the shared header takes the 44 row (it was 48 on the classic scale).
+    it("sits on the v2 header: a 48 top row (Dapur's touch target), a 12 gap, the mood band behind it", async () => {
+      // Dapur's root mounts the v2 scale with a 48 target, so the shared header's row is 48 (the customer app's 44 target keeps 44).
       mount({ offers: [bothOffer()] });
       await screen.findByText("5–9 Okt");
-      expect(StyleSheet.flatten(screen.getByTestId("mood-header-row").props.style)).toMatchObject({ minHeight: 44 });
+      expect(StyleSheet.flatten(screen.getByTestId("mood-header-row").props.style)).toMatchObject({ minHeight: 48 });
       expect(StyleSheet.flatten(screen.getByTestId("mood-header-content").props.style)).toMatchObject({ gap: 12, paddingHorizontal: 16 });
       expect(StyleSheet.flatten(screen.getByTestId("mood-header").props.style)).toMatchObject({ overflow: "hidden", paddingBottom: 16 });
       expect(screen.getByTestId("mood-fill-siang")).toBeTruthy();
