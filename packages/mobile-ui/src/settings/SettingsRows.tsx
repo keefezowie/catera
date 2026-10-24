@@ -1,4 +1,4 @@
-import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from "react";
+import { Children, cloneElement, Fragment, isValidElement, type ReactElement, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Pressable, Switch, Text as RNText, View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
@@ -33,14 +33,14 @@ function useRowInset(ios: boolean) {
 }
 
 /** A section's rows with any fragments opened, so a fragment of three rows counts and divides as three. */
-function flattenRows(children: ReactNode): ReactElement[] {
-  return Children.toArray(children).flatMap((child) =>
-    !isValidElement(child)
-      ? []
-      : child.type === Fragment
-        ? flattenRows((child.props as { children?: ReactNode }).children)
-        : [child],
-  );
+function flattenRows(children: ReactNode, prefix = ""): ReactElement[] {
+  return Children.toArray(children).flatMap((child) => {
+    if (!isValidElement(child)) return [];
+    const key = prefix + String(child.key);
+    return child.type === Fragment
+      ? flattenRows((child.props as { children?: ReactNode }).children, key + "/")
+      : [cloneElement(child, { key })];
+  });
 }
 
 export function SettingsSection({
