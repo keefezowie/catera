@@ -18,6 +18,20 @@ jest.mock("expo-file-system", () => ({
   },
 }));
 
+jest.mock("expo-image-manipulator", () => {
+  const context = { resize: jest.fn(), renderAsync: jest.fn() };
+  const saveAsync = jest.fn();
+  context.resize.mockImplementation(() => context);
+  context.renderAsync.mockImplementation(async () => ({ saveAsync }));
+  saveAsync.mockImplementation(async () => ({ uri: "file:///cache/shrunk.jpg" }));
+  return { __context: context, __save: saveAsync, ImageManipulator: { manipulate: jest.fn(() => context) }, SaveFormat: { JPEG: "jpeg" } };
+});
+const manip = jest.requireMock("expo-image-manipulator") as {
+  __context: { resize: jest.Mock };
+  __save: jest.Mock;
+  ImageManipulator: { manipulate: jest.Mock };
+};
+
 const runtime = { apiBase: "http://api.test", token: async () => "demo-token" } as never;
 const picked = { uri: "file:///cache/ImagePicker/1.png", mimeType: "image/png", fileSize: 3 };
 
@@ -49,5 +63,40 @@ describe("uploadPhoto (demo)", () => {
     expect(part).toBeInstanceOf(File);
     expect(typeof (part as File).bytes).toBe("function");
     expect(calls[0].init.body).toBeInstanceOf(FormData);
+  });
+
+  describe("shrinking before the upload", () => {
+    const send = async (photo: Parameters<typeof uploadPhoto>[1]) => {
+      global.fetch = (async () => ({ ok: true, json: async () => ({ data: { url: "/api/uploads?file=a.jpg" } }) })) as never;
+      const append = jest.spyOn(FormData.prototype, "append");
+      await uploadPhoto(runtime, photo, true);
+      return append;
+    };
+    beforeEach(() => {
+      jest.restoreAllMocks();
+      manip.__context.resize.mockClear();
+      manip.__save.mockClear();
+      manip.ImageManipulator.manipulate.mockClear();
+    });
+
+    it("cuts a long edge past 2048 to 2048 and saves a JPEG at 0.8, then sends the shrunk file", async () => {
+      const append = await send({ ...picked, width: 4000, height: 3000 });
+      expect(manip.ImageManipulator.manipulate).toHaveBeenCalledWith(picked.uri);
+      expect(manip.__context.resize).toHaveBeenCalledWith({ width: 2048 });
+      expect(manip.__save).toHaveBeenCalledWith({ compress: 0.8, format: "jpeg" });
+      const part = (append.mock.calls[append.mock.calls.length - 1] as unknown as [string, { uri: string }])[1];
+      expect(part.uri).toBe("file:///cache/shrunk.jpg");
+    });
+
+    it("cuts a tall photo by its height", async () => {
+      await send({ ...picked, width: 3000, height: 4000 });
+      expect(manip.__context.resize).toHaveBeenCalledWith({ height: 2048 });
+    });
+
+    it("never upscales a small photo", async () => {
+      await send({ ...picked, width: 800, height: 600 });
+      expect(manip.__context.resize).not.toHaveBeenCalled();
+      expect(manip.__save).toHaveBeenCalledWith({ compress: 0.8, format: "jpeg" });
+    });
   });
 });

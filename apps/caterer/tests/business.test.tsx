@@ -834,7 +834,7 @@ describe("Paket editor on the Dapur scale", () => {
     ["edit", liveOffer],
   ])("a %s package lays out its sections 24 apart under section headers", async (_name, from) => {
     scaled(runtimeWith({}), <PackageEditor from={from} />);
-    await screen.findByRole("button", { name: "Pilih foto paket" });
+    await screen.findByRole("button", { name: from?.image ? "Ganti foto paket" : "Pilih foto paket" });
     expect(bag(screen.getByTestId("paket-sections")).gap).toBe(24);
     for (const name of sections) expect(bag(screen.getByRole("header", { name }))).toMatchObject({ fontSize: 20, lineHeight: 26 });
     expect(bag(screen.getByRole("header", { name: /^Gizi per porsi/ }))).toMatchObject({ fontSize: 20, lineHeight: 26 });
@@ -848,7 +848,7 @@ describe("Paket editor on the Dapur scale", () => {
     expect(screen.queryByTestId("paket-photo-image")).toBeNull();
     fresh.unmount();
     scaled(runtimeWith({}), <PackageEditor from={liveOffer} />);
-    await screen.findByRole("button", { name: "Pilih foto paket" });
+    await screen.findByRole("button", { name: "Ganti foto paket" });
     expect(bag(screen.getByTestId("paket-photo")).aspectRatio).toBe(16 / 10);
     expect(bag(screen.getByTestId("paket-photo-image"))).toMatchObject({ borderRadius: 16 });
     expect(screen.queryByText("+ Foto paket")).toBeNull();

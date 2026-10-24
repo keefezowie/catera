@@ -1,7 +1,10 @@
 import { View } from "react-native";
 import { Image } from "expo-image";
-import { nativeLayout } from "@catera/design-tokens";
-import { useColors } from "@catera/mobile-ui";
+import { nativeLayout, nativeMotion } from "@catera/design-tokens";
+import { useColors, useReduced } from "@catera/mobile-ui";
+
+/** expo-image's style type predates `borderCurve`; the native view takes it. */
+const imageCurve = { borderCurve: "continuous" } as const;
 
 /**
  * A Dapur photo tile whose image rounds its own corners: 40, 48 or 56, radius 8, a backing while the photo loads (or when
@@ -27,6 +30,7 @@ export function PhotoThumb({
   backdrop?: "sage" | "surface";
 }) {
   const c = useColors();
+  const reduced = useReduced();
   const radius = nativeLayout.radius.thumb;
   return (
     <View
@@ -38,9 +42,10 @@ export function PhotoThumb({
           testID={imageTestID ?? `${testID}-image`}
           source={{ uri }}
           contentFit="cover"
+          transition={reduced ? 0 : nativeMotion.selection}
           accessible={accessibilityLabel !== undefined}
           accessibilityLabel={accessibilityLabel}
-          style={{ width: size, height: size, borderRadius: radius }}
+          style={{ width: size, height: size, borderRadius: radius, ...imageCurve }}
         />
       ) : null}
     </View>

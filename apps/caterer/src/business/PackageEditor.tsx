@@ -7,6 +7,7 @@ import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
 import {
   Button,
+  cardEdge,
   Chip,
   Field,
   FormError,
@@ -22,6 +23,8 @@ import {
   useColors,
   useToast,
   useTouchTarget,
+  useUnsavedGuard,
+  withAlpha,
 } from "@catera/mobile-ui";
 import { emptyPackage, formFromOffer, nutritionIssues, packageIssues, quickOffer, type PackageForm } from "./package";
 import { NutritionFields } from "./NutritionFields";
@@ -68,23 +71,29 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   // Counts the saves that were held back by a missing field, so the same message is announced again on a second try.
   const [attempt, setAttempt] = useState(0);
   const [uploading, setUploading] = useState(false);
+  // The save failure sits in the footer by the button; the upload failure sits under the photo tile.
   const [error, setError] = useState("");
+  const [uploadError, setUploadError] = useState("");
   // The first publish, once saved: the beat replaces the form.
   const [published, setPublished] = useState(false);
+  // A later publish: set when the save is done, so the guard is off before the screen goes back.
+  const [saved, setSaved] = useState(false);
+  const initial = useRef(JSON.stringify(form));
   const set = <K extends keyof PackageForm>(key: K, value: PackageForm[K]) => setForm((f) => ({ ...f, [key]: value }));
   const failed = (e: unknown, fallback: string) =>
     errorLabel((e as { code?: string }).code || (e as Error).message, locale) || fallback;
 
   async function pickPhoto() {
-    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
-    if (picked.canceled || !picked.assets?.[0]) return;
-    setUploading(true);
-    setError("");
+    if (uploading) return;
+    setUploadError("");
     try {
+      const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+      if (picked.canceled || !picked.assets?.[0]) return;
+      setUploading(true);
       set("image", await uploadPhoto(runtime, picked.assets[0], demo));
     } catch (e) {
       setAttempt((n) => n + 1);
-      setError(failed(e, t("Foto belum terunggah. Coba lagi.", "The photo was not uploaded. Try again.")));
+      setUploadError(failed(e, t("Foto belum bisa dipilih. Coba lagi.", "The photo could not be chosen. Try again.")));
     } finally {
       setUploading(false);
     }
@@ -105,16 +114,25 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
         slug: `${form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "paket"}-${Date.now().toString(36).slice(-6)}`,
         offer: quickOffer(form),
       });
-      if (first) {
-        setPublished(true);
-        return;
-      }
-      router.back();
-      toast.show({ message: t("Paket diterbitkan", "Package published"), tone: "success" });
+      if (first) setPublished(true);
+      else setSaved(true);
     } catch (e) {
       setError(failed(e, t("Paket belum tersimpan. Coba lagi.", "The package was not saved. Try again.")));
     }
   });
+
+  useUnsavedGuard(!busy && !published && !saved && JSON.stringify(form) !== initial.current, t("paket", "package"), {
+    t,
+    nounEn: "package",
+    voice: "kamu",
+  });
+  const closed = useRef(false);
+  useEffect(() => {
+    if (!saved || closed.current) return;
+    closed.current = true;
+    router.back();
+    toast.show({ message: t("Paket diterbitkan", "Package published"), tone: "success" });
+  }, [saved, toast, t]);
 
   if (published) {
     const dayNames = days.filter(([d]) => form.weekdays.includes(d)).map(([, label]) => label);
@@ -138,18 +156,28 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   }
 
   return (
-    <Screen footer={<Button label={t("Terbitkan paket", "Publish package")} busy={busy} disabled={uploading} onPress={() => void save()} />}>
+    <Screen
+      footer={
+        <View style={{ gap: nativeLayout.space.sm }}>
+          {error ? <FormError message={error} failureKey={attempt} testID="form-error-save" /> : null}
+          <Button label={t("Terbitkan paket", "Publish package")} busy={busy} disabled={uploading} onPress={() => void save()} />
+        </View>
+      }
+    >
       {/* Sections sit 24 apart; each holds its `section` header 12 above its fields. */}
       <View testID="paket-sections" style={{ gap: nativeLayout.dense.sectionGap }}>
         <Section title={t("Foto", "Photo")}>
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={t("Pilih foto paket", "Choose package photo")}
+            accessibilityLabel={form.image ? t("Ganti foto paket", "Change package photo") : t("Pilih foto paket", "Choose package photo")}
+            accessibilityState={{ busy: uploading, disabled: uploading }}
+            disabled={uploading}
             onPress={() => void pickPhoto()}
           >
             <PackagePhoto uri={form.image ? photoUri(form.image, runtime.apiBase) : undefined}>
               {/* The empty tile draws its own four corners and its ground, like the photo that replaces it. */}
               <View
+                testID="paket-photo-empty"
                 style={[
                   StyleSheet.absoluteFill,
                   {
@@ -158,9 +186,8 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
                     backgroundColor: palette.sage,
                     alignItems: "center",
                     justifyContent: "center",
-                    borderWidth: shown.image ? 1 : 0,
-                    borderColor: palette.danger,
                   },
+                  shown.image ? { borderWidth: 1, borderColor: palette.danger } : cardEdge(palette),
                 ]}
               >
                 <Text variant="bodyStrong" style={{ color: palette.forest /* forest: action (inside the photo button) */ }}>
@@ -168,7 +195,22 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
                 </Text>
               </View>
             </PackagePhoto>
+            {/* Over a photo that is already there, the wait is named on a veil the size of the photo. */}
+            {uploading && form.image ? (
+              <View
+                pointerEvents="none"
+                style={[
+                  StyleSheet.absoluteFill,
+                  { borderRadius: nativeLayout.radius.card, borderCurve: "continuous", backgroundColor: withAlpha(palette.forest, 0.55), alignItems: "center", justifyContent: "center" },
+                ]}
+              >
+                <Text variant="bodyStrong" style={{ color: palette.cream }}>
+                  {t("Mengunggah…", "Uploading…")}
+                </Text>
+              </View>
+            ) : null}
           </PressableScale>
+          {uploadError ? <FormError message={uploadError} failureKey={attempt} testID="form-error-upload" /> : null}
           {shown.image ? <FormError message={shown.image} failureKey={attempt} testID="form-error-image" /> : null}
         </Section>
         <View style={{ gap: nativeLayout.cardPadding }}>
@@ -228,7 +270,6 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
           />
         </Section>
       </View>
-      {error ? <FormError message={error} failureKey={attempt} /> : null}
     </Screen>
   );
 }
