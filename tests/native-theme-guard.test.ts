@@ -50,13 +50,14 @@ test("mobile-ui does not re-export colors", () => {
 // bypass the active theme, so it is named here rather than allowed by default. The launch cover repeats the native
 // splash, which the system draws in its own scheme whatever theme the app stores, so it reads that scheme's palette.
 // The Tampilan thumbnails in Pengaturan draw the light and the dark app side by side, whichever theme is active.
-test("only the plate, the story cover, the story viewer, the Menu besok story, the package photo header, the launch cover, the Tampilan thumbnails and the theme module import nativeThemes", () => {
+test("only the plate, the story cover, the story viewer, the Menu besok story, the package photo header, the Dapur package photo upload veil, the launch cover, the Tampilan thumbnails and the theme module import nativeThemes", () => {
   const importers = appDirs
     .flatMap((d) => walk(join(root, d)))
     .filter((f) => /\bnativeThemes\b/.test(readFileSync(f, "utf8")))
     .map(rel)
     .sort();
   expect(importers).toEqual([
+    "apps/caterer/src/business/PackageEditor.tsx",
     "apps/customer/src/discover/PackageDetail.tsx",
     "apps/customer/src/today/Plate.tsx",
     "apps/customer/src/tomorrow/TomorrowStory.tsx",
