@@ -167,7 +167,10 @@ function GroupLine({
         <TextInput
           accessibilityLabel={t(`Tambah ${group.name.toLowerCase()}`, `Add ${group.name.toLowerCase()}`)}
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(v) => {
+            setQuery(v);
+            setCreateError(null);
+          }}
           placeholder={t(`Ketik nama ${group.name.toLowerCase()}…`, `Type a ${group.name.toLowerCase()} name…`)}
           placeholderTextColor={c.muted}
           style={{
@@ -202,6 +205,7 @@ function GroupLine({
         <PressableRow
           key="create"
           accessibilityRole="button"
+          disabled={creating}
           accessibilityState={{ busy: creating, disabled: creating }}
           onPress={() => void create(query.trim())}
           style={{ minHeight: ROW, justifyContent: "center", opacity: creating ? 0.5 : 1 }}

@@ -73,7 +73,7 @@ describe("menu day unsaved guard", () => {
     await screen.findByText("Ayam goreng");
     expect(lastGuard()).toBeNull();
     await swapDish();
-    expect(lastGuard()).toMatchObject({ noun: "menu" });
+    expect(lastGuard()).toMatchObject({ noun: "perubahan menu" });
   });
 
   it("is off while saving and after the save went through", async () => {
@@ -134,6 +134,9 @@ describe("SlotEditor create dish", () => {
     fireEvent.press(screen.getByRole("button", { name: /Buat hidangan baru/ }));
     expect(await screen.findByTestId("form-error")).toBeTruthy();
     expect(onChange).not.toHaveBeenCalled();
+    fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "Soto b");
+    expect(screen.queryByTestId("form-error")).toBeNull();
+    fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "Soto");
     fireEvent.press(screen.getByRole("button", { name: /Buat hidangan baru/ }));
     await waitFor(() => expect(onChange).toHaveBeenCalled());
   });

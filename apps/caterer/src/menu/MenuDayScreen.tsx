@@ -45,7 +45,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
   });
   // Unsaved: the slots differ from the loaded day. Off while the save runs and once it went through.
   const dirty = !saved && !saving && !!current && items !== null && JSON.stringify(items) !== JSON.stringify(current.details?.items ?? []);
-  useUnsavedGuard(dirty, t("menu", "menu"), { t, nounEn: "menu", voice: "kamu" });
+  useUnsavedGuard(dirty, t("perubahan menu", "menu changes"), { t, nounEn: "menu changes", voice: "kamu" });
   if ((ops.error && !ops.data) || (day.error && !day.data))
     return <MenuLoadError title={false} onRetry={() => void (ops.error && !ops.data ? ops.reload() : day.reload())} />;
   if (ops.data && !offer)
