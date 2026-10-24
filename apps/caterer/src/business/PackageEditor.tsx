@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { currency, defaultDishCategories, errorLabel, type SellerOffer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { nativeLayout } from "@catera/design-tokens";
+import { nativeLayout, nativePhoto, nativeThemes } from "@catera/design-tokens";
 import {
   Button,
   cardEdge,
@@ -74,6 +74,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   // The save failure sits in the footer by the button; the upload failure sits under the photo tile.
   const [error, setError] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const [uploadAttempt, setUploadAttempt] = useState(0);
   // The first publish, once saved: the beat replaces the form.
   const [published, setPublished] = useState(false);
   // A later publish: set when the save is done, so the guard is off before the screen goes back.
@@ -86,14 +87,23 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   async function pickPhoto() {
     if (uploading) return;
     setUploadError("");
+    let stage: "pick" | "upload" = "pick";
     try {
       const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
       if (picked.canceled || !picked.assets?.[0]) return;
+      stage = "upload";
       setUploading(true);
       set("image", await uploadPhoto(runtime, picked.assets[0], demo));
     } catch (e) {
-      setAttempt((n) => n + 1);
-      setUploadError(failed(e, t("Foto belum bisa dipilih. Coba lagi.", "The photo could not be chosen. Try again.")));
+      setUploadAttempt((n) => n + 1);
+      setUploadError(
+        failed(
+          e,
+          stage === "pick"
+            ? t("Foto belum bisa dipilih. Coba lagi.", "The photo could not be chosen. Try again.")
+            : t("Foto belum terunggah. Coba lagi.", "The photo was not uploaded. Try again."),
+        ),
+      );
     } finally {
       setUploading(false);
     }
@@ -201,16 +211,16 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
                 pointerEvents="none"
                 style={[
                   StyleSheet.absoluteFill,
-                  { borderRadius: nativeLayout.radius.card, borderCurve: "continuous", backgroundColor: withAlpha(palette.forest, 0.55), alignItems: "center", justifyContent: "center" },
+                  { borderRadius: nativeLayout.radius.card, borderCurve: "continuous", backgroundColor: withAlpha(palette.overlayInk, nativePhoto.textBlockAlpha), alignItems: "center", justifyContent: "center" },
                 ]}
               >
-                <Text variant="bodyStrong" style={{ color: palette.cream }}>
+                <Text variant="bodyStrong" style={{ color: nativeThemes.light.cream /* fixed: it sits on a photo veil, not on the theme ground */ }}>
                   {t("Mengunggah…", "Uploading…")}
                 </Text>
               </View>
             ) : null}
           </PressableScale>
-          {uploadError ? <FormError message={uploadError} failureKey={attempt} testID="form-error-upload" /> : null}
+          {uploadError ? <FormError message={uploadError} failureKey={uploadAttempt} testID="form-error-upload" /> : null}
           {shown.image ? <FormError message={shown.image} failureKey={attempt} testID="form-error-image" /> : null}
         </Section>
         <View style={{ gap: nativeLayout.cardPadding }}>

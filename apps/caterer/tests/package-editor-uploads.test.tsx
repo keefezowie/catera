@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { Image as ExpoImage } from "expo-image";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativePhoto, nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { cardEdge } from "@catera/mobile-ui";
+import { cardEdge, withAlpha } from "@catera/mobile-ui";
 import { PackageEditor } from "../src/business/PackageEditor";
 import { PhotoThumb } from "../src/layout/PhotoThumb";
 import * as uploadModule from "../src/business/upload";
@@ -62,6 +62,17 @@ describe("PackageEditor unsaved guard", () => {
     expect(lastGuard()).toBeNull();
   });
 
+  it("is off after a later (edit) save, before the screen goes back", async () => {
+    const { router } = require("expo-router") as { router: { back: jest.Mock } };
+    const command = jest.fn(async () => ({ id: "p-1" }));
+    mount(runtimeWith(command), { firstPublish: false });
+    fireEvent.changeText(await screen.findByLabelText("Nama paket"), "Makan Malam");
+    expect(lastGuard()).not.toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await waitFor(() => expect(router.back).toHaveBeenCalled());
+    expect(lastGuard()).toBeNull();
+  });
+
   it("is off after a successful save", async () => {
     const command = jest.fn(async () => ({ id: "p-1" }));
     mount(runtimeWith(command), { firstPublish: true });
@@ -105,6 +116,15 @@ describe("PackageEditor errors sit by what failed", () => {
     expect(screen.queryByTestId("form-error-save")).toBeNull();
   });
 
+  it("says the photo was not uploaded when the upload fails, and keeps the save error's key alone", async () => {
+    picker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///x.jpg" }] });
+    jest.spyOn(uploadModule, "uploadPhoto").mockRejectedValue(new Error("plain"));
+    mount(runtimeWith());
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
+    expect(await screen.findByText("Foto belum terunggah. Coba lagi.")).toBeTruthy();
+    expect(screen.queryByText("Foto belum bisa dipilih. Coba lagi.")).toBeNull();
+  });
+
   it("catches a picker that throws and says so in Indonesian", async () => {
     picker.launchImageLibraryAsync.mockRejectedValue(new Error("no permission"));
     mount(runtimeWith());
@@ -137,6 +157,22 @@ describe("PackageEditor photo tile", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Ganti foto paket" }).props.accessibilityState).toMatchObject({ busy: false }),
     );
+  });
+
+  it("paints the uploading veil with the fixed photo overlay and a fixed light label, in dark too", async () => {
+    jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("dark");
+    picker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///x.jpg" }] });
+    const upload = jest.spyOn(uploadModule, "uploadPhoto").mockResolvedValueOnce("https://cdn.example.test/one.jpg");
+    mount(runtimeWith());
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
+    await screen.findByTestId("paket-photo-image");
+    upload.mockImplementationOnce(() => new Promise<string>(() => undefined));
+    fireEvent.press(screen.getByRole("button", { name: "Ganti foto paket" }));
+    const label = await screen.findByText("Mengunggah…");
+    expect(flat(label).color).toBe(nativeThemes.light.cream);
+    let veil = label.parent!;
+    while (veil.parent && !flat(veil).backgroundColor) veil = veil.parent;
+    expect(flat(veil).backgroundColor).toBe(withAlpha(nativeThemes.dark.overlayInk, nativePhoto.textBlockAlpha));
   });
 
   it("draws the empty tile with the card edge", async () => {
