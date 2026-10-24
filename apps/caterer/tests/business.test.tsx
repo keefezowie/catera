@@ -831,6 +831,10 @@ describe("Paket editor on the Dapur scale", () => {
     const wrap = screen.getByTestId("paket-days");
     expect(bag(wrap)).toMatchObject({ flexDirection: "row", flexWrap: "wrap" });
     for (const d of [1, 2, 3, 4, 5, 6, 0]) expect(bag(screen.getByTestId(`paket-day-${d}`)).minHeight).toBeGreaterThanOrEqual(48);
+    // Two 34 chips with a 7 hit slop overlap their targets unless their rows are at least 14 apart. Each frame is 48 tall
+    // around its 34 chip, so the visible rows are 14 apart and the targets meet without overlapping; no extra row gap.
+    expect(bag(wrap).rowGap ?? 0).toBe(0);
+    expect(bag(screen.getByTestId("paket-day-1")).minHeight - 34).toBeGreaterThanOrEqual(14);
     const chip = within(wrap).getByRole("button", { name: "Sen" });
     expect(chip.props.hitSlop).toEqual({ top: 7, bottom: 7 });
     // Selecting still works: Sab is off in a new package.
