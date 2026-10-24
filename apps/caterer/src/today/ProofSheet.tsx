@@ -198,10 +198,12 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
         fail(
-          t(
-            "Kamera belum diizinkan. Izinkan kamera untuk Catera Dapur di pengaturan HP, lalu ambil fotonya.",
-            "The camera is not allowed. Allow it for Catera Dapur in the phone's settings, then take the photo.",
-          ),
+          permission.canAskAgain
+            ? t("Izinkan kamera supaya bisa memotret bukti.", "Allow the camera to take the proof photo.")
+            : t(
+                "Kamera belum diizinkan. Izinkan kamera untuk Catera Dapur di pengaturan HP, lalu ambil fotonya.",
+                "The camera is not allowed. Allow it for Catera Dapur in the phone's settings, then take the photo.",
+              ),
           { camera: stop, settings: !permission.canAskAgain },
         );
         return;

@@ -317,6 +317,7 @@ describe("Sampai (n): camera permission and kept photos", () => {
     await open();
     fireEvent.press(sheet().getByLabelText(/^Ambil foto: Bu Sari/));
     const error = await screen.findByTestId("form-error");
+    expect(within(error).getByText("Izinkan kamera supaya bisa memotret bukti.")).toBeTruthy();
     expect(sheet().queryByRole("button", { name: "Buka Pengaturan" })).toBeNull();
     shot("file:///sari.jpg");
     fireEvent.press(within(error).getByRole("button", { name: "Coba lagi" }));
@@ -333,6 +334,21 @@ describe("Sampai (n): camera permission and kept photos", () => {
     resetSheets();
     await open();
     expect(sheet().getAllByText("Foto siap")).toHaveLength(1);
+  });
+  it("kept photos are cleared once they are sent", async () => {
+    await open();
+    for (const [who, uri] of [["Bu Sari", "sari"], ["Keluarga Hartono", "hartono"]]) {
+      shot(`file:///${uri}.jpg`);
+      fireEvent.press(sheet().getByLabelText(new RegExp(`^Ambil foto: ${who}`)));
+      await act(async () => undefined);
+    }
+    await waitFor(() => expect(sheet().getAllByText("Foto siap")).toHaveLength(2));
+    fireEvent.press(sheet().getByRole("button", { name: "Sampai (2)" }));
+    await waitFor(() => expect(router.back).toHaveBeenCalled());
+    screen.unmount();
+    resetSheets();
+    await open();
+    expect(sheet().getAllByText("Belum ada foto")).toHaveLength(2);
   });
 });
 
