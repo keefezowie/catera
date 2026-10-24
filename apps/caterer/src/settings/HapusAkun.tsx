@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Linking, View } from "react-native";
 import { listAccountRequests, requestAccountDeletion, useData, useMobile } from "@catera/mobile-core";
-import { Button, fontFor, FormError, SheetFitBody, SheetHeader, Text, useBusy } from "@catera/mobile-ui";
+import { Button, fontFor, FormError, SheetFitBody, SheetHeader, sheetSidePadding, Text, useBusy } from "@catera/mobile-ui";
 import { accountMessage } from "./accountMessages";
 
 /**
@@ -11,7 +11,7 @@ import { accountMessage } from "./accountMessages";
  */
 export function HapusAkun() {
   const { runtime, actor, t, locale, command } = useMobile();
-  const inset = process.env.EXPO_OS === "ios" ? 20 : 24;
+  const inset = sheetSidePadding();
   const requests = useData(`account-requests:${actor?.id ?? ""}`, () => listAccountRequests(runtime.api));
   const open = (requests.data ?? []).find((r) => r.kind === "deletion" && r.status === "open");
   const [sent, setSent] = useState(false);
@@ -32,7 +32,7 @@ export function HapusAkun() {
   const asked = sent || !!open;
   return (
     <SheetFitBody testID="hapus-akun-sheet" header={<SheetHeader title={t("Hapus akun", "Delete account")} closeLabel={t("Tutup", "Close")} />}>
-      <View style={{ paddingHorizontal: inset, gap: 16 }}>
+      <View testID="hapus-akun-content" style={{ paddingHorizontal: inset, gap: 16 }}>
         <Text>
           {t(
             "Tim Catera memproses permintaan ini. Pelanggan dan pengantaran yang masih berjalan diselesaikan dulu bersama tim. Kami hubungi kamu soal sisanya sebelum akun dihapus.",

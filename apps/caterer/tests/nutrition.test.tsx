@@ -13,6 +13,7 @@ import {
 } from "../src/business/package";
 import { PackageEditor } from "../src/business/PackageEditor";
 import { PackageDetail } from "../src/business/PackageDetail";
+import { withDapurScale } from "./dapur-scale";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn(), MediaTypeOptions: { Images: "Images" } }));
@@ -83,9 +84,11 @@ const rantang = {
 
 const mount = (runtime: MobileRuntime, ui: React.ReactElement) =>
   render(
-    <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-      {ui}
-    </MobileProvider>,
+    withDapurScale(
+      <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+        {ui}
+      </MobileProvider>,
+    ),
   );
 
 describe("quickOffer macros", () => {
@@ -304,10 +307,21 @@ describe("the gram fields at a larger text size", () => {
 });
 
 describe("the Gizi per porsi header", () => {
-  it("is the label text variant, 12/23, like the editor's other section headers", () => {
-    const { NutritionFields } = require("../src/business/NutritionFields") as typeof import("../src/business/NutritionFields");
-    mount(runtimeWith({}), <NutritionFields value={formFromOffer(rantang).nutrition} onChange={() => undefined} errors={{}} />);
+  const { NutritionFields } = require("../src/business/NutritionFields") as typeof import("../src/business/NutritionFields");
+  const mountFields = () => mount(runtimeWith({}), <NutritionFields value={formFromOffer(rantang).nutrition} onChange={() => undefined} errors={{}} />);
+
+  it("is the section variant, 20/26, like the editor's other section headers", () => {
+    mountFields();
     const header = StyleSheet.flatten(screen.getByRole("header", { name: /Gizi per porsi/ }).props.style);
-    expect([header.fontSize, header.lineHeight]).toEqual([12, 23]);
+    expect([header.fontSize, header.lineHeight]).toEqual([20, 26]);
+  });
+
+  it("keeps the (opsional) mark beside it as a meta line, and the range switch label and the caption on the Dapur ladder", () => {
+    mountFields();
+    expect(StyleSheet.flatten(screen.getByText("(opsional)").props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    const row = screen.getByRole("switch", { name: "Pakai rentang" });
+    expect(StyleSheet.flatten(row.props.style).minHeight).toBe(48);
+    expect(StyleSheet.flatten(screen.getByText("Pakai rentang").props.style)).toMatchObject({ fontSize: 15, lineHeight: 22 });
+    expect(StyleSheet.flatten(screen.getByText(/^Isi kalau kamu tahu/).props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
   });
 });

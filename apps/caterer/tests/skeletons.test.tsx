@@ -15,7 +15,7 @@ import { MenuWeek } from "../src/menu/MenuWeek";
 import { MenuDayScreen } from "../src/menu/MenuDayScreen";
 import { ReportScreen } from "../src/today/ReportScreen";
 import { UsahaScreen } from "../src/business/UsahaScreen";
-import { DetailSkeleton, ListSkeleton } from "../src/skeletons";
+import { DetailSkeleton, ListSkeleton, UangSkeleton } from "../src/skeletons";
 import { UangScreen } from "../src/business/UangScreen";
 import { AktifkanScreen } from "../src/business/AktifkanScreen";
 import * as offline from "../src/today/offline";
@@ -743,6 +743,38 @@ describe("the other screens", () => {
     renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <AktifkanScreen />);
     expect(await screen.findByLabelText("Memuat pembayaran")).toBeTruthy();
     expect(screen.queryByText("Memuat…")).toBeNull();
+  });
+});
+
+describe("UangSkeleton", () => {
+  const hidden = { includeHiddenElements: true } as const;
+
+  it("draws the lead block, the seven 40 rows and the explanations from the loaded layout's constants, 24 apart", () => {
+    renderWith(runtimeWith(owner), withDapurScale(<UangSkeleton />));
+    expect(screen.getByLabelText("Memuat uang")).toBeTruthy();
+    expect(flat(screen.getByTestId("uang-skeleton-sections", hidden)).gap).toBe(24);
+    // The lead: a meta line (18), the figure's 40 line and a meta caption (18), the way the loaded lead stacks them.
+    const lead = screen.getByTestId("uang-skeleton-lead", hidden);
+    expect(drawnChildren(lead).map((k) => stackHeight(k))).toEqual([18, 40, 18]);
+    // One list card of seven rows at the key-value row's 40, and nothing in them that a larger font could outgrow.
+    const rows = screen.queryAllByTestId(/^uang-skeleton-row-/, hidden);
+    expect(rows).toHaveLength(7);
+    for (const row of rows) {
+      expect(flat(row).height).toBe(40);
+      expect(textsIn(row)).toHaveLength(0);
+    }
+    expect(screen.getAllByTestId("list-card", hidden)).toHaveLength(1);
+    // The explanations: meta lines at 18, 8 apart.
+    const hints = screen.queryAllByTestId(/^uang-skeleton-hint-/, hidden);
+    expect(hints).toHaveLength(7);
+    for (const hint of hints) expect(stackHeight(hint)).toBe(18);
+    expect(flat(screen.getByTestId("uang-skeleton-hints", hidden)).gap).toBe(8);
+  });
+
+  it("holds still under reduced motion and names the wait for screen readers", () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    renderWith(runtimeWith(owner), withDapurScale(<UangSkeleton />));
+    expect(skeletonNames()).toEqual(["Memuat uang"]);
   });
 });
 

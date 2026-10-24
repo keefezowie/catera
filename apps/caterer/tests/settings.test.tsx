@@ -91,7 +91,8 @@ it("Usaha has no notifications button and links to Pengaturan", async () => {
   expect(rows).toHaveLength(2);
   fireEvent.press(rows[1]);
   expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
-  expect(screen.getByText("Notifikasi, bahasa, tampilan")).toBeTruthy();
+  // Pengaturan is one of Kelola's 48 single-line rows now: it carries no second line of detail.
+  expect(screen.queryByText("Notifikasi, bahasa, tampilan")).toBeNull();
 });
 
 it("staff reach Pengaturan from Menu", async () => {

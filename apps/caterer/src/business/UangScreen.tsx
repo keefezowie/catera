@@ -1,7 +1,8 @@
 import { View } from "react-native";
 import { settlementCurrency } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Card, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
+import { FadeSwap, fontFor, KeyValueRow, ListCard, Screen, Text, useColors } from "@catera/mobile-ui";
 import { moneyStates } from "./money";
 import { ScreenGuard } from "../ErrorBoundary";
 import { ReadError } from "../ReadError";
@@ -32,30 +33,37 @@ function UangContent() {
   const pick = (pair: [string, string]) => t(pair[0], pair[1]);
   return (
     <Screen>
-      <FadeSwap swapKey="money" style={{ gap: 16 }}>
-        {/* A plain card (direction K): the amount is a price, so it is bold charcoal, and forest stays on buttons and selection. */}
-        <Card>
-          <Text variant="label">{t("Akan masuk ke rekening", "Going to your bank")}</Text>
-          <Text variant="number" testID="uang-available" style={{ color: c.charcoal }}>
-            {settlementCurrency(s.available, locale)}
-          </Text>
-          {s.nextPayoutAt ? (
-            <Text variant="caption">
-              {`${t("Pencairan berikutnya", "Next payout")} ${new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", { timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "short" }).format(new Date(s.nextPayoutAt))}`}
+      <FadeSwap swapKey="money">
+        <View testID="uang-sections" style={{ gap: nativeLayout.dense.sectionGap }}>
+          {/* The lead sits on the canvas, not in a card: what is going to the bank, the payout as the biggest figure on the
+              page (a price, so charcoal, never forest), and when. */}
+          <View testID="uang-lead" style={{ gap: nativeLayout.space.xs }}>
+            <Text variant="meta">{t("Akan masuk ke rekening", "Going to your bank")}</Text>
+            <Text variant="figure" testID="uang-available" style={{ color: c.charcoal }}>
+              {settlementCurrency(s.available, locale)}
             </Text>
-          ) : null}
-        </Card>
-        <Card>
-          {moneyStates.map((m, i) => (
-            <View key={m.key} style={{ paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, gap: 2 }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-                <Text variant="label">{pick(m.label)}</Text>
-                <Text variant="label" style={{ color: c.charcoal }}>{settlementCurrency(s[m.key], locale)}</Text>
-              </View>
-              <Text variant="caption">{pick(m.hint)}</Text>
-            </View>
-          ))}
-        </Card>
+            {s.nextPayoutAt ? (
+              <Text variant="meta">
+                {`${t("Pencairan berikutnya", "Next payout")} ${new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", { timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "short" }).format(new Date(s.nextPayoutAt))}`}
+              </Text>
+            ) : null}
+          </View>
+          {/* The seven money rows: 40 tall, every amount on the card's right edge, no row's height depends on its amount. */}
+          <ListCard inset={0}>
+            {moneyStates.map((m) => (
+              <KeyValueRow key={m.key} testID={`uang-row-${m.key}`} label={pick(m.label)} value={settlementCurrency(s[m.key], locale)} />
+            ))}
+          </ListCard>
+          {/* What each row means, under the list: the explanation never makes a money row taller. */}
+          <View testID="uang-hints" style={{ gap: nativeLayout.groupGap }}>
+            {moneyStates.map((m) => (
+              <Text key={m.key} variant="meta">
+                <Text variant="meta" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>{`${pick(m.label)}.`}</Text>
+                {` ${pick(m.hint)}`}
+              </Text>
+            ))}
+          </View>
+        </View>
       </FadeSwap>
     </Screen>
   );

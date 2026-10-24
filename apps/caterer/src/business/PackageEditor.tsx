@@ -1,30 +1,45 @@
-import { useEffect, useRef, useState } from "react";
-import { Image, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { currency, defaultDishCategories, errorLabel, type SellerOffer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
+import { nativeLayout } from "@catera/design-tokens";
 import {
   Button,
   Chip,
   Field,
   FormError,
+  ListCard,
   PressableScale,
   Screen,
   Segmented,
+  SectionHeader,
   Stepper,
   SuccessBeat,
   Text,
   useBusy,
   useColors,
   useToast,
+  useTouchTarget,
 } from "@catera/mobile-ui";
 import { emptyPackage, formFromOffer, nutritionIssues, packageIssues, quickOffer, type PackageForm } from "./package";
 import { NutritionFields } from "./NutritionFields";
+import { PackagePhoto } from "./PackagePhoto";
 import { photoUri } from "../photo";
 import { uploadPhoto } from "./upload";
 
 const days: [number, string][] = [[1, "Sen"], [2, "Sel"], [3, "Rab"], [4, "Kam"], [5, "Jum"], [6, "Sab"], [0, "Min"]];
+
+/** One of the editor's sections: a `section` header (12 above its content) over fields 16 apart. */
+function Section({ title, children, testID }: { title: string; children: ReactNode; testID?: string }) {
+  return (
+    <View testID={testID}>
+      <SectionHeader title={title} />
+      <View style={{ gap: nativeLayout.cardPadding }}>{children}</View>
+    </View>
+  );
+}
 
 /**
  * One screen for a new package: what it is, what's in a portion, price, days and how many per day. `from` prefills a
@@ -36,6 +51,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   const { runtime, actor, demo, t, locale, command } = useMobile();
   // Named palette because the dish-category rows below use `c` for a category.
   const palette = useColors();
+  const target = useTouchTarget();
   const catererId = actor?.catererId ?? "";
   const [form, setForm] = useState<PackageForm>(() => (from ? formFromOffer(from) : emptyPackage));
   // A copy says so once it is really here, filled in this editor: never on the tap, over a package that is still
@@ -123,60 +139,95 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
 
   return (
     <Screen footer={<Button label={t("Terbitkan paket", "Publish package")} busy={busy} disabled={uploading} onPress={() => void save()} />}>
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={t("Pilih foto paket", "Choose package photo")}
-        onPress={() => void pickPhoto()}
-        style={{ height: 168, borderRadius: 14, overflow: "hidden", backgroundColor: palette.sage, alignItems: "center", justifyContent: "center", borderWidth: shown.image ? 1 : 0, borderColor: palette.danger }}
-      >
-        {form.image ? (
-          <Image source={{ uri: photoUri(form.image, runtime.apiBase) }} style={{ width: "100%", height: "100%" }} />
-        ) : (
-          <Text variant="label" style={{ color: palette.forest /* forest: action (inside the photo button) */ }}>
-            {uploading ? t("Mengunggah…", "Uploading…") : t("+ Foto paket", "+ Package photo")}
-          </Text>
-        )}
-      </PressableScale>
-      {shown.image ? <FormError message={shown.image} failureKey={attempt} testID="form-error-image" /> : null}
-      <Field label={t("Nama paket", "Package name")} value={form.name} onChangeText={(v) => set("name", v)} error={shown.name} placeholder="Makan Siang Rumahan" />
-      <Field label={t("Ceritakan paketnya", "Describe the package")} value={form.description} onChangeText={(v) => set("description", v)} error={shown.description} multiline />
-      <Text variant="label">{t("Isi satu porsi", "What's in one portion")}</Text>
-      {defaultDishCategories.map((c) => (
-        <Stepper key={c.id} label={locale === "id" ? c.name : c.nameEn ?? c.name} decreaseLabel={t(`Kurangi ${c.name}`, `Decrease ${c.nameEn ?? c.name}`)} increaseLabel={t(`Tambah ${c.name}`, `Increase ${c.nameEn ?? c.name}`)} value={form.counts[c.id] ?? 0} onChange={(n) => set("counts", { ...form.counts, [c.id]: n })} max={10} />
-      ))}
-      {shown.counts ? <FormError message={shown.counts} failureKey={attempt} testID="form-error-counts" /> : null}
-      <NutritionFields value={form.nutrition} onChange={(n) => set("nutrition", n)} errors={giziShown} />
-      <Field label={t("Harga per porsi (Rp)", "Price per portion (Rp)")} value={form.price} onChangeText={(v) => set("price", v.replace(/\D/g, ""))} error={shown.price} keyboardType="number-pad" placeholder="28000" />
-      <Text variant="label">{t("Waktu makan", "Meal times")}</Text>
-      <Segmented
-        value={form.meal}
-        onChange={(v) => set("meal", v)}
-        options={[
-          { value: "lunch", label: t("Siang", "Lunch") },
-          { value: "dinner", label: t("Malam", "Dinner") },
-          { value: "both", label: t("Keduanya", "Both") },
-        ]}
-      />
-      <Text variant="label">{t("Hari antar", "Delivery days")}</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {days.map(([d, label]) => (
-          <Chip
-            key={d}
-            label={label}
-            selected={form.weekdays.includes(d)}
-            onPress={() => set("weekdays", form.weekdays.includes(d) ? form.weekdays.filter((x) => x !== d) : [...form.weekdays, d])}
+      {/* Sections sit 24 apart; each holds its `section` header 12 above its fields. */}
+      <View testID="paket-sections" style={{ gap: nativeLayout.dense.sectionGap }}>
+        <Section title={t("Foto", "Photo")}>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={t("Pilih foto paket", "Choose package photo")}
+            onPress={() => void pickPhoto()}
+          >
+            <PackagePhoto uri={form.image ? photoUri(form.image, runtime.apiBase) : undefined}>
+              {/* The empty tile draws its own four corners and its ground, like the photo that replaces it. */}
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  {
+                    borderRadius: nativeLayout.radius.card,
+                    borderCurve: "continuous",
+                    backgroundColor: palette.sage,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: shown.image ? 1 : 0,
+                    borderColor: palette.danger,
+                  },
+                ]}
+              >
+                <Text variant="bodyStrong" style={{ color: palette.forest /* forest: action (inside the photo button) */ }}>
+                  {uploading ? t("Mengunggah…", "Uploading…") : t("+ Foto paket", "+ Package photo")}
+                </Text>
+              </View>
+            </PackagePhoto>
+          </PressableScale>
+          {shown.image ? <FormError message={shown.image} failureKey={attempt} testID="form-error-image" /> : null}
+        </Section>
+        <View style={{ gap: nativeLayout.cardPadding }}>
+          <Field label={t("Nama paket", "Package name")} value={form.name} onChangeText={(v) => set("name", v)} error={shown.name} placeholder="Makan Siang Rumahan" />
+          <Field label={t("Ceritakan paketnya", "Describe the package")} value={form.description} onChangeText={(v) => set("description", v)} error={shown.description} multiline />
+        </View>
+        <Section title={t("Isi satu porsi", "What's in one portion")}>
+          <View testID="paket-counts">
+            <ListCard inset={0}>
+              {defaultDishCategories.map((c) => (
+                <Stepper key={c.id} label={locale === "id" ? c.name : c.nameEn ?? c.name} decreaseLabel={t(`Kurangi ${c.name}`, `Decrease ${c.nameEn ?? c.name}`)} increaseLabel={t(`Tambah ${c.name}`, `Increase ${c.nameEn ?? c.name}`)} value={form.counts[c.id] ?? 0} onChange={(n) => set("counts", { ...form.counts, [c.id]: n })} max={10} />
+              ))}
+            </ListCard>
+          </View>
+          {shown.counts ? <FormError message={shown.counts} failureKey={attempt} testID="form-error-counts" /> : null}
+        </Section>
+        <NutritionFields value={form.nutrition} onChange={(n) => set("nutrition", n)} errors={giziShown} />
+        <Section title={t("Harga", "Price")}>
+          <Field label={t("Harga per porsi (Rp)", "Price per portion (Rp)")} value={form.price} onChangeText={(v) => set("price", v.replace(/D/g, ""))} error={shown.price} keyboardType="number-pad" placeholder="28000" />
+        </Section>
+        <Section title={t("Hari antar", "Delivery days")}>
+          <View style={{ gap: nativeLayout.space.sm }}>
+            <Text variant="bodyStrong">{t("Waktu makan", "Meal times")}</Text>
+            <Segmented
+              value={form.meal}
+              onChange={(v) => set("meal", v)}
+              options={[
+                { value: "lunch", label: t("Siang", "Lunch") },
+                { value: "dinner", label: t("Malam", "Dinner") },
+                { value: "both", label: t("Keduanya", "Both") },
+              ]}
+            />
+          </View>
+          {/* The one chip row that wraps, because every day must show. Each chip sits in a frame as tall as the touch
+              target, so the extended hit area is not clipped by a parent (a 34 chip's slop reaches past its own box). */}
+          <View testID="paket-days" style={{ flexDirection: "row", flexWrap: "wrap", columnGap: nativeLayout.space.sm }}>
+            {days.map(([d, label]) => (
+              <View key={d} testID={`paket-day-${d}`} style={{ minHeight: target, justifyContent: "center", alignItems: "flex-start" }}>
+                <Chip
+                  label={label}
+                  selected={form.weekdays.includes(d)}
+                  onPress={() => set("weekdays", form.weekdays.includes(d) ? form.weekdays.filter((x) => x !== d) : [...form.weekdays, d])}
+                />
+              </View>
+            ))}
+          </View>
+          {shown.weekdays ? <FormError message={shown.weekdays} failureKey={attempt} testID="form-error-weekdays" /> : null}
+        </Section>
+        <Section title={t("Kuota", "Quota")}>
+          <Field
+            label={t("Kapasitas per hari (porsi)", "Daily capacity (portions)")}
+            hint={t("Paling banyak berapa porsi yang sanggup kamu masak dalam sehari?", "The most portions you can cook in a day.")}
+            value={form.capacity}
+            onChangeText={(v) => set("capacity", v.replace(/D/g, ""))}
+            error={shown.capacity}
+            keyboardType="number-pad"
           />
-        ))}
+        </Section>
       </View>
-      {shown.weekdays ? <FormError message={shown.weekdays} failureKey={attempt} testID="form-error-weekdays" /> : null}
-      <Field
-        label={t("Kapasitas per hari (porsi)", "Daily capacity (portions)")}
-        hint={t("Paling banyak berapa porsi yang sanggup kamu masak dalam sehari?", "The most portions you can cook in a day.")}
-        value={form.capacity}
-        onChangeText={(v) => set("capacity", v.replace(/\D/g, ""))}
-        error={shown.capacity}
-        keyboardType="number-pad"
-      />
       {error ? <FormError message={error} failureKey={attempt} /> : null}
     </Screen>
   );

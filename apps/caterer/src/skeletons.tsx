@@ -324,7 +324,41 @@ export function ListSkeleton({
  * main action takes. `shape="customer"` is the customer's detail as it is laid out: a meta status line, one
  * `ListCard` of five 40 key-value rows, the 50 action row and the 56 address well (24 below the actions, the section gap).
  */
-export function DetailSkeleton({ label, shape = "default" }: { label: string; shape?: "default" | "customer" }) {
+export function DetailSkeleton({ label, shape = "default" }: { label: string; shape?: "default" | "customer" | "package" }) {
+  if (shape === "package") {
+    // A package's page: the 16:10 photo, two description lines, one card of three 40 key-value rows and the 50 action,
+    // 24 apart (the loaded page's section gap).
+    return (
+      <SkeletonGroup label={label}>
+        <View style={{ gap: nativeLayout.dense.sectionGap }}>
+          <View style={{ gap: nativeLayout.space.lg }}>
+            <View testID="detail-skeleton-photo" style={{ aspectRatio: nativeLayout.ratio.card }}>
+              <Skeleton aspectRatio={nativeLayout.ratio.card} radius={nativeLayout.radius.card} />
+            </View>
+            <View>
+              <Line width="95%" block={12} line={22} />
+              <Line width="70%" block={12} line={22} />
+            </View>
+          </View>
+          <ListCard inset={0}>
+            {[0, 1, 2].map((i) => (
+              <View
+                key={i}
+                testID={`detail-skeleton-kv-${i}`}
+                style={{ height: nativeLayout.row.keyValue, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+              >
+                <Skeleton width={i % 2 ? 56 : 72} height={12} radius={6} />
+                <Skeleton width={i === 0 ? 144 : 96} height={12} radius={6} />
+              </View>
+            ))}
+          </ListCard>
+          <View testID="detail-skeleton-actions" style={{ height: nativeLayout.control.button }}>
+            <Skeleton height={nativeLayout.control.button} radius={nativeLayout.radius.control} />
+          </View>
+        </View>
+      </SkeletonGroup>
+    );
+  }
   if (shape === "customer") {
     return (
       <SkeletonGroup label={label}>
@@ -365,28 +399,39 @@ export function DetailSkeleton({ label, shape = "default" }: { label: string; sh
   );
 }
 
-/** Uang while it loads: the next payout's figure on its card, then the seven money states as rows. */
+/**
+ * Uang while it loads, as the loaded page is laid out: the lead (a meta line, the figure's 40 line, a meta caption), the
+ * seven money rows in one card at the key-value row's 40, and the seven explanations as meta lines, 24 between them.
+ */
 export function UangSkeleton() {
   const { t } = useMobile();
   return (
     <SkeletonGroup label={t("Memuat uang", "Loading money")}>
-      <View style={{ gap: 16 }}>
-        <Card>
-          <Line width={180} block={12} line={23} />
-          <Line width={150} block={36} line={48} />
+      <View testID="uang-skeleton-sections" style={{ gap: nativeLayout.dense.sectionGap }}>
+        <View testID="uang-skeleton-lead" style={{ gap: nativeLayout.space.xs }}>
+          <Line width={180} block={10} line={18} />
+          <Line width={200} block={28} line={nativeLayout.figure.leadLine} />
           <Line width={160} block={10} line={18} />
-        </Card>
-        <Card>
+        </View>
+        <ListCard inset={0}>
           {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-            <View key={i} style={{ paddingVertical: 10, gap: 6 }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-                <Skeleton width="40%" height={12} radius={6} />
-                <Skeleton width={72} height={12} radius={6} />
-              </View>
-              <Skeleton width="60%" height={10} radius={5} />
+            <View
+              key={i}
+              testID={`uang-skeleton-row-${i}`}
+              style={{ height: nativeLayout.row.keyValue, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+            >
+              <Skeleton width={i % 2 ? "35%" : "45%"} height={12} radius={6} />
+              <Skeleton width={96} height={12} radius={6} />
             </View>
           ))}
-        </Card>
+        </ListCard>
+        <View testID="uang-skeleton-hints" style={{ gap: nativeLayout.groupGap }}>
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <View key={i} testID={`uang-skeleton-hint-${i}`}>
+              <Line width={i % 2 ? "70%" : "85%"} block={10} line={18} />
+            </View>
+          ))}
+        </View>
       </View>
     </SkeletonGroup>
   );

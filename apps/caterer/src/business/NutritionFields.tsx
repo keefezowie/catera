@@ -31,9 +31,10 @@ export function NutritionFields({
   const cell = (basis: number) => ({ flexGrow: 1, flexBasis: basis * fontScale, minWidth: 0 });
   return (
     <View style={{ gap: 12 }}>
-      <Text variant="label" accessibilityRole="header">
+      {/* A section header like the editor's others (Foto, Harga, Kuota), with the optional mark beside it as a meta line. */}
+      <Text variant="section" accessibilityRole="header">
         {t("Gizi per porsi", "Nutrition per portion")}
-        <Text variant="caption">{` ${t("(opsional)", "(optional)")}`}</Text>
+        <Text variant="meta">{` ${t("(opsional)", "(optional)")}`}</Text>
       </Text>
       {/* The whole 48dp row is the switch: its label toggles it too, and it is read once as a switch. */}
       <PressableRow
@@ -43,7 +44,9 @@ export function NutritionFields({
         onPress={toggle}
         style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 48 }}
       >
-        <Text style={{ flex: 1, fontSize: 15 }}>{t("Pakai rentang", "Use a range")}</Text>
+        <Text variant="bodyL" style={{ flex: 1 }}>
+          {t("Pakai rentang", "Use a range")}
+        </Text>
         <Switch
           accessible={false}
           importantForAccessibility="no-hide-descendants"
@@ -110,7 +113,7 @@ export function NutritionFields({
           );
         })}
       </View>
-      <Text variant="caption" style={{ fontSize: 13, lineHeight: 19 }}>
+      <Text variant="meta">
         {t(
           "Isi kalau kamu tahu. Pelanggan melihatnya sebagai perkiraan per porsi; kolom kosong tidak ditampilkan.",
           "Fill these in if you know them. Customers see them as an estimate per portion; empty fields are not shown.",

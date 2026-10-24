@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Share, View } from "react-native";
 import { useMobile } from "@catera/mobile-core";
 import { useFormRun } from "../useFormRun";
-import { Button, FormError, SheetFitBody, SheetHeader, Text, useColors, useToast, cardEdge } from "@catera/mobile-ui";
+import { Button, Card, FormError, SheetFitBody, SheetHeader, sheetSidePadding, Text, useToast } from "@catera/mobile-ui";
 
 /**
  * Whether the share sheet's answer proves the invite went out. iOS answers `sharedAction` only for a real share and
@@ -18,14 +18,14 @@ export const inviteShared = (action: string, os = process.env.EXPO_OS) => os ===
  */
 export function TimScreen() {
   const { actor, t, locale, command } = useMobile();
-  const c = useColors();
   const toast = useToast();
   const [code, setCode] = useState("");
   const { busy, failure, run } = useFormRun(
     locale,
     t("Undangan belum bisa dibuat. Coba lagi.", "The invite could not be made. Try again."),
   );
-  const inset = process.env.EXPO_OS === "ios" ? 20 : 24;
+  // The sheet's own side padding, the same in both apps.
+  const inset = sheetSidePadding();
 
   const invite = () =>
     run(async () => {
@@ -48,7 +48,7 @@ export function TimScreen() {
       testID="tim-sheet"
       header={<SheetHeader title={t("Undang staf dapur", "Invite kitchen staff")} closeLabel={t("Tutup", "Close")} />}
     >
-      <View style={{ paddingHorizontal: inset, gap: 16 }}>
+      <View testID="tim-content" style={{ paddingHorizontal: inset, gap: 16 }}>
         <Text>
           {t(
             "Staf dapur bisa melihat daftar masak, rute antar dan menu. Uang dan data pelanggan tetap hanya untuk kamu.",
@@ -56,13 +56,13 @@ export function TimScreen() {
           )}
         </Text>
         {code ? (
-          <View style={{ gap: 4, padding: 16, borderRadius: 14, borderCurve: "continuous", backgroundColor: c.sage, ...cardEdge(c) }}>
-            <Text variant="caption">{t("Kode undangan", "Invite code")}</Text>
-            <Text selectable variant="heading" style={{ fontVariant: ["tabular-nums"] }}>
+          <Card testID="tim-code" tone="sage" style={{ gap: 4 }}>
+            <Text variant="meta">{t("Kode undangan", "Invite code")}</Text>
+            <Text selectable variant="section" style={{ fontVariant: ["tabular-nums"] }}>
               {code}
             </Text>
-            <Text variant="caption">{t("Satu kode untuk satu orang.", "One code per person.")}</Text>
-          </View>
+            <Text variant="meta">{t("Satu kode untuk satu orang.", "One code per person.")}</Text>
+          </Card>
         ) : null}
         {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
         <Button label={t("Bagikan undangan", "Share invite")} busy={busy} onPress={() => void invite()} />

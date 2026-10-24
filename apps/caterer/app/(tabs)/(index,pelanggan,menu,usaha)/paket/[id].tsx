@@ -20,7 +20,7 @@ export default function EditPackageRoute() {
       <Screen nativeTitle={loading ? (linkTitle(params) ?? t("Paket", "Package")) : t("Paket", "Package")}>
         <FadeSwap swapKey={loading ? "loading" : "other"} style={{ gap: 16 }}>
           {loading ? (
-            <DetailSkeleton label={t("Memuat paket", "Loading the package")} />
+            <DetailSkeleton shape="package" label={t("Memuat paket", "Loading the package")} />
           ) : (
             <Text variant="caption">{ops.error || t("Paket ini tidak ditemukan.", "This package was not found.")}</Text>
           )}
