@@ -212,8 +212,6 @@ describe("menu", () => {
         usage={new Map()}
         onChange={(next) => (items = next as typeof items)}
         onCreate={async () => library[0]}
-        onSave={() => undefined}
-        saving={false}
         canEdit
       />)
     );

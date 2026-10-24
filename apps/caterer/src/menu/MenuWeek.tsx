@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Children, Fragment, isValidElement, useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, ScrollView, Share, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Image as PhotoImage } from "expo-image";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -21,13 +22,14 @@ import { plural, useData, useMobile, type MobileRuntime } from "@catera/mobile-c
 import { nativeLayout } from "@catera/design-tokens";
 import {
   Button,
+  cardEdge,
+  cardEdgeWidth,
   Chip,
   COMPACT_MEDIA_INSET,
   DecorativeIcon,
   FadeSwap,
   fontFor,
   FormError,
-  ListCard,
   MediaRow,
   MoodHeader,
   MoodToggle,
@@ -111,12 +113,42 @@ const STRIP_GAP = 4;
 const DAY_HEIGHT = 56;
 /** The package chips' frame: a 34 chip with its 48 target (hitSlop 7) must not be clipped by the scroller. */
 const CHIP_FRAME = 48;
-/** The Siang / Malam frame under the week range. */
+/** The Siang / Malam frame under the week range: a minimum, as the toggle's 48 tabs on a 3 track are 54 tall. */
 const MEAL_FRAME = 48;
 /** The customer story cover's width on the day's page (the board draws 160 by 200). */
 const COVER_WIDTH = 160;
 /** The photo tile: the dish thumb's size in a compact row. */
 const THUMB = nativeLayout.thumb.compact;
+
+/**
+ * A day group's list: the look of `ListCard` (surface, radius 16, 16 side padding, a hairline from the text column between
+ * rows) but without its `overflow: hidden`. The dish photos load late, and on Android a photo that finishes loading inside an
+ * overflow-hidden rounded view stayed blank until the screen was reopened; the rows never touch the corners, so nothing
+ * here needs clipping.
+ */
+function DishList({ children }: { children: ReactNode }) {
+  const c = useColors();
+  const rows = Children.toArray(children);
+  return (
+    <View
+      testID="menu-dish-list"
+      style={{
+        backgroundColor: c.surface,
+        borderRadius: nativeLayout.radius.card,
+        borderCurve: "continuous",
+        paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
+        ...cardEdge(c),
+      }}
+    >
+      {rows.map((child, i) => (
+        <Fragment key={isValidElement(child) && child.key != null ? child.key : i}>
+          {i > 0 ? <View style={{ height: 1, marginLeft: COMPACT_MEDIA_INSET, backgroundColor: c.line }} /> : null}
+          {child}
+        </Fragment>
+      ))}
+    </View>
+  );
+}
 
 /**
  * One dish in the day's list: a 64 compact media row with its photo in a 48 thumb, or a dashed not-set tile with the
@@ -149,7 +181,20 @@ function DishRow({
   const dashed = { ...tile, borderWidth: 1.5, borderStyle: "dashed", borderColor: c.controlRing } as const;
   let leading: ReactNode;
   if (dish.image) {
-    leading = <Thumb testID={`menu-dish-photo-${dish.id}`} size={THUMB} uri={photoUri(dish.image, runtime.apiBase)} />;
+    // The image rounds its own corners and no ancestor clips it (see `DishList`).
+    leading = (
+      <View
+        testID={`menu-dish-photo-${dish.id}`}
+        style={{ width: THUMB, height: THUMB, borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", backgroundColor: c.sage }}
+      >
+        <PhotoImage
+          source={{ uri: photoUri(dish.image, runtime.apiBase) }}
+          contentFit="cover"
+          accessible={false}
+          style={{ width: THUMB, height: THUMB, borderRadius: nativeLayout.radius.thumb }}
+        />
+      </View>
+    );
   } else if (canAddPhoto || uploading) {
     // A photo is on its way (uploading, or saved and waiting for the fresh week): not the empty "no photo" tile.
     leading = (
@@ -180,22 +225,16 @@ function DishRow({
       </PressableScale>
     );
   } else {
-    leading = (
-      <View
-        testID={`menu-photo-tile-${dish.id}`}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={dashed}
-      >
-        <DecorativeIcon name="camera-outline" size={20} color={c.muted} />
-      </View>
-    );
+    // A helper's row, or a day that can no longer change: the not-set thumb (utensils), not the owner's camera action.
+    leading = <Thumb notSet size={THUMB} testID={`menu-photo-tile-${dish.id}`} />;
   }
   return (
     <MediaRow
       testID={`menu-dish-${dish.id}`}
       size="compact"
       titleVariant="bodyStrong"
+      // The kitchen cooks from these names: a long one wraps (the row grows) rather than ending in an ellipsis.
+      wrap="title"
       leading={leading}
       title={dish.name}
       meta={uploading ? t("Mengunggah…", "Uploading…") : dish.serving || undefined}
@@ -468,7 +507,7 @@ export function MenuWeek() {
           <View style={{ gap: 12 }}>
             {/* Siang / Malam picks the meal of a package that serves both: its own 48 frame under the week range. */}
             {offer?.meal === "both" ? (
-              <View testID="menu-meal-frame" style={{ height: MEAL_FRAME, alignItems: "center", justifyContent: "center" }}>
+              <View testID="menu-meal-frame" style={{ minHeight: MEAL_FRAME, alignItems: "center", justifyContent: "center" }}>
                 <MoodToggle />
               </View>
             ) : null}
@@ -630,7 +669,7 @@ export function MenuWeek() {
                   return rows.length ? (
                     <View key={g.id} style={{ gap: 8 }}>
                       <Text variant="meta">{componentLabel(g, locale)}</Text>
-                      <ListCard inset={COMPACT_MEDIA_INSET}>
+                      <DishList>
                         {rows.map((dish) => (
                           <DishRow
                             key={dish.id}
@@ -641,14 +680,14 @@ export function MenuWeek() {
                             onAdd={() => void addPhoto(selected, dish)}
                           />
                         ))}
-                      </ListCard>
+                      </DishList>
                     </View>
                   ) : null;
                 })}
               </View>
             ) : past || !selected.editable ? (
               // An empty day nobody can fill any more: past, or past its change cutoff. It is not a to-do, so it is muted.
-              <Text variant="caption" style={{ color: c.muted }}>
+              <Text variant="meta">
                 {past ? t("Lewat", "Past") : t("Sudah tidak bisa diubah", "Can't be changed anymore")}
               </Text>
             ) : (

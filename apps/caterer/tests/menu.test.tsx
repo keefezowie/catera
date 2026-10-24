@@ -4,6 +4,7 @@ import { withDapurScale } from "./dapur-scale";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { ActivityIndicator, StyleSheet } from "react-native";
 import { Image as PhotoImage } from "expo-image";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 import type { LibraryDish, MealMenu } from "@catera/domain";
 import { contrastRatio, nativeMood, nativeThemes } from "@catera/design-tokens";
@@ -18,6 +19,13 @@ const scaled = (Provider: typeof import("@catera/mobile-core").MobileProvider) =
   function ScaledProvider(props: ComponentProps<typeof Provider>) {
     return withDapurScale(<Provider {...props} />);
   };
+
+/** The phone the screen is drawn on: a 411dp phone at the default text size unless a test says otherwise. */
+let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
@@ -274,7 +282,7 @@ describe("menu reads", () => {
       expect(screen.getByRole("button", { name: "Ubah menu" })).toBeTruthy();
       // Monday is behind us: it says so and offers no editor.
       fireEvent.press(screen.getByTestId("menu-day-2026-10-05"));
-      expect(screen.getByText("Lewat")).toBeTruthy();
+      expect(StyleSheet.flatten(screen.getByText("Lewat").props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
       expect(screen.queryByText("Belum diisi")).toBeNull();
       expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
     });
@@ -283,7 +291,7 @@ describe("menu reads", () => {
   it("MenuDayScreen's only headings are its groups: the header carries the date, never a second raw one", async () => {
     const { wrap, MenuDayScreen } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
     render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
-    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(await screen.findByText("Makan Siang Rumahan · Makan siang")).toBeTruthy();
     expect(screen.queryByText("2026-10-07")).toBeNull();
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Nasi", "Lauk", "Sayur"]);
   });
@@ -717,7 +725,10 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       await screen.findByText("5–9 Okt");
       await act(async () => {});
       const frame = screen.getByTestId("menu-meal-frame");
-      expect(StyleSheet.flatten(frame.props.style)).toMatchObject({ height: 48, alignItems: "center", justifyContent: "center" });
+      // A minimum, not a fixed height: the toggle's 48 tabs on a 3 track are 54 tall and must stay inside the frame.
+      const style = StyleSheet.flatten(frame.props.style);
+      expect(style).toMatchObject({ minHeight: 48, alignItems: "center", justifyContent: "center" });
+      expect(style.height).toBeUndefined();
       expect(within(frame).getByRole("tab", { name: "Siang" })).toBeTruthy();
       // An owner has no gear: Pengaturan lives on Usaha.
       expect(screen.queryByRole("button", { name: "Pengaturan" })).toBeNull();
@@ -952,16 +963,22 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       await screen.findByText("Nasi putih");
       // Each group is a meta label over its own list card.
       for (const label of ["Nasi", "Lauk", "Sayur"]) expect(StyleSheet.flatten(screen.getByText(label).props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
-      expect(screen.getAllByTestId("list-card")).toHaveLength(3);
+      expect(screen.getAllByTestId("menu-dish-list")).toHaveLength(3);
       expect(screen.getByText("Ayam goreng")).toBeTruthy();
       expect(screen.getByText("Tempe bacem")).toBeTruthy();
       // The not-set tile is a 48 dashed square with the camera glyph, radius 8, like Thumb's.
       expect(flatOf("menu-photo-tile-i-ayam")).toMatchObject({ width: 48, height: 48, borderRadius: 8, borderStyle: "dashed", borderColor: nativeThemes.light.controlRing });
+      expect(within(screen.getByTestId("menu-photo-tile-i-ayam")).UNSAFE_getByType(Ionicons).props.name).toBe("camera-outline");
       expect(screen.getByTestId("menu-photo-tile-i-sayur", { includeHiddenElements: true })).toBeTruthy();
       // The dishes that have a photo show it in a 48 r8 thumb and offer nothing.
       expect(screen.queryByTestId("menu-photo-tile-i-nasi", { includeHiddenElements: true })).toBeNull();
       expect(flatOf("menu-dish-photo-i-nasi")).toMatchObject({ width: 48, height: 48, borderRadius: 8 });
-      expect(within(screen.getByTestId("menu-dish-photo-i-nasi")).UNSAFE_getByType(PhotoImage).props.source).toEqual({ uri: "https://cdn.test/nasi.jpg" });
+      const photo = within(screen.getByTestId("menu-dish-photo-i-nasi")).UNSAFE_getByType(PhotoImage);
+      expect(photo.props.source).toEqual({ uri: "https://cdn.test/nasi.jpg" });
+      // The corners are rounded by the image itself, and no ancestor clips it: on Android a photo that finishes loading
+      // inside an `overflow: hidden` rounded view stayed blank until the screen was reopened (so no Thumb, no ListCard).
+      expect(StyleSheet.flatten(photo.props.style)).toMatchObject({ width: 48, height: 48, borderRadius: 8 });
+      for (let n = photo.parent; n; n = n.parent) expect(StyleSheet.flatten((n.props as { style?: unknown }).style as never)?.overflow).not.toBe("hidden");
       // The owner's Tambah foto is the tile itself (the pill is gone), named by its dish.
       expect(screen.getAllByRole("button", { name: /^Tambah foto, / })).toHaveLength(2);
       expect(screen.queryByText("Tambah foto")).toBeNull();
@@ -997,7 +1014,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       // Today in production: the cutoff was yesterday, so nothing can be filled and nothing is asked of the caterer.
       mount({ dates: [{ date: "2026-10-08", version: 0, editable: false, details: null }] });
       const label = await screen.findByText("Sudah tidak bisa diubah");
-      expect(StyleSheet.flatten(label.props.style).color).toBe(nativeThemes.light.muted);
+      expect(StyleSheet.flatten(label.props.style)).toMatchObject({ color: nativeThemes.light.muted, fontSize: 13, lineHeight: 18 });
       expect(screen.queryByText("Belum diisi")).toBeNull();
       expect(screen.queryByText("Lewat")).toBeNull();
       expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
@@ -1015,12 +1032,35 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       await screen.findByText("Nasi putih");
       expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
       expect(screen.queryByRole("button", { name: /^Tambah foto/ })).toBeNull();
-      // The dish row is the same 64 row; the not-set tile is there, and inert.
+      // The dish row is the same 64 row; a dish without a photo shows Thumb's not-set tile (the utensils), which is not a control.
       expect(flatOf("menu-dish-i-ayam").minHeight).toBe(64);
-      const tile = screen.getByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true });
-      expect(tile.props.onPress).toBeUndefined();
-      expect(tile.props.accessibilityRole).toBeUndefined();
+      const tile = screen.getByTestId("menu-photo-tile-i-ayam-not-set", { includeHiddenElements: true });
+      expect(flatOf("menu-photo-tile-i-ayam-not-set")).toMatchObject({ width: 48, height: 48, borderRadius: 8, borderStyle: "dashed" });
+      expect(within(tile).UNSAFE_getByType(Ionicons).props.name).toBe("restaurant-outline");
+      expect(screen.queryByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true })).toBeNull();
       expect(within(screen.getByTestId("menu-dish-i-ayam")).queryByRole("button")).toBeNull();
+    });
+
+    it("an owner sees the same utensils tile, not the camera action, on a day that can no longer change", async () => {
+      mount({ dates: [filled("2026-10-08", dishes, false)] });
+      await screen.findByText("Nasi putih");
+      expect(screen.getByTestId("menu-photo-tile-i-ayam-not-set", { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^Tambah foto/ })).toBeNull();
+      expect(flatOf("menu-dish-i-ayam").minHeight).toBe(64);
+    });
+
+    it("lets a long dish name wrap at 360dp and font scale 1.3 instead of cutting it, and a short one keeps the 64 row", async () => {
+      const long = "Ayam panggang bumbu rempah";
+      mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+      try {
+        mount({ dates: [filled("2026-10-08", dishes.map((d) => (d.id === "i-ayam" ? { ...d, name: long } : d)))] });
+        const title = await screen.findByText(long);
+        // Not limited to one line: the name grows the row only when it needs to.
+        expect(title.props.numberOfLines).toBeUndefined();
+        expect(flatOf("menu-dish-i-ayam").minHeight).toBe(64);
+      } finally {
+        mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+      }
     });
   });
 

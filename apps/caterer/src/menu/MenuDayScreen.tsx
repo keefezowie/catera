@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
-import { errorLabel, type Dish, type LibraryDish } from "@catera/domain";
+import { errorLabel, mealLabel, type Dish, type LibraryDish } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, FadeSwap, FormError, Screen, Text, useBusy, useToast } from "@catera/mobile-ui";
@@ -84,7 +84,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
       }
     >
       <FadeSwap swapKey="day" style={{ gap: nativeLayout.dense.sectionGap }}>
-        <Text variant="meta">{offer.name}</Text>
+        <Text variant="meta">{`${offer.name} · ${mealLabel(meal, locale)}`}</Text>
         <SlotEditor
           composition={template.composition ?? []}
           items={items}
