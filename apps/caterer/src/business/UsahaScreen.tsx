@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -23,6 +24,7 @@ import {
   Text,
   useActionSheet,
   useColors,
+  useToast,
 } from "@catera/mobile-ui";
 import { usePaymentsActive } from "../customers/usePayments";
 import { packageHref } from "../hrefs";
@@ -34,6 +36,8 @@ import { ReadError } from "../ReadError";
 const BODY_LIFT = -4;
 /** A 48 button in a row pulls 12 into the card's side padding, so its glyph ends where the other rows' content does. */
 const MORE_PULL = -12;
+/** Prices line up digit for digit down the list. */
+const TABULAR = { fontVariant: ["tabular-nums" as const] };
 
 /** What the package list looks like while it loads: two 72 media rows, a 56 photo, two text lines and the 48 button's place. */
 function PackagesSkeleton() {
@@ -72,6 +76,13 @@ export function UsahaScreen() {
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const payments = usePaymentsActive();
   const actions = useActionSheet();
+  const toast = useToast();
+  // A read that fails while the packages are on screen leaves them there; say so once instead of staying silent.
+  useEffect(() => {
+    if (ops.error && ops.data)
+      toast.show({ message: t("Belum bisa memperbarui. Tarik lagi untuk mencoba.", "Couldn't refresh. Pull again to try."), tone: "error" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ops.error]);
   const offers = (ops.data?.offers ?? []).filter((o) => o.status !== "retired");
   /** "…" on a package: look at it, or copy it into a new package (a live package's terms cannot change). */
   async function packageActions(o: (typeof offers)[number], detail: string, image: string | undefined) {
@@ -192,6 +203,7 @@ export function UsahaScreen() {
                               wrap="title"
                               title={o.name}
                               meta={meta}
+                              metaStyle={TABULAR}
                               accessibilityLabel={o.name}
                               onPress={() => router.push(packageHref(o.id, o.name) as never)}
                             />
@@ -235,7 +247,7 @@ export function UsahaScreen() {
                   trailing={
                     <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.sm }}>
                       {"status" in row ? <Text variant="meta">{row.status}</Text> : null}
-                      <DecorativeIcon name="chevron-forward" size={20} color={c.muted} />
+                      {process.env.EXPO_OS === "ios" ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : null}
                     </View>
                   }
                 />

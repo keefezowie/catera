@@ -366,17 +366,17 @@ describe("Pelanggan", () => {
     wrap(runtimeWith({ sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })) }), <CustomerList />);
     await screen.findByText("Andre Kusuma");
     await act(async () => {});
-    const block = () => screen.UNSAFE_getByType(Reanimated.LayoutAnimationConfig);
+    const blocks = () => screen.UNSAFE_getAllByType(Reanimated.LayoutAnimationConfig);
     const ani = () => screen.getAllByTestId("customer-row").find((r) => within(r).queryByText("Bu Ani"))!;
-    // The rows sit in a block that skips its children's entrances and exits when it is swapped.
-    expect(block().props).toMatchObject({ skipEntering: true, skipExiting: true });
+    // Each row sits in a block that skips its children's entrances and exits when it is swapped.
+    for (const b of blocks()) expect(b.props).toMatchObject({ skipEntering: true, skipExiting: true });
     const before = ani();
     // Bu Ani is about to end, so she is under Aktif and under Segera berakhir: the filter remounts her row in a new
     // block instead of moving it, and Andre's row leaves with the old block, without its own exit.
     fireEvent.press(screen.getByRole("button", { name: /^Segera berakhir/ }));
     expect(screen.queryByText("Andre Kusuma")).toBeNull();
     expect(ani()).not.toBe(before);
-    expect(block().props).toMatchObject({ skipEntering: true, skipExiting: true });
+    for (const b of blocks()) expect(b.props).toMatchObject({ skipEntering: true, skipExiting: true });
   });
 
   it("a pull to refresh swaps the rows too, and what it brings never enters as an insertion", async () => {
@@ -395,6 +395,6 @@ describe("Pelanggan", () => {
     // Budi has no entrance.
     expect(row("Andre Kusuma")).not.toBe(andre);
     expect(row("Pak Budi")!.props.entering).toBeUndefined();
-    expect(screen.UNSAFE_getByType(Reanimated.LayoutAnimationConfig).props).toMatchObject({ skipEntering: true, skipExiting: true });
+    for (const b of screen.UNSAFE_getAllByType(Reanimated.LayoutAnimationConfig)) expect(b.props).toMatchObject({ skipEntering: true, skipExiting: true });
   });
 });

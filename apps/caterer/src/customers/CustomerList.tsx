@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import { Linking, RefreshControl, ScrollView, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { FlatList, Linking, RefreshControl, ScrollView, View } from "react-native";
 import Animated from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
+import { nativeLayout } from "@catera/design-tokens";
 import { addDays, jakartaDay, whatsappUrl, type CustomerSubscription, type Locale, type SellerCustomer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
+  cardEdge,
   Chip,
   FadeSwap,
   ListCard,
@@ -18,6 +20,7 @@ import {
   useColors,
   useListMotion,
   useScreenMargin,
+  useToast,
   useTouchTarget,
 } from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, endLabel, type CustomerStatus } from "./rules";
@@ -49,6 +52,41 @@ function daysLeft(
   return t(`sisa ${s.remaining} hari`, s.remaining === 1 ? "1 day left" : `${s.remaining} days left`);
 }
 
+/** The Screen body's column, for a list that is the scroll root and so draws its own. */
+const FRAME = { maxWidth: 760, width: "100%", alignSelf: "center" } as const;
+
+/**
+ * One customer's place in the list. The rows are the list's items, so the card they used to share is drawn in
+ * pieces: the first row takes the top corners and edge, the last the bottom ones, and a line divides the rest.
+ */
+function CardRow({ first, last, children }: { first: boolean; last: boolean; children: ReactNode }) {
+  const palette = useColors();
+  const edge = cardEdge(palette).borderWidth ?? 0;
+  const radius = nativeLayout.radius.card;
+  return (
+    <View
+      style={{
+        backgroundColor: palette.surface,
+        paddingHorizontal: nativeLayout.cardPadding - edge,
+        borderCurve: "continuous",
+        overflow: "hidden",
+        borderLeftWidth: edge,
+        borderRightWidth: edge,
+        borderTopWidth: first ? edge : 0,
+        borderBottomWidth: last ? edge : 0,
+        borderColor: palette.cardBorder || undefined,
+        borderTopLeftRadius: first ? radius : 0,
+        borderTopRightRadius: first ? radius : 0,
+        borderBottomLeftRadius: last ? radius : 0,
+        borderBottomRightRadius: last ? radius : 0,
+      }}
+    >
+      {first ? null : <View testID="list-card-separator" style={{ height: 1, backgroundColor: palette.line }} />}
+      {children}
+    </View>
+  );
+}
+
 /** Every subscriber, marketplace and own, filtered by where their package stands. */
 export function CustomerList() {
   const { runtime, actor, t, locale } = useMobile();
@@ -56,6 +94,7 @@ export function CustomerList() {
   const palette = useColors();
   const target = useTouchTarget();
   const margin = useScreenMargin();
+  const toast = useToast();
   const id = actor?.catererId ?? "";
   const list = useData(`customers:${id}`, () => loadAllCustomers(runtime, id));
   const [filter, setFilter] = useState<CustomerStatus>("active");
@@ -93,6 +132,12 @@ export function CustomerList() {
       setPulling(false);
     }
   }
+  // A read that fails while the customers are on screen leaves them there; say so once instead of staying silent.
+  useEffect(() => {
+    if (list.error && list.data)
+      toast.show({ message: t("Belum bisa memperbarui. Tarik lagi untuk mencoba.", "Couldn't refresh. Pull again to try."), tone: "error" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list.error]);
   const addLabel = t("+ Pelanggan lama", "+ Existing customer");
   return (
     <Screen
@@ -135,79 +180,91 @@ export function CustomerList() {
           progressBackgroundColor={palette.surface}
         />
       }
-    >
-      {!list.data && list.error ? <ReadError art message={list.error} onRetry={() => void list.reload()} /> : null}
-      {/* The rows enter from their skeleton as one block, never one by one. */}
-      {list.data || !list.error ? (
-        <View style={{ marginTop: CHIPS_LIFT }}>
-          <FadeSwap swapKey={list.data ? "list" : "loading"}>
-            {list.data ? (
-              <View style={{ gap: 8 }}>
-                {/* One row of chips that scrolls sideways. The frame is a real 48 tall and never shrinks (a hit slop cannot
-                    reach past its parent), and runs to the right screen edge while the chips start at the margin. */}
-                <View testID="pelanggan-chips-frame" style={{ height: target, flexShrink: 0, marginRight: -margin }}>
-                  <ScrollView
-                    testID="pelanggan-chips"
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                    style={{ flexGrow: 0, flexShrink: 0, height: target }}
-                    contentContainerStyle={{ gap: 8, alignItems: "center", paddingRight: margin }}
-                  >
-                    {(["active", "ending", "ended"] as const).map((s) => (
-                      <Chip key={s} label={`${labels[s]} · ${count(s)}`} selected={filter === s} onPress={() => setFilter(s)} />
-                    ))}
-                  </ScrollView>
-                </View>
-                {!shown.length ? (
-                  <Text variant="caption">{t("Belum ada pelanggan di sini.", "No customers here yet.")}</Text>
+      list={({ scrollProps, header: screenHeader }) => (
+        <FlatList
+          {...scrollProps}
+          data={list.data ? shown : []}
+          keyExtractor={(c) => c.id}
+          ListHeaderComponent={
+            <>
+              {screenHeader}
+              <View style={{ ...FRAME, paddingHorizontal: margin, paddingTop: 16 + CHIPS_LIFT }}>
+                {!list.data && list.error ? <ReadError art message={list.error} onRetry={() => void list.reload()} /> : null}
+                {/* The chips enter from their skeleton as one block, never one by one. */}
+                {list.data || !list.error ? (
+                  <FadeSwap swapKey={list.data ? "list" : "loading"}>
+                    {list.data ? (
+                      <View style={{ gap: 8 }}>
+                        {/* One row of chips that scrolls sideways. The frame is a real 48 tall and never shrinks (a hit slop cannot
+                            reach past its parent), and runs to the right screen edge while the chips start at the margin. */}
+                        <View testID="pelanggan-chips-frame" style={{ height: target, flexShrink: 0, marginRight: -margin }}>
+                          <ScrollView
+                            testID="pelanggan-chips"
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            style={{ flexGrow: 0, flexShrink: 0, height: target }}
+                            contentContainerStyle={{ gap: 8, alignItems: "center", paddingRight: margin }}
+                          >
+                            {(["active", "ending", "ended"] as const).map((s) => (
+                              <Chip key={s} label={`${labels[s]} · ${count(s)}`} selected={filter === s} onPress={() => setFilter(s)} />
+                            ))}
+                          </ScrollView>
+                        </View>
+                        {!shown.length ? <Text variant="caption">{t("Belum ada pelanggan di sini.", "No customers here yet.")}</Text> : null}
+                      </View>
+                    ) : (
+                      <ListSkeleton shape="customer" rows={8} chips={3} label={t("Memuat pelanggan", "Loading customers")} />
+                    )}
+                  </FadeSwap>
                 ) : null}
+              </View>
+            </>
+          }
+          renderItem={({ item: c, index }) => {
+            const s = currentSubscription(c);
+            const others = Math.max(activeSubscriptions(c).length - 1, 0);
+            const meta = [
+              s?.package_name,
+              s && s.status === "active" ? daysLeft(s, today, t, locale) : null,
+              others ? `+${others} ${t("paket lain", "more packages")}` : null,
+              c.address.area,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <View style={{ ...FRAME, paddingHorizontal: margin }}>
+                {/* A filter change or a refresh swaps the rows as one block; only the caterer's own import animates them in. */}
                 <RowSwap swapKey={`${filter}:${swaps}`}>
-                  {shown.length ? (
-                    <ListCard inset={0}>
-                      {shown.map((c) => {
-                        const s = currentSubscription(c);
-                        const others = Math.max(activeSubscriptions(c).length - 1, 0);
-                        const meta = [
-                          s?.package_name,
-                          s && s.status === "active" ? daysLeft(s, today, t, locale) : null,
-                          others ? `+${others} ${t("paket lain", "more packages")}` : null,
-                          c.address.area,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ");
-                        return (
-                          <Animated.View key={c.id} testID="customer-row" {...rowMotion(c.id)}>
-                            <TwoLineRow
-                              title={c.name}
-                              meta={meta}
-                              onPress={() => router.push(customerHref(c.id, c.name) as never)}
-                              trailing={
-                                c.phone ? (
-                                  <PressableScale
-                                    accessibilityRole="link"
-                                    accessibilityLabel={`${t("Chat", "Chat")} ${c.name}`}
-                                    onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
-                                    style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", marginRight: CHAT_PULL }}
-                                  >
-                                    <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.forest} />
-                                  </PressableScale>
-                                ) : undefined
-                              }
-                            />
-                          </Animated.View>
-                        );
-                      })}
-                    </ListCard>
-                  ) : null}
+                  <CardRow first={index === 0} last={index === shown.length - 1}>
+                    <Animated.View testID="customer-row" {...rowMotion(c.id)}>
+                      <TwoLineRow
+                        title={c.name}
+                        meta={meta}
+                        onPress={() => router.push(customerHref(c.id, c.name) as never)}
+                        trailing={
+                          c.phone ? (
+                            <PressableScale
+                              accessibilityRole="link"
+                              accessibilityLabel={`${t("Chat", "Chat")} ${c.name}`}
+                              onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
+                              style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", marginRight: CHAT_PULL }}
+                            >
+                              <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.forest} />
+                            </PressableScale>
+                          ) : undefined
+                        }
+                      />
+                    </Animated.View>
+                  </CardRow>
                 </RowSwap>
               </View>
-            ) : (
-              <ListSkeleton shape="customer" rows={8} chips={3} label={t("Memuat pelanggan", "Loading customers")} />
-            )}
-          </FadeSwap>
-        </View>
-      ) : null}
+            );
+          }}
+        />
+      )}
+    >
+      {null}
     </Screen>
   );
 }

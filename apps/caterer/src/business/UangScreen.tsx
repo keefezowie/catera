@@ -39,11 +39,11 @@ function UangContent() {
               page (a price, so charcoal, never forest), and when. */}
           <View testID="uang-lead" style={{ gap: nativeLayout.space.xs }}>
             <Text variant="meta">{t("Akan masuk ke rekening", "Going to your bank")}</Text>
-            <Text variant="figure" testID="uang-available" style={{ color: c.charcoal }}>
+            <Text variant="figure" selectable testID="uang-available" style={{ color: c.charcoal }}>
               {settlementCurrency(s.available, locale)}
             </Text>
             {s.nextPayoutAt ? (
-              <Text variant="meta">
+              <Text variant="meta" selectable style={{ fontVariant: ["tabular-nums"] }}>
                 {`${t("Pencairan berikutnya", "Next payout")} ${new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", { timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "short" }).format(new Date(s.nextPayoutAt))}`}
               </Text>
             ) : null}

@@ -556,12 +556,11 @@ describe("Pelanggan on the Dapur scale", () => {
   });
 
   describe("rows", () => {
-    it("are TwoLineRows of 64 in one ListCard: rowTitle name, meta line, a 48 chat button, hairlines between", async () => {
-      dapur(runtimeWith("approved", true, many(40)), <CustomerList />);
+    it("are TwoLineRows of 64 in one card drawn in pieces: rowTitle name, meta line, a 48 chat button, hairlines between", async () => {
+      dapur(runtimeWith("approved", true, many(8)), <CustomerList />);
       await screen.findByText("Pelanggan 0");
-      expect(screen.getAllByTestId("customer-row")).toHaveLength(40);
-      expect(screen.getAllByTestId("list-card")).toHaveLength(1);
-      expect(screen.getAllByTestId("list-card-separator")).toHaveLength(39);
+      expect(screen.getAllByTestId("customer-row")).toHaveLength(8);
+      expect(screen.getAllByTestId("list-card-separator")).toHaveLength(7);
       const row = screen.getByRole("button", { name: /Pelanggan 0,/ });
       expect(sty(row).minHeight).toBe(64);
       const name = screen.getByText("Pelanggan 0");

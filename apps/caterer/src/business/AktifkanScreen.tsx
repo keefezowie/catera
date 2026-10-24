@@ -36,7 +36,8 @@ export function AktifkanScreen() {
   const state = useData(`aktifkan:${catererId}`, async () => {
     const [ops, setup] = await Promise.all([
       runtime.api.sellerOperations(catererId),
-      runtime.api.request<PayoutSetup>("payout-setup/" + catererId).catch(() => null),
+      // A failed read is not "no bank account yet": step 2 says so and offers a retry instead of the empty form.
+      runtime.api.request<PayoutSetup>("payout-setup/" + catererId).catch(() => "failed" as const),
     ]);
     return { status: ops.caterer.status ?? "draft", packages: ops.offers.length, setup };
   });
@@ -70,8 +71,9 @@ export function AktifkanScreen() {
   };
 
   const review: StepState = s.status === "approved" ? "done" : s.status === "submitted" ? "waiting" : "todo";
-  const latest = s.setup?.latest;
-  const payout: StepState = s.setup?.active ? "done" : latest?.status === "submitted" ? "waiting" : "todo";
+  const setup = s.setup === "failed" ? null : s.setup;
+  const latest = setup?.latest;
+  const payout: StepState = setup?.active ? "done" : latest?.status === "submitted" ? "waiting" : "todo";
   const bankReady = bank.bank.trim().length >= 2 && bank.holder.trim().length >= 2 && /^\d{6,20}$/.test(bank.accountNumber);
 
   return (
@@ -102,10 +104,15 @@ export function AktifkanScreen() {
             ) : null}
           </Step>
           <Step n={2} title={t("Rekening pencairan", "Payout bank account")} state={payout}>
-            {payout === "done" && s.setup?.active ? (
-              <Text variant="meta">{`${s.setup.active.bank} · ${s.setup.active.maskedAccount} · ${s.setup.active.holder}`}</Text>
+            {s.setup === "failed" ? (
+              <ReadError
+                message={t("Rekening pencairan belum bisa dimuat. Cek koneksi lalu coba lagi.", "Couldn't load the payout account. Check your connection and try again.")}
+                onRetry={() => void state.reload()}
+              />
+            ) : payout === "done" && setup?.active ? (
+              <Text variant="meta" selectable>{`${setup.active.bank} · ${setup.active.maskedAccount} · ${setup.active.holder}`}</Text>
             ) : payout === "waiting" && latest ? (
-              <Text variant="meta">{`${latest.bank} · ${latest.maskedAccount}`}</Text>
+              <Text variant="meta" selectable>{`${latest.bank} · ${latest.maskedAccount}`}</Text>
             ) : (
               <View testID="aktifkan-bank-form" style={{ gap: nativeLayout.space.md }}>
                 {latest?.status === "rejected" && latest.reason ? <FormError message={latest.reason} failureKey={latest.reason} /> : null}

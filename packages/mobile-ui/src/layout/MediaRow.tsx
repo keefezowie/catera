@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import { View, type TextStyle } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { Text } from "../components";
 import { PressableRow } from "../PressableRow";
@@ -22,6 +22,7 @@ export function MediaRow({
   leading,
   title,
   meta,
+  metaStyle,
   trailing,
   onPress,
   wrap = false,
@@ -35,6 +36,8 @@ export function MediaRow({
   leading?: ReactNode;
   title: string;
   meta?: string;
+  /** Extra style for the meta line (tabular figures on a price). */
+  metaStyle?: TextStyle;
   trailing?: ReactNode | "chevron";
   onPress?: () => void;
   wrap?: boolean | "title";
@@ -64,7 +67,7 @@ export function MediaRow({
           {title}
         </Text>
         {meta ? (
-          <Text variant="meta" numberOfLines={wrap === true ? undefined : 1}>
+          <Text variant="meta" numberOfLines={wrap === true ? undefined : 1} style={metaStyle}>
             {meta}
           </Text>
         ) : null}

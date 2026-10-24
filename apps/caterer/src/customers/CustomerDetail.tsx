@@ -177,14 +177,14 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
           );
         })}
         {c.address.line || c.address.area ? (
-          <View testID="customer-address" style={{ marginTop: SECTION_LIFT, flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, paddingVertical: 8, paddingHorizontal: 16, borderRadius: nativeLayout.radius.control, backgroundColor: palette.well }}>
+          <View testID="customer-address" style={{ marginTop: SECTION_LIFT, flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, paddingVertical: 8, paddingHorizontal: 16, borderRadius: nativeLayout.radius.control, backgroundColor: palette.fill, borderCurve: "continuous" }}>
             <DecorativeIcon name="location-outline" size={20} color={palette.charcoal} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text variant="meta">
                 {c.address.label ? `${t("Alamat antar", "Delivery address")} · ${c.address.label}` : t("Alamat antar", "Delivery address")}
               </Text>
-              <Text variant="bodyL">{[c.address.line, c.address.area].filter(Boolean).join(", ")}</Text>
-              {c.address.instructions ? <Text variant="meta">{c.address.instructions}</Text> : null}
+              <Text variant="bodyL" selectable>{[c.address.line, c.address.area].filter(Boolean).join(", ")}</Text>
+              {c.address.instructions ? <Text variant="meta" selectable>{c.address.instructions}</Text> : null}
             </View>
           </View>
         ) : null}
@@ -206,7 +206,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
                       accessibilityLabel={`${shortDate(d.service_date, locale)}, ${deliveryStatus(d)}`}
                       style={{ minHeight: nativeLayout.row.info, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}
                     >
-                      <Text variant="bodyL">{shortDate(d.service_date, locale)}</Text>
+                      <Text variant="bodyL" style={{ fontVariant: ["tabular-nums"] }}>{shortDate(d.service_date, locale)}</Text>
                       <Text variant="meta">{deliveryStatus(d)}</Text>
                     </View>
                   ))}
