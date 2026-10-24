@@ -113,6 +113,9 @@ const eventLabels: Record<string, [string, string]> = {
  */
 const drafts = new Map<string, string>();
 
+/** Forgets every kept reply (tests). */
+export const resetReportDrafts = () => drafts.clear();
+
 /** One report, read by its id for this kitchen. */
 function useIssue(id: string) {
   const { runtime, actor } = useMobile();

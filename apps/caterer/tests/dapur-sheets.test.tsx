@@ -12,7 +12,7 @@ import TabStack from "../app/(tabs)/(index,pelanggan,menu,usaha)/_layout";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { MoveSheet } from "../src/today/MoveSheet";
-import { ReplySheet } from "../src/today/ReportScreen";
+import { ReplySheet, resetReportDrafts } from "../src/today/ReportScreen";
 import { ProofSheet } from "../src/today/ProofSheet";
 import { inviteShared, TimScreen } from "../src/business/TimScreen";
 import { UsahaScreen } from "../src/business/UsahaScreen";
@@ -58,6 +58,7 @@ beforeEach(() => {
   });
   jest.clearAllMocks();
   resetSheets();
+  resetReportDrafts();
   (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
   (require("expo-secure-store") as { __store: Map<string, string> }).__store.clear();
 });

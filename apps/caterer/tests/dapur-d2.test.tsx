@@ -8,7 +8,7 @@ import { ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import * as ReactNative from "react-native";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
-import { ReportScreen } from "../src/today/ReportScreen";
+import { ReportScreen, resetReportDrafts } from "../src/today/ReportScreen";
 import * as offline from "../src/today/offline";
 import { canvasDay, emptyDay, report } from "./fixtures";
 import { withDapurScale } from "./dapur-scale";
@@ -33,7 +33,6 @@ jest.mock("../src/today/offline", () => ({
 
 const TODAY = "2026-10-08";
 const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
-const os = process.env.EXPO_OS;
 beforeEach(() => {
   jest.useFakeTimers({
     now: new Date("2026-10-08T03:00:00Z"),
@@ -45,14 +44,13 @@ beforeEach(() => {
   });
   jest.clearAllMocks();
   resetSheets();
+  resetReportDrafts();
   (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
   (require("expo-secure-store") as { __store: Map<string, string> }).__store.clear();
 });
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
-  if (os === undefined) delete process.env.EXPO_OS;
-  else process.env.EXPO_OS = os;
 });
 
 function runtimeWith(overrides: Record<string, unknown> = {}): MobileRuntime {
@@ -257,12 +255,17 @@ describe("the cooked summary", () => {
 
 describe("iOS-only disclosure chevrons", () => {
   // `process.env.EXPO_OS` is compiled in, so the iOS branch is checked by reading the source.
-  it.each(["LiveSlot", "ExceptionSheet", "ReportScreen"])("%s gates its chevron on EXPO_OS", (file) => {
-    const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/today", file + ".tsx"), "utf8");
-    expect(src).toMatch(/process.env.EXPO_OS === "ios"/);
+  const read = (file: string) => require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/today", file + ".tsx"), "utf8") as string;
+  it.each([
+    ["LiveSlot", 2],
+    ["ExceptionSheet", 1],
+    ["ReportScreen", 1],
+  ])("%s gates each chevron-forward icon on iOS", (file, count) => {
+    const gated = read(file).match(/process\.env\.EXPO_OS === "ios" \? <DecorativeIcon name="chevron-forward"/g) ?? [];
+    expect(gated).toHaveLength(count);
+    expect(read(file).match(/name="chevron-forward"/g) ?? []).toHaveLength(count);
   });
   it("DeliveryOrder no longer reads Platform", () => {
-    const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/today/DeliveryOrder.tsx"), "utf8");
-    expect(src).not.toMatch(/Platform.OS/);
+    expect(read("DeliveryOrder")).not.toMatch(/Platform\.OS/);
   });
 });

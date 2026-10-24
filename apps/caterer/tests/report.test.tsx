@@ -4,7 +4,7 @@ import { nativeThemes } from "@catera/design-tokens";
 import { useEffect } from "react";
 import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { ToastProvider } from "@catera/mobile-ui";
-import { ReportScreen } from "../src/today/ReportScreen";
+import { ReportScreen, resetReportDrafts } from "../src/today/ReportScreen";
 import { withDapurScale } from "./dapur-scale";
 import { report } from "./fixtures";
 
@@ -41,6 +41,7 @@ const show = (runtime: MobileRuntime) =>
 // The English test stores its locale; every test starts from a fresh store (Indonesian).
 beforeEach(() => {
   jest.clearAllMocks();
+  resetReportDrafts();
   (require("expo-secure-store") as { __store: Map<string, string> }).__store.clear();
 });
 

@@ -185,7 +185,7 @@ function MulaiCard() {
   ];
   return (
     <>
-      {/* Direction K: a plain card. Forest fills only the first step, the one brand control here; the rest sit on sage. */}
+      {/* Direction K: a plain card. Forest fills only the first step, the one brand control here; the rest sit on well. */}
       <Card>
         <Text variant="section">{t("Siapkan dapurmu", "Set up your kitchen")}</Text>
         {steps.map(([title, sub, href], i) => (
