@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
+import { nativeLayout } from "@catera/design-tokens";
 import { areaOptions } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Chip, Field, FormError, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Chip, Field, fontFor, FormError, Screen, Text, useColors } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
 import { catererSlug, e164Indonesia } from "../onboarding";
 import { useFormRun } from "../useFormRun";
@@ -62,9 +63,9 @@ export function Daftar() {
         )
       }
     >
-      <View style={{ gap: 8 }}>
+      <View style={{ gap: nativeLayout.groupGap }}>
         <Text variant="title">{t("Kelola katering dari satu HP", "Run your catering from one phone")}</Text>
-        <Text style={{ color: c.muted }}>
+        <Text variant="bodyL" style={{ color: c.muted }}>
           {t(
             "Daftar masak, rute antar, dan semua pelangganmu di satu tempat. Gratis untuk pelanggan yang kamu bawa sendiri.",
             "Cooking lists, delivery routes and all your customers in one place. Free for customers you bring yourself.",
@@ -86,9 +87,13 @@ export function Daftar() {
         editable={!sent}
         keyboardType="phone-pad"
       />
-      <View style={{ gap: 8 }}>
-        <Text variant="label">{t("Lokasi dapur", "Kitchen area")}</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      <View style={{ gap: nativeLayout.groupGap }}>
+        {/* The same 13 bold ink as the fields' own labels. */}
+        <Text variant="meta" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
+          {t("Lokasi dapur", "Kitchen area")}
+        </Text>
+        {/* 34 chips reach their 48 target by 7 of slop above and below, so the wrapped rows sit 14 apart. */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: nativeLayout.groupGap, rowGap: 48 - nativeLayout.control.chip }}>
           {areaOptions.map((a) => (
             <Chip key={a} label={a} selected={area === a} onPress={() => !sent && setArea(a)} />
           ))}

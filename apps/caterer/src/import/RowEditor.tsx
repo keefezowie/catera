@@ -2,6 +2,7 @@ import { use, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { NavigationContext } from "expo-router/react-navigation";
+import { nativeLayout } from "@catera/design-tokens";
 import { earliestImportStart, normalizeCustomerPhone } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
@@ -26,6 +27,12 @@ import { useImportStore } from "./store";
 export const rowHref = (n: number) => `/impor-baris?n=${n}`;
 
 /**
+ * A wrapped row of 34 chips: each draws 34 tall and reaches a 48 target through 7 of hit slop above and below, so the
+ * rows sit 14 apart (34 + 14 = 48) and no two targets overlap. Side by side they keep the 8 group gap.
+ */
+const CHIP_ROWS = { flexDirection: "row", flexWrap: "wrap", columnGap: nativeLayout.groupGap, rowGap: 48 - nativeLayout.control.chip } as const;
+
+/**
  * The row sheet while the kitchen's package choices are not in the import yet: field-shaped skeletons, or the read's
  * error with Coba lagi. It reads the choices itself (Impor's own read may still be on its way, or may have failed) and
  * puts them in the import, which then shows the row's editor.
@@ -46,11 +53,12 @@ function PackageChoices({ title }: { title: string }) {
           <ReadError message={options.error} onRetry={() => void options.reload()} />
         ) : (
           <SkeletonGroup label={t("Memuat pilihan paket", "Loading the package choices")}>
-            <View style={{ gap: 12 }}>
-              <Skeleton height={56} radius={12} />
-              <Skeleton height={56} radius={12} />
-              <Skeleton height={56} radius={12} />
-              <Skeleton height={40} width="60%" radius={20} />
+            {/* The field boxes and the chip of the loaded form: 50 and 34 tall, the same corners, the same gaps. */}
+            <View testID="import-row-skeleton" style={{ gap: nativeLayout.space.md }}>
+              <Skeleton testID="import-row-skeleton-field-1" height={nativeLayout.control.field} radius={nativeLayout.radius.control} />
+              <Skeleton testID="import-row-skeleton-field-2" height={nativeLayout.control.field} radius={nativeLayout.radius.control} />
+              <Skeleton testID="import-row-skeleton-field-3" height={nativeLayout.control.field} radius={nativeLayout.radius.control} />
+              <Skeleton testID="import-row-skeleton-chip" height={nativeLayout.control.chip} width="60%" radius={nativeLayout.control.chip / 2} />
             </View>
           </SkeletonGroup>
         )}
@@ -150,7 +158,7 @@ export function ImportRowEditor({ n }: { n: number }) {
           }}
         />
         <Field label={t("Alamat", "Address")} value={row.addressLine} onChangeText={(v) => update({ addressLine: v })} />
-        <View style={{ flexDirection: "row", gap: 8 }}>
+        <View style={{ flexDirection: "row", gap: nativeLayout.groupGap }}>
           <View style={{ flex: 1 }}>
             <Field label={t("Area", "Area")} value={row.area} onChangeText={(v) => update({ area: v })} />
           </View>
@@ -158,12 +166,12 @@ export function ImportRowEditor({ n }: { n: number }) {
             <Field label={t("Kota", "City")} value={row.city} onChangeText={(v) => update({ city: v })} />
           </View>
         </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <View style={CHIP_ROWS}>
           {packages.map((p) => (
             <Chip key={p.id} label={p.name} selected={row.packageId === p.id} onPress={() => update({ packageId: p.id })} />
           ))}
         </View>
-        <View style={{ flexDirection: "row", gap: 8 }}>
+        <View style={{ flexDirection: "row", gap: nativeLayout.groupGap }}>
           <View style={{ flex: 1 }}>
             <Field
               label={t("Antar berikutnya (TTTT-BB-HH)", "Next delivery (YYYY-MM-DD)")}

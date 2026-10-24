@@ -10,6 +10,7 @@ import { MenuWeek } from "../src/menu/MenuWeek";
 import { Pengaturan } from "../src/settings/Pengaturan";
 import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
 import { RoleGate } from "../src/RoleGate";
+import { withDapurScale } from "./dapur-scale";
 
 jest.mock("expo-router", () => {
   const { useEffect } = require("react");
@@ -297,4 +298,27 @@ it("Pengaturan lists Data akun after Tentang and opens it", async () => {
   const row = await screen.findByRole("button", { name: "Data akun" });
   fireEvent.press(row);
   expect(router.push).toHaveBeenCalledWith("/pengaturan/data-akun");
+});
+
+describe("Pengaturan on the Dapur scale", () => {
+  it("draws grouped cards on the 16 margin, Dapur's Data akun in a card of its own between Tentang and Keluar", async () => {
+    const runtime = runtimeWith(staff);
+    render(
+      withDapurScale(
+        <ThemeProvider storageKey={runtime.storageKey("theme")}>
+          <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+            <ToastProvider>
+              <Pengaturan />
+            </ToastProvider>
+          </MobileProvider>
+        </ThemeProvider>,
+      ),
+    );
+    await screen.findByRole("button", { name: "Data akun" });
+    expect(StyleSheet.flatten(screen.getByTestId("screen-body").props.style)).toMatchObject({ paddingHorizontal: 16 });
+    expect(screen.getAllByTestId("settings-card").length).toBeGreaterThanOrEqual(4);
+    const labels = screen.getAllByRole("button").map((b) => b.props.accessibilityLabel);
+    expect(labels.indexOf("Data akun")).toBeGreaterThan(labels.indexOf("Syarat dan privasi"));
+    expect(labels.indexOf("Data akun")).toBeLessThan(labels.indexOf("Keluar"));
+  });
 });

@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { View } from "react-native";
 import { router } from "expo-router";
+import { nativeLayout } from "@catera/design-tokens";
 import {
   changePassword,
   listAccountRequests,
@@ -19,13 +21,13 @@ import { accountMessage } from "./accountMessages";
 type Failure = { message: string; key: number } | null;
 
 /** One card of the page: its title, its fields and its action, each with its own busy state and `FormError`. */
-function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+function Section({ id, title, note, children }: { id: string; title: string; note?: string; children: ReactNode }) {
   return (
-    <Card>
-      <Text variant="heading" accessibilityRole="header">
+    <Card testID={`data-akun-card-${id}`}>
+      <Text variant="section" accessibilityRole="header">
         {title}
       </Text>
-      {note ? <Text variant="caption">{note}</Text> : null}
+      {note ? <Text variant="meta">{note}</Text> : null}
       {children}
     </Card>
   );
@@ -182,65 +184,69 @@ export function DataAkun() {
   return (
     <Screen>
       {demo ? (
-        <Text variant="caption">
+        <Text variant="meta">
           {t("Demo (data contoh): perubahan di halaman ini tidak dikirim ke mana pun.", "Demo (sample data): changes on this page are not sent anywhere.")}
         </Text>
       ) : null}
-      <Section title={t("Nama", "Name")}>
-        <Field label={t("Nama kamu", "Your name")} value={name} onChangeText={setName} autoCapitalize="words" />
-        {nameFailure ? <FormError message={nameFailure.message} failureKey={nameFailure.key} /> : null}
-        <Button label={t("Simpan nama", "Save name")} busy={savingName} disabled={!name.trim() || name.trim() === actor?.name} onPress={() => void saveName()} />
-      </Section>
-      <Section title={t("Nomor HP", "Phone number")} note={t("Kode dikirim ke nomor baru sebelum nomor berganti.", "A code goes to the new number before it changes.")}>
-        <Field label={t("Nomor HP baru", "New phone number")} value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={!codeSent} />
-        {codeSent ? <Field label={t("Kode dari SMS", "Code from SMS")} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} /> : null}
-        {phoneNote ? <Text variant="caption">{phoneNote}</Text> : null}
-        {phoneFailure ? <FormError message={phoneFailure.message} failureKey={phoneFailure.key} /> : null}
-        {codeSent ? (
-          <Button label={t("Ganti nomor", "Change number")} busy={verifying} disabled={code.trim().length < 6} onPress={() => void verifyCode()} />
-        ) : (
-          <Button label={t("Kirim kode", "Send code")} busy={sendingCode} disabled={phone.replace(/\D/g, "").length < 9} onPress={() => void sendCode()} />
-        )}
-      </Section>
-      <Section title="Email" note={t("Kamu mendapat tautan di email lama dan baru. Keduanya perlu dibuka.", "You get a link in the old and the new inbox. Both must be opened.")}>
-        <Field label={t("Email baru", "New email")} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-        {emailNote ? <Text variant="caption">{emailNote}</Text> : null}
-        {emailFailure ? <FormError message={emailFailure.message} failureKey={emailFailure.key} /> : null}
-        <Button label={t("Kirim tautan konfirmasi", "Send confirmation link")} busy={sendingEmail} disabled={!email.includes("@")} onPress={() => void sendEmail()} />
-      </Section>
-      {hasEmail ? (
-        <Section title={t("Kata sandi", "Password")}>
-          <Field label={t("Kata sandi saat ini", "Current password")} value={current} onChangeText={setCurrent} secureTextEntry />
-          <Field
-            label={t("Kata sandi baru", "New password")}
-            hint={t(`Minimal ${PASSWORD_MIN} karakter.`, `At least ${PASSWORD_MIN} characters.`)}
-            value={next}
-            onChangeText={setNext}
-            secureTextEntry
-          />
-          {passwordNote ? <Text variant="caption">{passwordNote}</Text> : null}
-          {passwordFailure ? <FormError message={passwordFailure.message} failureKey={passwordFailure.key} /> : null}
-          <Button label={t("Ganti kata sandi", "Change password")} busy={changing} disabled={!current || next.length < PASSWORD_MIN} onPress={() => void changeIt()} />
+      {/* One card per concern, the cards and the delete row 24 apart (the Dapur section gap). */}
+      <View testID="data-akun-sections" style={{ gap: nativeLayout.dense.sectionGap }}>
+        <Section id="name" title={t("Nama", "Name")}>
+          <Field label={t("Nama kamu", "Your name")} value={name} onChangeText={setName} autoCapitalize="words" />
+          {nameFailure ? <FormError message={nameFailure.message} failureKey={nameFailure.key} /> : null}
+          <Button label={t("Simpan nama", "Save name")} busy={savingName} disabled={!name.trim() || name.trim() === actor?.name} onPress={() => void saveName()} />
         </Section>
-      ) : null}
-      {owner ? (
-        <Section
-          title={t("Ubah nama atau kontak dapur", "Change the kitchen's name or contact")}
-          note={t("Tim Catera yang mengubahnya. Tulis apa yang perlu diganti.", "The Catera team makes the change. Write what needs to change.")}
-        >
-          {latest ? (
-            <Text testID="kitchen-request-status" variant="caption">
-              {`${t("Permintaan terakhir", "Last request")}: ${status(latest)}`}
-            </Text>
-          ) : null}
-          <Field label={t("Apa yang diubah?", "What should change?")} value={wanted} onChangeText={setWanted} multiline style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }} />
-          {requestFailure ? <FormError message={requestFailure.message} failureKey={requestFailure.key} /> : null}
-          <Button label={t("Kirim permintaan", "Send request")} busy={sending} disabled={wanted.trim().length < 5} onPress={() => void send()} />
+        <Section id="phone" title={t("Nomor HP", "Phone number")} note={t("Kode dikirim ke nomor baru sebelum nomor berganti.", "A code goes to the new number before it changes.")}>
+          <Field label={t("Nomor HP baru", "New phone number")} value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={!codeSent} />
+          {codeSent ? <Field label={t("Kode dari SMS", "Code from SMS")} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} /> : null}
+          {phoneNote ? <Text variant="meta">{phoneNote}</Text> : null}
+          {phoneFailure ? <FormError message={phoneFailure.message} failureKey={phoneFailure.key} /> : null}
+          {codeSent ? (
+            <Button label={t("Ganti nomor", "Change number")} busy={verifying} disabled={code.trim().length < 6} onPress={() => void verifyCode()} />
+          ) : (
+            <Button label={t("Kirim kode", "Send code")} busy={sendingCode} disabled={phone.replace(/\D/g, "").length < 9} onPress={() => void sendCode()} />
+          )}
         </Section>
-      ) : null}
-      <SettingsSection>
-        <SettingsRow label={t("Hapus akun", "Delete account")} tone="danger" onPress={() => router.push("/pengaturan/hapus-akun" as never)} />
-      </SettingsSection>
+        <Section id="email" title="Email" note={t("Kamu mendapat tautan di email lama dan baru. Keduanya perlu dibuka.", "You get a link in the old and the new inbox. Both must be opened.")}>
+          <Field label={t("Email baru", "New email")} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          {emailNote ? <Text variant="meta">{emailNote}</Text> : null}
+          {emailFailure ? <FormError message={emailFailure.message} failureKey={emailFailure.key} /> : null}
+          <Button label={t("Kirim tautan konfirmasi", "Send confirmation link")} busy={sendingEmail} disabled={!email.includes("@")} onPress={() => void sendEmail()} />
+        </Section>
+        {hasEmail ? (
+          <Section id="password" title={t("Kata sandi", "Password")}>
+            <Field label={t("Kata sandi saat ini", "Current password")} value={current} onChangeText={setCurrent} secureTextEntry />
+            <Field
+              label={t("Kata sandi baru", "New password")}
+              hint={t(`Minimal ${PASSWORD_MIN} karakter.`, `At least ${PASSWORD_MIN} characters.`)}
+              value={next}
+              onChangeText={setNext}
+              secureTextEntry
+            />
+            {passwordNote ? <Text variant="meta">{passwordNote}</Text> : null}
+            {passwordFailure ? <FormError message={passwordFailure.message} failureKey={passwordFailure.key} /> : null}
+            <Button label={t("Ganti kata sandi", "Change password")} busy={changing} disabled={!current || next.length < PASSWORD_MIN} onPress={() => void changeIt()} />
+          </Section>
+        ) : null}
+        {owner ? (
+          <Section
+            id="request"
+            title={t("Ubah nama atau kontak dapur", "Change the kitchen's name or contact")}
+            note={t("Tim Catera yang mengubahnya. Tulis apa yang perlu diganti.", "The Catera team makes the change. Write what needs to change.")}
+          >
+            {latest ? (
+              <Text testID="kitchen-request-status" variant="meta">
+                {`${t("Permintaan terakhir", "Last request")}: ${status(latest)}`}
+              </Text>
+            ) : null}
+            <Field label={t("Apa yang diubah?", "What should change?")} value={wanted} onChangeText={setWanted} multiline style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }} />
+            {requestFailure ? <FormError message={requestFailure.message} failureKey={requestFailure.key} /> : null}
+            <Button label={t("Kirim permintaan", "Send request")} busy={sending} disabled={wanted.trim().length < 5} onPress={() => void send()} />
+          </Section>
+        ) : null}
+        <SettingsSection>
+          <SettingsRow label={t("Hapus akun", "Delete account")} tone="danger" onPress={() => router.push("/pengaturan/hapus-akun" as never)} />
+        </SettingsSection>
+      </View>
     </Screen>
   );
 }

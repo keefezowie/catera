@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider } from "@catera/mobile-ui";
 import { Masuk } from "../src/auth/Masuk";
+import { withDapurScale } from "./dapur-scale";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
 jest.mock("react-native-safe-area-context", () => ({
@@ -26,11 +27,13 @@ beforeEach(() => {
 });
 const renderMasuk = () =>
   render(
-    <MoodProvider now={() => new Date("2026-10-08T08:00:00Z")}>
-      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-        <Masuk />
-      </MobileProvider>
-    </MoodProvider>,
+    withDapurScale(
+      <MoodProvider now={() => new Date("2026-10-08T08:00:00Z")}>
+        <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+          <Masuk />
+        </MobileProvider>
+      </MoodProvider>,
+    ),
   );
 
 type Json = { props?: Record<string, unknown>; children?: (Json | string)[] | null } | string;
@@ -81,8 +84,38 @@ describe("Dapur Masuk, the OKX layout", () => {
   });
 });
 
+describe("Dapur Masuk on the 16 rhythm", () => {
+  const flatStyle = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
+  it("spaces the fields of both methods 16 apart, the group gap that matches Daftar's", async () => {
+    renderMasuk();
+    const phone = await screen.findByTestId("masuk-fields");
+    expect(flatStyle(phone)).toMatchObject({ gap: 16 });
+    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
+    expect(flatStyle(await screen.findByTestId("masuk-fields"))).toMatchObject({ gap: 16 });
+  });
+
+  it("shows a failure under the fields with the keyboard open, and the padding holds one inset", async () => {
+    const handlers: Record<string, ((e?: never) => void)[]> = {};
+    jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, fn: () => void) => {
+      (handlers[event] ??= []).push(fn);
+      return { remove: jest.fn() };
+    }) as never);
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("INVALID_CREDENTIALS");
+    });
+    renderMasuk();
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height: 300 } } as never))));
+    fireEvent.changeText(screen.getByLabelText("Email"), "dapur@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await screen.findByTestId("form-error");
+    expect(StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle).paddingBottom).toBe(32 + 24 + 300);
+  });
+});
+
 describe("Dapur Masuk heading and labels", () => {
-  it("adds the bottom inset to the Android keyboard padding, because Dapur's Screen pays none", async () => {
+  it("follows the v2 keyboard padding: the screen pays the bottom inset once, the keyboard adds only its height", async () => {
     const handlers: Record<string, ((e?: never) => void)[]> = {};
     jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, fn: () => void) => {
       (handlers[event] ??= []).push(fn);
@@ -92,8 +125,10 @@ describe("Dapur Masuk heading and labels", () => {
     await screen.findByRole("tab", { name: "Email" });
     const pad = () => StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle).paddingBottom as number;
     const down = pad();
+    // 32 under the content and the 24 gesture-bar inset a full-screen flow pays on Android.
+    expect(down).toBe(32 + 24);
     act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height: 300 } } as never))));
-    expect(pad()).toBe(down + 300 + 24);
+    expect(pad()).toBe(down + 300);
     act(() => ["keyboardDidHide", "keyboardWillHide"].forEach((name) => handlers[name]?.forEach((fn) => fn())));
     expect(pad()).toBe(down);
   });

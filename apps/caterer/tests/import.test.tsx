@@ -9,6 +9,7 @@ import { ImportPhotoViewer } from "../src/import/PhotoViewer";
 import { toImportRow } from "../src/import/rows";
 import { ImportRowEditor } from "../src/import/RowEditor";
 import { declared, resetSheets, SheetHost } from "./sheet-host";
+import { withDapurScale } from "./dapur-scale";
 
 beforeEach(() => resetSheets());
 
@@ -93,9 +94,11 @@ it("saves only the rows that need no checking", async () => {
   const fetchMock = jest.fn(async () => ({ ok: true, json: async () => ({ data: { rows, needsReview: 2 } }) }));
   global.fetch = fetchMock as unknown as typeof fetch;
   render(
-    <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-      <Impor />
-    </MobileProvider>,
+    withDapurScale(
+      <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+        <Impor />
+      </MobileProvider>,
+    ),
   );
   fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar pelanggan saya …");
   fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
@@ -144,9 +147,11 @@ it("does not retry row by row when the connection drops", async () => {
   } as unknown as MobileRuntime["api"];
   global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ data: { rows: rows.slice(0, 3), needsReview: 0 } }) })) as unknown as typeof fetch;
   render(
-    <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-      <Impor />
-    </MobileProvider>,
+    withDapurScale(
+      <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+        <Impor />
+      </MobileProvider>,
+    ),
   );
   fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
   fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
@@ -174,13 +179,15 @@ function setup(command: jest.Mock, response: { ok: boolean; status?: number; jso
   } as unknown as MobileRuntime["api"];
   global.fetch = jest.fn(async () => response) as unknown as typeof fetch;
   render(
-    <ThemeProvider storageKey="impor.undo.theme">
-      <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-        <ToastProvider>
-          <Impor />
-        </ToastProvider>
-      </MobileProvider>
-    </ThemeProvider>,
+    withDapurScale(
+      <ThemeProvider storageKey="impor.undo.theme">
+        <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+          <ToastProvider>
+            <Impor />
+          </ToastProvider>
+        </MobileProvider>
+      </ThemeProvider>,
+    ),
   );
 }
 const read = async () => {
@@ -266,16 +273,16 @@ it("adds another empty row with Tambah baris", async () => {
 });
 
 it("a review row dims on press and still opens its editor", async () => {
-  const unset = row(1, { needsReview: true, reason: "Perlu dicek" });
+  const unset = row(1, { needsReview: true, reason: "Alamat belum lengkap" });
   setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [unset], needsReview: 1 } }) });
   await read();
   const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
   const edit = async () => screen.findByRole("button", { name: "Ubah Pelanggan 1" });
   fireEvent(await edit(), "responderGrant", touch);
   expect(StyleSheet.flatten((await edit()).props.style).opacity).toBe(0.7);
-  // What the row still needs is a to-do: bold charcoal on the list and in its sheet, never a bare danger caption.
+  // What the row still needs is a to-do: its one line on the list, bold charcoal in its sheet, never a bare danger caption.
   const bold = { color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" };
-  expect(StyleSheet.flatten(screen.getByText("Perlu dicek").props.style)).toMatchObject(bold);
+  expect(screen.getByText("Alamat belum lengkap")).toBeTruthy();
   fireEvent.press(await edit());
   expect(await screen.findByRole("button", { name: "Selesai" })).toBeTruthy();
   expect(StyleSheet.flatten(screen.getByTestId("import-row-reason").props.style)).toMatchObject(bold);
@@ -437,13 +444,171 @@ describe("deleting an import row", () => {
   });
 });
 
-it("import row names a missing package", async () => {
-  const unset = row(1, { packageId: null, remainingDays: null, needsReview: true, reason: "Perlu dicek" });
-  setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [unset], needsReview: 1 } }) });
-  await read();
-  expect(await screen.findByText("Paket belum dipilih · sisa hari belum diisi · 1 porsi")).toBeTruthy();
-  expect(screen.queryByText(/—/)).toBeNull();
-  expect(screen.queryByText(/\?/)).toBeNull();
+const flatStyle = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
+/** The nearest node above `node` whose style sets `key`. */
+const above = (node: { props: { style?: unknown }; parent: unknown }, key: string) => {
+  for (let n = node as { props: { style?: unknown }; parent: typeof node | null } | null; n; n = n.parent) if (flatStyle(n)[key as never] !== undefined) return flatStyle(n);
+  return {};
+};
+const response = (list: unknown[]) => ({ ok: true, json: async () => ({ data: { rows: list, needsReview: 0 } }) });
+
+describe("the review list on the Dapur scale (spec 3.7)", () => {
+  it("is one list card of 64 two-line rows, each with its name, a one-line meta and a trailing Ubah", async () => {
+    setup(jest.fn(), response([row(1), row(2), row(3)]));
+    await read();
+    const card = await screen.findByTestId("list-card");
+    // One card for every row, not a card each, and a hairline between rows that starts at the text column (0).
+    expect(screen.getAllByTestId("list-card")).toHaveLength(1);
+    expect(within(card).getAllByTestId("import-row")).toHaveLength(3);
+    const separators = within(card).getAllByTestId("list-card-separator");
+    expect(separators).toHaveLength(2);
+    expect(flatStyle(separators[0])).toMatchObject({ height: 1, marginLeft: 0 });
+    for (const n of [1, 2, 3]) {
+      const line = screen.getByTestId(`import-row-${n}`);
+      expect(flatStyle(line)).toMatchObject({ minHeight: 64, gap: 12 });
+      expect(line.props.accessibilityRole).toBe("button");
+      expect(line.props.accessibilityLabel).toBe(`Ubah Pelanggan ${n}`);
+      const name = within(line).getByText(`Pelanggan ${n}`);
+      expect(flatStyle(name)).toMatchObject({ fontSize: 17, lineHeight: 22 });
+      expect(name.props.numberOfLines).toBe(1);
+      // Phone and area, one 13/18 line.
+      const meta = within(line).getByText(`+62812345678${String(n).padStart(2, "0")} · Setiabudi`);
+      expect(flatStyle(meta)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+      expect(meta.props.numberOfLines).toBe(1);
+      const trailing = screen.getByTestId(`import-row-${n}-trailing`);
+      const edit = within(trailing).getByText("Ubah");
+      expect(flatStyle(edit)).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: "Jakarta-SemiBold", color: nativeThemes.light.forest });
+      expect(within(trailing).queryByTestId(`import-row-${n}-pill`)).toBeNull();
+    }
+    expect(screen.getByText("3 siap disimpan")).toBeTruthy();
+    expect(flatStyle(screen.getByText("3 siap disimpan"))).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: "Jakarta-SemiBold" });
+  });
+
+  it("holds 20 rows in the same one card, 19 hairlines between them", async () => {
+    setup(jest.fn(), response(Array.from({ length: 20 }, (_, i) => row(i + 1))));
+    await read();
+    const card = await screen.findByTestId("list-card");
+    expect(within(card).getAllByTestId("import-row")).toHaveLength(20);
+    expect(within(card).getAllByTestId("list-card-separator")).toHaveLength(19);
+    expect(screen.getByRole("button", { name: "Simpan 20 pelanggan" })).toBeTruthy();
+  });
+
+  it("draws no empty card for no rows, and still offers a row to add", async () => {
+    setup(jest.fn(), response([]));
+    await read();
+    expect(await screen.findByText("0 siap disimpan")).toBeTruthy();
+    expect(screen.queryByTestId("list-card")).toBeNull();
+    expect(screen.getByRole("button", { name: "Tambah baris" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Simpan 0 pelanggan" }).props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it("marks a row with a problem with a pale pill, and its one line says what it needs", async () => {
+    setup(jest.fn(), response([row(1), row(2, { addressLine: "", needsReview: true, reason: "Alamat belum lengkap" })]));
+    await read();
+    expect(await screen.findByText("1 siap disimpan · 1 perlu dicek")).toBeTruthy();
+    // Only the problem row has the pill, in the trailing column before Ubah.
+    expect(screen.queryByTestId("import-row-1-pill")).toBeNull();
+    const pill = screen.getByTestId("import-row-2-pill");
+    expect(within(screen.getByTestId("import-row-2-trailing")).getByTestId("import-row-2-pill")).toBe(pill);
+    expect(flatStyle(pill)).toMatchObject({ backgroundColor: nativeThemes.light.cream, minHeight: 28, borderRadius: 14 });
+    const label = within(pill).getByText("Perlu dicek");
+    expect(flatStyle(label)).toMatchObject({ color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" });
+    // What the row still needs is the row's one line (bold ink in its sheet), and the row is still one 64 line.
+    const line = screen.getByTestId("import-row-2");
+    expect(within(line).getByText("Alamat belum lengkap").props.numberOfLines).toBe(1);
+    expect(flatStyle(line)).toMatchObject({ minHeight: 64 });
+    expect(screen.getByRole("button", { name: "Ubah Pelanggan 2" })).toBe(line);
+  });
+
+  it("names a row with no name by its place in the list, and says what a missing package needs", async () => {
+    const unset = row(1, { name: "", packageId: null, remainingDays: null, needsReview: true, reason: "Paket belum dipilih" });
+    setup(jest.fn(), response([unset]));
+    await read();
+    expect(await screen.findByText("Tanpa nama")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ubah baris 1" })).toBeTruthy();
+    expect(screen.getByText("Paket belum dipilih")).toBeTruthy();
+    expect(screen.queryByText(/—/)).toBeNull();
+    expect(screen.queryByText(/\?/)).toBeNull();
+  });
+
+  it("the buttons under the card are Tambah baris and Mulai lagi", async () => {
+    setup(jest.fn(), response([row(1)]));
+    await read();
+    fireEvent.press(await screen.findByRole("button", { name: "Tambah baris" }));
+    expect(router.push).toHaveBeenLastCalledWith("/impor-baris?n=2");
+    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    fireEvent.press(screen.getByRole("button", { name: "Mulai lagi" }));
+    expect(await screen.findByLabelText("Tempel atau ketik daftar pelanggan")).toBeTruthy();
+  });
+});
+
+describe("the paste stage on the Dapur scale", () => {
+  it("draws the paste field with the Field's geometry: radius 12, 16 inset, at least 160 tall, 15/22 text", async () => {
+    setup(jest.fn(), response([]));
+    const field = await screen.findByLabelText("Tempel atau ketik daftar pelanggan");
+    expect(flatStyle(field)).toMatchObject({ borderRadius: 12, padding: 16, minHeight: 160, fontSize: 15, lineHeight: 22 });
+  });
+
+  it("sets the intro as 15/22 body and the privacy note as 13/18 meta", async () => {
+    setup(jest.fn(), response([]));
+    const intro = await screen.findByText(/^Tempel catatan atau chat WhatsApp/);
+    expect(flatStyle(intro)).toMatchObject({ fontSize: 15, lineHeight: 22 });
+    expect(flatStyle(screen.getByText(/^AI membaca data ini/))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+  });
+
+  it("the reading state names the wait in the footer: 15/22 semibold", async () => {
+    setup(jest.fn(), { ok: true, json: () => new Promise(() => {}) });
+    await read();
+    const said = await screen.findByText("Membaca daftar pelanggan…");
+    expect(flatStyle(said)).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: "Jakarta-SemiBold" });
+  });
+});
+
+describe("the row editor on the Dapur scale", () => {
+  const options = { customers: [], packages: [{ id: "p-hemat", name: "Paket Hemat Kantor", days: 20, areas: [], meal: "lunch" }] };
+  function editor(sellerImportOptions: jest.Mock) {
+    global.fetch = jest.fn(async () => disabled) as unknown as typeof fetch;
+    const runtime = createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" });
+    runtime.api = {
+      ...runtime.api,
+      me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
+      sellerImportOptions,
+      command: jest.fn(),
+    } as unknown as MobileRuntime["api"];
+    render(
+      withDapurScale(
+        <ThemeProvider storageKey="impor.editor.theme">
+          <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+            <ToastProvider>
+              <Impor />
+            </ToastProvider>
+          </MobileProvider>
+        </ThemeProvider>,
+      ),
+    );
+  }
+
+  it("while the package choices load, the sheet shows 50 tall field boxes, 12 apart, and a 34 chip", async () => {
+    editor(jest.fn(() => new Promise(() => {})));
+    await read();
+    fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+    const sheet = await screen.findByTestId("import-row-sheet");
+    const boxes = within(within(sheet).getByLabelText("Memuat pilihan paket")).getAllByTestId(/^import-row-skeleton-/);
+    expect(boxes.map((b) => flatStyle(b).height)).toEqual([50, 50, 50, 34]);
+    expect(flatStyle(boxes[0])).toMatchObject({ borderRadius: 12 });
+    expect(flatStyle(boxes[3])).toMatchObject({ borderRadius: 17 });
+    expect(flatStyle(within(sheet).getByTestId("import-row-skeleton"))).toMatchObject({ gap: 12 });
+  });
+
+  it("its package chips wrap with a 14 row gap so each 34 chip keeps a 48 target of its own", async () => {
+    editor(jest.fn(async () => options));
+    await read();
+    fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+    const sheet = await screen.findByTestId("import-row-sheet");
+    const chip = await within(sheet).findByRole("button", { name: "Paket Hemat Kantor" });
+    expect(above(chip, "flexWrap")).toMatchObject({ flexWrap: "wrap", columnGap: 8, rowGap: 14 });
+    expect(chip.props.hitSlop).toEqual({ top: 7, bottom: 7 });
+  });
 });
 
 describe("photo previews", () => {
@@ -509,11 +674,13 @@ describe("photo previews", () => {
     const fetchMock = jest.fn(response === "pending" ? () => new Promise<Reply>(() => {}) : async () => response);
     global.fetch = fetchMock as unknown as typeof fetch;
     render(
-      <ThemeProvider storageKey="impor.theme">
-        <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-          <ImporWithViewer />
-        </MobileProvider>
-      </ThemeProvider>,
+      withDapurScale(
+        <ThemeProvider storageKey="impor.theme">
+          <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+            <ImporWithViewer />
+          </MobileProvider>
+        </ThemeProvider>,
+      ),
     );
     return fetchMock;
   }

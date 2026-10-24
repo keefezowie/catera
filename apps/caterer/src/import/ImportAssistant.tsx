@@ -6,6 +6,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { earliestImportStart, errorLabel, jakartaDay } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
@@ -13,11 +14,12 @@ import {
   FONT,
   fontFor,
   FormError,
+  ListCard,
   MascotReading,
-  PressableRow,
   Screen,
   SuccessBeat,
   Text,
+  TwoLineRow,
   useColors,
   useListMotion,
   useToast,
@@ -34,6 +36,9 @@ import { fitsUpload, MAX_IMAGES, shrinkPhoto } from "./images";
 const ROW_CODES = new Set(["CAPACITY", "CONFLICT", "CUTOFF", "DUPLICATE_CUSTOMER", "DUPLICATE_IMPORT", "FORBIDDEN", "INVALID_DATE", "INVALID_INPUT", "NOT_AVAILABLE", "OVERLAP", "PRICE_CHANGED"]);
 
 const fail = (e: unknown) => (e as { code?: string }).code || (e as Error).message;
+
+/** A row with a problem wears this pale pill (a cream pill, 28 tall, as the customer's report list draws its open one). */
+const PILL_HEIGHT = 28;
 
 /**
  * Impor pelanggan: paste or attach anything, check what the assistant read, save the clean rows. A row is corrected in
@@ -232,10 +237,16 @@ export function ImportAssistant() {
           <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} busy={busy === "save"} disabled={!clean || (!!busy && busy !== "save")} onPress={() => void save()} />
         ) : reading ? (
           // In place of the button while the assistant reads: the reading mascot names the wait and what is read.
-          <View style={{ alignItems: "center", gap: 4 }}>
+          <View style={{ alignItems: "center", gap: nativeLayout.space.xs }}>
             <MascotReading size={120} />
-            <Text style={{ color: c.charcoal, fontFamily: fontFor("600"), textAlign: "center" }}>{readingSaid}</Text>
-            {readingWhat ? <Text style={{ color: c.muted, textAlign: "center", fontVariant: ["tabular-nums"] }}>{readingWhat}</Text> : null}
+            <Text variant="bodyStrong" style={{ textAlign: "center" }}>
+              {readingSaid}
+            </Text>
+            {readingWhat ? (
+              <Text variant="meta" style={{ textAlign: "center", fontVariant: ["tabular-nums"] }}>
+                {readingWhat}
+              </Text>
+            ) : null}
           </View>
         ) : (
           <Button label={t("Susun daftar", "Build the list")} disabled={(!text.trim() && !files.length) || !!busy} onPress={() => void read()} />
@@ -249,13 +260,13 @@ export function ImportAssistant() {
       ) : null}
       {rows === null ? (
         <>
-          <Text>
+          <Text variant="bodyL">
             {t(
               "Tempel catatan atau chat WhatsApp, atau lampirkan foto buku, PDF dan Excel. Asisten menyusunnya jadi daftar, lalu kamu cek.",
               "Paste notes or WhatsApp chats, or attach notebook photos, PDFs and Excel files. The assistant turns them into a list for you to check.",
             )}
           </Text>
-          <Text variant="caption">
+          <Text variant="meta">
             {t(
               "AI membaca data ini untuk menyusun daftar. Belum ada yang tersimpan sampai kamu tekan Simpan.",
               "This data is read by AI to build the list. Nothing is saved until you press Save.",
@@ -269,7 +280,20 @@ export function ImportAssistant() {
             placeholder={"Bu Ani, 0812…, Jl. Melati 5 Tebet, Rumahan, sisa 8 hari"}
             placeholderTextColor={c.muted}
             // The platform default ink is near black, which vanishes on the dark surface.
-            style={{ minHeight: 160, textAlignVertical: "top", borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 14, fontFamily: FONT, fontSize: 15, color: c.charcoal, backgroundColor: c.surface }}
+            style={{
+              minHeight: 160,
+              textAlignVertical: "top",
+              borderWidth: 1,
+              borderColor: c.line,
+              borderRadius: nativeLayout.radius.control,
+              borderCurve: "continuous",
+              padding: nativeLayout.cardPadding,
+              fontFamily: FONT,
+              fontSize: 15,
+              lineHeight: 22,
+              color: c.charcoal,
+              backgroundColor: c.surface,
+            }}
           />
           <Attachments
             files={files}
@@ -296,26 +320,45 @@ export function ImportAssistant() {
         </>
       ) : (
         <>
-          <Text>
-            {rows.length - clean
-              ? t(`${clean} siap disimpan · ${rows.length - clean} perlu dicek`, `${clean} ready · ${rows.length - clean} to check`)
-              : t(`${clean} siap disimpan`, `${clean} ready to save`)}
-          </Text>
-          {rows.map((r) => (
-            <Animated.View key={r.n} testID="import-row" {...rowMotion(String(r.n))}>
-              <Card tone={r.needsReview ? "attention" : "surface"}>
-                <PressableRow accessibilityRole="button" accessibilityLabel={`${t("Ubah", "Edit")} ${r.name}`} onPress={() => edit(r.n)} style={{ gap: 4 }}>
-                  <Text variant="heading">{r.name || t("Tanpa nama", "No name")}</Text>
-                  <Text variant="caption">{[r.phone, [r.addressLine, r.area].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</Text>
-                  <Text variant="caption">
-                    {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? t(`${r.remainingDays} hari lagi`, r.remainingDays === 1 ? "1 day left" : `${r.remainingDays} days left`) : t("sisa hari belum diisi", "days left not set")} · ${t(`${r.portions} porsi`, plural(r.portions, "portion"))}`}
-                  </Text>
-                  {/* What the row still needs is a to-do on an attention card, so bold charcoal, not a danger caption. */}
-                  {r.needsReview ? <Text style={{ color: c.charcoal, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
-                </PressableRow>
-              </Card>
-            </Animated.View>
-          ))}
+          {/* The summary, 12 above the one card that holds every row (a card per row used to take 134 to 164 each). */}
+          <View style={{ gap: nativeLayout.headingGap }}>
+            <Text variant="bodyStrong">
+              {rows.length - clean
+                ? t(`${clean} siap disimpan · ${rows.length - clean} perlu dicek`, `${clean} ready · ${rows.length - clean} to check`)
+                : t(`${clean} siap disimpan`, `${clean} ready to save`)}
+            </Text>
+            {rows.length ? (
+              <ListCard inset={0}>
+                {rows.map((r) => (
+                  <Animated.View key={r.n} testID="import-row" {...rowMotion(String(r.n))}>
+                    <TwoLineRow
+                      testID={`import-row-${r.n}`}
+                      title={r.name || t("Tanpa nama", "No name")}
+                      // A row that still needs something says what in its one line; a clean row gives its phone and area.
+                      meta={r.needsReview ? r.reason : [r.phone, r.area].filter(Boolean).join(" · ")}
+                      accessibilityLabel={`${t("Ubah", "Edit")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}`}
+                      onPress={() => edit(r.n)}
+                      trailing={
+                        <>
+                          {r.needsReview ? (
+                            <View testID={`import-row-${r.n}-pill`} style={{ minHeight: PILL_HEIGHT, paddingHorizontal: 10, borderRadius: PILL_HEIGHT / 2, justifyContent: "center", backgroundColor: c.cream }}>
+                              <Text variant="meta" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
+                                {t("Perlu dicek", "To check")}
+                              </Text>
+                            </View>
+                          ) : null}
+                          {/* forest: action */}
+                          <Text variant="bodyStrong" style={{ color: c.forest, paddingLeft: nativeLayout.space.md }}>
+                            {t("Ubah", "Edit")}
+                          </Text>
+                        </>
+                      }
+                    />
+                  </Animated.View>
+                ))}
+              </ListCard>
+            ) : null}
+          </View>
           <Button variant="secondary" label={t("Tambah baris", "Add a row")} onPress={addRow} />
           <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={() => setRows(null)} />
         </>

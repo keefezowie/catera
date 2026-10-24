@@ -97,7 +97,7 @@ export function Attachments({
 
   return (
     <View style={{ gap: 8 }}>
-      <Text variant="label" style={{ color: c.muted }}>
+      <Text variant="meta" style={{ fontFamily: fontFor("700") }}>
         {t(`Lampiran · ${n} dari ${max}`, `Attachments · ${n} of ${max}`)}
       </Text>
       {/* Pulled up by part of the room above each tile, so the badges sit 8dp under the label. */}
@@ -182,7 +182,9 @@ export function Attachments({
               ) : (
                 <>
                   <Ionicons name="add" size={20} color={c.forest} />
-                  <Text variant="label">{t("Foto", "Photo")}</Text>
+                  <Text variant="meta" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
+                    {t("Foto", "Photo")}
+                  </Text>
                 </>
               )}
             </PressableScale>

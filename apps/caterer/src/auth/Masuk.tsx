@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router } from "expo-router";
+import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
 import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, MethodTabs, PasswordField, Text } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
@@ -57,7 +58,7 @@ export function Masuk() {
         ]}
       />
       {phoneStep ? (
-        <View style={{ gap: 14 }}>
+        <View testID="masuk-fields" style={{ gap: nativeLayout.space.lg }}>
           <Field
             label={t("Nomor WhatsApp", "WhatsApp number")}
             value={phone}
@@ -90,7 +91,7 @@ export function Masuk() {
           ) : null}
         </View>
       ) : (
-        <View style={{ gap: 14 }}>
+        <View testID="masuk-fields" style={{ gap: nativeLayout.space.lg }}>
           <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" invalid={failed} />
           <PasswordField
             label={t("Kata sandi", "Password")}
@@ -135,8 +136,8 @@ export function Masuk() {
         onPress={() => router.push("/daftar" as never)}
       />
       {__DEV__ ? (
-        <View style={{ gap: 8 }}>
-          <Text variant="caption">{t("Demo (data contoh)", "Demo (sample data)")}</Text>
+        <View style={{ gap: nativeLayout.groupGap }}>
+          <Text variant="meta">{t("Demo (data contoh)", "Demo (sample data)")}</Text>
           {(["owner", "staff"] as const).map((role) => (
             <Button
               key={role}

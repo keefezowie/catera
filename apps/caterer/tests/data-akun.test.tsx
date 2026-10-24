@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Linking } from "react-native";
+import { Linking, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { ToastProvider } from "@catera/mobile-ui";
 import { DataAkun } from "../src/settings/DataAkun";
 import { HapusAkun } from "../src/settings/HapusAkun";
+import { withDapurScale } from "./dapur-scale";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
 jest.mock("expo-notifications", () => ({
@@ -46,12 +47,55 @@ function runtimeFor(options: { actor?: Record<string, unknown>; requests?: unkno
 
 const renderWith = (runtime: MobileRuntime, ui: React.ReactNode) =>
   render(
-    <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-      <ToastProvider>{ui}</ToastProvider>
-    </MobileProvider>,
+    withDapurScale(
+      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+        <ToastProvider>{ui}</ToastProvider>
+      </MobileProvider>,
+    ),
   );
 
 beforeEach(() => jest.clearAllMocks());
+
+describe("Data akun on the Dapur scale", () => {
+  const flatStyle = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
+
+  it("heads each card with a 20/26 section title and puts the cards 24 apart", async () => {
+    const { runtime } = runtimeFor();
+    renderWith(runtime, <DataAkun />);
+    await screen.findByLabelText("Kata sandi saat ini");
+    const headers = screen.getAllByRole("header");
+    expect(headers.map((h) => h.props.children)).toEqual(["Nama", "Nomor HP", "Email", "Kata sandi", "Ubah nama atau kontak dapur"]);
+    for (const h of headers) expect(flatStyle(h)).toMatchObject({ fontSize: 20, lineHeight: 26 });
+    // One column for the cards and the Hapus akun row, spaced by the Dapur section gap, not the screen's 16.
+    expect(flatStyle(screen.getByTestId("data-akun-sections"))).toMatchObject({ gap: 24 });
+    expect(within(screen.getByTestId("data-akun-sections")).getByRole("button", { name: "Hapus akun" })).toBeTruthy();
+  });
+
+  it("keeps the notes at 13/18 meta and a card's items 8 apart, with 50 tall fields and buttons", async () => {
+    const { runtime } = runtimeFor();
+    renderWith(runtime, <DataAkun />);
+    const note = await screen.findByText("Kode dikirim ke nomor baru sebelum nomor berganti.");
+    expect(flatStyle(note)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(flatStyle(screen.getByText(/^Demo \(data contoh\): perubahan di halaman ini/))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    const card = screen.getByTestId("data-akun-card-phone");
+    expect(flatStyle(card)).toMatchObject({ borderRadius: 16, gap: 8 });
+    expect(flatStyle(screen.getByLabelText("Nomor HP baru"))).toMatchObject({ minHeight: 50 });
+    expect(flatStyle(screen.getByRole("button", { name: "Kirim kode" }))).toMatchObject({ minHeight: 50 });
+  });
+
+  it("an owner's request card shows its last request status in 13/18 meta", async () => {
+    const { runtime } = runtimeFor({ requests: [row()] });
+    renderWith(runtime, <DataAkun />);
+    expect(flatStyle(await screen.findByTestId("kitchen-request-status"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+  });
+
+  it("a staff account has no kitchen request card", async () => {
+    const { runtime } = runtimeFor({ actor: staff });
+    renderWith(runtime, <DataAkun />);
+    await screen.findByLabelText("Nama kamu");
+    expect(screen.queryByRole("header", { name: "Ubah nama atau kontak dapur" })).toBeNull();
+  });
+});
 
 describe("Data akun", () => {
   it("Data akun sends the kitchen-details request and shows its status", async () => {

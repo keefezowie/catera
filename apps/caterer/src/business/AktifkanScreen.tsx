@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from "react";
 import { View } from "react-native";
+import { nativeLayout } from "@catera/design-tokens";
 import { type PayoutSetup } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Field, FormError, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, Field, fontFor, FormError, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
 import { ReadError } from "../ReadError";
 import { ListSkeleton } from "../skeletons";
 import { useFormRun } from "../useFormRun";
@@ -15,9 +16,9 @@ function Step({ n, title, state, children }: { n: number; title: string; state: 
   const badge = { done: t("Selesai", "Done"), waiting: t("Sedang ditinjau", "In review"), todo: "", later: t("Nanti", "Later") }[state];
   return (
     <Card tone={state === "todo" ? "attention" : "surface"}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-        <Text variant="heading" style={{ flex: 1 }}>{`${n}. ${title}`}</Text>
-        {badge ? <Text variant="label" style={{ color: state === "done" ? c.charcoal : c.muted }}>{badge}</Text> : null}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: nativeLayout.space.md }}>
+        <Text variant="section" style={{ flex: 1 }}>{`${n}. ${title}`}</Text>
+        {badge ? <Text variant="meta" style={{ color: state === "done" ? c.charcoal : c.muted, fontFamily: fontFor("700") }}>{badge}</Text> : null}
       </View>
       {children}
     </Card>
@@ -51,12 +52,14 @@ export function AktifkanScreen() {
   if (!s)
     return (
       <Screen>
-        <FadeSwap swapKey={state.error ? "error" : "loading"} style={{ gap: 16 }}>
-          {state.error ? (
-            <ReadError art message={state.error} onRetry={() => void state.reload()} />
-          ) : (
-            <ListSkeleton rows={3} label={t("Memuat pembayaran", "Loading payments")} />
-          )}
+        <FadeSwap swapKey={state.error ? "error" : "loading"}>
+          <View testID="aktifkan-steps" style={{ gap: nativeLayout.dense.sectionGap }}>
+            {state.error ? (
+              <ReadError art message={state.error} onRetry={() => void state.reload()} />
+            ) : (
+              <ListSkeleton rows={3} label={t("Memuat pembayaran", "Loading payments")} />
+            )}
+          </View>
         </FadeSwap>
       </Screen>
     );
@@ -73,63 +76,66 @@ export function AktifkanScreen() {
 
   return (
     <Screen>
-      <FadeSwap swapKey="steps" style={{ gap: 16 }}>
-        <Text>
-          {t(
-            "Setelah aktif, pelanggan bisa memperpanjang dan memesan langsung lewat Catera. Daftar masak dan antar tetap berjalan seperti biasa.",
-            "Once on, customers can renew and order through Catera. Your cooking and delivery lists keep working as usual.",
-          )}
-        </Text>
-        <Step n={1} title={t("Pemeriksaan profil dan paket", "Profile and package check")} state={review}>
-          {review === "todo" ? (
-            s.packages ? (
-              <Button
-                label={t("Minta diperiksa", "Ask for a check")}
-                busy={busy && which === "submit"}
-                disabled={busy && which !== "submit"}
-                onPress={() => void run("submit", "seller.submit", { catererId })}
-              />
-            ) : (
-              <Text variant="caption">{t("Buat paket dulu di Usaha › Paket.", "Create a package first in Business › Packages.")}</Text>
-            )
-          ) : review === "waiting" ? (
-            <Text variant="caption">{t("Tim Catera biasanya memeriksa dalam 1 sampai 2 hari kerja.", "The Catera team usually checks within 1 to 2 working days.")}</Text>
-          ) : null}
-        </Step>
-        <Step n={2} title={t("Rekening pencairan", "Payout bank account")} state={payout}>
-          {payout === "done" && s.setup?.active ? (
-            <Text variant="caption">{`${s.setup.active.bank} · ${s.setup.active.maskedAccount} · ${s.setup.active.holder}`}</Text>
-          ) : payout === "waiting" && latest ? (
-            <Text variant="caption">{`${latest.bank} · ${latest.maskedAccount}`}</Text>
-          ) : (
-            <View style={{ gap: 10 }}>
-              {latest?.status === "rejected" && latest.reason ? <FormError message={latest.reason} failureKey={latest.reason} /> : null}
-              <Field label={t("Nama bank", "Bank name")} value={bank.bank} onChangeText={(v) => setBank((b) => ({ ...b, bank: v }))} placeholder="BCA" />
-              <Field label={t("Nama pemilik rekening", "Account holder")} value={bank.holder} onChangeText={(v) => setBank((b) => ({ ...b, holder: v }))} />
-              <Field label={t("Nomor rekening", "Account number")} value={bank.accountNumber} onChangeText={(v) => setBank((b) => ({ ...b, accountNumber: v.replace(/\D/g, "") }))} keyboardType="number-pad" />
-              <Segmented
-                value={bank.recipientType}
-                onChange={(v) => setBank((b) => ({ ...b, recipientType: v }))}
-                options={[
-                  { value: "INDIVIDUAL", label: t("Perorangan", "Individual") },
-                  { value: "BUSINESS", label: t("Badan usaha", "Business") },
-                ]}
-              />
-              <Button
-                label={t("Kirim untuk diperiksa", "Send for review")}
-                busy={busy && which === "bank"}
-                disabled={!bankReady || (busy && which !== "bank")}
-                onPress={() => void run("bank", "payoutDestination.submit", { catererId, ...bank })}
-              />
-            </View>
-          )}
-        </Step>
-        <Step n={3} title={t("Verifikasi pembayaran", "Payment verification")} state="later">
-          <Text variant="caption">
-            {t("Kami kabari kamu kalau perlu dokumen tambahan.", "We'll tell you if we need more documents.")}
+      {/* The steps are sections: 24 apart, as every Dapur screen spaces its sections. */}
+      <FadeSwap swapKey="steps">
+        <View testID="aktifkan-steps" style={{ gap: nativeLayout.dense.sectionGap }}>
+          <Text variant="bodyL">
+            {t(
+              "Setelah aktif, pelanggan bisa memperpanjang dan memesan langsung lewat Catera. Daftar masak dan antar tetap berjalan seperti biasa.",
+              "Once on, customers can renew and order through Catera. Your cooking and delivery lists keep working as usual.",
+            )}
           </Text>
-        </Step>
-        {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
+          <Step n={1} title={t("Pemeriksaan profil dan paket", "Profile and package check")} state={review}>
+            {review === "todo" ? (
+              s.packages ? (
+                <Button
+                  label={t("Minta diperiksa", "Ask for a check")}
+                  busy={busy && which === "submit"}
+                  disabled={busy && which !== "submit"}
+                  onPress={() => void run("submit", "seller.submit", { catererId })}
+                />
+              ) : (
+                <Text variant="meta">{t("Buat paket dulu di Usaha › Paket.", "Create a package first in Business › Packages.")}</Text>
+              )
+            ) : review === "waiting" ? (
+              <Text variant="meta">{t("Tim Catera biasanya memeriksa dalam 1 sampai 2 hari kerja.", "The Catera team usually checks within 1 to 2 working days.")}</Text>
+            ) : null}
+          </Step>
+          <Step n={2} title={t("Rekening pencairan", "Payout bank account")} state={payout}>
+            {payout === "done" && s.setup?.active ? (
+              <Text variant="meta">{`${s.setup.active.bank} · ${s.setup.active.maskedAccount} · ${s.setup.active.holder}`}</Text>
+            ) : payout === "waiting" && latest ? (
+              <Text variant="meta">{`${latest.bank} · ${latest.maskedAccount}`}</Text>
+            ) : (
+              <View testID="aktifkan-bank-form" style={{ gap: nativeLayout.space.md }}>
+                {latest?.status === "rejected" && latest.reason ? <FormError message={latest.reason} failureKey={latest.reason} /> : null}
+                <Field label={t("Nama bank", "Bank name")} value={bank.bank} onChangeText={(v) => setBank((b) => ({ ...b, bank: v }))} placeholder="BCA" />
+                <Field label={t("Nama pemilik rekening", "Account holder")} value={bank.holder} onChangeText={(v) => setBank((b) => ({ ...b, holder: v }))} />
+                <Field label={t("Nomor rekening", "Account number")} value={bank.accountNumber} onChangeText={(v) => setBank((b) => ({ ...b, accountNumber: v.replace(/\D/g, "") }))} keyboardType="number-pad" />
+                <Segmented
+                  value={bank.recipientType}
+                  onChange={(v) => setBank((b) => ({ ...b, recipientType: v }))}
+                  options={[
+                    { value: "INDIVIDUAL", label: t("Perorangan", "Individual") },
+                    { value: "BUSINESS", label: t("Badan usaha", "Business") },
+                  ]}
+                />
+                <Button
+                  label={t("Kirim untuk diperiksa", "Send for review")}
+                  busy={busy && which === "bank"}
+                  disabled={!bankReady || (busy && which !== "bank")}
+                  onPress={() => void run("bank", "payoutDestination.submit", { catererId, ...bank })}
+                />
+              </View>
+            )}
+          </Step>
+          <Step n={3} title={t("Verifikasi pembayaran", "Payment verification")} state="later">
+            <Text variant="meta">
+              {t("Kami kabari kamu kalau perlu dokumen tambahan.", "We'll tell you if we need more documents.")}
+            </Text>
+          </Step>
+          {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
+        </View>
       </FadeSwap>
     </Screen>
   );
