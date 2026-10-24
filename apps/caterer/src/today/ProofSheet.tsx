@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { Linking, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { errorLabel, kitchenSession, type KitchenMeal, type Stop } from "@catera/domain";
@@ -32,6 +32,11 @@ export const proofHref = (ids: string[], meal: KitchenMeal, date: string) =>
 
 /** One stop's photo: where it is on the phone (already shrunk) and, once sent, the path the server gave it. */
 type Photo = { uri: string; path: string | null };
+
+/** Photos taken but not yet sent, per caterer, day and meal: a swipe-close keeps them. Cleared once they are sent. */
+const proofDrafts = new Map<string, Record<string, Photo>>();
+/** Forgets every kept photo (tests start from none). */
+export const resetProofDrafts = () => proofDrafts.clear();
 
 /** The photo tile: the dish thumb's 56, like a `MediaRow`'s. */
 const THUMB = nativeLayout.thumb.sm;
@@ -157,13 +162,20 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
   // Only stops that are on their way can be marked Sampai; one another phone just marked drops out of the grid.
   const stops = session ? selectedFor(session.stops, new Set(ids), "arrive") : [];
 
-  const [photos, setPhotos] = useState<Record<string, Photo>>({});
+  const draftKey = `${key}:${meal}`;
+  const [photos, setPhotos] = useState<Record<string, Photo>>(() => proofDrafts.get(draftKey) ?? {});
   const [taking, setTaking] = useState<string | null>(null);
   const [failedIds, setFailedIds] = useState<string[]>([]);
-  const [failure, setFailure] = useState<{ message: string; key: number } | null>(null);
+  const [failure, setFailure] = useState<{ message: string; key: number; camera?: Stop; settings?: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
   const closed = useRef(false);
-  const fail = (message: string) => setFailure((f) => ({ message, key: (f?.key ?? 0) + 1 }));
+  const fail = (message: string, extra?: { camera?: Stop; settings?: boolean }) =>
+    setFailure((f) => ({ message, key: (f?.key ?? 0) + 1, ...extra }));
+
+  useEffect(() => {
+    if (!saved && Object.keys(photos).length) proofDrafts.set(draftKey, photos);
+    else proofDrafts.delete(draftKey);
+  }, [photos, saved, draftKey]);
 
   useEffect(() => {
     if (!saved || closed.current) return;
@@ -190,6 +202,7 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
             "Kamera belum diizinkan. Izinkan kamera untuk Catera Dapur di pengaturan HP, lalu ambil fotonya.",
             "The camera is not allowed. Allow it for Catera Dapur in the phone's settings, then take the photo.",
           ),
+          { camera: stop, settings: !permission.canAskAgain },
         );
         return;
       }
@@ -201,7 +214,7 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
       setPhotos((p) => ({ ...p, [stop.deliveryId]: { uri: small.uri, path: null } }));
       setFailedIds((f) => f.filter((id) => id !== stop.deliveryId));
     } catch {
-      fail(t("Foto belum bisa diambil. Coba lagi.", "The photo could not be taken. Try again."));
+      fail(t("Foto belum bisa diambil. Coba lagi.", "The photo could not be taken. Try again."), { camera: stop });
     } finally {
       cameraOpen.current = false;
       setTaking(null);
@@ -305,7 +318,16 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
       </ListCard>
       {/* The primary and the reason it waits are pinned to the sheet's foot; the reason's line keeps its room once it goes. */}
       <SheetFooter>
-        {failure ? <FormError message={failure.message} failureKey={failure.key} retry={ready ? () => void send() : undefined} /> : null}
+        {failure ? (
+          <FormError
+            message={failure.message}
+            failureKey={failure.key}
+            retry={failure.camera ? (failure.settings ? undefined : () => void take(failure.camera!)) : ready ? () => void send() : undefined}
+          />
+        ) : null}
+        {failure?.settings ? (
+          <Button variant="text" label={t("Buka Pengaturan", "Open Settings")} onPress={() => void Linking.openSettings()} />
+        ) : null}
         <Button
           label={label}
           disabled={!ready}

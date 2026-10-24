@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react-native";
 import { render } from "./render-dapur";
-import { StyleSheet } from "react-native";
+import { Linking, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import NetInfo from "@react-native-community/netinfo";
 import { router } from "expo-router";
@@ -10,7 +10,7 @@ import { kitchenSession, type SellerOperationsState } from "@catera/domain";
 import { ToastProvider } from "@catera/mobile-ui";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { MoveSheet } from "../src/today/MoveSheet";
-import { ProofSheet } from "../src/today/ProofSheet";
+import { ProofSheet, resetProofDrafts } from "../src/today/ProofSheet";
 import { TodayScreen } from "../src/today/TodayScreen";
 import * as offline from "../src/today/offline";
 import * as proof from "../src/today/proof";
@@ -62,6 +62,7 @@ beforeEach(() => {
   });
   jest.clearAllMocks();
   resetSheets();
+  resetProofDrafts();
   (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
   (NetInfo as unknown as { __set(state?: unknown): void }).__set();
 });
@@ -283,6 +284,55 @@ describe("Sampai (n): the proof-photo sheet", () => {
     fireEvent.press(within(error).getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(command).toHaveBeenCalledWith("delivery.arrive", expect.anything(), expect.any(String)));
     expect((proof.uploadProof as jest.Mock).mock.calls.map((c) => c[2])).toEqual([hartono]);
+  });
+});
+
+describe("Sampai (n): camera permission and kept photos", () => {
+  const permission = ImagePicker.requestCameraPermissionsAsync as jest.Mock;
+  const shot = (uri: string) => (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValueOnce({ canceled: false, assets: [{ uri, width: 3000, height: 4000 }] });
+  const sheet = () => within(screen.getByTestId("exception-sheet"));
+  const day = dayWith([out, out, cooking, waiting]);
+  const open = async () => {
+    renderToday(runtimeFor(() => day));
+    await pilih();
+    fireEvent.press(stopBox(/Bu Sari/));
+    fireEvent.press(stopBox(/Keluarga Hartono/));
+    fireEvent.press(screen.getByRole("button", { name: "Sampai (2)" }));
+    await screen.findByText("Foto bukti sampai");
+  };
+
+  it("a denied camera that cannot be asked again offers Buka Pengaturan and no send retry", async () => {
+    const settings = jest.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
+    permission.mockResolvedValueOnce({ granted: false, canAskAgain: false });
+    await open();
+    fireEvent.press(sheet().getByLabelText(/^Ambil foto: Bu Sari/));
+    const error = await screen.findByTestId("form-error");
+    expect(within(error).queryByRole("button", { name: "Coba lagi" })).toBeNull();
+    fireEvent.press(sheet().getByRole("button", { name: "Buka Pengaturan" }));
+    expect(settings).toHaveBeenCalled();
+  });
+
+  it("Coba lagi after a camera error opens the camera again, not the send", async () => {
+    permission.mockResolvedValueOnce({ granted: false, canAskAgain: true });
+    await open();
+    fireEvent.press(sheet().getByLabelText(/^Ambil foto: Bu Sari/));
+    const error = await screen.findByTestId("form-error");
+    expect(sheet().queryByRole("button", { name: "Buka Pengaturan" })).toBeNull();
+    shot("file:///sari.jpg");
+    fireEvent.press(within(error).getByRole("button", { name: "Coba lagi" }));
+    await waitFor(() => expect(sheet().getAllByText("Foto siap")).toHaveLength(1));
+    expect(screen.queryByTestId("form-error")).toBeNull();
+  });
+
+  it("photos not yet sent come back when the sheet is reopened", async () => {
+    await open();
+    shot("file:///sari.jpg");
+    fireEvent.press(sheet().getByLabelText(/^Ambil foto: Bu Sari/));
+    await waitFor(() => expect(sheet().getAllByText("Foto siap")).toHaveLength(1));
+    screen.unmount();
+    resetSheets();
+    await open();
+    expect(sheet().getAllByText("Foto siap")).toHaveLength(1);
   });
 });
 
