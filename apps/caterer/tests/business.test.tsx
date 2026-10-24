@@ -8,7 +8,7 @@ import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { settlementCurrency, type SettlementState } from "@catera/domain";
 import { quickOffer, packageIssues, type PackageForm } from "../src/business/package";
 import { PackageEditor } from "../src/business/PackageEditor";
-import { PackageDetail } from "../src/business/PackageDetail";
+import { PackageDetail, weekdayLabel } from "../src/business/PackageDetail";
 import { UsahaScreen } from "../src/business/UsahaScreen";
 import { UangScreen } from "../src/business/UangScreen";
 import { AktifkanScreen } from "../src/business/AktifkanScreen";
@@ -18,10 +18,11 @@ import { Pengaturan } from "../src/settings/Pengaturan";
 import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
 import { StyleSheet, Text } from "react-native";
 import { Image as ExpoImage } from "expo-image";
-import { sheetSidePadding } from "@catera/mobile-ui";
+import { HeroPhotoFrame, sheetSidePadding } from "@catera/mobile-ui";
 import { DetailSkeleton } from "../src/skeletons";
 import { HapusAkun } from "../src/settings/HapusAkun";
 import { withDapurScale } from "./dapur-scale";
+import * as uploadModule from "../src/business/upload";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
@@ -767,7 +768,7 @@ describe("Paket detail on the Dapur scale", () => {
     expect(rows).toHaveLength(3);
     for (const row of rows) expect(bag(row).minHeight).toBe(40);
     expect(within(screen.getByTestId("paket-fact-harga")).getByText(/^Rp\s?28\.000 per porsi$/)).toBeTruthy();
-    expect(within(screen.getByTestId("paket-fact-hari")).getByText("Sen, Sel, Rab, Kam, Jum")).toBeTruthy();
+    expect(within(screen.getByTestId("paket-fact-hari")).getByText("Senin–Jumat")).toBeTruthy();
     expect(within(screen.getByTestId("paket-fact-kapasitas")).getByText("40 porsi per hari")).toBeTruthy();
     // What is in a portion is a sentence, so it stays a line under the list rather than a value that could crowd its label.
     expect(screen.getByText("2 lauk")).toBeTruthy();
@@ -840,5 +841,140 @@ describe("Paket editor on the Dapur scale", () => {
     // Selecting still works: Sab is off in a new package.
     fireEvent.press(within(wrap).getByRole("button", { name: "Sab" }));
     expect(within(wrap).getByRole("button", { name: "Sab" }).props.accessibilityState.selected).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Fix round 1: digits-only fields, an unclipped package photo, delivery days as a range, muted Kelola glyphs.
+// ---------------------------------------------------------------------------------------------------------------
+describe("Paket editor number fields", () => {
+  it.each([
+    ["28.000", "28000"],
+    ["Rp 28000", "28000"],
+    ["28 000", "28000"],
+    ["D28D", "28"],
+  ])("typing %p into the price stores %p: every non-digit is stripped", async (typed, stored) => {
+    scaled(runtimeWith({}), <PackageEditor />);
+    const field = await screen.findByLabelText("Harga per porsi (Rp)");
+    fireEvent.changeText(field, typed);
+    expect(screen.getByLabelText("Harga per porsi (Rp)").props.value).toBe(stored);
+  });
+
+  it.each([
+    ["40 porsi", "40"],
+    ["1.200", "1200"],
+    ["D5", "5"],
+  ])("typing %p into the capacity stores %p", async (typed, stored) => {
+    scaled(runtimeWith({}), <PackageEditor />);
+    const field = await screen.findByLabelText("Kapasitas per hari (porsi)");
+    fireEvent.changeText(field, typed);
+    expect(screen.getByLabelText("Kapasitas per hari (porsi)").props.value).toBe(stored);
+  });
+
+  it("a price typed as 28.000 publishes as 28000", async () => {
+    const command = jest.fn(async () => ({ id: "p-new" }));
+    scaled(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
+    fireEvent.changeText(await screen.findByLabelText("Harga per porsi (Rp)"), "28.000");
+    fireEvent.changeText(screen.getByLabelText("Kapasitas per hari (porsi)"), "40 porsi");
+    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await waitFor(() => expect(command).toHaveBeenCalled());
+    const payload = (command.mock.calls[0] as unknown as [string, { offer: { price: number; capacity: Record<string, number> } }])[1];
+    expect(payload.offer.price).toBe(28000);
+    expect(Object.values(payload.offer.capacity)).toEqual([40, 40, 40, 40, 40]);
+  });
+});
+
+describe("the package photo is not clipped by an ancestor", () => {
+  /** Every host ancestor of a node that clips its children. */
+  const clippers = (node: { parent: unknown }) => {
+    const found: string[] = [];
+    let at = (node as { parent: { props?: { style?: unknown; testID?: string }; parent: unknown } | null }).parent;
+    while (at) {
+      if (at.props && bag(at as never).overflow === "hidden") found.push(String(at.props.testID ?? "?"));
+      at = at.parent as typeof at;
+    }
+    return found;
+  };
+
+  it("on the detail: no ancestor of the image has overflow hidden, and the image carries the radius", () => {
+    scaled(runtimeWith({}), <PackageDetail offer={photoOffer} />);
+    const image = screen.getByTestId("paket-photo-image");
+    expect(clippers(image)).toEqual([]);
+    expect(bag(image)).toMatchObject({ borderRadius: 16 });
+    expect(bag(screen.getByTestId("paket-photo-inset")).overflow).toBeUndefined();
+    expect(bag(screen.getByTestId("paket-photo-inset")).borderTopLeftRadius).toBeUndefined();
+  });
+
+  it("in the editor: the same for a photo that arrives after the screen has mounted, and for an edit's own", async () => {
+    const picker = require("expo-image-picker") as { launchImageLibraryAsync: jest.Mock };
+    picker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///x.jpg" }] });
+    jest.spyOn(uploadModule, "uploadPhoto").mockResolvedValue("https://cdn.example.test/new.jpg");
+    scaled(runtimeWith({}), <PackageEditor />);
+    expect(screen.queryByTestId("paket-photo-image")).toBeNull();
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
+    const arrived = await screen.findByTestId("paket-photo-image");
+    expect(arrived.props.source).toEqual({ uri: "https://cdn.example.test/new.jpg" });
+    expect(clippers(arrived)).toEqual([]);
+    expect(bag(arrived)).toMatchObject({ borderRadius: 16 });
+    screen.unmount();
+    scaled(runtimeWith({}), <PackageEditor from={liveOffer} />);
+    const own = await screen.findByTestId("paket-photo-image");
+    expect(clippers(own)).toEqual([]);
+    expect(bag(own)).toMatchObject({ borderRadius: 16 });
+    jest.restoreAllMocks();
+  });
+
+  it("the default HeroPhotoFrame still clips its top corners (the customer's hero), and clip={false} drops both", () => {
+    render(
+      withDapurScale(
+        <>
+          <HeroPhotoFrame ratio={1.6} testID="clipped" />
+          <HeroPhotoFrame ratio={1.6} testID="open" clip={false} />
+        </>,
+      ),
+    );
+    expect(bag(screen.getByTestId("clipped-inset"))).toMatchObject({ overflow: "hidden", borderTopLeftRadius: 14.5, borderTopRightRadius: 14.5, margin: 1.5 });
+    expect(bag(screen.getByTestId("open-inset"))).toMatchObject({ margin: 1.5 });
+    expect(bag(screen.getByTestId("open-inset")).overflow).toBeUndefined();
+    expect(bag(screen.getByTestId("open-inset")).borderTopLeftRadius).toBeUndefined();
+    expect(bag(screen.getByTestId("open")).aspectRatio).toBe(1.6);
+  });
+});
+
+describe("the delivery days read as a range", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    [[1, 2, 3, 4, 5], "id", "Senin–Jumat"],
+    [[1, 2, 3, 4, 5, 6, 0], "id", "Senin–Minggu"],
+    [[0, 6, 5, 4, 3, 2, 1], "id", "Senin–Minggu"],
+    [[1, 2, 3, 4, 5], "en", "Monday–Friday"],
+    [[1], "id", "Senin"],
+    [[1, 3, 5], "id", "Sen, Rab, Jum"],
+    [[6, 0, 1], "id", "Sen, Sab, Min"],
+    [[1, 2, 3, 5, 6], "id", "Sen–Rab, Jum, Sab"],
+    [[1, 2, 4, 5, 0], "en", "Mon, Tue, Thu, Fri, Sun"],
+  ] as const)("%j (%s) reads %s", (days, locale, text) => {
+    expect(weekdayLabel([...days], locale)).toBe(text);
+  });
+
+  it("a seven-day package stays whole in its 40 row at 360dp and font scale 1.3", () => {
+    jest.spyOn(ReactNativeModule, "useWindowDimensions").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
+    scaled(runtimeWith({}), <PackageDetail offer={{ ...photoOffer, weekdays: [1, 2, 3, 4, 5, 6, 0] } as typeof photoOffer} />);
+    const value = within(screen.getByTestId("paket-fact-hari")).getByText("Senin–Minggu");
+    expect(value.props.numberOfLines).toBeUndefined();
+    // About 100dp at 1.3x of the 296 inner width, so the label keeps its room beside it.
+    expect("Senin–Minggu".length * 8.3 * 1.3).toBeLessThan(296 - 120);
+    expect(within(screen.getByTestId("paket-fact-hari")).getByText("Hari antar")).toBeTruthy();
+  });
+});
+
+describe("Kelola glyphs", () => {
+  it("are muted, not forest: forest is for actions", async () => {
+    scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
+    await screen.findByText("Paket 1");
+    const glyphs = within(screen.getByTestId("usaha-kelola")).UNSAFE_getAllByType(Ionicons).filter((g) => g.props.size === 20 && g.props.name !== "chevron-forward");
+    expect(glyphs).toHaveLength(5);
+    for (const glyph of glyphs) expect(glyph.props.color).toBe(nativeThemes.light.muted);
   });
 });

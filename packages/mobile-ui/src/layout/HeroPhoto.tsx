@@ -15,6 +15,9 @@ export const heroPhotoInset = {
   overflow: "hidden",
 } as const;
 
+/** The same inset with no clip and no corner radii: the image rounds itself. */
+const unclippedInset = { margin: HERO_EDGE } as const;
+
 /**
  * The photo across the top of a hero card (Beranda's plate, the plan's hero and their loading skeletons): the card's
  * width at `ratio`, inside its 1.5 edge so the edge runs unbroken round it, top corners one edge-width tighter than the
@@ -25,20 +28,27 @@ export const heroPhotoInset = {
  * edge and 14 to 17px short of the right one). So the outer layer carries the margin and the corners and stretches as
  * usual, and the inner layer carries only the ratio, so its width is exactly the card's inner width. `testID` names the
  * inner layer (the photo); the outer is `{testID}-inset`.
+ *
+ * `clip` (default true) is the hero card's clipped top corners. `clip={false}` drops the `overflow: "hidden"` and the
+ * corner radii with it: a photo that can finish loading after the screen has mounted inside a rounded clipping parent can
+ * stay blank on Android (audit-003 F1), so the caller's image carries its own corner radius instead (Dapur's package photo).
  */
 export function HeroPhotoFrame({
   ratio,
   testID,
   style,
   children,
+  clip = true,
 }: {
   ratio: number;
   testID: string;
+  /** Clip the photo to the card's top corners (default). `false`: no clipping ancestor; the image rounds itself. */
+  clip?: boolean;
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
 }) {
   return (
-    <View testID={`${testID}-inset`} style={heroPhotoInset}>
+    <View testID={`${testID}-inset`} style={clip ? heroPhotoInset : unclippedInset}>
       <View testID={testID} style={[{ aspectRatio: ratio }, style]}>
         {children}
       </View>

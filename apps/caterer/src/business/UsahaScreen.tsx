@@ -37,31 +37,29 @@ const MORE_PULL = -12;
 /** What the package list looks like while it loads: two 72 media rows, a 56 photo, two text lines and the 48 button's place. */
 function PackagesSkeleton() {
   return (
-    <>
-      <ListCard>
-        {[0, 1].map((i) => (
-          <View
-            key={i}
-            testID={`usaha-skeleton-row-${i}`}
-            style={{ height: nativeLayout.row.media, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
-          >
-            <Skeleton width={nativeLayout.thumb.sm} height={nativeLayout.thumb.sm} radius={nativeLayout.radius.thumb} />
-            <View style={{ flex: 1 }}>
-              {/* rowTitle's 22 line and meta's 18 line, centred as the loaded text is. */}
-              <View style={{ height: 22, justifyContent: "center" }}>
-                <Skeleton width={i % 2 ? "45%" : "60%"} height={12} radius={6} />
-              </View>
-              <View style={{ height: 18, justifyContent: "center" }}>
-                <Skeleton width={i % 2 ? "60%" : "70%"} height={10} radius={5} />
-              </View>
+    <ListCard>
+      {[0, 1].map((i) => (
+        <View
+          key={i}
+          testID={`usaha-skeleton-row-${i}`}
+          style={{ height: nativeLayout.row.media, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
+        >
+          <Skeleton width={nativeLayout.thumb.sm} height={nativeLayout.thumb.sm} radius={nativeLayout.radius.thumb} />
+          <View style={{ flex: 1 }}>
+            {/* rowTitle's 22 line and meta's 18 line, centred as the loaded text is. */}
+            <View style={{ height: 22, justifyContent: "center" }}>
+              <Skeleton width={i % 2 ? "45%" : "60%"} height={12} radius={6} />
             </View>
-            <View style={{ width: 36, alignItems: "center" }}>
-              <Skeleton width={20} height={20} radius={10} />
+            <View style={{ height: 18, justifyContent: "center" }}>
+              <Skeleton width={i % 2 ? "60%" : "70%"} height={10} radius={5} />
             </View>
           </View>
-        ))}
-      </ListCard>
-    </>
+          <View style={{ width: 36, alignItems: "center" }}>
+            <Skeleton width={20} height={20} radius={10} />
+          </View>
+        </View>
+      ))}
+    </ListCard>
   );
 }
 
@@ -226,7 +224,7 @@ export function UsahaScreen() {
                   key={row.href}
                   bare
                   minHeight={48}
-                  glyph={<Ionicons name={row.icon} size={20} color={c.forest} />}
+                  glyph={<Ionicons name={row.icon} size={20} color={c.muted} />}
                   title={row.label}
                   onPress={() => router.push(row.href as never)}
                   trailing={

@@ -1,13 +1,36 @@
 import { View } from "react-native";
 import { router } from "expo-router";
-import { currency, nutritionSummary, packageNutrition, type SellerOffer } from "@catera/domain";
+import { currency, nutritionSummary, packageNutrition, WEEK_HEADER, type Locale, type SellerOffer } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { plural, useMobile } from "@catera/mobile-core";
 import { Button, KeyValueRow, ListCard, Screen, Text } from "@catera/mobile-ui";
 import { photoUri } from "../photo";
 import { PackagePhoto } from "./PackagePhoto";
 
-const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+/** Whole day names, Monday first (the index is `(weekday + 6) % 7`, with Sunday as 0). */
+const FULL_DAYS = {
+  id: ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"],
+  en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+};
+
+/**
+ * The delivery days as short as they read: a run of three or more in a row is a range ("Senin–Jumat", "Senin–Minggu"),
+ * and days apart stay a short list ("Sen, Rab, Jum"). When the days are one group they use whole names; with several
+ * groups they use the short ones, so the value stays inside its 40 row at large text (a `KeyValueRow` value never shrinks).
+ */
+export function weekdayLabel(weekdays: number[], locale: Locale): string {
+  const places = [...new Set(weekdays.map((d) => (d + 6) % 7))].sort((a, b) => a - b);
+  const runs: number[][] = [];
+  for (const place of places) {
+    const last = runs[runs.length - 1];
+    if (last && last[last.length - 1] === place - 1) last.push(place);
+    else runs.push([place]);
+  }
+  const names = runs.length === 1 ? FULL_DAYS[locale] : WEEK_HEADER[locale];
+  return runs
+    .map((run) => (run.length >= 3 ? `${names[run[0]]}–${names[run[run.length - 1]]}` : run.map((place) => names[place]).join(", ")))
+    .join(", ");
+}
 
 /**
  * A package customers can already buy keeps its terms fixed, so it is shown read-only.
@@ -38,7 +61,7 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
               label={t("Harga", "Price")}
               value={offer.price === null ? t("Belum ada harga", "No price yet") : `${currency(offer.price, locale)} ${t("per porsi", "per portion")}`}
             />
-            <KeyValueRow testID="paket-fact-hari" label={t("Hari antar", "Delivery days")} value={offer.weekdays.map((d) => dayNames[d]).join(", ")} />
+            <KeyValueRow testID="paket-fact-hari" label={t("Hari antar", "Delivery days")} value={weekdayLabel(offer.weekdays, locale)} />
             {capacity !== undefined ? (
               <KeyValueRow
                 testID="paket-fact-kapasitas"

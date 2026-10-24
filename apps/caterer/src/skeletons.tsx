@@ -327,7 +327,9 @@ export function ListSkeleton({
 export function DetailSkeleton({ label, shape = "default" }: { label: string; shape?: "default" | "customer" | "package" }) {
   if (shape === "package") {
     // A package's page: the 16:10 photo, two description lines, one card of three 40 key-value rows and the 50 action,
-    // 24 apart (the loaded page's section gap).
+    // 24 apart (the loaded page's section gap). The photo block is drawn always: until the read answers, nothing (not the
+    // link, which carries only the id and the name) says whether this package has a photo, so the skeleton is shaped for
+    // the usual page and a package without one settles up by a photo's height.
     return (
       <SkeletonGroup label={label}>
         <View style={{ gap: nativeLayout.dense.sectionGap }}>

@@ -14,16 +14,15 @@ const RADIUS = nativeLayout.radius.card;
  * The image rounds its own four corners (`borderRadius` on the `Photo`, which also paints the neutral ground while it
  * loads and if it fails) and leans on no clipping ancestor for them: a photo that finishes loading after the screen has
  * mounted (the editor's pick, the detail's first paint) inside a rounded `overflow: hidden` parent can stay blank on
- * Android (the Menu dish tile, fixed in 1df68830). The frame still clips its square edge, as it does for Beranda and
- * Paket in the customer app, where expo-image loads inside it without that fault. Without a `uri` the frame holds
- * `children`: the editor's empty tile.
+ * Android (audit-003 F1, the Menu dish tile fixed in 1df68830). So the frame is `clip={false}`: no ancestor of the photo
+ * clips it. Without a `uri` the frame holds `children`: the editor's empty tile, which rounds itself the same way.
  *
  * `testID` names the frame's photo layer (the 16:10 box); the image is `{testID}-image`.
  */
 export function PackagePhoto({ uri, children, testID = "paket-photo" }: { uri?: string; children?: ReactNode; testID?: string }) {
   return (
     <View style={{ margin: -heroPhotoInset.margin }}>
-      <HeroPhotoFrame ratio={nativeLayout.ratio.card} testID={testID}>
+      <HeroPhotoFrame ratio={nativeLayout.ratio.card} testID={testID} clip={false}>
         {uri ? (
           <Photo testID={`${testID}-image`} uri={uri} style={[StyleSheet.absoluteFill, { borderRadius: RADIUS, borderCurve: "continuous" }]} />
         ) : (

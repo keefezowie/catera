@@ -187,7 +187,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
         </Section>
         <NutritionFields value={form.nutrition} onChange={(n) => set("nutrition", n)} errors={giziShown} />
         <Section title={t("Harga", "Price")}>
-          <Field label={t("Harga per porsi (Rp)", "Price per portion (Rp)")} value={form.price} onChangeText={(v) => set("price", v.replace(/D/g, ""))} error={shown.price} keyboardType="number-pad" placeholder="28000" />
+          <Field label={t("Harga per porsi (Rp)", "Price per portion (Rp)")} value={form.price} onChangeText={(v) => set("price", v.replace(/\D/g, ""))} error={shown.price} keyboardType="number-pad" placeholder="28000" />
         </Section>
         <Section title={t("Hari antar", "Delivery days")}>
           <View style={{ gap: nativeLayout.space.sm }}>
@@ -222,7 +222,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
             label={t("Kapasitas per hari (porsi)", "Daily capacity (portions)")}
             hint={t("Paling banyak berapa porsi yang sanggup kamu masak dalam sehari?", "The most portions you can cook in a day.")}
             value={form.capacity}
-            onChangeText={(v) => set("capacity", v.replace(/D/g, ""))}
+            onChangeText={(v) => set("capacity", v.replace(/\D/g, ""))}
             error={shown.capacity}
             keyboardType="number-pad"
           />
