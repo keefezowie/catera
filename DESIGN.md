@@ -1135,7 +1135,7 @@ Order: mood band, hero or hero pager, recap card, live slot, "Berikutnya", "Pake
 
 - Month band: the month in `heroTitle` in the header's top row with two 44 chevrons; a `meta` weekday row at least 20; cells 40 tall (`hitSlop` 2) with a 32 circle and the number at 15/500. Selected is a filled `toggleActive` circle with an `onToggleActive` number; today is a 2 `todayRing` ring. A delivery day has a 6 ink dot (`headerText`; `markerIdle` once past) placed at the cell's foot, outside the circle; a day whose menu is not set has a 6 ring (1.5, `markerIdle`). Only the weeks the month needs are drawn (October 2026 has 5). No photo, moon, pill or dashed ring. The grid sits at the header's 16 inset. Legend in `meta` with 6 swatches: "Ada pengantaran" and "Menu belum diisi".
 - Read window: Jadwal reads whole Monday-to-Sunday weeks, from the month's first Monday to its last Sunday (October 2026 reads `2026-09-28` to `2026-11-01`), so the agenda never cuts a week at the month edge.
-- Agenda: `section` "Minggu ini" with the range in `meta` on the heading row; any other week is "Pekan 26 Okt–1 Nov" ("Week of …") with "n pengantaran", because "Minggu <date>" reads as Sunday. One block per delivery day (`bodyStrong` "Kamis 22 Okt · Hari ini"), with a card of 72 rows: thumb 56 from the row's own menu, the lead dish as title (or "Menu belum diisi"), `meta` "Siang 11.00–13.00 · state". States: Terjadwal, Sedang dimasak, Sedang diantar, Sudah sampai, Gagal diantar, and "Belum sampai" for a past day still scheduled and for today's meal past the start of its window (Beranda's due rule). Days with nothing fold into one 56 surface card ("Sabtu dan Minggu tidak ada pengantaran"); the last row is a 56 link "Minggu depan, <range>". Selecting a date selects its week.
+- Agenda: `section` "Minggu ini" with the range in `meta` on the heading row; any other week is "Pekan 26 Okt–1 Nov" ("Week of …") with "n pengantaran", because "Minggu <date>" reads as Sunday. One block per delivery day (`bodyStrong` "Kamis 22 Okt · Hari ini"), with a card of 72 rows: thumb 56 from the row's own menu, the lead dish as title (or "Menu belum diisi"), `meta` "Siang 11.00–13.00 · state". States: Terjadwal, Sedang dimasak, Sedang diantar, Sudah sampai, Gagal diantar, Laporan terkirim, and "Belum sampai" for today's meal past the start of its window (Beranda's due rule). A past day with no update reads "Sudah sampai" (see Customer deep pages, Jadwal agenda states). Days with nothing fold into one 56 surface card ("Sabtu dan Minggu tidak ada pengantaran"); the last row is a 56 link "Minggu depan, <range>". Selecting a date selects its week.
 - Day sheet: `hari/[id]` is a form sheet in the root stack (`app/hari/[id].tsx`, `sheetOptions({ detents: "day" })`, detents 0.75 and 1, grabber, header hidden), so it covers the tab bar. The URL and every caller are unchanged; a cold link opens Beranda with the day over it. There is no title row: the first meal's `meta` line "date · meal · caterer" is the screen-reader header and focus target. Order: photo 16:10 radius 16, then per meal the `meta` line, the `heroTitle` dish, `bodyL` sides and a state line with a dot ("Terjadwal 11.00–13.00 · bisa diubah sampai hari ini 17.00", or "· sudah tidak bisa diubah"). The action row sits directly under the first meal's state line, before the 56 canvas-tone address well (radius 12, pin glyph) and before any further meal, so it is in view at the first detent. Body gap 16, a meal's own lines 4 apart.
 - Day actions: 56 circles on `sage` with `meta` labels, in this order when they apply: Ubah hari, Pilih menu (pick-your-own) or Lihat menu, Ada masalah, Chat, Ganti alamat. One row (12 side padding, items 56 to 96 wide), wrapping to two lines below effective width 380 (`width / fontScale`). Ubah hari hides after the cut-off and on a closed day. Lihat menu opens the package page. The menu circles close the sheet and open their page in the tab beneath. The ⋮ menu, the pinned footer and the "Ada masalah" text link are gone from the sheet; `DayMore` remains in the Beranda hero's photo corner.
 
@@ -1633,9 +1633,9 @@ Shared `packages/mobile-ui` changes are either additive (a new prop or variant) 
 
 ### Jadwal agenda states
 
-- "Belum sampai" shows only for today's meal whose window has opened. A past meal still at scheduled or cooking, with no open report, reads "Sudah sampai", the same as an explicit delivered. A meal with an open report reads "Laporan terkirim" on any day, and a failed one "Gagal diantar". `schedule/WeekAgenda.tsx:110-131`.
+- "Belum sampai" shows only for today's meal whose window has opened. A past meal still at scheduled or cooking, with no open report, reads "Sudah sampai", the same as an explicit delivered. A meal with an open report reads "Laporan terkirim" on any day, and a failed one "Gagal diantar". The Hari sheet's state line uses the same rule from one helper, `schedule/mealState.ts` (`mealReported`, `mealSettled`), so the sheet and the agenda never disagree. `schedule/WeekAgenda.tsx:110-131`, `schedule/DayScreen.tsx:195-201`.
 - Reason (B3): the server's `auto_deliver` treats silence as delivered, so a past day with no update was delivered.
-- An unpicked pick-your-own meal, today or later, gets a trailing "Pilih menu" text action: `bodyStrong` forest, minimum height 44, `flexShrink: 0`, to `/pilih-menu/{subscriptionId}?date&meal`. `WeekAgenda.tsx:144, 160-175, 238`.
+- An unpicked pick-your-own meal, today or later and still before its change cutoff (`canChangeDay` allows a date or address change, the same rule as Beranda's `changeUntil`), gets a trailing "Pilih menu" text action: `bodyStrong` forest (marked `forest: action`), minimum height 44, `flexShrink: 0`, to `/pilih-menu/{subscriptionId}?date&meal`. `WeekAgenda.tsx:144-148, 160-177, 238`.
 
 ### Beranda day blocks and the hero deadline
 
@@ -1655,7 +1655,7 @@ Shared `packages/mobile-ui` changes are either additive (a new prop or variant) 
 - Dish options are photo cards in a two-column grid, column gap 12 and row gap 16, two columns even at 360dp and font 1.3. `schedule/ChooseMenu.tsx:462-480, 573`.
 - The cell: `flexBasis` 40%, grow 1, `maxWidth` 50%. The card: a 2dp ring (clear, or forest when selected), radius 16, padding 4. The photo is 4:3 at radius 12; with no photo, a `fill` tile with a `controlRing` restaurant glyph at 28. The check is a 24 forest circle with a cream checkmark, 8 in from the photo's top-right corner. The name is `bodyStrong` on up to two lines, the serving `meta`. Test ids `dish-cell-`, `dish-card-`, `dish-photo-`, `dish-fallback-`, `dish-check-{id}`. `schedule/DishCard.tsx:7, 37-60, 79-107`.
 - After a passed cutoff the cards are disabled at opacity 0.45. The outer editor card is gone, so no card sits inside a card. The selected dish's photo per slot shows only in the review step.
-- The deadline `menu-deadline` reads "Pilih sebelum {hari, jam}" for the earliest cutoff among the draft days. Under 24 hours (`SOON_MS`) it is an `attention` Card with a charcoal time icon and `bodyStrong` text; otherwise a caption with a muted time icon. It hides once any cutoff has passed, and FormError takes over. `ChooseMenu.tsx:47, 284-299, 436-442`.
+- The deadline `menu-deadline` reads "Pilih sebelum {hari, jam}" for the earliest cutoff among the draft days. Under 24 hours (`SOON_MS`) it is a plain view on the `fill` ground with a 1px `attentionBorder` edge, a charcoal time icon and `bodyStrong` text (the shared `attention` Card is forest-filled in dark, which §0 rules out); otherwise a caption with a muted time icon. It hides once any cutoff has passed, and FormError takes over. `ChooseMenu.tsx:47, 284-299, 436-442`.
 - The count `menu-count`, "{x} dari {n} hari sudah dipilih", sits under the month bar as a centered caption in tabular figures. It counts the month's saved days out of all its days. `ChooseMenu.tsx:367-369`.
 - The footer is one pinned `StickyAction`: "Tinjau pilihan" while choosing, "Simpan menu" while reviewing, with the replace notice as its caption. `ChooseMenu.tsx:301-327`.
 
@@ -1701,7 +1701,7 @@ Shared `packages/mobile-ui` changes are either additive (a new prop or variant) 
 ### Pengaturan and grouped settings cards
 
 - Under v2, on both platforms, each settings section is one card: `fill` ground, the card edge (light only, via `cardEdge`), radius 16, rows and dividers inset 16, the section label 8 above the card. Each row shows its value at the trailing edge, on Android too ("Bahasa: Indonesia", "Tampilan: Ikuti sistem"). The iOS pressed tint is `line` under v2 and `sage` in classic. `packages/mobile-ui/src/settings/SettingsRows.tsx:17-32, 64-85, 266`.
-- Data akun gets the same cards through `SettingsSection`.
+- Data akun gets the same cards through `SettingsSection`. `SettingsSection` opens fragments before counting and dividing rows (`flattenRows`, keys prefixed per fragment), so rows grouped in a fragment get dividers like separate rows. `SettingsRows.tsx:36-59`.
 - When push is unavailable (Expo Go), the Notifikasi section is not rendered, in both apps, and "Tidak tersedia di versi aplikasi ini" is gone (B6). `packages/mobile-ui/src/settings/Pengaturan.tsx:29`.
 
 ### Notifikasi
@@ -1717,7 +1717,7 @@ Shared `packages/mobile-ui` changes are either additive (a new prop or variant) 
 
 ### Hapus akun
 
-- With running plans, a callout `hapus-akun-plans` replaces the list of plan names: `fill` card, radius 16, padding 16, gap 8, `bodyStrong` "{n} paket masih berjalan", then three bulleted lines: "Pengantaran yang belum lewat dibatalkan.", "Riwayat dan alamat dihapus.", and the existing sentence about the Catera team settling the plan, unchanged. No new number or timeframe. `account/HapusAkun.tsx:113-125`.
+- With running plans, a callout `hapus-akun-plans` replaces the list of plan names: `well` card, radius 16, padding 16, gap 8, `bodyStrong` "{n} paket masih berjalan", then three bulleted lines: "Pengantaran yang belum lewat dibatalkan.", "Riwayat dan alamat dihapus.", and the existing sentence about the Catera team settling the plan, unchanged. No new number or timeframe. `account/HapusAkun.tsx:113-125`.
 - The send button uses the `danger` variant. `HapusAkun.tsx:170`.
 
 ### Button danger variant
@@ -1734,6 +1734,10 @@ Shared `packages/mobile-ui` changes are either additive (a new prop or variant) 
 
 - Register and Recover share one "Cek emailmu" view: the membaca `StateArt` left-aligned (120, or 96 at 360dp and font 1.3), the display title, an intro with the typed address in bold, the muted line "Buka tautannya di HP ini. Cek juga folder spam.", a primary "Buka aplikasi email" (`mailto:`, best effort), "Kirim ulang tautan" with the same 60-second countdown, and "Ubah email". After a resend it says "Terkirim lagi. Cek emailmu." `account/CheckEmail.tsx:8-66`; `Register.tsx:61`; `Recover.tsx:47`; `packages/mobile-ui/src/brand/StateArt.tsx:11-13`.
 - AuthCallback renders on `AuthScreen` and `AuthHeading` like the other auth pages. While checking, the subtitle reads "Memeriksa tautan…". The recovery fields are `PasswordField` with show and hide. `account/AuthCallback.tsx:77-132`.
+
+### Dark grounds for blocks on a sheet
+
+- Dark `fill` (#2A2D27) cannot be told apart from the dark sheet `surface` (#292927), and `cardBorder` is empty in dark. A block that sits on a sheet uses the `well` ground (Masalah `delivery-card`, the Hapus akun callout). A block on the canvas may use `fill`. `help/ReportProblem.tsx:~260`, `account/HapusAkun.tsx:~112`. Found by the dark emulator recheck.
 
 ### Owner rulings and deviations
 
@@ -1769,5 +1773,6 @@ These need a schema, an API or owner input (spec §4):
 - After "Tambah alamat" from the pick sheet, Beli does not preselect the new address (T5).
 - While only the payment methods are loading, the footer says "Menghitung total…" although the button already shows the amount (T4).
 - `footerFits` estimates per-character widths for the current font, so a font change needs new numbers. Its gate case is a 6-digit total at 360dp and font 1.0, estimated at 325 against 328 available (T4).
-- The Jadwal agenda offers "Pilih menu" on any unpicked pick-your-own meal from today on, while Beranda's day block also checks the cutoff. In Jadwal a meal past its cutoff still shows the action, and Pilih menu then reports the passed cutoff. `schedule/WeekAgenda.tsx:144`.
+- In dark, Beli's icon tiles and the Porsi stepper circles barely show against the card; the glyphs stay clear.
+- The Bantuan Paket list can show the same package name twice (two subscriptions of one package); add a date or the caterer to tell them apart.
 - iOS was not checked on a device (no Mac), including the stacked Hari rows' chevron and the v2 settings pressed tint.
