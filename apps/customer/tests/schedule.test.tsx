@@ -543,6 +543,20 @@ describe("Jadwal", () => {
       expect(router.push).toHaveBeenCalledWith("/pilih-menu/s-9?date=2026-10-08&meal=lunch");
     });
 
+    it("offers no Pilih menu on a day ahead whose change cutoff has passed, as Beranda's day block does", async () => {
+      const picks = offer({ menuSelectionMode: "customer", menus: [] } as Partial<Offer>);
+      const state = stateOf([
+        // Friday is still ahead, but its changes closed at 09.00 Jakarta today (NOW is 10.00).
+        delivery("d-shut", "2026-10-09", {}, { offer: picks, cutoff_at: "2026-10-07T02:00:00Z" }),
+        delivery("d-open", "2026-10-08", {}, { offer: picks }),
+      ]);
+      renderV2(runtimeWith(state), <Jadwal />);
+      await gridReady();
+      expect(screen.getByTestId("agenda-row-d-shut-lunch")).toBeTruthy();
+      expect(screen.queryByTestId("agenda-pick-d-shut-lunch")).toBeNull();
+      expect(screen.getByTestId("agenda-pick-d-open-lunch")).toBeTruthy();
+    });
+
     it("keeps the Pilih menu action and the whole title at 360dp and font scale 1.3", async () => {
       mockWidth = 360;
       mockFontScale = 1.3;

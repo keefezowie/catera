@@ -1,5 +1,6 @@
 import { View } from "react-native";
 import {
+  canChangeDay,
   mealJourney,
   menuIsSet,
   monthName,
@@ -140,8 +141,11 @@ export function WeekAgenda({
     // The thumb and the title read the same menu: a photo never sits beside "Menu belum diisi".
     const notSet = !lead;
     const title = lead || t("Menu belum diisi", "Menu not set yet");
-    // A pick-your-own day still ahead whose menu is not set offers the pick beside the row, as Beranda's day block does.
-    const pick = notSet && date >= today && d.offer.menuSelectionMode === "customer";
+    // A pick-your-own day whose menu is not set offers the pick beside the row only while the day can still change
+    // (before its cutoff): the rule Beranda's day block reads through `changeUntil`.
+    const changeable = canChangeDay(d, now);
+    const pick =
+      notSet && date >= today && d.offer.menuSelectionMode === "customer" && (changeable.date || changeable.address);
     const row = (
       <MediaRow
         key={`${d.id}:${m.meal}`}
@@ -169,6 +173,7 @@ export function WeekAgenda({
           onPress={() => router.push(`/pilih-menu/${encodeURIComponent(d.subscription_id)}?${query}` as never)}
           style={styles.pick}
         >
+          {/* forest: action */}
           <Text variant="bodyStrong" style={{ color: c.forest }}>
             {t("Pilih menu", "Choose menu")}
           </Text>

@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { Image } from "expo-image";
 import type { UpcomingDay, UpcomingMeal } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
-import { useMobile } from "@catera/mobile-core";
+import { plural, useMobile } from "@catera/mobile-core";
 import { PressableRow, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
 import { photoUri } from "./photoUri";
 import { DecorativeIcon, rowLabel } from "../layout";
@@ -120,7 +120,7 @@ export function DayBlocks({
                 text={
                   unpicked.length === 1
                     ? t("Menu belum dipilih", "Menu not chosen yet")
-                    : t(`${unpicked.length} pengantaran belum ada menu`, `${unpicked.length} deliveries without a menu`)
+                    : t(`${unpicked.length} pengantaran belum ada menu`, `${plural(unpicked.length, "delivery", "deliveries")} without a menu`)
                 }
                 onPick={open ? () => onPick(day, open) : undefined}
               />
@@ -131,7 +131,7 @@ export function DayBlocks({
                 text={
                   unannounced.length === 1
                     ? t("Menu belum diumumkan", "Menu not announced yet")
-                    : t(`${unannounced.length} menu belum diumumkan`, `${unannounced.length} menus not announced yet`)
+                    : t(`${unannounced.length} menu belum diumumkan`, `${plural(unannounced.length, "menu")} not announced yet`)
                 }
               />
             ) : null}
