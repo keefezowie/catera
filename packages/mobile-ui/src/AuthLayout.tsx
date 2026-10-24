@@ -161,8 +161,9 @@ export function PasswordField({
  * changes (a failed attempt), so the error and the button are what is on screen. iOS insets the scroll view itself.
  * No dependency: it reads the keyboard events (`useKeyboard`). The customer scale's Screen already pays the bottom inset
  * (the 3-button navigation bar); Dapur's does not, so there the page adds the bottom inset to the keyboard padding.
+ * A `footer` (Dapur's Daftar pins its action) is lifted by the same amount instead of padding the content.
  */
-export function AuthScreen({ children, revealKey }: { children: ReactNode; revealKey?: string | number }) {
+export function AuthScreen({ children, revealKey, footer }: { children: ReactNode; revealKey?: string | number; footer?: ReactNode }) {
   const { up, height } = useKeyboard();
   const insets = useSafeAreaInsets();
   const scaled = useLayoutScale() === "v2";
@@ -192,8 +193,15 @@ export function AuthScreen({ children, revealKey }: { children: ReactNode; revea
       cancelAnimationFrame(frame);
     };
   }, [android, up, height, reduced]);
+  const room = height + (scaled ? 0 : insets.bottom);
   return (
-    <Screen scrollRef={ref} extraBottom={android && up ? height + (scaled ? 0 : insets.bottom) : 0}>
+    <Screen
+      scrollRef={ref}
+      footer={footer}
+      // A pinned footer rises with the keyboard (the scroll view above it shrinks); without one the page pads its content.
+      extraBottom={android && up && !footer ? room : 0}
+      footerLift={android && up && footer ? room : 0}
+    >
       {children}
     </Screen>
   );

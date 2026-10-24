@@ -189,6 +189,7 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
       onPick={() => undefined}
       confirmLabel={(d) => t(`Pindah ke ${shortDate(d, locale)}`, `Move to ${shortDate(d, locale)}`)}
       staff
+      inset
       confirmDisabled={reason.trim().length < MIN_REASON}
       extra={
         <Field

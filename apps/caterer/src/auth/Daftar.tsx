@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { nativeLayout } from "@catera/design-tokens";
 import { areaOptions } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Chip, Field, fontFor, FormError, Screen, Text, useColors } from "@catera/mobile-ui";
+import { AuthScreen, Button, Chip, Field, fontFor, FormError, Text, useColors } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
 import { catererSlug, e164Indonesia } from "../onboarding";
 import { useFormRun } from "../useFormRun";
@@ -49,7 +49,8 @@ export function Daftar() {
     });
 
   return (
-    <Screen
+    <AuthScreen
+      revealKey={failure?.key}
       footer={
         sent ? (
           <Button
@@ -110,6 +111,6 @@ export function Daftar() {
         />
       ) : null}
       {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
-    </Screen>
+    </AuthScreen>
   );
 }

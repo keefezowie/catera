@@ -7,7 +7,7 @@ import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { type SellerOperationsState } from "@catera/domain";
-import { GlyphCircle, ListCard, SheetHeader, Text, ThemeProvider, ToastProvider, Thumb, TwoLineRow } from "@catera/mobile-ui";
+import { calendarCellWidth, GlyphCircle, ListCard, SheetHeader, Text, ThemeProvider, ToastProvider, Thumb, TwoLineRow } from "@catera/mobile-ui";
 import TabStack from "../app/(tabs)/(index,pelanggan,menu,usaha)/_layout";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
@@ -836,11 +836,21 @@ describe("the action sheets on the Dapur scale", () => {
       expect(bodyOf().queryByTestId("form-error")).toBeNull();
     });
 
-    it("loads as two 64 rows and the footer's 50 button", async () => {
+    it("loads as two rows that wrap on the loaded options' own copy (no fixed 64), and the footer's 50 button", async () => {
       show(runtimeWith({ sellerOperations: jest.fn(pending) }), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
       expect(await screen.findByTestId("exception-skeleton")).toBeTruthy();
-      expect(flat(screen.getByTestId("exception-skeleton-row-0")).height).toBe(64);
-      expect(flat(screen.getByTestId("exception-skeleton-row-1")).height).toBe(64);
+      // The rows take their height from the loaded rows' copy drawn invisible, so the sheet does not grow when the day arrives.
+      for (const i of [0, 1]) {
+        expect(flat(screen.getByTestId(`exception-skeleton-row-${i}`)).height).toBeUndefined();
+        const ghost = screen.getByTestId(`exception-skeleton-row-${i}-measure`, { includeHiddenElements: true });
+        expect(flat(ghost).opacity).toBe(0);
+        expect(ghost.props.importantForAccessibility).toBe("no-hide-descendants");
+      }
+      const ghosts = within(screen.getByTestId("exception-skeleton"));
+      expect(ghosts.getByText(/Makanan tidak sampai/, { includeHiddenElements: true })).toBeTruthy();
+      expect(ghosts.getByText(/Pindahkan pengantaran ini/, { includeHiddenElements: true })).toBeTruthy();
+      // The same two-sentence copy as the loaded options, so the skeleton and the loaded row wrap alike.
+      expect(screen.queryByText(/Makanan tidak sampai/)).toBeNull();
       expect(screen.queryByTestId("exception-skeleton-row-2")).toBeNull();
       const footer = await footerOf();
       expect(flat(footer.getByTestId("exception-skeleton-footer")).height).toBe(50);
@@ -968,6 +978,35 @@ describe("the action sheets on the Dapur scale", () => {
       };
       expect(heights).toEqual({ pager: 48, weekdays: 16, grid: 288, caption: 20 });
       expect(loaded).toEqual(heights);
+    });
+  });
+
+  describe("Pindah tanggal, the grid inside the sheet", () => {
+    it("keeps the weekday row and every week inside the sheet's 24 side padding: no bleed, no gap, 48-tall cells", async () => {
+      show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+      await screen.findByTestId("calendar-grid");
+      const rows = [
+        flat(screen.getByTestId("calendar-weekdays", { includeHiddenElements: true })),
+        ...Array.from({ length: 6 }, (_, i) => flat(screen.getByTestId(`calendar-week-${i}`))),
+      ];
+      for (const row of rows) {
+        expect(row.marginHorizontal ?? 0).toBe(0);
+        expect(row.marginLeft ?? 0).toBe(0);
+        expect(row.marginRight ?? 0).toBe(0);
+        expect(row.gap ?? 0).toBe(0);
+      }
+      expect(flat(screen.getByTestId("calendar-week-0").children[0] as never)).toMatchObject({ flex: 1, height: 48 });
+    });
+
+    it.each([
+      [412, 52],
+      [360, 312 / 7],
+    ])("seven cells share the inner width at %i (the sheet pads 24 a side), not the 8 dp gutter's", (screenWidth, cell) => {
+      expect(calendarCellWidth(screenWidth, "android", true)).toBeCloseTo(cell, 5);
+      // Seven cells end at the padding's edge, never past it.
+      expect(7 * calendarCellWidth(screenWidth, "android", true) + 2 * 24).toBeCloseTo(screenWidth, 5);
+      // The bleeding grid the customer keeps spans the 8 gutter instead.
+      expect(7 * calendarCellWidth(screenWidth, "android") + 2 * 8).toBeCloseTo(screenWidth, 5);
     });
   });
 

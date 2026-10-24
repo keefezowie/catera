@@ -42,6 +42,11 @@ export type CalendarSheetProps = {
   confirmDisabled?: boolean;
   /** Dapur moves a customer's delivery: the captions speak to kitchen staff, not to the customer whose day it is. */
   staff?: boolean;
+  /**
+   * Keeps the weekday row and the grid inside the sheet's side padding: seven cells share its inner width, still 48 tall.
+   * Left out, the grid bleeds into the padding to an 8dp gutter (the customer's calendar).
+   */
+  inset?: boolean;
 };
 
 const REASON_EN: Record<CalendarReason, string> = {
@@ -56,10 +61,10 @@ const CELL_HEIGHT = 48;
  * cells: seven cells then reach 48dp wide at 360dp (344 / 7 = 49) on both platforms.
  */
 const GUTTER = 8;
-const bleed = (os?: string) => GUTTER - sheetSidePadding(os);
-/** The width of one day cell on a screen `screen` dp wide. */
-export const calendarCellWidth = (screen: number, os = process.env.EXPO_OS) =>
-  (screen - 2 * sheetSidePadding(os) - 2 * bleed(os)) / 7;
+const bleed = (os?: string, inset = false) => (inset ? 0 : GUTTER - sheetSidePadding(os));
+/** The width of one day cell on a screen `screen` dp wide; `inset` keeps the grid inside the sheet's side padding. */
+export const calendarCellWidth = (screen: number, os = process.env.EXPO_OS, inset = false) =>
+  (screen - 2 * sheetSidePadding(os) - 2 * bleed(os, inset)) / 7;
 /** A month is always drawn as six weeks, so the sheet keeps one height while paging. */
 const WEEKS = 6;
 const clamp = (month: string, from: string, to: string) => (month < from ? from : month > to ? to : month);
@@ -104,6 +109,7 @@ export function CalendarPanel({
   extra,
   confirmDisabled = false,
   staff = false,
+  inset = false,
 }: CalendarSheetProps) {
   const c = useColors();
   const styles = useStyles();
@@ -111,7 +117,7 @@ export function CalendarPanel({
   const t = forced ? translator(forced) : appT;
   const mobile = useMobile() as { locale?: Locale } | null;
   const locale: Locale = forced ?? mobile?.locale ?? "id";
-  const rowBleed = { marginHorizontal: bleed(os) };
+  const rowBleed = inset ? null : { marginHorizontal: bleed(os) };
   const first = monthOf(window.from);
   const last = monthOf(window.to);
   const [shown, setShown] = useState(() => clamp(month, first, last));

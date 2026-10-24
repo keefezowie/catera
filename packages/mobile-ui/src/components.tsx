@@ -474,6 +474,7 @@ export function Screen({
   refreshControl,
   list,
   extraBottom = 0,
+  footerLift = 0,
   scrollRef,
 }: {
   children: ReactNode;
@@ -511,6 +512,8 @@ export function Screen({
   list?: (root: { scrollProps: ScrollViewProps; header: ReactNode }) => ReactElement;
   /** Room under the content, for the Android keyboard that draws over an edge-to-edge window (AuthScreen). */
   extraBottom?: number;
+  /** Room under the pinned `footer`, for the same keyboard: the footer rises by this much (AuthScreen with a footer). Android only. */
+  footerLift?: number;
   /** The screen's own ScrollView, for a wrapper that scrolls it. */
   scrollRef?: Ref<ScrollView>;
 }) {
@@ -653,7 +656,7 @@ export function Screen({
             {body}
           </>
         )}
-        {footer ? <ScreenFooter>{footer}</ScreenFooter> : null}
+        {footer ? <ScreenFooter lift={footerLift}>{footer}</ScreenFooter> : null}
       </KeyboardAvoidingView>
       {/* Last, so it paints above the scrolled page; the demo strip already covers the inset when it is shown. */}
       {header && !topOwned ? <StatusBand plain={plainHeader} /> : null}
@@ -669,7 +672,7 @@ export function Screen({
  * was. While its screen is focused it reports its top edge to the toast, so the Android snackbar sits above the
  * StickyAction instead of over it. `os` defaults to the running platform.
  */
-export function ScreenFooter({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
+export function ScreenFooter({ children, os = process.env.EXPO_OS, lift = 0 }: { children: ReactNode; os?: string; lift?: number }) {
   const styles = useStyles();
   const v2 = useV2Styles();
   const scaled = useLayoutScale() === "v2";
@@ -680,7 +683,7 @@ export function ScreenFooter({ children, os = process.env.EXPO_OS }: { children:
   // footer adds that inset; inside the tabs NativeTabs already ends the screen above the bar, so it adds nothing.
   const inset = scaled && !insideTabs(navigation as never) ? insets.bottom : 0;
   const [height, setHeight] = useState<number>();
-  useToastAnchor(height === undefined ? null : { bottom: bottomEdge + height });
+  useToastAnchor(height === undefined ? null : { bottom: bottomEdge + height + (os === "ios" ? 0 : lift) });
   const onLayout = (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height);
   if (os === "ios")
     return (
@@ -691,7 +694,13 @@ export function ScreenFooter({ children, os = process.env.EXPO_OS }: { children:
   return (
     <View
       testID="screen-footer"
-      style={[styles.footer, scaled && v2.footer, inset > 0 && { paddingBottom: nativeLayout.cardPadding + inset }]}
+      style={[
+        styles.footer,
+        scaled && v2.footer,
+        inset > 0 && { paddingBottom: nativeLayout.cardPadding + inset },
+        // The Android keyboard draws over the window: the footer rises by its height and the scroll view above it shrinks.
+        lift > 0 && { marginBottom: lift },
+      ]}
       onLayout={onLayout}
     >
       {children}

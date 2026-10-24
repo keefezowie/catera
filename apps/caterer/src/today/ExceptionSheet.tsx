@@ -110,6 +110,55 @@ export function SkeletonLine({ width, block, line, onMood }: { width: DimensionV
   );
 }
 
+/** The two options' words, one copy for the sheet and for the skeleton that measures it. */
+const optionCopy = (t: (id: string, en: string) => string) => ({
+  failed: {
+    title: t("Gagal diantar", "Not delivered"),
+    body: t(
+      "Makanan tidak sampai. Hari ini tidak dihitung sebagai pengantaran dan tidak dibayar ke kamu. Hubungi pelanggan untuk atur penggantinya.",
+      "The food didn't arrive. This day isn't counted as a delivery or paid to you. Contact the customer to arrange a replacement.",
+    ),
+  },
+  move: {
+    title: t("Pindah tanggal", "Move date"),
+    body: t(
+      "Pindahkan pengantaran ini ke tanggal lain. Pelanggan yang memakai aplikasi diberi tahu.",
+      "Move this delivery to another date. Customers who use the app get notified.",
+    ),
+  },
+});
+
+/**
+ * A skeleton option: the loaded row's own copy drawn invisible (so the row wraps to the same height at this width and
+ * text size, which no fixed number can promise) with the skeleton's circle and lines over it. Hidden from screen readers.
+ */
+function SkeletonOption({ testID, glyph, title, body, chevron }: { testID: string; glyph: "warning-outline" | "calendar-outline"; title: string; body: string; chevron: boolean }) {
+  return (
+    <View testID={testID}>
+      <View
+        testID={`${testID}-measure`}
+        style={{ opacity: 0 }}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <OptionRow testID={`${testID}-ghost`} glyph={glyph} title={title} body={body} chevron={chevron} />
+      </View>
+      <View
+        pointerEvents="none"
+        style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
+      >
+        <Skeleton width={40} height={40} radius={20} onMood />
+        <View style={{ flex: 1 }}>
+          {/* rowTitle's 22 line and two of meta's 18 lines, centred in the row as the loaded text is. */}
+          <SkeletonLine width="55%" block={12} line={22} onMood />
+          <SkeletonLine width="85%" block={10} line={18} onMood />
+          <SkeletonLine width="70%" block={10} line={18} onMood />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 /**
  * One option of the stop's sheet: a `TwoLineRow` (64 min, growing with the text, since the copy is two sentences and
  * wraps instead of ending in an ellipsis) whose leading glyph is a 40 circle on the surface, because the card it sits
@@ -123,6 +172,7 @@ function OptionRow({
   body,
   onPress,
   accessibilityLabel,
+  chevron = !!onPress,
 }: {
   testID: string;
   glyph: "warning-outline" | "calendar-outline";
@@ -130,6 +180,8 @@ function OptionRow({
   body: string;
   onPress?: () => void;
   accessibilityLabel?: string;
+  /** The chevron that says the row opens something; the skeleton's measuring copy shows it without a press. */
+  chevron?: boolean;
 }) {
   const c = useColors();
   const haptic = useHaptic();
@@ -144,7 +196,7 @@ function OptionRow({
       }
       title={title}
       meta={body}
-      trailing={onPress ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : undefined}
+      trailing={chevron ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : undefined}
       accessibilityLabel={accessibilityLabel ?? title}
       onPress={
         onPress
@@ -188,6 +240,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
   const [failure, setFailure] = useState<{ message: string; key: number } | null>(null);
   const [saved, setSaved] = useState(false);
   const closed = useRef(false);
+  const copy = optionCopy(t);
   const nothing = t("Tidak ada yang bisa dilaporkan untuk alamat ini.", "There is nothing to report for this stop.");
 
   // Saved: the sheet closes back to Hari ini, which reads the day again, and a toast says it is done.
@@ -234,20 +287,8 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
             <SkeletonGroup label={t("Memuat pengantaran", "Loading the delivery")}>
               <View testID="exception-skeleton">
                 <ListCard inset={GLYPH_INSET} tone="sage">
-                  {[0, 1].map((i) => (
-                    <View
-                      key={i}
-                      testID={`exception-skeleton-row-${i}`}
-                      style={{ height: nativeLayout.row.compact, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
-                    >
-                      <Skeleton width={40} height={40} radius={20} onMood />
-                      <View style={{ flex: 1 }}>
-                        {/* rowTitle's 22 line and meta's 18 line, centred in the 64 row as the loaded text is. */}
-                        <SkeletonLine width={i ? "45%" : "55%"} block={12} line={22} onMood />
-                        <SkeletonLine width={i ? "75%" : "85%"} block={10} line={18} onMood />
-                      </View>
-                    </View>
-                  ))}
+                  <SkeletonOption testID="exception-skeleton-row-0" glyph="warning-outline" {...copy.failed} chevron={false} />
+                  <SkeletonOption testID="exception-skeleton-row-1" glyph="calendar-outline" {...copy.move} chevron />
                 </ListCard>
               </View>
             </SkeletonGroup>
@@ -277,23 +318,17 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
             <OptionRow
               testID="failed-option"
               glyph="warning-outline"
-              title={t("Gagal diantar", "Not delivered")}
-              body={t(
-                "Makanan tidak sampai. Hari ini tidak dihitung sebagai pengantaran dan tidak dibayar ke kamu. Hubungi pelanggan untuk atur penggantinya.",
-                "The food didn't arrive. This day isn't counted as a delivery or paid to you. Contact the customer to arrange a replacement.",
-              )}
+              title={copy.failed.title}
+              body={copy.failed.body}
             />
           ) : null}
           {canMove ? (
             <OptionRow
               testID="move-option"
               glyph="calendar-outline"
-              title={t("Pindah tanggal", "Move date")}
-              body={t(
-                "Pindahkan pengantaran ini ke tanggal lain. Pelanggan yang memakai aplikasi diberi tahu.",
-                "Move this delivery to another date. Customers who use the app get notified.",
-              )}
-              accessibilityLabel={t("Pindah tanggal", "Move date")}
+              title={copy.move.title}
+              body={copy.move.body}
+              accessibilityLabel={copy.move.title}
               onPress={openMove}
             />
           ) : null}
