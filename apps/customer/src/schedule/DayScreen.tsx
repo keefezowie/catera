@@ -36,6 +36,7 @@ import { photoUri } from "../today/Plate";
 import { DaySkeleton } from "../skeletons";
 import { DayActions, type DayAction } from "./DayActionRow";
 import { dayClosed, dayVisibleActions } from "./dayActions";
+import { mealReported, mealSettled } from "./mealState";
 import {
   DAY_DOT,
   DAY_GAP,
@@ -191,8 +192,13 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
             const m = meals.find((x) => x.meal === block.meal);
             const menu = d.offer.menus?.find((x) => x.meal === block.meal);
             const dishes = menu && menuIsSet(menu) ? storyDishes(menu) : null;
+            // The agenda's words for a past meal: nobody updated it, so it arrived; a report still open outranks that.
             const status = m
-              ? statusLabel(mealJourney(m).stage === "arrived" ? "arrived" : m.status, locale)
+              ? mealReported(m) && m.status !== "issue"
+                ? t("Laporan terkirim", "Report sent")
+                : mealSettled(m, d.service_date, jakartaDay(now))
+                  ? t("Sudah sampai", "Arrived")
+                  : statusLabel(mealJourney(m).stage === "arrived" ? "arrived" : m.status, locale)
               : block.status === "cancelled"
                 ? statusLabel("cancelled", locale)
                 : "";

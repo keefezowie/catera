@@ -6,7 +6,7 @@ import * as Notifications from "expo-notifications";
 import * as WebBrowser from "expo-web-browser";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { LayoutScaleProvider, ThemeProvider, themeChoiceLabels, ToastProvider } from "@catera/mobile-ui";
+import { LayoutScaleProvider, SettingsRow, SettingsSection, ThemeProvider, themeChoiceLabels, ToastProvider } from "@catera/mobile-ui";
 import { Akun } from "../src/account/Akun";
 import { Pengaturan } from "../src/settings/Pengaturan";
 import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
@@ -471,6 +471,22 @@ describe("grouped settings cards (customer scale)", () => {
     expect(screen.queryByTestId("settings-card")).toBeNull();
     expect(screen.queryByTestId("settings-value")).toBeNull();
     expect(within(screen.getByRole("button", { name: "Bahasa, Indonesia" })).getByText("Indonesia")).toBeTruthy();
+  });
+
+  it("a fragment of three rows is divided between all of them, not counted as one row", async () => {
+    renderV2(
+      runtimeWith(),
+      <SettingsSection title="Akun">
+        <SettingsRow label="Nama" />
+        <>
+          <SettingsRow label="Nomor HP" />
+          <SettingsRow label="Email" />
+          <SettingsRow label="Kata sandi" />
+        </>
+      </SettingsSection>,
+    );
+    expect(await screen.findByText("Kata sandi")).toBeTruthy();
+    expect(screen.getAllByTestId("settings-divider")).toHaveLength(3);
   });
 
   it("the cards take the dark fill and drop the light edge", async () => {

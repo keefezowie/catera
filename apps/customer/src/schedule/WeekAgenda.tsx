@@ -20,6 +20,7 @@ import { router } from "expo-router";
 import { DecorativeIcon, ListCard, MediaRow } from "../layout";
 import { dayHref } from "../hrefs";
 import { photoUri } from "../today/Plate";
+import { mealReported, mealSettled } from "./mealState";
 
 const live = (d: Delivery) => d.status !== "cancelled";
 const served = (d: Delivery) => (d.meals ?? []).filter((m) => m.status !== "cancelled");
@@ -114,9 +115,9 @@ export function WeekAgenda({
     const journey = mealJourney(m);
     // Beranda's rule (plateState): today's meal nobody has sent out whose window has opened is due, and a report outranks
     // it. Only today: a past day nobody updated was settled as delivered by the server (auto_deliver reads silence so).
-    const reported = !!m.issue && m.issue.status !== "resolved";
+    const reported = mealReported(m);
     const due = !reported && date === today && windowStart(date, d.offer, m.meal) <= now.getTime();
-    const settled = !reported && date < today && (journey.stage === "scheduled" || journey.stage === "preparing");
+    const settled = mealSettled(m, date, today);
     const state = failed(m.status)
       ? t("Gagal diantar", "Not delivered")
       : reported

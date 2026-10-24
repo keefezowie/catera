@@ -1536,6 +1536,16 @@ describe("Hari", () => {
   });
 
   describe("meals and states", () => {
+    it("reads yesterday's unmarked meal Sudah sampai and one with an open report Laporan terkirim, as the agenda does", async () => {
+      const view = await showDay(open("d-past", "2026-10-06"));
+      expect(screen.getByTestId("day-state-lunch")).toHaveTextContent(/Sudah sampai/);
+      expect(screen.getByTestId("day-state-lunch")).not.toHaveTextContent(/Terjadwal/);
+      view.unmount();
+      await showDay(delivery("d-past", "2026-10-06", { issue: { id: "i-9", status: "open" } } as never));
+      expect(screen.getByTestId("day-state-lunch")).toHaveTextContent(/Laporan terkirim/);
+      expect(screen.getByTestId("day-state-lunch")).not.toHaveTextContent(/Terjadwal|Sudah sampai/);
+    });
+
     it("says on the way, arrived and failed in the state line, as Beranda reads them", async () => {
       let view = await showDay(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }));
       expect(screen.getByTestId("day-state-lunch")).toHaveTextContent(/Sedang diantar/);

@@ -1,4 +1,4 @@
-import { Children, Fragment, isValidElement, type ReactNode } from "react";
+import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Pressable, Switch, Text as RNText, View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
@@ -32,6 +32,17 @@ function useRowInset(ios: boolean) {
   return { v2, inset: v2 ? CARD_INSET : ios ? 16 : BODY_INSET };
 }
 
+/** A section's rows with any fragments opened, so a fragment of three rows counts and divides as three. */
+function flattenRows(children: ReactNode): ReactElement[] {
+  return Children.toArray(children).flatMap((child) =>
+    !isValidElement(child)
+      ? []
+      : child.type === Fragment
+        ? flattenRows((child.props as { children?: ReactNode }).children)
+        : [child],
+  );
+}
+
 export function SettingsSection({
   title,
   children,
@@ -45,7 +56,7 @@ export function SettingsSection({
   const palette = useColors();
   const ios = os === "ios";
   const v2 = useLayoutScale() === "v2";
-  const rows = Children.toArray(children).filter(isValidElement);
+  const rows = flattenRows(children);
   const label = title ? (
     <RNText
       accessibilityRole="header"
