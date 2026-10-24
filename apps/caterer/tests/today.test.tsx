@@ -16,7 +16,7 @@ import * as offline from "../src/today/offline";
 import * as Haptics from "expo-haptics";
 import { canvasDay, emptyDay, quietDay, report } from "./fixtures";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
-import { resetSheets, SheetHost, type Opened } from "./sheet-host";
+import { lastConfirm, resetSheets, SheetHost, type Opened } from "./sheet-host";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
 
 const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
@@ -37,6 +37,7 @@ const pinToday = () =>
 
 // A stop's "…" opens its sheet route; here the sheet shows next to the screen (`SheetHost`).
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
+jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
 // Links from attention cards open through the app's link opener, which selects a tab for a tab root.
 jest.mock("../src/nav", () => ({ openLink: jest.fn(), goToTab: jest.fn() }));
 jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
@@ -131,6 +132,7 @@ it("reports a failed delivery by stepping it to the issue status", async () => {
   fireEvent.press(await stopMenu(3));
   fireEvent.press(await screen.findByText("Gagal diantar"));
   fireEvent.press(screen.getByText("Tandai gagal diantar"));
+  await lastConfirm().press("Tandai gagal");
   await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
   const calls = (runtime.api.command as jest.Mock).mock.calls;
   expect(calls.map((c) => [c[0], c[1].status, c[1].version])).toEqual([
@@ -175,9 +177,8 @@ it("report cards and setup rows dim on press and still navigate", async () => {
   expect(StyleSheet.flatten(card().props.style)?.opacity ?? 1).toBe(1);
   fireEvent(card(), "responderGrant", touch);
   expect(StyleSheet.flatten(card().props.style).opacity).toBe(0.7);
-  // Same chevron as the link attention cards.
-  const chevron = within(card()).UNSAFE_getAllByType(Ionicons).find((i) => i.props.name === "chevron-forward");
-  expect(chevron!.props).toMatchObject({ size: 18, color: nativeThemes.light.muted });
+  // The disclosure chevron is iOS only; Jest compiles the Android build.
+  expect(within(card()).UNSAFE_queryAllByType(Ionicons).find((i) => i.props.name === "chevron-forward")).toBeUndefined();
   fireEvent.press(card());
   // The link opens the reply sheet and carries the customer's name, so its title is final on its first frame.
   expect(router.push).toHaveBeenCalledWith("/balas/i-1?title=Nadia%20Putri");
@@ -209,7 +210,7 @@ describe("the setup card in the dark theme", () => {
     const row = (name: RegExp) => StyleSheet.flatten(screen.getByRole("button", { name }).props.style);
     // Direction K: forest fills only the first step (the one brand control here); the other rows sit on sage.
     expect(row(/Buat paket pertama/).backgroundColor).toBe(nativeThemes.dark.forest);
-    expect(row(/Pindahkan pelanggan lama/).backgroundColor).toBe(nativeThemes.dark.sage);
+    expect(row(/Pindahkan pelanggan lama/).backgroundColor).toBe(nativeThemes.dark.well);
     expect(StyleSheet.flatten(screen.getByText("Siapkan dapurmu").props.style).color).toBe(nativeThemes.dark.charcoal);
   });
 });
@@ -843,7 +844,7 @@ describe("attention cards", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("a link card shows a chevron, a plain card does not", async () => {
+  it("a link card is a link, and neither card shows a chevron on Android", async () => {
     const runtime = runtimeWith(same(canvasDay()));
     (runtime.api.sellerAttention as jest.Mock).mockResolvedValue({
       items: [
@@ -855,8 +856,8 @@ describe("attention cards", () => {
     renderToday(runtime);
     const link = await screen.findByRole("link", { name: /Ada pembayaran yang perlu dicek/ });
     const chevrons = within(link).UNSAFE_getAllByType(Ionicons).filter((i) => String(i.props.name).startsWith("chevron"));
-    expect(chevrons).toHaveLength(1);
-    expect(chevrons[0].props).toMatchObject({ name: "chevron-forward", size: 18, color: nativeThemes.light.muted });
+    // The chevron is iOS only; Jest compiles the Android build (see dapur-d2.test.tsx).
+    expect(chevrons).toHaveLength(0);
     fireEvent.press(screen.getByRole("button", { name: "1 hal lainnya" }));
     const plain = within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicons);
     expect(plain.filter((i) => String(i.props.name).startsWith("chevron"))).toHaveLength(0);

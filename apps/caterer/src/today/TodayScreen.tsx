@@ -376,7 +376,17 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
 
   // Pull to refresh reads the day and its reports again while what is on screen stays; only the spinner says so.
   const [pulling, setPulling] = useState(false);
+  const toast = useToast();
+  const pulled = useRef(false);
+  const staleNow = day.stale || issues.stale || attention.stale;
+  // A pull that ended with the old data still on screen says so; a background reload that fails stays quiet.
+  useEffect(() => {
+    if (pulling || !pulled.current) return;
+    pulled.current = false;
+    if (staleNow) toast.show({ message: t("Belum bisa memperbarui. Tarik lagi untuk mencoba.", "Couldn't refresh. Pull again to try."), tone: "error" });
+  }, [pulling, staleNow, toast, t]);
   async function pull() {
+    pulled.current = true;
     setPulling(true);
     try {
       await Promise.all([day.reload(), issues.reload(), attention.reload()]);
@@ -486,6 +496,13 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <ReadError
               message={t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
               onRetry={() => void issues.reload()}
+            />
+          ) : null}
+          {offset === "0" && !attention.data && attention.error ? (
+            // A failed read must not look like "nothing needs attention".
+            <ReadError
+              message={t("Hal yang perlu dicek belum bisa dimuat.", "Items that need a check could not be loaded.")}
+              onRetry={() => void attention.reload()}
             />
           ) : null}
           {/* The live slot: the first of the setup card, the reports and the attention items, the rest one tap away. */}

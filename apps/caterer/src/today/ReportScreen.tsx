@@ -128,7 +128,7 @@ function useIssue(id: string) {
  * page; from Hari ini a report opens as the reply sheet (`ReplySheet`).
  */
 export function ReportScreen({ id, title: carried }: { id: string; title?: string }) {
-  const { t } = useMobile();
+  const { t, actor } = useMobile();
   const issues = useIssue(id);
   // Until the report arrives the screen keeps the customer's name its link carried, or else is named by what it is;
   // then by the customer who sent it. A failed read or a missing report goes back to what it is: the carried name was
@@ -147,7 +147,7 @@ export function ReportScreen({ id, title: carried }: { id: string; title?: strin
       <FadeSwap swapKey={issue ? "report" : loading ? "loading" : "other"} style={{ gap: 16 }}>
         {issue ? (
           // No key on the version: a reload after a refused action keeps the typed reply and the message.
-          <Report issue={issue} reload={issues.reload} />
+          <Report issue={issue} reload={issues.reload} draftKey={`${actor?.id ?? ""}:${id}`} page />
         ) : issues.data ? (
           <Text>{t("Laporan ini tidak ditemukan.", "This report was not found.")}</Text>
         ) : issues.error ? (
@@ -282,10 +282,10 @@ export function ReplySheet({ id, title: carried }: { id: string; title?: string 
 
 /**
  * The report below its title: what the customer said, the replies, and the reply box while it is open. On the page the
- * day and package lead and a sent reply says so in a toast; in the sheet (`draftKey`, its person and report) they are
+ * day and package lead and a sent reply says so in a toast; in the sheet they are
  * the sheet's context line, and sending closes the sheet.
  */
-function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: () => Promise<void>; draftKey?: string }) {
+function Report({ issue: i, reload, draftKey, page = false }: { issue: DeliveryIssue; reload: () => Promise<void>; draftKey?: string; page?: boolean }) {
   const { t, locale, command } = useMobile();
   const c = useColors();
   const toast = useToast();
@@ -305,7 +305,7 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
   const replies = (i.events ?? []).filter((e) => eventLabels[e.action]);
   const reply = text.trim();
   // In a sheet the cards are the sage tone (the sheet is the card colour, and dark has no card edge), with the pill on the surface.
-  const inSheet = draftKey !== undefined;
+  const inSheet = !page;
   const cardTone = inSheet ? "sage" : "surface";
 
   // The customer may ask Catera to review an unanswered report from 12.00 Jakarta the day after it was sent.
@@ -332,7 +332,7 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
       // The new version comes back with the reload that every command triggers.
       await command(action, { id: i.id, version: i.version, body });
       setText("");
-      if (draftKey) setSent(true);
+      if (!page) setSent(true);
       else toast.show({ message: t("Balasan terkirim", "Reply sent"), tone: "success" });
     } catch (e) {
       setFailure((f) => ({
@@ -351,21 +351,22 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
 
   return (
     <>
-      {draftKey ? (
-        <SheetOutcome dirty={open && !sent && reply !== ""} sent={sent} onDiscard={() => drafts.delete(draftKey)} />
-      ) : (
+      {draftKey ? <SheetOutcome dirty={open && !sent && reply !== ""} sent={sent} onDiscard={() => drafts.delete(draftKey)} /> : null}
+      {page ? (
         <View style={{ gap: 4 }}>
-          <Text variant="bodyStrong">{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
+          <Text variant="bodyStrong" selectable style={{ fontVariant: ["tabular-nums"] }}>
+            {`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}
+          </Text>
           <Text variant="meta">{i.package_name}</Text>
         </View>
-      )}
+      ) : null}
       <ListCard inset={0} tone={cardTone}>
         <View style={{ paddingVertical: nativeLayout.space.md, gap: nativeLayout.space.sm }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}>
             <Text variant="rowTitle" style={{ flex: 1 }}>
               {i.subject}
             </Text>
-            <View testID="report-status" style={{ minHeight: 22, paddingHorizontal: 12, borderRadius: 11, backgroundColor: inSheet ? c.surface : c.sage, justifyContent: "center" }}>
+            <View testID="report-status" style={{ minHeight: 22, paddingHorizontal: 12, borderRadius: 999, backgroundColor: inSheet ? c.surface : c.sage, justifyContent: "center" }}>
               <Text variant="label" style={{ color: c.charcoal }}>
                 {reportStatus(i.status, t)}
               </Text>
@@ -425,7 +426,7 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
           minHeight={nativeLayout.row.info}
           glyph={<DecorativeIcon name="logo-whatsapp" size={20} color={c.forest} />}
           title={t("Chat WhatsApp", "WhatsApp chat")}
-          trailing={<DecorativeIcon name="chevron-forward" size={20} color={c.muted} />}
+          trailing={process.env.EXPO_OS === "ios" ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : undefined}
           onPress={() => void Linking.openURL(whatsappUrl("", i.customerPhone!))}
         />
       ) : null}

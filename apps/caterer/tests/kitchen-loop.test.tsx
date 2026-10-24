@@ -756,6 +756,7 @@ describe("Urutan antar", () => {
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
     fireEvent.press(screen.getByText("Tandai gagal diantar"));
+    await lastConfirm().press("Tandai gagal");
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
         "delivery.status",

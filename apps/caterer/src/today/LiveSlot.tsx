@@ -113,7 +113,7 @@ function ReportRow({ issue }: { issue: DeliveryIssue }) {
           </Text>
         ) : null}
       </View>
-      <DecorativeIcon name="chevron-forward" size={18} color={c.muted} />
+      {process.env.EXPO_OS === "ios" ? <DecorativeIcon name="chevron-forward" size={18} color={c.muted} /> : null}
     </PressableRow>
   );
 }
@@ -160,7 +160,7 @@ function ActionRow({ item, locale }: { item: SellerAttentionItem; locale: Locale
         <Text variant="rowTitle">{t(id, en)}</Text>
         {line ? <Text variant="meta">{line}</Text> : null}
       </View>
-      {link ? <DecorativeIcon name="chevron-forward" size={18} color={c.muted} /> : null}
+      {link && process.env.EXPO_OS === "ios" ? <DecorativeIcon name="chevron-forward" size={18} color={c.muted} /> : null}
     </>
   );
   return link ? (
@@ -197,7 +197,9 @@ function MulaiCard() {
               minHeight: 56,
               padding: 12,
               borderRadius: 12,
-              backgroundColor: i === 0 ? c.forest : c.sage,
+              borderCurve: "continuous",
+              // `well` steps off the card in both themes; `sage` equals the dark card.
+              backgroundColor: i === 0 ? c.forest : c.well,
               gap: 2,
             }}
           >

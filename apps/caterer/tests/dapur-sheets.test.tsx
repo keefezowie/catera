@@ -247,6 +247,7 @@ describe("stop exceptions", () => {
     expect(within(sheet).getByText("Pindah tanggal")).toBeTruthy();
     expect(within(sheet).getByText(/tidak dibayar ke kamu/)).toBeTruthy();
     fireEvent.press(within(sheet).getByText("Tandai gagal diantar"));
+    await lastConfirm().press("Tandai gagal");
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
     expect((runtime.api.command as jest.Mock).mock.calls.map((c) => c[1].status)).toEqual(["preparing", "out_for_delivery", "issue"]);
     // Saved: the sheet closes and says so.
@@ -830,6 +831,7 @@ describe("the action sheets on the Dapur scale", () => {
       show(runtimeWith({ command }), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
       await stopSheet();
       fireEvent.press((await footerOf()).getByRole("button", { name: "Tandai gagal diantar" }));
+      await lastConfirm().press("Tandai gagal");
       const footer = await footerOf();
       expect(await footer.findByTestId("form-error")).toBeTruthy();
       expect(footer.getByRole("button", { name: "Tandai gagal diantar" })).toBeTruthy();

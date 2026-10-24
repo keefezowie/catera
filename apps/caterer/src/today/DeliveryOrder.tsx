@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AccessibilityInfo, Linking, Platform, Share, View } from "react-native";
+import { AccessibilityInfo, Linking, Share, View } from "react-native";
 import { router } from "expo-router";
 import {
   routeMapsUrl,
@@ -99,7 +99,7 @@ export function DeliveryOrder({
   // Android reads the title through its live region; iOS has none, so a change of the count is announced here.
   const pickedCount = selection?.selected.size ?? 0;
   useEffect(() => {
-    if (Platform.OS === "ios" && picking)
+    if (process.env.EXPO_OS === "ios" && picking)
       AccessibilityInfo.announceForAccessibility(pickedCount ? t(`${pickedCount} dipilih`, `${pickedCount} selected`) : t("Pilih pengantaran", "Select deliveries"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickedCount, picking]);

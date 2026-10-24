@@ -540,6 +540,7 @@ describe("every awaiting command button is busy while it waits", () => {
     renderToday(runtimeFor(() => dayWith([cooking]), { command }));
     fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah/));
     fireEvent.press(await screen.findByRole("button", { name: "Tandai gagal diantar" }));
+    await lastConfirm().press("Tandai gagal");
     await waitFor(() => expect(busyOf("Tandai gagal diantar")).toBe(true));
     await release();
   });

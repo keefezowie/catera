@@ -96,7 +96,7 @@ export function SessionCard({
             style={{ minHeight: SUMMARY_HEIGHT, flexDirection: "row", alignItems: "center", gap: 12 }}
           >
             <DecorativeIcon name="checkmark" size={20} color={c.forest} />
-            <Text variant="bodyL" style={{ flex: 1 }}>
+            <Text variant="bodyL" style={{ flex: 1, fontVariant: ["tabular-nums"] }}>
               {t(`Sudah dimasak · ${session.portions} porsi`, `Cooked · ${plural(session.portions, "portion")}`)}
             </Text>
           </View>

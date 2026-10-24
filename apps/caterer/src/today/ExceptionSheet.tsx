@@ -27,6 +27,7 @@ import {
   TwoLineRow,
   useBusy,
   useColors,
+  useConfirm,
   useHaptic,
   useToast,
 } from "@catera/mobile-ui";
@@ -196,7 +197,7 @@ function OptionRow({
       }
       title={title}
       meta={body}
-      trailing={chevron ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : undefined}
+      trailing={chevron && process.env.EXPO_OS === "ios" ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : undefined}
       accessibilityLabel={accessibilityLabel ?? title}
       onPress={
         onPress
@@ -219,6 +220,8 @@ function OptionRow({
 export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMeal; date: string }) {
   const { runtime, actor, t, locale, command } = useMobile();
   const toast = useToast();
+  const confirm = useConfirm();
+  const asking = useRef(false);
   const catererId = actor?.catererId ?? "";
   const key = `${catererId}:${date}`;
   const [seed] = useState(() => (parked?.key === key ? parked.ops : null));
@@ -276,6 +279,27 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
       }));
     }
   });
+
+  // Not delivered is not paid and cannot be undone, so it asks first; a second tap while the question is up asks nothing more.
+  async function askThenSave() {
+    if (asking.current) return;
+    asking.current = true;
+    try {
+      const yes = await confirm({
+        title: t("Tandai gagal diantar?", "Mark as not delivered?"),
+        message: t(
+          "Pengantaran ini tidak dibayar ke kamu dan tidak bisa dibatalkan.",
+          "This delivery is not paid to you and this can't be undone.",
+        ),
+        confirmLabel: t("Tandai gagal", "Mark not delivered"),
+        cancelLabel: t("Batal", "Cancel"),
+        tone: "danger",
+      });
+      if (yes) await save();
+    } finally {
+      asking.current = false;
+    }
+  }
 
   if (!ops)
     return (
@@ -340,7 +364,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
       {canFail || failure ? (
         <SheetFooter>
           {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
-          {canFail ? <Button label={t("Tandai gagal diantar", "Mark not delivered")} busy={busy} onPress={() => void save()} /> : null}
+          {canFail ? <Button label={t("Tandai gagal diantar", "Mark not delivered")} busy={busy} onPress={() => void askThenSave()} /> : null}
         </SheetFooter>
       ) : null}
     </Frame>
