@@ -46,7 +46,7 @@ function Bump() {
   return <ReactNative.Pressable accessibilityRole="button" accessibilityLabel="bump" onPress={() => void command("noop", {})} />;
 }
 const show = (runtime: MobileRuntime, ui: React.ReactNode, { dark = false } = {}) => {
-  if (dark) jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+  jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(dark ? "dark" : "light");
   return render(
     withDapurScale(
       <ThemeProvider storageKey="dnf.theme">
@@ -194,5 +194,56 @@ describe("Pelanggan", () => {
     });
     expect(await screen.findByText(REFRESH)).toBeTruthy();
     expect(screen.getByText("Pelanggan 1")).toBeTruthy();
+  });
+});
+
+describe("Pelanggan list layout", () => {
+  const Reanimated = require("react-native-reanimated") as typeof import("react-native-reanimated");
+  const crm = (customers: SellerCustomer[]) =>
+    runtimeWith({
+      sellerCustomers: jest.fn(async () => ({ customers, total: customers.length, packages: [] })),
+      sellerOperations: jest.fn(async () => ops),
+      request: jest.fn(async () => ({ active: null })),
+    });
+  const pieces = () => screen.getAllByTestId("customer-card-row").map(sty);
+
+  it("keeps the 8 between the chip frame and the first row", async () => {
+    show(crm([cust(1)]), <CustomerList />);
+    await screen.findByText("Pelanggan 1");
+    expect(sty(screen.getByTestId("pelanggan-list-head")).paddingBottom).toBe(8);
+  });
+
+  it("slides rows through the list's item layout animation, and not under reduced motion", async () => {
+    show(crm([cust(1)]), <CustomerList />);
+    await screen.findByText("Pelanggan 1");
+    expect(screen.UNSAFE_getByType(FlatList).props.itemLayoutAnimation).toBeDefined();
+    screen.unmount();
+    (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(true);
+    show(crm([cust(1)]), <CustomerList />);
+    await screen.findByText("Pelanggan 1");
+    expect(screen.UNSAFE_getByType(FlatList).props.itemLayoutAnimation).toBeUndefined();
+    (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(false);
+  });
+
+  it("draws the first row's top corners, the last row's bottom corners, and a lone row all four", async () => {
+    show(crm([cust(1), cust(2), cust(3)]), <CustomerList />);
+    await screen.findByText("Pelanggan 3");
+    const [first, middle, last] = pieces();
+    expect(first).toMatchObject({ borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderTopWidth: 1, borderBottomWidth: 0 });
+    expect(middle).toMatchObject({ borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderTopWidth: 0, borderBottomWidth: 0 });
+    expect(last).toMatchObject({ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, borderTopWidth: 0, borderBottomWidth: 1 });
+    expect(first.borderLeftWidth).toBe(1);
+  });
+
+  it("a single row takes all four corners and both edges", async () => {
+    show(crm([cust(1)]), <CustomerList />);
+    await screen.findByText("Pelanggan 1");
+    expect(pieces()[0]).toMatchObject({ borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, borderTopWidth: 1, borderBottomWidth: 1 });
+  });
+
+  it("dark draws no edge", async () => {
+    show(crm([cust(1)]), <CustomerList />, { dark: true });
+    await screen.findByText("Pelanggan 1");
+    expect(pieces()[0]).toMatchObject({ borderLeftWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderTopLeftRadius: 16 });
   });
 });

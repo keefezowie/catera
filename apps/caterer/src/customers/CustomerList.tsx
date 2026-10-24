@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { FlatList, Linking, RefreshControl, ScrollView, View } from "react-native";
+import { Linking, RefreshControl, ScrollView, View } from "react-native";
 import Animated from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -19,6 +19,7 @@ import {
   TwoLineRow,
   useColors,
   useListMotion,
+  useRowMotion,
   useScreenMargin,
   useToast,
   useTouchTarget,
@@ -65,6 +66,7 @@ function CardRow({ first, last, children }: { first: boolean; last: boolean; chi
   const radius = nativeLayout.radius.card;
   return (
     <View
+      testID="customer-card-row"
       style={{
         backgroundColor: palette.surface,
         paddingHorizontal: nativeLayout.cardPadding - edge,
@@ -123,6 +125,7 @@ export function CustomerList() {
   useEffect(() => {
     if (answered) seen.current = { data: list.data, imports, swaps };
   });
+  const motion = useRowMotion();
   const rowMotion = useListMotion(list.data ? customers.map((c) => c.id) : null, !byImport);
   async function pull() {
     setPulling(true);
@@ -181,14 +184,17 @@ export function CustomerList() {
         />
       }
       list={({ scrollProps, header: screenHeader }) => (
-        <FlatList
+        <Animated.FlatList
           {...scrollProps}
+          // Cells are not the rows' parents, so the slide when customers are inserted belongs to the list.
+          itemLayoutAnimation={motion.layout as never}
           data={list.data ? shown : []}
           keyExtractor={(c) => c.id}
           ListHeaderComponent={
             <>
               {screenHeader}
-              <View style={{ ...FRAME, paddingHorizontal: margin, paddingTop: 16 + CHIPS_LIFT }}>
+              {/* paddingBottom: the 8 the chips and the card were apart when they shared a column. */}
+              <View testID="pelanggan-list-head" style={{ ...FRAME, paddingHorizontal: margin, paddingTop: 16 + CHIPS_LIFT, paddingBottom: 8 }}>
                 {!list.data && list.error ? <ReadError art message={list.error} onRetry={() => void list.reload()} /> : null}
                 {/* The chips enter from their skeleton as one block, never one by one. */}
                 {list.data || !list.error ? (
@@ -237,7 +243,7 @@ export function CustomerList() {
                 {/* A filter change or a refresh swaps the rows as one block; only the caterer's own import animates them in. */}
                 <RowSwap swapKey={`${filter}:${swaps}`}>
                   <CardRow first={index === 0} last={index === shown.length - 1}>
-                    <Animated.View testID="customer-row" {...rowMotion(c.id)}>
+                    <Animated.View testID="customer-row" {...rowMotion(c.id)} layout={undefined}>
                       <TwoLineRow
                         title={c.name}
                         meta={meta}
