@@ -9,6 +9,14 @@ import { activeEndLabel, customerStatus, endLabel, paymentsActive, renewalAction
 import { CustomerList } from "../src/customers/CustomerList";
 import { CustomerDetail } from "../src/customers/CustomerDetail";
 import { canvasDay } from "./fixtures";
+import { withDapurScale } from "./dapur-scale";
+
+/** The phone the screens are drawn on; a test sets it. */
+let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
 jest.mock("expo-notifications", () => ({
@@ -87,7 +95,10 @@ const wrap = (runtime: MobileRuntime, node: React.ReactNode) =>
     </MobileProvider>,
   );
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+});
 
 describe("rules", () => {
   it("classifies customers by their subscriptions", () => {
@@ -130,9 +141,9 @@ it("counts ending customers as active", async () => {
     expect(await screen.findByText("Aktif · 1")).toBeTruthy();
     expect(screen.getByText("Segera berakhir · 1")).toBeTruthy();
     expect(screen.getByText("Selesai · 0")).toBeTruthy();
-    // The Aktif list shows her, with the end label kept.
+    // The Aktif list shows her, with the end wording kept on her row's meta line.
     expect(screen.getByText("Rina Maharani")).toBeTruthy();
-    expect(screen.getByText(/^Berakhir/)).toBeTruthy();
+    expect(screen.getByText(/Berakhir besok/)).toBeTruthy();
   } finally {
     jest.useRealTimers();
   }
@@ -167,31 +178,32 @@ it("asks to turn on payments before the first renewal", async () => {
 it("lists the live address under Alamat antar and no card when the customer has none left", async () => {
   const live = { id: "a-kantor", label: "Kantor", line: "Jl. Kantor 5", area: "Tebet" };
   const first = wrap(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(2)], { user_id: "u-a", address: live })]), <CustomerDetail id="c-01" />);
-  expect(await screen.findByText("Alamat antar")).toBeTruthy();
+  // The address's own label rides on the heading line, as the board draws it.
+  expect(await screen.findByText("Alamat antar · Kantor")).toBeTruthy();
   expect(screen.getByText("Jl. Kantor 5, Tebet")).toBeTruthy();
   first.unmount();
   // The server answers an empty address once every address was removed.
   wrap(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(2)], { user_id: "u-a", address: {} as never })]), <CustomerDetail id="c-01" />);
   expect(await screen.findByText("Kirim tautan perpanjang")).toBeTruthy();
-  expect(screen.queryByText("Alamat antar")).toBeNull();
+  expect(screen.queryByText(/^Alamat antar/)).toBeNull();
 });
 
-describe("Pelanggan mood header", () => {
+describe("Pelanggan plain header", () => {
   const MALAM = () => new Date("2026-10-08T08:00:00Z");
   const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
   const renderMood = (runtime: MobileRuntime) =>
     render(
       <MoodProvider now={MALAM}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-          <CustomerList />
+          {withDapurScale(<CustomerList />)}
         </MobileProvider>
       </MoodProvider>,
     );
 
-  it("titles the list in a Malam header, with the customer cards below it on the theme surface", async () => {
+  it("titles the list on the canvas in Malam too (no mood band), with the customers' card below it on the theme surface", async () => {
     renderMood(runtimeWith("approved", true));
     const header = await screen.findByTestId("pelanggan-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#E2ECDD");
+    expect(within(header).queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
     const title = within(header).getByText("Pelanggan");
     expect(title.props.accessibilityRole).toBe("header");
     expect(flat(title).color).toBe("#2E2E2E");
@@ -219,10 +231,10 @@ describe("Pelanggan mood header", () => {
     const first = renderMood(pending);
     expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
     expect(within(screen.getByTestId("pelanggan-header")).getByText("Pelanggan")).toBeTruthy();
-    // Dapur keeps the classic 48 top row even with nothing in it, so Pelanggan's title sits where the other tabs' do.
+    // The row holds the title and the action: 44 tall, 8 under the status bar, no empty 48 row.
     const row = screen.getByTestId("mood-header-row");
-    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48 });
-    expect(StyleSheet.flatten(screen.getByTestId("pelanggan-header").props.style)).toMatchObject({ paddingTop: 12 });
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 44 });
+    expect(StyleSheet.flatten(screen.getByTestId("pelanggan-header").props.style)).toMatchObject({ paddingTop: 8 });
     first.unmount();
 
     const broken = runtimeWith("approved", true);
@@ -311,13 +323,14 @@ describe("customers with more than one package", () => {
     return runtime;
   };
 
-  it("lists every active package, soonest ending first, each with its own end line", async () => {
-    wrap(withMulti(runtimeWith("approved", true)), <CustomerDetail id="c-07" />);
-    expect(await screen.findByText("Berakhir hari ini · sisa 1 hari")).toBeTruthy();
-    expect(screen.getByText(`Berakhir ${shortDate(inDays(9), "id")} · sisa 9 hari`)).toBeTruthy();
-    const names = screen.getAllByText(/porsi$/).map((n) => String(n.props.children));
-    expect(names[0]).toContain("Makan Siang Rumahan");
-    expect(names[1]).toContain("Paket Hemat Kantor");
+  it("lists every active package, soonest ending first, each with its own dates and days left", async () => {
+    wrap(withMulti(runtimeWith("approved", true)), withDapurScale(<CustomerDetail id="c-07" />));
+    expect(await screen.findByLabelText("Sisa, 1 hari")).toBeTruthy();
+    expect(screen.getByLabelText(`Selesai, ${shortDate(today, "id")}`)).toBeTruthy();
+    expect(screen.getByLabelText("Sisa, 9 hari")).toBeTruthy();
+    expect(screen.getByLabelText(`Selesai, ${shortDate(inDays(9), "id")}`)).toBeTruthy();
+    const names = screen.getAllByLabelText(/^Paket, /).map((n) => String(n.props.accessibilityLabel));
+    expect(names).toEqual(["Paket, Makan Siang Rumahan", "Paket, Paket Hemat Kantor"]);
     expect(screen.getAllByText("Kirim tautan perpanjang")).toHaveLength(2);
   });
 
@@ -339,7 +352,7 @@ describe("customers with more than one package", () => {
     fireEvent.press(await screen.findByText(/Segera berakhir/));
     expect(await screen.findByText(/Berakhir hari ini/)).toBeTruthy();
     expect(screen.queryByText(/Berakhir besok/)).toBeNull();
-    expect(screen.getByText("+1 paket lain")).toBeTruthy();
+    expect(screen.getByText(/\+1 paket lain/)).toBeTruthy();
   });
 
   it("never shows a past end date for a package that is still active, only the days left", async () => {
@@ -353,11 +366,11 @@ describe("customers with more than one package", () => {
     }));
     const list = wrap(runtime, <CustomerList />);
     fireEvent.press(await screen.findByText(/Segera berakhir/));
-    expect(await screen.findByText("Sisa 1 hari")).toBeTruthy();
-    expect(screen.queryByText(/^Berakhir/)).toBeNull();
+    expect(await screen.findByText(/sisa 1 hari/)).toBeTruthy();
+    expect(screen.queryByText(/Berakhir/)).toBeNull();
     list.unmount();
     wrap(runtime, <CustomerDetail id="c-09" />);
-    expect(await screen.findByText("Sisa 1 hari")).toBeTruthy();
+    expect(await screen.findByLabelText("Sisa, 1 hari")).toBeTruthy();
     expect(screen.queryByText(/Berakhir/)).toBeNull();
   });
 
@@ -435,5 +448,302 @@ describe("Pelanggan row feedback", () => {
     const chat = await screen.findByRole("link", { name: "Chat Andre Kusuma" });
     const flat = StyleSheet.flatten(chat.props.style);
     expect([flat.width, flat.height]).toEqual([48, 48]);
+  });
+});
+
+/** Pelanggan and its detail on the Dapur scale (v2, 48 target): spec 3.2, boards Pelanggan and PelangganDetail. */
+describe("Pelanggan on the Dapur scale", () => {
+  const sty = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, any>;
+  const phone = (width: number, fontScale: number) => {
+    mockWindow = { width, height: 760, scale: 3, fontScale };
+  };
+  const dapur = (runtime: MobileRuntime, node: React.ReactNode) => wrap(runtime, withDapurScale(node));
+  const many = (n: number) =>
+    Array.from({ length: n }, (_, i) => customer(`c-${String(i).padStart(3, "0")}`, `Pelanggan ${i}`, [sub(10)]));
+  const hold = (runtime: MobileRuntime) => {
+    (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(() => new Promise(() => undefined));
+    return runtime;
+  };
+
+  describe("header", () => {
+    it("is a plain 44 row: Pelanggan in heroTitle, the + Pelanggan lama action 48 tall, no mood band and no empty row", async () => {
+      dapur(runtimeWith("approved", true), <CustomerList />);
+      const header = await screen.findByTestId("pelanggan-header");
+      expect(within(header).queryByTestId("mood-fill", { includeHiddenElements: true })).toBeNull();
+      const rows = within(header).getAllByTestId("mood-header-row");
+      expect(rows).toHaveLength(1);
+      expect(sty(rows[0]).minHeight).toBe(44);
+      const title = within(header).getByText("Pelanggan");
+      expect(title.props.accessibilityRole).toBe("header");
+      expect(sty(title)).toMatchObject({ fontSize: 24, lineHeight: 30 });
+      // The title and the action share the one row.
+      expect(within(rows[0]).getByText("Pelanggan")).toBe(title);
+      const add = within(rows[0]).getByRole("button", { name: "+ Pelanggan lama" });
+      expect(sty(add).minHeight).toBe(48);
+      fireEvent.press(add);
+      expect(router.push).toHaveBeenCalledWith("/impor");
+    });
+
+    it("stays the same while the list loads and when the read fails", async () => {
+      const first = dapur(hold(runtimeWith("approved", true)), <CustomerList />);
+      const header = await screen.findByTestId("pelanggan-header");
+      expect(within(header).getByRole("button", { name: "+ Pelanggan lama" })).toBeTruthy();
+      expect(sty(within(header).getByTestId("mood-header-row")).minHeight).toBe(44);
+      first.unmount();
+      const runtime = runtimeWith("approved", true);
+      (runtime.api.sellerCustomers as jest.Mock).mockRejectedValue(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
+      dapur(runtime, <CustomerList />);
+      expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
+      expect(within(screen.getByTestId("pelanggan-header")).getByRole("button", { name: "+ Pelanggan lama" })).toBeTruthy();
+    });
+  });
+
+  describe("filter chips", () => {
+    it("sit in a 48 frame, one row that scrolls sideways, with the 7 hit slop inside it; the counts are in the labels", async () => {
+      dapur(runtimeWith("approved", true), <CustomerList />);
+      expect(await screen.findByText("Aktif · 2")).toBeTruthy();
+      const frame = screen.getByTestId("pelanggan-chips-frame");
+      expect(sty(frame).height).toBe(48);
+      const scroll = screen.getByTestId("pelanggan-chips");
+      expect(scroll.props.horizontal).toBe(true);
+      expect(sty(scroll).height).toBeGreaterThanOrEqual(48);
+      for (const name of [/^Aktif/, /^Segera berakhir/, /^Selesai/]) {
+        const chip = screen.getByRole("button", { name });
+        expect(chip.props.hitSlop).toEqual({ top: 7, bottom: 7 });
+        expect(sty(chip).minHeight).toBe(34);
+        expect(within(frame).getByRole("button", { name })).toBe(chip);
+      }
+    });
+
+    it("stay one scrolling row at 360dp and font scale 1.3, and hide their counts while the list loads", async () => {
+      phone(360, 1.3);
+      const first = dapur(hold(runtimeWith("approved", true)), <CustomerList />);
+      expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^Aktif/ })).toBeNull();
+      expect(screen.queryByText(/· \d/)).toBeNull();
+      first.unmount();
+      dapur(runtimeWith("approved", true), <CustomerList />);
+      await screen.findByText("Aktif · 2");
+      expect(screen.getByTestId("pelanggan-chips").props.horizontal).toBe(true);
+      expect(sty(screen.getByTestId("pelanggan-chips")).flexWrap).toBeUndefined();
+    });
+
+    it("each filter shows its own customers, with the counts from the loaded list", async () => {
+      dapur(runtimeWith("approved", true), <CustomerList />);
+      expect(await screen.findByText("Aktif · 2")).toBeTruthy();
+      expect(screen.getByText("Segera berakhir · 1")).toBeTruthy();
+      expect(screen.getByText("Selesai · 1")).toBeTruthy();
+      fireEvent.press(screen.getByRole("button", { name: /^Selesai/ }));
+      expect(screen.getByText("Bayu Tri")).toBeTruthy();
+      expect(screen.queryByText("Andre Kusuma")).toBeNull();
+      fireEvent.press(screen.getByRole("button", { name: /^Segera berakhir/ }));
+      expect(screen.getByText("Andre Kusuma")).toBeTruthy();
+      expect(screen.queryByText("Dewi Saraswati")).toBeNull();
+    });
+  });
+
+  describe("rows", () => {
+    it("are TwoLineRows of 64 in one ListCard: rowTitle name, meta line, a 48 chat button, hairlines between", async () => {
+      dapur(runtimeWith("approved", true, many(40)), <CustomerList />);
+      await screen.findByText("Pelanggan 0");
+      expect(screen.getAllByTestId("customer-row")).toHaveLength(40);
+      expect(screen.getAllByTestId("list-card")).toHaveLength(1);
+      expect(screen.getAllByTestId("list-card-separator")).toHaveLength(39);
+      const row = screen.getByRole("button", { name: /Pelanggan 0,/ });
+      expect(sty(row).minHeight).toBe(64);
+      const name = screen.getByText("Pelanggan 0");
+      expect(sty(name)).toMatchObject({ fontSize: 17, lineHeight: 22 });
+      expect(name.props.numberOfLines).toBe(1);
+      const chat = screen.getByRole("link", { name: "Chat Pelanggan 0" });
+      expect([sty(chat).width, sty(chat).height]).toEqual([48, 48]);
+      // The row opens the record, as before.
+      fireEvent.press(row);
+      expect(router.push).toHaveBeenCalledWith("/pelanggan/c-000?title=Pelanggan%200");
+    });
+
+    it("say package, days left and area on one meta line", async () => {
+      const today = jakartaDay(new Date());
+      const soon = { ...sub(1), ends_on: today };
+      const later = { ...sub(9), ends_on: addDays(today, 9) };
+      dapur(
+        runtimeWith("approved", true, [
+          customer("c-01", "Andre Kusuma", [later], { address: { line: "Kost Damai", area: "Setiabudi" } }),
+          customer("c-02", "Sari Wulandari", [later, soon], { user_id: "u-s" }),
+        ]),
+        <CustomerList />,
+      );
+      await screen.findByText("Andre Kusuma");
+      const meta = screen.getByText("Makan Siang Rumahan · sisa 9 hari · Setiabudi");
+      expect(sty(meta)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+      expect(meta.props.numberOfLines).toBe(1);
+      // The package ending first leads, and "+n paket lain" stays.
+      expect(screen.getByText("Makan Siang Rumahan · Berakhir hari ini · +1 paket lain · Setiabudi")).toBeTruthy();
+    });
+
+    it("keep the 64 row without a chat number: no chat button, the text takes the width", async () => {
+      dapur(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(5)], { phone: null })]), <CustomerList />);
+      await screen.findByText("Andre Kusuma");
+      expect(screen.queryByRole("link", { name: /^Chat/ })).toBeNull();
+      expect(sty(screen.getByRole("button", { name: /Andre Kusuma/ })).minHeight).toBe(64);
+    });
+
+    it("one customer is one row, no hairline; none says Belum ada pelanggan di sini and draws no empty card", async () => {
+      const one = dapur(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(5)])]), <CustomerList />);
+      await screen.findByText("Andre Kusuma");
+      expect(screen.queryAllByTestId("list-card-separator")).toHaveLength(0);
+      one.unmount();
+      dapur(runtimeWith("approved", true, []), <CustomerList />);
+      expect(await screen.findByText("Belum ada pelanggan di sini.")).toBeTruthy();
+      expect(screen.queryByTestId("list-card")).toBeNull();
+      expect(screen.getByText("Aktif · 0")).toBeTruthy();
+    });
+  });
+
+  describe("detail", () => {
+    const today = jakartaDay(new Date());
+    const running = {
+      ...sub(5),
+      id: "s-run",
+      starts_on: addDays(today, -6),
+      ends_on: addDays(today, 5),
+      portions: 2,
+    };
+    const deliveries = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ id: `d-${i}`, service_date: addDays(today, i), status: i === 0 ? "delivered" : "scheduled" }));
+    const record = (subs: ReturnType<typeof sub>[], extra: Partial<SellerCustomer> = {}) =>
+      customer("c-01", "Andre Kusuma", subs as never, extra);
+    const open = (list: SellerCustomer[], runtime = runtimeWith("approved", true, list)) => {
+      (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async () => ({ customers: list, total: list.length, packages: [] }));
+      return dapur(runtime, <CustomerDetail id="c-01" />);
+    };
+
+    it("opens with a meta status line, then one ListCard of five 40 key-value rows", async () => {
+      open([record([running], { user_id: "u-a", origin: "marketplace" })]);
+      const status = await screen.findByText("Aktif · Dari marketplace · dibayar lewat Catera");
+      expect(sty(status)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+      const labels = ["Paket", "Mulai", "Selesai", "Sisa", "Porsi"];
+      const values = [
+        "Makan Siang Rumahan",
+        shortDate(running.starts_on, "id"),
+        shortDate(running.ends_on, "id"),
+        "5 hari",
+        "2 per hari",
+      ];
+      const block = screen.getAllByTestId("list-card")[0];
+      for (const [i, label] of labels.entries()) {
+        const row = within(block).getByLabelText(`${label}, ${values[i]}`);
+        expect(sty(row).minHeight).toBe(40);
+      }
+      expect(within(block).getAllByTestId("list-card-separator")).toHaveLength(4);
+    });
+
+    it("an attention status reads Segera berakhir, a finished package Selesai", async () => {
+      const first = open([record([{ ...running, remaining: 2 }])]);
+      expect(await screen.findByText(/^Segera berakhir · Pelangganmu/)).toBeTruthy();
+      first.unmount();
+      open([record([{ ...sub(0, "completed"), starts_on: "2026-09-01", ends_on: "2026-09-12" }])]);
+      expect(await screen.findByText(/^Selesai · Pelangganmu/)).toBeTruthy();
+    });
+
+    it("a package kept running past its booked last day shows only the days left, no past Selesai", async () => {
+      open([record([{ ...running, ends_on: addDays(today, -1), remaining: 1 }])]);
+      expect(await screen.findByLabelText("Sisa, 1 hari")).toBeTruthy();
+      expect(screen.queryByLabelText(/^Selesai,/)).toBeNull();
+    });
+
+    it("puts WhatsApp and the renew action side by side at 50, the renew hint under them", async () => {
+      open([record([running])]);
+      const renew = await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
+      const chat = screen.getByRole("button", { name: "Chat WhatsApp" });
+      const row = screen.getByTestId("customer-actions");
+      expect(sty(row)).toMatchObject({ flexDirection: "row", gap: 8 });
+      expect(within(row).getByRole("button", { name: "Chat WhatsApp" })).toBe(chat);
+      expect(within(row).getByRole("button", { name: "Kirim tautan perpanjang" })).toBe(renew);
+      expect(sty(chat).minHeight).toBe(50);
+      expect(sty(renew).minHeight).toBe(50);
+      // The hint for an account-less customer sits under the row.
+      expect(screen.getByText(/belum punya akun Catera/)).toBeTruthy();
+      expect(within(row).queryByText(/belum punya akun Catera/)).toBeNull();
+    });
+
+    it("the renew error shows under the row with its retry", async () => {
+      const runtime = runtimeWith("approved", true);
+      (runtime.api.command as jest.Mock).mockRejectedValue(new Error("X"));
+      open([record([running])], runtime);
+      fireEvent.press(await screen.findByRole("button", { name: "Kirim tautan perpanjang" }));
+      const message = await screen.findByText("Tautan perpanjang belum terkirim. Coba lagi.");
+      expect(within(screen.getByTestId("customer-actions")).queryByText(message.props.children)).toBeNull();
+    });
+
+    it("the renew action alone takes the full row when the customer has no chat number; with neither there is no row", async () => {
+      const first = open([record([running], { user_id: "u-a", phone: null })]);
+      const renew = await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
+      expect(screen.queryByRole("button", { name: "Chat WhatsApp" })).toBeNull();
+      const row = screen.getByTestId("customer-actions");
+      expect(within(row).getAllByRole("button")).toEqual([renew]);
+      first.unmount();
+      open([record([running], { phone: null })]);
+      await screen.findByLabelText("Paket, Makan Siang Rumahan");
+      expect(screen.queryByTestId("customer-actions")).toBeNull();
+    });
+
+    it("stacks the two buttons below 340 effective width (360dp at font scale 1.3)", async () => {
+      phone(360, 1.3);
+      open([record([running])]);
+      await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
+      expect(sty(screen.getByTestId("customer-actions")).flexDirection).toBe("column");
+    });
+
+    it("draws the address in a 56 canvas-tone well, with its label and instructions", async () => {
+      open([
+        record([running], { address: { id: "a-1", label: "Rumah", line: "Jl. Melati 4", area: "Kebayoran", instructions: "Pagar hijau" } as never }),
+      ]);
+      expect(await screen.findByText("Alamat antar · Rumah")).toBeTruthy();
+      const well = screen.getByTestId("customer-address");
+      expect(sty(well)).toMatchObject({ minHeight: 56, backgroundColor: nativeThemes.light.well, borderRadius: 12 });
+      expect(within(well).getByText("Jl. Melati 4, Kebayoran")).toBeTruthy();
+      expect(within(well).getByText("Pagar hijau")).toBeTruthy();
+    });
+
+    it("caps a 12-delivery schedule at five 48 rows, then Lihat semua 12 shows them all in place", async () => {
+      open([record([{ ...running, deliveries: deliveries(12) as never }])]);
+      expect(await screen.findByText("Jadwal")).toBeTruthy();
+      expect(screen.getAllByTestId("schedule-row")).toHaveLength(5);
+      expect(sty(screen.getAllByTestId("schedule-row")[0]).minHeight).toBe(48);
+      const more = screen.getByRole("button", { name: "Lihat semua 12" });
+      expect(sty(more).minHeight).toBe(48);
+      fireEvent.press(more);
+      expect(screen.getAllByTestId("schedule-row")).toHaveLength(12);
+      expect(screen.queryByRole("button", { name: "Lihat semua 12" })).toBeNull();
+    });
+
+    it("a schedule of five or fewer has no Lihat semua", async () => {
+      open([record([{ ...running, deliveries: deliveries(5) as never }])]);
+      await screen.findByText("Jadwal");
+      expect(screen.getAllByTestId("schedule-row")).toHaveLength(5);
+      expect(screen.queryByRole("button", { name: /^Lihat semua/ })).toBeNull();
+    });
+
+    it("three packages each get their key-value block and renew button, and each its own schedule", async () => {
+      const a = { ...running, id: "s-a", package_name: "Paket A", deliveries: deliveries(2) as never };
+      const b = { ...running, id: "s-b", package_name: "Paket B", ends_on: addDays(today, 6), deliveries: deliveries(7) as never };
+      const c = { ...running, id: "s-c", package_name: "Paket C", ends_on: addDays(today, 7), deliveries: [] as never };
+      open([record([c, b, a], { user_id: "u-a" })]);
+      await screen.findByLabelText("Paket, Paket A");
+      expect(screen.getByLabelText("Paket, Paket B")).toBeTruthy();
+      expect(screen.getByLabelText("Paket, Paket C")).toBeTruthy();
+      expect(screen.getAllByRole("button", { name: "Kirim tautan perpanjang" })).toHaveLength(3);
+      // Only the first package's row carries WhatsApp.
+      expect(screen.getAllByRole("button", { name: "Chat WhatsApp" })).toHaveLength(1);
+      // Schedules: Paket A and B have deliveries, C none; each shows its own section.
+      expect(screen.getAllByText("Jadwal")).toHaveLength(2);
+      expect(screen.getAllByTestId("schedule-row")).toHaveLength(2 + 5);
+      expect(screen.getAllByRole("button", { name: "Lihat semua 7" })).toHaveLength(1);
+    });
+
+    it("says so when the customer is not there", async () => {
+      dapur(runtimeWith("approved", true, []), <CustomerDetail id="c-404" />);
+      expect(await screen.findByText("Pelanggan ini tidak ditemukan.")).toBeTruthy();
+    });
   });
 });

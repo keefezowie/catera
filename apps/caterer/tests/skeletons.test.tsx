@@ -19,6 +19,7 @@ import { UangScreen } from "../src/business/UangScreen";
 import { AktifkanScreen } from "../src/business/AktifkanScreen";
 import * as offline from "../src/today/offline";
 import { canvasDay } from "./fixtures";
+import { withDapurScale } from "./dapur-scale";
 
 /**
  * Dapur's loading pass (Phase F task 6): every screen waits behind its own skeleton, never a bare "Memuat…" line or a
@@ -527,15 +528,21 @@ describe("Pelanggan", () => {
 
   it("Pelanggan loading shows customer rows under the live header, then the list fades in once", async () => {
     const read = held<unknown>();
-    renderWith(runtimeWith(owner, { sellerCustomers: read.fn }), <CustomerList />);
+    renderWith(runtimeWith(owner, { sellerCustomers: read.fn }), withDapurScale(<CustomerList />));
     const header = await screen.findByTestId("pelanggan-header");
     expect(within(header).getByText("Pelanggan")).toBeTruthy();
     expect(skeletonNames()).toEqual(["Memuat pelanggan"]);
     expect(within(header).queryByLabelText("Memuat pelanggan")).toBeNull();
-    // The three filter chips hold their row, at the Chip's 48dp, above the customer rows.
+    // The three filter chips hold their row: 34 chips in the same 48 frame as the loaded chips, above the rows.
     const chips = screen.queryAllByTestId(/^list-skeleton-chip-/, { includeHiddenElements: true });
     expect(chips).toHaveLength(3);
-    for (const chip of chips) expect(flat(chip).height).toBe(48);
+    for (const chip of chips) expect(flat(chip).height).toBe(34);
+    expect(flat(screen.getByTestId("list-skeleton-chips", { includeHiddenElements: true })).height).toBe(48);
+    // The rows are one card of 64 rows, the loaded list's own ListCard, with its hairlines.
+    const rows = screen.queryAllByTestId(/^list-skeleton-row-/, { includeHiddenElements: true });
+    expect(rows.length).toBeGreaterThanOrEqual(8);
+    for (const row of rows) expect(flat(row).height).toBe(64);
+    expect(screen.getAllByTestId("list-card", { includeHiddenElements: true })).toHaveLength(1);
     expect(screen.getByRole("button", { name: "+ Pelanggan lama" })).toBeTruthy();
     expect(screen.queryByText("Memuat pelanggan…")).toBeNull();
     const timing = spyFades();
@@ -576,8 +583,15 @@ describe("Pelanggan", () => {
   });
 
   it("a customer's page waits behind the customer skeleton under the name its link carried", async () => {
-    renderWith(runtimeWith(owner, { sellerCustomers: jest.fn(never) }), <CustomerDetail id="c-01" title="Andre Kusuma" />);
+    renderWith(runtimeWith(owner, { sellerCustomers: jest.fn(never) }), withDapurScale(<CustomerDetail id="c-01" title="Andre Kusuma" />));
     expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
+    // The detail's shape, from the loaded layout: five 40 key-value rows in one card, the 50 action row and the 56
+    // address well.
+    const kv = screen.queryAllByTestId(/^detail-skeleton-kv-/, { includeHiddenElements: true });
+    expect(kv).toHaveLength(5);
+    for (const row of kv) expect(flat(row).height).toBe(40);
+    expect(flat(screen.getByTestId("detail-skeleton-actions", { includeHiddenElements: true })).height).toBe(50);
+    expect(flat(screen.getByTestId("detail-skeleton-address", { includeHiddenElements: true })).height).toBe(56);
     expect(screen.queryByText("Memuat…")).toBeNull();
   });
 });

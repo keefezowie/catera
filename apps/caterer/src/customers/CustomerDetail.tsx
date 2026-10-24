@@ -1,14 +1,37 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Linking, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
+import { nativeLayout } from "@catera/design-tokens";
 import { errorLabel, jakartaDay, shortDate, whatsappUrl, type CustomerSubscription } from "@catera/domain";
-import { useData, useMobile, plural } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, FormError, Screen, Text, useBusy, useColors } from "@catera/mobile-ui";
-import { activeEndLabel, activeSubscriptions, renewalAction } from "./rules";
+import { useData, useMobile } from "@catera/mobile-core";
+import {
+  Button,
+  DecorativeIcon,
+  FadeSwap,
+  FormError,
+  KeyValueRow,
+  ListCard,
+  PressableRow,
+  Screen,
+  SectionHeader,
+  Text,
+  useBusy,
+  useColors,
+  useStackedLayout,
+} from "@catera/mobile-ui";
+import { activeSubscriptions, customerStatus, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
 import { ReadError } from "../ReadError";
 import { DetailSkeleton } from "../skeletons";
+
+/** A schedule shows this many deliveries before "Lihat semua". */
+const SCHEDULE_CAP = 5;
+/** The screen body spaces its blocks 16 apart; the address and the schedules sit the Dapur section gap (24) apart. */
+const SECTION_LIFT = nativeLayout.dense.sectionGap - 16;
+/** Below this effective width (`width / fontScale`) the two action buttons stack, so neither label is squeezed. */
+const STACK_BELOW = 340;
 
 /**
  * One customer: when their package ends, how to reach them, and the renewal link. `title` is the name the link that
@@ -24,6 +47,9 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const [failure, setFailure] = useState<{ message: string; key: number; subscription: string } | null>(null);
   // Which package's button is waiting; the hook drops a second press while one runs.
   const [which, setWhich] = useState("");
+  // Which packages' schedules were opened past the first five.
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
+  const stacked = useStackedLayout(STACK_BELOW);
   const c = record.data;
   const [busy, renew] = useBusy(async (s: CustomerSubscription) => {
     if (!c) return;
@@ -80,60 +106,127 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   // Every active package, soonest ending first; a customer with none shows their latest finished one.
   const shown = active.length ? active : c.subscriptions.slice(0, 1);
   const action = renewalAction(c);
+  const status = {
+    active: t("Aktif", "Active"),
+    ending: t("Segera berakhir", "Ending soon"),
+    ended: t("Selesai", "Ended"),
+  }[customerStatus(c)];
+  const origin =
+    c.origin === "marketplace"
+      ? t("Dari marketplace · dibayar lewat Catera", "From the marketplace · paid through Catera")
+      : t("Pelangganmu · dibayar di luar Catera", "Your customer · paid outside Catera");
+  const deliveryStatus = (d: CustomerSubscription["deliveries"][number]) =>
+    d.status === "delivered" ? t("Sampai", "Arrived") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled");
 
   return (
     <Screen nativeTitle={c.name}>
       <FadeSwap swapKey="loaded" style={{ gap: 16 }}>
-        {shown.map((s) => (
-          <Card key={s.id} tone={s.status === "active" && s.remaining <= 3 ? "attention" : "surface"}>
-            <Text variant="label" style={{ color: palette.charcoal }}>
-              {s.status === "active"
-                ? activeEndLabel(s, today, t, locale, true)
-                : t("Paket sudah selesai", "Package finished")}
-            </Text>
-            <Text variant="heading">{t(`${s.package_name} · ${s.portions} porsi`, `${s.package_name} · ${plural(s.portions, "portion")}`)}</Text>
-            <Text variant="caption">
-              {c.origin === "marketplace"
-                ? t("Dari marketplace · dibayar lewat Catera", "From the marketplace · paid through Catera")
-                : t("Pelangganmu · dibayar di luar Catera", "Your customer · paid outside Catera")}
-            </Text>
-            {action !== "none" ? (
-              <Button label={t("Kirim tautan perpanjang", "Send renewal link")} busy={busy && which === s.id} disabled={busy && which !== s.id} onPress={() => void renew(s)} />
-            ) : null}
-            {action === "invite" ? (
-              <Text variant="caption">
-                {t(
-                  "Pelanggan ini belum punya akun Catera. Tautan di pesan mengajaknya buat akun, lalu bayar perpanjangan.",
-                  "This customer has no Catera account yet. The link in the message takes them to create one, then pay for the renewal.",
-                )}
-              </Text>
-            ) : null}
-            {failure?.subscription === s.id ? <FormError message={failure.message} failureKey={failure.key} retry={() => void renew(s)} /> : null}
-          </Card>
-        ))}
-        {c.phone ? (
-          <Button variant="secondary" label={t("Chat WhatsApp", "WhatsApp chat")} onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))} />
-        ) : null}
+        <Text variant="meta">{`${status} · ${origin}`}</Text>
+        {shown.map((s, index) => {
+          // Moved deliveries can keep a package running past its booked last day; a past "Selesai" would read as ended.
+          const pastEnd = s.status === "active" && s.ends_on < today;
+          const chat = index === 0 && !!c.phone;
+          const renewable = action !== "none";
+          return (
+            <Fragment key={s.id}>
+              <ListCard inset={0}>
+                <KeyValueRow label={t("Paket", "Package")} value={s.package_name} />
+                <KeyValueRow label={t("Mulai", "Starts")} value={shortDate(s.starts_on, locale)} />
+                {pastEnd ? null : <KeyValueRow label={t("Selesai", "Ends")} value={shortDate(s.ends_on, locale)} />}
+                {s.remaining > 0 ? (
+                  <KeyValueRow label={t("Sisa", "Left")} value={t(`${s.remaining} hari`, s.remaining === 1 ? "1 day" : `${s.remaining} days`)} />
+                ) : null}
+                <KeyValueRow label={t("Porsi", "Portions")} value={t(`${s.portions} per hari`, `${s.portions} per day`)} />
+              </ListCard>
+              {chat || renewable ? (
+                <View style={{ gap: 8 }}>
+                  <View testID="customer-actions" style={{ flexDirection: stacked ? "column" : "row", gap: 8 }}>
+                    {chat ? (
+                      <Button
+                        variant="secondary"
+                        label={t("Chat WhatsApp", "WhatsApp chat")}
+                        onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
+                        style={stacked ? undefined : { flexShrink: 0 }}
+                      />
+                    ) : null}
+                    {renewable ? (
+                      <Button
+                        label={t("Kirim tautan perpanjang", "Send renewal link")}
+                        busy={busy && which === s.id}
+                        disabled={busy && which !== s.id}
+                        onPress={() => void renew(s)}
+                        style={stacked ? undefined : { flex: 1 }}
+                      />
+                    ) : null}
+                  </View>
+                  {renewable && action === "invite" ? (
+                    <Text variant="caption">
+                      {t(
+                        "Pelanggan ini belum punya akun Catera. Tautan di pesan mengajaknya buat akun, lalu bayar perpanjangan.",
+                        "This customer has no Catera account yet. The link in the message takes them to create one, then pay for the renewal.",
+                      )}
+                    </Text>
+                  ) : null}
+                  {renewable && failure?.subscription === s.id ? (
+                    <FormError message={failure.message} failureKey={failure.key} retry={() => void renew(s)} />
+                  ) : null}
+                </View>
+              ) : null}
+            </Fragment>
+          );
+        })}
         {c.address.line || c.address.area ? (
-          <Card>
-            <Text variant="label">{t("Alamat antar", "Delivery address")}</Text>
-            <Text>{[c.address.line, c.address.area].filter(Boolean).join(", ")}</Text>
-            {c.address.instructions ? <Text variant="caption">{c.address.instructions}</Text> : null}
-          </Card>
+          <View testID="customer-address" style={{ marginTop: SECTION_LIFT, flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, paddingVertical: 8, paddingHorizontal: 16, borderRadius: nativeLayout.radius.control, backgroundColor: palette.well }}>
+            <DecorativeIcon name="location-outline" size={20} color={palette.charcoal} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text variant="meta">
+                {c.address.label ? `${t("Alamat antar", "Delivery address")} · ${c.address.label}` : t("Alamat antar", "Delivery address")}
+              </Text>
+              <Text variant="bodyL">{[c.address.line, c.address.area].filter(Boolean).join(", ")}</Text>
+              {c.address.instructions ? <Text variant="meta">{c.address.instructions}</Text> : null}
+            </View>
+          </View>
         ) : null}
         {shown
           .filter((s) => s.deliveries.length)
-          .map((s) => (
-            <Card key={`schedule-${s.id}`}>
-              <Text variant="label">{shown.length > 1 ? `${t("Jadwal", "Schedule")} · ${s.package_name}` : t("Jadwal", "Schedule")}</Text>
-              {s.deliveries.map((d) => (
-                <View key={d.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 }}>
-                  <Text>{shortDate(d.service_date, locale)}</Text>
-                  <Text variant="caption">{d.status === "delivered" ? t("Sampai", "Arrived") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled")}</Text>
-                </View>
-              ))}
-            </Card>
-          ))}
+          .map((s) => {
+            const open = opened[s.id] || s.deliveries.length <= SCHEDULE_CAP;
+            const rows = open ? s.deliveries : s.deliveries.slice(0, SCHEDULE_CAP);
+            const more = t(`Lihat semua ${s.deliveries.length}`, `See all ${s.deliveries.length}`);
+            return (
+              <View key={`schedule-${s.id}`} style={{ marginTop: SECTION_LIFT }}>
+                <SectionHeader title={s.package_name} count={t("Jadwal", "Schedule")} />
+                <ListCard inset={0}>
+                  {rows.map((d) => (
+                    <View
+                      key={d.id}
+                      testID="schedule-row"
+                      accessible
+                      accessibilityLabel={`${shortDate(d.service_date, locale)}, ${deliveryStatus(d)}`}
+                      style={{ minHeight: nativeLayout.row.info, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+                    >
+                      <Text variant="bodyL">{shortDate(d.service_date, locale)}</Text>
+                      <Text variant="meta">{deliveryStatus(d)}</Text>
+                    </View>
+                  ))}
+                  {open ? null : (
+                    <PressableRow
+                      accessibilityRole="button"
+                      accessibilityLabel={more}
+                      onPress={() => setOpened((o) => ({ ...o, [s.id]: true }))}
+                      style={{ minHeight: nativeLayout.row.info, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 }}
+                    >
+                      {/* forest: action */}
+                      <Text variant="bodyStrong" style={{ color: palette.forest }}>
+                        {more}
+                      </Text>
+                      <Ionicons name="chevron-down" size={18} color={palette.forest} />
+                    </PressableRow>
+                  )}
+                </ListCard>
+              </View>
+            );
+          })}
       </FadeSwap>
     </Screen>
   );
