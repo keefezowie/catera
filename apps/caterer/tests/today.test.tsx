@@ -159,6 +159,13 @@ it("welcomes a new caterer with the setup card instead of empty lists", async ()
   expect(await screen.findByText("Siapkan dapurmu")).toBeTruthy();
 });
 
+it("heads the setup card and the 'once you have customers' card in the section type, not the classic heading", async () => {
+  renderToday(runtimeWith(async () => emptyDay()));
+  for (const title of ["Siapkan dapurmu", "Setelah ada pelanggan"]) {
+    expect(StyleSheet.flatten((await screen.findByText(title)).props.style)).toMatchObject({ fontSize: 20, lineHeight: 26 });
+  }
+});
+
 it("report cards and setup rows dim on press and still navigate", async () => {
   const runtime = runtimeWith(same(canvasDay()));
   (runtime.api.request as jest.Mock).mockImplementation(async (path: string) => (path.startsWith("delivery-issues") ? [report()] : []));

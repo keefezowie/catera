@@ -599,8 +599,8 @@ describe("Urutan antar", () => {
     const first = screen.getByTestId("stop-1");
     expect(within(first).getByText("1")).toBeTruthy();
     expect(within(first).getByText("Bu Sari Wulandari")).toBeTruthy();
-    expect(within(first).getByText("2 porsi · Makan Siang Rumahan")).toBeTruthy();
-    expect(within(first).getByText(/^Jl\. Melati \d+, Tebet$/)).toBeTruthy();
+    expect(within(first).getByText(" · 2 porsi")).toBeTruthy();
+    expect(within(first).getByText(/^Makan Siang Rumahan · Jl\. Melati \d+, Tebet$/)).toBeTruthy();
     expect(screen.getByTestId("stop-3")).toBeTruthy();
     expect(screen.queryByTestId("stop-4")).toBeNull();
     expect(screen.queryByText("Kost Damai")).toBeNull();
@@ -646,7 +646,7 @@ describe("Urutan antar", () => {
     expect(info.props.accessibilityLabel).toMatch(
       /^1\. Bu Sari Wulandari, 2 porsi · Makan Siang Rumahan, Jl\. Melati \d+, Tebet$/,
     );
-    expect(within(screen.getByTestId("stop-1")).getByText(/^Jl\. Melati \d+, Tebet$/).props.numberOfLines).toBe(1);
+    expect(within(screen.getByTestId("stop-1")).getByTestId("stop-1-meta").props.numberOfLines).toBe(1);
   });
 
   it("keeps a stop's delivery note under its row, wrapping", async () => {
@@ -654,7 +654,11 @@ describe("Urutan antar", () => {
     day.deliveries[0].address.instructions = "Pagar hijau, titip di pos satpam";
     renderToday(runtimeWith(async () => day));
     const note = await screen.findByText("Pagar hijau, titip di pos satpam");
-    expect(note.props.numberOfLines).toBeUndefined();
+    // One more meta line in the stop's own text column, so the row grows by 18 and no more.
+    expect(note.props.numberOfLines).toBe(1);
+    expect(note.props.testID).toBe("stop-1-note");
+    expect(within(screen.getByTestId("stop-1")).getByText("Pagar hijau, titip di pos satpam")).toBe(note);
+    expect(screen.getByTestId("stop-1-info").props.accessibilityLabel).toMatch(/, Pagar hijau, titip di pos satpam$/);
   });
 
   it("opens that stop's map from its map button", async () => {
@@ -1171,12 +1175,26 @@ describe("Hari ini on the Dapur scale", () => {
       expect(box(within(list).getByTestId("check-row-0-content")).minHeight).toBe(56);
       expect(box(within(list).getByTestId("check-row-0-box"))).toMatchObject({ width: 48, height: 48 });
       // A photo is 40 with radius 8, and so is the icon that stands in for one.
-      let frame = within(list).getByTestId("check-row-1-image").parent;
-      while (frame && box(frame).borderRadius === undefined) frame = frame.parent;
-      expect(box(frame!)).toMatchObject({ width: 40, height: 40, borderRadius: 8 });
+      expect(box(within(list).getByTestId("check-row-1-image"))).toMatchObject({ width: 40, height: 40, borderRadius: 8 });
       expect(box(within(list).getByTestId("check-row-0-icon", hidden))).toMatchObject({ width: 40, height: 40, borderRadius: 8 });
       // The hairlines start at the name: 48 + 12 + 40 + 12.
       expect(box(within(list).getAllByTestId("list-card-separator")[0]).marginLeft).toBe(112);
+    });
+
+    it("lets a dish photo carry its own radius: nothing between it and the list card clips", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const list = await screen.findByTestId("cooking-list");
+      // An image that finishes loading inside an overflow-hidden rounded view can stay blank on Android.
+      const clippers = (start: ReturnType<typeof screen.getByTestId>) => {
+        const found: string[] = [];
+        for (let n = start.parent; n; n = n.parent) {
+          if (box(n)?.overflow === "hidden") found.push(String(n.props.testID ?? n.type));
+          if (n.props.testID === "list-card") break;
+        }
+        return found;
+      };
+      expect(clippers(within(list).getByTestId("check-row-1-image"))).toEqual([]);
+      expect(box(within(list).getAllByTestId("list-card")[0]).overflow).not.toBe("hidden");
     });
 
     it("keeps four digits in the 48 quantity column without moving the dish's name", async () => {
@@ -1242,6 +1260,17 @@ describe("Hari ini on the Dapur scale", () => {
     });
   });
 
+  /** The text of a node the way a screen reads it: its own string and its nested Text children, joined. */
+  const textOf = (node: { props: { children?: unknown } }): string => {
+    const join = (child: unknown): string =>
+      Array.isArray(child)
+        ? child.map(join).join("")
+        : typeof child === "object" && child
+          ? join((child as { props: { children?: unknown } }).props.children)
+          : String(child ?? "");
+    return join(node.props.children);
+  };
+
   describe("Urutan antar", () => {
     it("heads the run with its count and Pilih, and lists 64 rows, three stops then a link", async () => {
       // Pilih is offered once a stop can leave or arrive, so the meal is cooking.
@@ -1276,13 +1305,36 @@ describe("Hari ini on the Dapur scale", () => {
       expect(box(within(screen.getByTestId("delivery-order")).getAllByTestId("list-card-separator")[0]).marginLeft).toBe(40);
     });
 
-    it("keeps the first three stops' name on one or two lines and the address on one", async () => {
+    it("holds a stop to one title line (name · n porsi) and one meta line (package · address, cut at the address)", async () => {
       renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const title = await screen.findByTestId("stop-1-title");
-      expect(title.props.numberOfLines).toBe(2);
+      expect(title.props.numberOfLines).toBe(1);
       expect(box(title)).toMatchObject({ fontSize: 17, lineHeight: 22 });
-      const address = within(screen.getByTestId("stop-1")).getByText(/^Jl\. Melati/);
-      expect(address.props.numberOfLines).toBe(1);
+      expect(textOf(title)).toBe("Bu Sari Wulandari · 2 porsi");
+      const meta = within(screen.getByTestId("stop-1")).getByTestId("stop-1-meta");
+      expect(meta.props.numberOfLines).toBe(1);
+      expect(box(meta)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+      expect(textOf(meta)).toMatch(/^Makan Siang Rumahan · Jl\. Melati \d+, Tebet$/);
+    });
+
+    it("keeps a row at 64 without a note and at most 84 with one, at 412 and font scale 1", async () => {
+      const day = kitchenDay([scheduled]);
+      day.deliveries[0].address.instructions = "Pagar hijau, titip di pos satpam";
+      renderToday(runtimeWith(async () => day));
+      await screen.findByTestId("stop-1");
+      // Jest has no layout engine: a row is its 8 + 8 padding around the lines it holds, never under 64, and every line
+      // is held to one (a line that may wrap has no height to add up).
+      const height = (n: number) => {
+        const row = screen.getByTestId(`stop-${n}`);
+        const lines = ["title", "meta", "note"].flatMap((part) => within(row).queryAllByTestId(`stop-${n}-${part}`));
+        for (const line of lines) expect(line.props.numberOfLines).toBe(1);
+        return Math.max(box(row).minHeight as number, 16 + lines.reduce((sum, line) => sum + (box(line).lineHeight as number), 0));
+      };
+      expect(within(screen.getByTestId("stop-1")).queryByTestId("stop-1-note")).toBeTruthy();
+      expect(within(screen.getByTestId("stop-2")).queryByTestId("stop-2-note")).toBeNull();
+      expect(height(2)).toBe(64);
+      expect(height(1)).toBeGreaterThan(64);
+      expect(height(1)).toBeLessThanOrEqual(84);
     });
 
     it("stacks Maps and WhatsApp as two full-width 50 secondary buttons, the route caption under them", async () => {

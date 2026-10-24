@@ -17,7 +17,6 @@ import {
   STOP_ROW_PICKING_INSET,
   StopRow,
   Text,
-  useColors,
 } from "@catera/mobile-ui";
 import { ACTION, ActionPair, HEADING_GAP, HEADING_LINE, LinkRow, TextAction } from "./rows";
 import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
@@ -27,8 +26,6 @@ import { areaRuns, selectableStops, stopChoices, type Selection } from "./select
 const FIRST_STOPS = 3;
 /** Where `routeMapsUrl` cuts the route: a Google Maps directions link takes at most this many addresses. */
 const ROUTE_LIMIT = 10;
-/** The width of the number badge and its gap in `StopRow`, so a note lines up under the name. */
-const NOTE_INDENT = STOP_ROW_INSET;
 
 /** How much of the order is open: every stop shown (`all`), and the WhatsApp part the next share sends (`part`). */
 export type RouteView = { all: boolean; part: number; showAll(): void; setPart(part: number): void };
@@ -91,7 +88,6 @@ export function DeliveryOrder({
   view?: RouteView;
 }) {
   const { t, locale, actor } = useMobile();
-  const c = useColors();
   const own = useRouteView(`${date}:${meal}`);
   const { all, part, showAll, setPart } = view ?? own;
   const parts = routeShareText(stops, { date, meal, caterer }, locale);
@@ -131,42 +127,39 @@ export function DeliveryOrder({
     }: ${s.name}`;
 
   const count = t(`${stops.length} alamat`, plural(stops.length, "address", "addresses"));
-  // One row of the list: the stop, and under it the customer's note for this stop where it has one.
+  // One row of the list: the stop, its title "name · n porsi" over "package · address", and the customer's note for this
+  // stop as one more line of the row where it has one.
   const stopRow = (s: Stop) => {
     const choice = stopChoices(s, t);
+    const portions = t(`${s.portions} porsi`, plural(s.portions, "portion"));
     return (
-      <View key={s.deliveryId}>
-        <StopRow
-          testID={`stop-${s.n}`}
-          n={s.n}
-          name={s.name}
-          detail={t(`${s.portions} porsi · ${s.packageName}`, `${plural(s.portions, "portion")} · ${s.packageName}`)}
-          address={[s.addressLine, s.area].filter(Boolean).join(", ")}
-          mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
-          onMap={() => void Linking.openURL(s.mapsUrl)}
-          onMore={hasMore(s) ? () => openSheet(s) : undefined}
-          moreLabel={hasMore(s) ? moreLabel(s) : undefined}
-          selection={
-            picking
-              ? {
-                  selected: selection!.selected.has(s.deliveryId),
-                  disabled: !choice.selectable,
-                  onToggle: () => selection!.toggle(s.deliveryId),
-                  note: choice.note ?? undefined,
-                }
-              : undefined
-          }
-        />
-        {s.note ? (
-          <View style={{ paddingLeft: picking ? STOP_ROW_PICKING_INSET : NOTE_INDENT, paddingBottom: 8 }}>
-            <Text variant="meta" style={{ color: c.charcoal }}>
-              {s.note}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-    );
-  };
+      <StopRow
+        key={s.deliveryId}
+        testID={`stop-${s.n}`}
+        n={s.n}
+        name={s.name}
+        detail={`${portions} · ${s.packageName}`}
+        portions={portions}
+        packageName={s.packageName}
+        note={s.note || undefined}
+        address={[s.addressLine, s.area].filter(Boolean).join(", ")}
+        mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
+        onMap={() => void Linking.openURL(s.mapsUrl)}
+        onMore={hasMore(s) ? () => openSheet(s) : undefined}
+        moreLabel={hasMore(s) ? moreLabel(s) : undefined}
+        selection={
+          picking
+            ? {
+                selected: selection!.selected.has(s.deliveryId),
+                disabled: !choice.selectable,
+                onToggle: () => selection!.toggle(s.deliveryId),
+                note: choice.note ?? undefined,
+              }
+            : undefined
+        }
+    />
+  );
+};
   const moreLink = hidden > 0 && !picking;
 
   return (

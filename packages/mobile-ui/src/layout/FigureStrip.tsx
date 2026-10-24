@@ -17,7 +17,8 @@ export type FigureCell = { label: string; value: string };
  * A few headline figures in one container (Hari ini's porsi, paket, alamat): a surface card, radius 16, padding 12 16,
  * split into equal cells by 1px hairlines, each a `meta` label over its value. With `lead` the first value is the
  * screen's answer in `figure` (32/40) and the others are `section` at 800; without it every value is `section` at 800.
- * All figures are tabular. `subline` is one `meta` line under the cells ("Antar 10.30").
+ * All figures are tabular. `subline` is one `meta` line under the cells ("Antar 10.30"). In dark, where the palette
+ * draws no card border and the surface is one step from the band, the strip gets a 1px `line` edge (padding compensated).
  *
  * Below 340 effective width (360dp at font scale 1.3 is 277) the cells become a 2-column grid: the lead takes the
  * full width and the rest pair up beside each other; an odd last cell takes the full width.
@@ -113,8 +114,16 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.surface,
     borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
-    paddingVertical: nativeLayout.space.md,
-    paddingHorizontal: nativeLayout.cardPadding,
+    // Dark draws no card border and the strip's surface is one step from the band it sits on: a 1px `line` edge, its
+    // pixel taken off the padding so the cells still sit 12 / 16 in.
+    ...(c.cardBorder === ""
+      ? {
+          borderWidth: 1,
+          borderColor: c.line,
+          paddingVertical: nativeLayout.space.md - 1,
+          paddingHorizontal: nativeLayout.cardPadding - 1,
+        }
+      : { paddingVertical: nativeLayout.space.md, paddingHorizontal: nativeLayout.cardPadding }),
   },
   line: { flexDirection: "row" },
   cell: { minWidth: 0, justifyContent: "space-between" },

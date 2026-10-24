@@ -5,7 +5,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { nativeMotion } from "@catera/design-tokens";
 import { Photo } from "./PhotoRing";
 import { Text } from "./components";
-import { useLayoutScale } from "./layoutScale";
+import { useTouchTarget } from "./layoutScale";
 import { PressableScale, useReduced } from "./motion";
 import { useColors } from "./theme";
 import { fontFor } from "./type";
@@ -14,7 +14,7 @@ const ease = Easing.bezier(...nativeMotion.ease);
 const BOX = 48;
 const PHOTO = 44;
 const DONE_OPACITY = 0.55;
-/** The Dapur scale (`v2`): a 56 row, the quantity in a 48 column so four digits fit without moving the name, a 40 r8 photo. */
+/** The Dapur geometry (a 48 touch target): a 56 row, the quantity in a 48 column so four digits fit without moving the name, a 40 r8 photo. */
 const V2_ROW = 56;
 const V2_QUANTITY = 48;
 const V2_PHOTO = 40;
@@ -30,9 +30,12 @@ export const CHECK_ROW_INSET = V2_QUANTITY + 12 + V2_PHOTO + 12;
  *   motion; nothing loops.
  * - `image` is the dish photo; without one the meal's icon (sun for lunch, moon for dinner) stands in.
  * - The name wraps and is never truncated. The accessibility label is "8× name" and the state is a checkbox's.
- * - Under the Dapur layout scale (`v2`) the row is 56 with the same parts at the board's sizes: the quantity is a
+ * - Where the root asks for a 48 touch target (Catera Dapur's) the row is 56 with the same parts at the board's sizes: the quantity is a
  *   48-wide right-aligned `section` figure (it shrinks before it would push the name), the photo or icon 40 with radius
- *   8, the name `bodyStrong`, the tick 48. A `ListCard` of these rows insets its hairlines by `CHECK_ROW_INSET`.
+ *   8, the name `bodyStrong`, the tick 48. A `ListCard` of these rows insets its hairlines by `CHECK_ROW_INSET`, and the
+ *   caller passes it `clip={false}`: the Dapur photo carries its own radius and has no clipping wrapper, because an image
+ *   that finishes loading inside an overflow-hidden rounded view can stay blank on Android. Under any other target (the
+ *   customer app's 44, with or without the `v2` scale) the row is exactly as it was, wrapper included.
  * `testID` names the row; its parts are `<testID>-content`, `-media`, `-box`, `-tick`, `-check-mark`, `-icon` and
  * `-image`.
  */
@@ -54,7 +57,7 @@ export function CheckRow({
   testID?: string;
 }) {
   const c = useColors();
-  const v2 = useLayoutScale() === "v2";
+  const v2 = useTouchTarget() >= 48;
   const reduced = useReduced();
   const tick = useSharedValue(checked ? 1 : 0);
   const dim = useSharedValue(checked ? DONE_OPACITY : 1);
@@ -113,7 +116,14 @@ export function CheckRow({
         )}
         {/* Only the picture dims: dimming text would drop the ticked name below 4.5:1 on a light card. */}
         <Animated.View testID={`${testID}-media`} style={dimStyle}>
-          {image ? (
+          {image && v2 ? (
+            // The Dapur photo carries its own radius; the canvas ground shows while it loads or if it never does.
+            <Photo
+              testID={`${testID}-image`}
+              uri={image}
+              style={{ width: photo, height: photo, borderRadius: radius, borderCurve: "continuous" }}
+            />
+          ) : image ? (
             // The line colour shows while the photo loads or if it never does.
             <View
               style={{ width: photo, height: photo, borderRadius: radius, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.line }}

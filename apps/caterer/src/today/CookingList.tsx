@@ -37,7 +37,7 @@ export function CookingList({
         action={actions}
       />
       {dishes.length ? (
-        <ListCard inset={CHECK_ROW_INSET}>
+        <ListCard inset={CHECK_ROW_INSET} clip={false}>
           {dishes.map((dish, i) => {
             const key = dishKey(dish);
             return (

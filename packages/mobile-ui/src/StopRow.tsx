@@ -1,13 +1,13 @@
 import { Pressable, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { RoundButton, Text } from "./components";
-import { useLayoutScale } from "./layoutScale";
+import { useTouchTarget } from "./layoutScale";
 import { PressableScale } from "./motion";
 import { useColors } from "./theme";
 import { fonts } from "./type";
 
 const BADGE = 28;
-/** Under the Dapur scale (`v2`): the row is 64, and the map and "…" buttons are bare 48 icon buttons in one column. */
+/** Under the Dapur geometry (a 48 touch target): the row is 64, and the map and "…" buttons are bare 48 icon buttons in one column. */
 const V2_ROW = 64;
 const V2_BUTTON = 48;
 /** Where a v2 row's text column starts: the 28 badge and the 12 gap. A `ListCard` of these rows insets its hairlines by it. */
@@ -25,10 +25,13 @@ export const STOP_ROW_PICKING_INSET = 24 + 12 + STOP_ROW_INSET;
  *   `note` under the address says why. Without `selection` the row is exactly as before.
  * - The map button opens the stop in a map. The "…" button is the stop's other actions (move a day, report a problem)
  *   and exists only when the caller has some. Both are 48dp round buttons.
- * - Under the Dapur layout scale (`v2`) the row is 64 (the `TwoLineRow` geometry): the 28 badge, the name in `rowTitle`
- *   with the detail after it in `meta`, the address on one `meta` line, and both buttons as bare 48 icon buttons in
- *   one fixed trailing column. A stop with no "…" keeps its room, so the map button stands at the same place on every
- *   row. The name may take a second line at large text; the address stays on one.
+ * - Where the root asks for a 48 touch target (Catera Dapur's) the row is 64 (the `TwoLineRow` geometry): the 28 badge,
+ *   one `rowTitle` line "name · n porsi" (`portions`), one `meta` line "package · address" (`packageName`; the end of
+ *   the address is what gets cut), a delivery `note` as one more `meta` line when there is one, and both buttons as bare
+ *   48 icon buttons in one fixed trailing column. A stop with no "…" keeps its room, so the map button stands at the same
+ *   place on every row. Without `portions` and `packageName` the title is the name alone and the meta line starts with
+ *   `detail`. The whole text, the note too, is in the accessibility label. Under any other target (the customer app's 44,
+ *   with or without the `v2` scale) the row is as it was and ignores `portions`, `packageName` and `note`.
  */
 export function StopRow({
   n,
@@ -40,12 +43,21 @@ export function StopRow({
   onMore,
   moreLabel,
   selection,
+  portions,
+  packageName,
+  note,
   testID = "stop-row",
 }: {
   n: number;
   name: string;
   detail: string;
   address: string;
+  /** Dapur geometry only: how many portions ("2 porsi"), joined to the name on the title line. */
+  portions?: string;
+  /** Dapur geometry only: the package, ahead of the address on the meta line. */
+  packageName?: string;
+  /** Dapur geometry only: the stop's delivery note, one more `meta` line under the address. */
+  note?: string;
   onMap: () => void;
   mapLabel: string;
   onMore?: () => void;
@@ -54,13 +66,16 @@ export function StopRow({
   testID?: string;
 }) {
   const c = useColors();
-  if (useLayoutScale() === "v2") {
+  if (useTouchTarget() >= 48) {
     return (
       <StopRowV2
         n={n}
         name={name}
         detail={detail}
         address={address}
+        portions={portions}
+        packageName={packageName}
+        note={note}
         onMap={onMap}
         mapLabel={mapLabel}
         onMore={onMore}
@@ -188,6 +203,9 @@ function StopRowV2({
   name,
   detail,
   address,
+  portions,
+  packageName,
+  note,
   onMap,
   mapLabel,
   onMore,
@@ -199,6 +217,9 @@ function StopRowV2({
   name: string;
   detail: string;
   address: string;
+  portions?: string;
+  packageName?: string;
+  note?: string;
   onMap: () => void;
   mapLabel: string;
   onMore?: () => void;
@@ -217,15 +238,25 @@ function StopRowV2({
       </Text>
     </View>
   );
+  // Name and portions on the title line; the package ahead of the address on the meta line, so a long address is what
+  // gets cut. Callers that pass neither get the name alone over `detail · address`.
+  const split = portions !== undefined || packageName !== undefined;
+  const meta = (packageName !== undefined ? [packageName, address] : split ? [address] : [detail, address]).filter(Boolean).join(" · ");
+  const spoken = `${n}. ${name}, ${detail}, ${address}` + (note ? `, ${note}` : "");
   const text = (
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text testID={`${testID}-title`} variant="rowTitle" numberOfLines={2}>
+      <Text testID={`${testID}-title`} variant="rowTitle" numberOfLines={1}>
         <Text variant="rowTitle">{name}</Text>
-        <Text variant="meta">{`  ${detail}`}</Text>
+        {portions ? <Text variant="meta">{` · ${portions}`}</Text> : null}
       </Text>
-      <Text variant="meta" numberOfLines={1}>
-        {address}
+      <Text testID={`${testID}-meta`} variant="meta" numberOfLines={1}>
+        {meta}
       </Text>
+      {note ? (
+        <Text testID={`${testID}-note`} variant="meta" numberOfLines={1} style={{ color: c.charcoal }}>
+          {note}
+        </Text>
+      ) : null}
       {selection?.note ? (
         <Text testID={`${testID}-note`} variant="meta">
           {selection.note}
@@ -241,7 +272,7 @@ function StopRowV2({
         <Pressable
           testID={`${testID}-info`}
           accessibilityRole="checkbox"
-          accessibilityLabel={`${n}. ${name}, ${detail}, ${address}` + (selection.note ? `, ${selection.note}` : "")}
+          accessibilityLabel={spoken + (selection.note ? `, ${selection.note}` : "")}
           accessibilityState={{ checked: selection.selected, disabled: selection.disabled ?? false }}
           disabled={selection.disabled}
           onPress={selection.onToggle}
@@ -270,7 +301,7 @@ function StopRowV2({
         <View
           testID={`${testID}-info`}
           accessible
-          accessibilityLabel={`${n}. ${name}, ${detail}, ${address}`}
+          accessibilityLabel={spoken}
           style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 12 }}
         >
           {badge}

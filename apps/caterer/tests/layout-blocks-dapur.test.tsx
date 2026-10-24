@@ -1,13 +1,19 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import type { ReactElement } from "react";
+import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
-import { nativeLayout } from "@catera/design-tokens";
+import { nativeLayout, nativeThemes } from "@catera/design-tokens";
 import {
+  CheckRow,
   COMPACT_MEDIA_INSET,
   FigureStrip,
   KeyValueRow,
+  LayoutScaleProvider,
   MediaRow,
   SectionHeader,
+  StopRow,
   Text,
+  ThemeProvider,
   Thumb,
   TwoLineRow,
   fontFor,
@@ -223,5 +229,75 @@ describe("SectionHeader count and node action", () => {
     render(<SectionHeader title="Paket" action={{ label: "+ Paket baru", onPress }} />);
     fireEvent.press(screen.getByRole("button", { name: "+ Paket baru" }));
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("FigureStrip in dark", () => {
+  afterEach(() => jest.restoreAllMocks());
+  const strip = (scheme: "light" | "dark") => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+    render(
+      withDapurScale(
+        <ThemeProvider storageKey="strip.theme">
+          <FigureStrip testID="fs" lead cells={[{ label: "porsi", value: "34" }, { label: "paket", value: "2" }]} />
+        </ThemeProvider>,
+      ),
+    );
+    return flat(screen.getByTestId("fs"));
+  };
+
+  it("draws a 1px line edge where the palette draws no card border, its pixel taken off the padding", () => {
+    expect(strip("dark")).toMatchObject({
+      backgroundColor: nativeThemes.dark.surface,
+      borderWidth: 1,
+      borderColor: nativeThemes.dark.line,
+      paddingVertical: 11,
+      paddingHorizontal: 15,
+    });
+  });
+
+  it("keeps light as it was: no edge, padding 12 16", () => {
+    const light = strip("light");
+    expect(light.borderWidth).toBeUndefined();
+    expect(light).toMatchObject({ paddingVertical: 12, paddingHorizontal: 16 });
+  });
+});
+
+describe("CheckRow and StopRow take the Dapur geometry from the 48 touch target, not from the scale name", () => {
+  const checkRow = () => <CheckRow testID="cr" quantity={8} name="Ayam bakar" icon="sunny-outline" checked={false} onToggle={() => {}} image="https://x/y.jpg" />;
+  const stopRow = () => <StopRow testID="sr" n={1} name="Bu Rina" detail="8 porsi" address="Jl. Melati 1" onMap={() => {}} mapLabel="Peta" onMore={() => {}} moreLabel="Lainnya" />;
+  const under = (value: "classic" | "v2", target: number | undefined, ui: ReactElement) =>
+    render(
+      <LayoutScaleProvider value={value} target={target}>
+        {ui}
+      </LayoutScaleProvider>,
+    );
+
+  it("a v2 scale at the default 44 target keeps today's rows (a customer caller under v2)", () => {
+    under("v2", undefined, checkRow());
+    expect(screen.queryByTestId("cr-quantity")).toBeNull();
+    expect(flat(screen.getByTestId("cr-image"))).toMatchObject({ width: 44, height: 44 });
+    screen.unmount();
+    under("v2", 44, stopRow());
+    expect(screen.queryByTestId("sr-actions")).toBeNull();
+    expect(flat(screen.getByTestId("sr")).minHeight).toBe(56);
+  });
+
+  it("a 48 target draws the Dapur rows", () => {
+    under("v2", 48, checkRow());
+    expect(screen.getByTestId("cr-quantity")).toBeTruthy();
+    expect(flat(screen.getByTestId("cr-image"))).toMatchObject({ width: 40, height: 40, borderRadius: 8 });
+    screen.unmount();
+    under("v2", 48, stopRow());
+    expect(screen.getByTestId("sr-actions")).toBeTruthy();
+    expect(flat(screen.getByTestId("sr")).minHeight).toBe(64);
+  });
+
+  it("without a provider both rows are the classic ones", () => {
+    render(checkRow());
+    expect(screen.queryByTestId("cr-quantity")).toBeNull();
+    screen.unmount();
+    render(stopRow());
+    expect(screen.queryByTestId("sr-actions")).toBeNull();
   });
 });

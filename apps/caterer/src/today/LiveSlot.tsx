@@ -187,7 +187,7 @@ function MulaiCard() {
     <>
       {/* Direction K: a plain card. Forest fills only the first step, the one brand control here; the rest sit on sage. */}
       <Card>
-        <Text variant="heading">{t("Siapkan dapurmu", "Set up your kitchen")}</Text>
+        <Text variant="section">{t("Siapkan dapurmu", "Set up your kitchen")}</Text>
         {steps.map(([title, sub, href], i) => (
           <PressableRow
             key={href}
@@ -211,7 +211,7 @@ function MulaiCard() {
         ))}
       </Card>
       <Card>
-        <Text variant="heading">{t("Setelah ada pelanggan", "Once you have customers")}</Text>
+        <Text variant="section">{t("Setelah ada pelanggan", "Once you have customers")}</Text>
         <Text variant="meta">
           {t(
             "Halaman ini menunjukkan porsi yang perlu dimasak dan rute antar, hari ini dan besok.",
