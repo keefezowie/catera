@@ -64,6 +64,8 @@ export function Masuk() {
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
+            autoComplete="tel"
+            textContentType="telephoneNumber"
             editable={!sent}
             invalid={failed && !sent}
           />
@@ -73,6 +75,8 @@ export function Masuk() {
               value={code}
               onChangeText={setCode}
               keyboardType="number-pad"
+              autoComplete="sms-otp"
+              textContentType="oneTimeCode"
               maxLength={6}
               autoFocus
               invalid={failed}
@@ -92,12 +96,14 @@ export function Masuk() {
         </View>
       ) : (
         <View testID="masuk-fields" style={{ gap: nativeLayout.space.lg }}>
-          <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" invalid={failed} />
+          <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" autoCapitalize="none" invalid={failed} />
           <PasswordField
             label={t("Kata sandi", "Password")}
             value={password}
             onChangeText={setPassword}
             autoCapitalize="none"
+            autoComplete="current-password"
+            textContentType="password"
             invalid={failed}
             showWord={t("Tampilkan", "Show")}
             hideWord={t("Sembunyikan", "Hide")}

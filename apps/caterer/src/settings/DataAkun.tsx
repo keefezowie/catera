@@ -14,7 +14,7 @@ import {
   useMobile,
   verifyPhoneChangeCode,
 } from "@catera/mobile-core";
-import { Button, Card, Field, FormError, Screen, SettingsRow, SettingsSection, Text, useBusy, useToast } from "@catera/mobile-ui";
+import { Button, Card, Field, FormError, ReadError, Screen, SettingsRow, SettingsSection, Text, useBusy, useToast } from "@catera/mobile-ui";
 import { accountMessage } from "./accountMessages";
 
 /** A section's failed attempt: the words and a number that rises with every failure. */
@@ -125,17 +125,27 @@ export function DataAkun() {
 
   // Kata sandi: only for an account that signs in with email.
   const [hasEmail, setHasEmail] = useState<boolean | null>(demo ? true : null);
+  const [userReadFailed, setUserReadFailed] = useState(false);
+  const [userReads, setUserReads] = useState(0);
   useEffect(() => {
     if (demo || !supabase) {
       setHasEmail(demo);
       return;
     }
     let live = true;
-    void supabase.auth.getUser().then(({ data }) => live && setHasEmail(!!data.user?.email));
+    setUserReadFailed(false);
+    supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (!live) return;
+        if (error) setUserReadFailed(true);
+        else setHasEmail(!!data.user?.email);
+      })
+      .catch(() => live && setUserReadFailed(true));
     return () => {
       live = false;
     };
-  }, [demo, supabase]);
+  }, [demo, supabase, userReads]);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [passwordFailure, setPasswordFailure] = useState<Failure>(null);
@@ -196,30 +206,46 @@ export function DataAkun() {
           <Button label={t("Simpan nama", "Save name")} busy={savingName} disabled={!name.trim() || name.trim() === actor?.name} onPress={() => void saveName()} />
         </Section>
         <Section id="phone" title={t("Nomor HP", "Phone number")} note={t("Kode dikirim ke nomor baru sebelum nomor berganti.", "A code goes to the new number before it changes.")}>
-          <Field label={t("Nomor HP baru", "New phone number")} value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={!codeSent} />
-          {codeSent ? <Field label={t("Kode dari SMS", "Code from SMS")} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} /> : null}
+          <Field label={t("Nomor HP baru", "New phone number")} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" editable={!codeSent} />
+          {codeSent ? (
+            <Field label={t("Kode dari SMS", "Code from SMS")} value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="sms-otp" textContentType="oneTimeCode" maxLength={6} />
+          ) : null}
           {phoneNote ? <Text variant="meta">{phoneNote}</Text> : null}
           {phoneFailure ? <FormError message={phoneFailure.message} failureKey={phoneFailure.key} /> : null}
           {codeSent ? (
             <Button label={t("Ganti nomor", "Change number")} busy={verifying} disabled={code.trim().length < 6} onPress={() => void verifyCode()} />
           ) : (
-            <Button label={t("Kirim kode", "Send code")} busy={sendingCode} disabled={phone.replace(/\D/g, "").length < 9} onPress={() => void sendCode()} />
+            <>
+              <Button label={t("Kirim kode", "Send code")} busy={sendingCode} disabled={phone.replace(/\D/g, "").length < 9} onPress={() => void sendCode()} />
+              {phone.replace(/\D/g, "").length < 9 ? (
+                <Text testID="phone-reason" variant="meta">
+                  {t("Isi nomor HP baru, minimal 9 angka.", "Enter the new phone number, at least 9 digits.")}
+                </Text>
+              ) : null}
+            </>
           )}
         </Section>
         <Section id="email" title="Email" note={t("Kamu mendapat tautan di email lama dan baru. Keduanya perlu dibuka.", "You get a link in the old and the new inbox. Both must be opened.")}>
-          <Field label={t("Email baru", "New email")} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <Field label={t("Email baru", "New email")} value={email} onChangeText={setEmail} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" autoCapitalize="none" />
           {emailNote ? <Text variant="meta">{emailNote}</Text> : null}
           {emailFailure ? <FormError message={emailFailure.message} failureKey={emailFailure.key} /> : null}
           <Button label={t("Kirim tautan konfirmasi", "Send confirmation link")} busy={sendingEmail} disabled={!email.includes("@")} onPress={() => void sendEmail()} />
         </Section>
+        {userReadFailed && hasEmail === null ? (
+          <Section id="password" title={t("Kata sandi", "Password")}>
+            <ReadError message={t("Belum bisa membaca akunmu.", "Couldn't read your account.")} onRetry={() => setUserReads((n) => n + 1)} />
+          </Section>
+        ) : null}
         {hasEmail ? (
           <Section id="password" title={t("Kata sandi", "Password")}>
-            <Field label={t("Kata sandi saat ini", "Current password")} value={current} onChangeText={setCurrent} secureTextEntry />
+            <Field label={t("Kata sandi saat ini", "Current password")} value={current} onChangeText={setCurrent} autoComplete="current-password" textContentType="password" secureTextEntry />
             <Field
               label={t("Kata sandi baru", "New password")}
               hint={t(`Minimal ${PASSWORD_MIN} karakter.`, `At least ${PASSWORD_MIN} characters.`)}
               value={next}
               onChangeText={setNext}
+              autoComplete="new-password"
+              textContentType="newPassword"
               secureTextEntry
             />
             {passwordNote ? <Text variant="meta">{passwordNote}</Text> : null}
@@ -233,6 +259,7 @@ export function DataAkun() {
             title={t("Ubah nama atau kontak dapur", "Change the kitchen's name or contact")}
             note={t("Tim Catera yang mengubahnya. Tulis apa yang perlu diganti.", "The Catera team makes the change. Write what needs to change.")}
           >
+            {requests.error && !requests.data ? <ReadError message={requests.error} onRetry={() => void requests.reload()} /> : null}
             {latest ? (
               <Text testID="kitchen-request-status" variant="meta">
                 {`${t("Permintaan terakhir", "Last request")}: ${status(latest)}`}
@@ -241,6 +268,11 @@ export function DataAkun() {
             <Field label={t("Apa yang diubah?", "What should change?")} value={wanted} onChangeText={setWanted} multiline style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }} />
             {requestFailure ? <FormError message={requestFailure.message} failureKey={requestFailure.key} /> : null}
             <Button label={t("Kirim permintaan", "Send request")} busy={sending} disabled={wanted.trim().length < 5} onPress={() => void send()} />
+            {wanted.trim().length < 5 ? (
+              <Text testID="request-reason" variant="meta">
+                {t("Tulis minimal 5 karakter.", "Write at least 5 characters.")}
+              </Text>
+            ) : null}
           </Section>
         ) : null}
         <SettingsSection>

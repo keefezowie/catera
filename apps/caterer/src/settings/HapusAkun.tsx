@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Linking, View } from "react-native";
 import { listAccountRequests, requestAccountDeletion, useData, useMobile } from "@catera/mobile-core";
-import { Button, fontFor, FormError, SheetFitBody, SheetHeader, sheetSidePadding, Text, useBusy } from "@catera/mobile-ui";
+import { Button, fontFor, FormError, ReadError, SheetFitBody, SheetHeader, sheetSidePadding, Text, useBusy } from "@catera/mobile-ui";
 import { accountMessage } from "./accountMessages";
 
 /**
@@ -48,12 +48,14 @@ export function HapusAkun() {
           <Text testID="deletion-status" selectable style={{ fontFamily: fontFor("700") }}>
             {t("Permintaan hapus akunmu sudah masuk dan menunggu Tim Catera.", "Your request to delete the account was received and is waiting for the Catera team.")}
           </Text>
-        ) : (
+        ) : requests.error && !requests.data ? (
+          <ReadError message={requests.error} onRetry={() => void requests.reload()} />
+        ) : requests.data ? (
           <>
             {failure ? <FormError message={failure.message} failureKey={failure.key} retry={() => void send()} /> : null}
             <Button label={t("Kirim permintaan hapus akun", "Send request to delete account")} busy={busy} onPress={() => void send()} />
           </>
-        )}
+        ) : null}
       </View>
     </SheetFitBody>
   );

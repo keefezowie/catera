@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { nativeLayout } from "@catera/design-tokens";
@@ -22,6 +22,10 @@ export function Daftar() {
     locale,
     t("Belum bisa mendaftar. Periksa datanya, lalu coba lagi.", "Could not register. Check the details and try again."),
   );
+  // A retry after a failed seller.create reuses the verified actor, the verify requestId and the slug suffix.
+  const verified = useRef<Awaited<ReturnType<typeof runtime.verifyPhoneOtp>> | null>(null);
+  const verifyId = useRef(Crypto.randomUUID());
+  const slugSuffix = useRef(Crypto.randomUUID().replace(/-/g, "").slice(0, 4));
   const ready = name.trim().length >= 3 && phone.replace(/\D/g, "").length >= 9 && !!area;
 
   const sendCode = () =>
@@ -30,17 +34,27 @@ export function Daftar() {
       setSent(true);
     });
 
+  const changeNumber = () => {
+    setSent(false);
+    setCode("");
+    verified.current = null;
+    verifyId.current = Crypto.randomUUID();
+    slugSuffix.current = Crypto.randomUUID().replace(/-/g, "").slice(0, 4);
+  };
+
+  const missing = [
+    name.trim().length < 3 ? t("nama usaha (minimal 3 huruf)", "business name (at least 3 letters)") : "",
+    phone.replace(/[^0-9]/g, "").length < 9 ? t("nomor WhatsApp", "WhatsApp number") : "",
+    !area ? t("lokasi dapur", "kitchen area") : "",
+  ].filter(Boolean);
+
   const create = () =>
     run(async () => {
-      const actor = await runtime.verifyPhoneOtp(
-        e164Indonesia(phone),
-        code.trim(),
-        name.trim(),
-        Crypto.randomUUID(),
-      );
+      verified.current ??= await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), name.trim(), verifyId.current);
+      const actor = verified.current;
       await command("seller.create", {
         name: name.trim(),
-        slug: catererSlug(name, Crypto.randomUUID().replace(/-/g, "").slice(0, 4)),
+        slug: catererSlug(name, slugSuffix.current),
         description: "",
         areas: [area],
       });
@@ -60,7 +74,14 @@ export function Daftar() {
             onPress={create}
           />
         ) : (
-          <Button label={t("Kirim kode", "Send code")} busy={busy} disabled={!ready} onPress={sendCode} />
+          <>
+            <Button label={t("Kirim kode", "Send code")} busy={busy} disabled={!ready} onPress={sendCode} />
+            {!ready ? (
+              <Text testID="daftar-reason" variant="meta">
+                {t(`Lengkapi ${missing.join(", ")} dulu.`, `Fill in the ${missing.join(", ")} first.`)}
+              </Text>
+            ) : null}
+          </>
         )
       }
     >
@@ -87,6 +108,8 @@ export function Daftar() {
         onChangeText={setPhone}
         editable={!sent}
         keyboardType="phone-pad"
+        autoComplete="tel"
+        textContentType="telephoneNumber"
       />
       <View style={{ gap: nativeLayout.groupGap }}>
         {/* The same 13 bold ink as the fields' own labels. */}
@@ -106,9 +129,17 @@ export function Daftar() {
           value={code}
           onChangeText={setCode}
           keyboardType="number-pad"
+          autoComplete="sms-otp"
+          textContentType="oneTimeCode"
           maxLength={6}
           autoFocus
         />
+      ) : null}
+      {sent ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: nativeLayout.groupGap }}>
+          <Button variant="text" label={t("Ganti nomor", "Change number")} disabled={busy} onPress={changeNumber} />
+          <Button variant="text" label={t("Kirim ulang kode", "Resend code")} busy={busy} onPress={sendCode} />
+        </View>
       ) : null}
       {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
     </AuthScreen>
