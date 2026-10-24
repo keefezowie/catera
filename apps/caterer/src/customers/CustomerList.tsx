@@ -203,7 +203,7 @@ export function CustomerList() {
                 </RowSwap>
               </View>
             ) : (
-              <ListSkeleton rows={8} chips={3} label={t("Memuat pelanggan", "Loading customers")} />
+              <ListSkeleton shape="customer" rows={8} chips={3} label={t("Memuat pelanggan", "Loading customers")} />
             )}
           </FadeSwap>
         </View>

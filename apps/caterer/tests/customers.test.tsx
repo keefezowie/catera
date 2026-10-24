@@ -687,11 +687,35 @@ describe("Pelanggan on the Dapur scale", () => {
       expect(screen.queryByTestId("customer-actions")).toBeNull();
     });
 
-    it("stacks the two buttons below 340 effective width (360dp at font scale 1.3)", async () => {
-      phone(360, 1.3);
+    it("stacks the two buttons at 360dp whatever the font scale: the renew label does not fit beside WhatsApp", async () => {
+      // 360 / 1.0 = 360 and 360 / 1.3 = 277 are both under the 400 effective width the row needs.
+      for (const scale of [1, 1.3]) {
+        phone(360, scale);
+        const view = open([record([running])]);
+        await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
+        expect(sty(screen.getByTestId("customer-actions")).flexDirection).toBe("column");
+        view.unmount();
+      }
+    });
+
+    it("puts the two buttons side by side from 400 effective width (412dp at scale 1.0), each sharing the row, wrapping if they do not fit", async () => {
+      // Both labels (about 100 and 180, with 16 padding either side and the 8 gap) come to about 350 of the 380 inner
+      // width, so they share one line; the row wraps, so the renew button drops to a full-width line if a font is wider.
+      phone(412, 1);
       open([record([running])]);
-      await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
-      expect(sty(screen.getByTestId("customer-actions")).flexDirection).toBe("column");
+      const renew = await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
+      const row = screen.getByTestId("customer-actions");
+      expect(sty(row)).toMatchObject({ flexDirection: "row", flexWrap: "wrap", gap: 8 });
+      for (const button of [renew, screen.getByRole("button", { name: "Chat WhatsApp" })]) {
+        expect(sty(button)).toMatchObject({ flexGrow: 1, flexShrink: 0 });
+      }
+    });
+
+    it("a lone action fills the row: the renew button alone grows to the full width", async () => {
+      phone(412, 1);
+      open([record([running], { user_id: "u-a", phone: null })]);
+      const renew = await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
+      expect(sty(renew).flexGrow).toBe(1);
     });
 
     it("draws the address in a 56 canvas-tone well, with its label and instructions", async () => {

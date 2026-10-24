@@ -15,6 +15,7 @@ import { MenuWeek } from "../src/menu/MenuWeek";
 import { MenuDayScreen } from "../src/menu/MenuDayScreen";
 import { ReportScreen } from "../src/today/ReportScreen";
 import { UsahaScreen } from "../src/business/UsahaScreen";
+import { DetailSkeleton, ListSkeleton } from "../src/skeletons";
 import { UangScreen } from "../src/business/UangScreen";
 import { AktifkanScreen } from "../src/business/AktifkanScreen";
 import * as offline from "../src/today/offline";
@@ -537,7 +538,7 @@ describe("Pelanggan", () => {
     const chips = screen.queryAllByTestId(/^list-skeleton-chip-/, { includeHiddenElements: true });
     expect(chips).toHaveLength(3);
     for (const chip of chips) expect(flat(chip).height).toBe(34);
-    expect(flat(screen.getByTestId("list-skeleton-chips", { includeHiddenElements: true })).height).toBe(48);
+    expect(flat(screen.getByTestId("list-skeleton-chips", { includeHiddenElements: true }))).toMatchObject({ height: 48, marginRight: -16 });
     // The rows are one card of 64 rows, the loaded list's own ListCard, with its hairlines.
     const rows = screen.queryAllByTestId(/^list-skeleton-row-/, { includeHiddenElements: true });
     expect(rows.length).toBeGreaterThanOrEqual(8);
@@ -582,6 +583,36 @@ describe("Pelanggan", () => {
     expect((screen.getByTestId("screen-scroll").props.refreshControl as ReactElement<ReactNative.RefreshControlProps>).props.refreshing).toBe(false);
   });
 
+  it("the shared skeletons keep their default shapes for every other screen", () => {
+    // The customer shapes are opt-in (`shape="customer"`); the default DetailSkeleton and ListSkeleton are as they were.
+    renderWith(
+      runtimeWith(owner),
+      withDapurScale(
+        <>
+          <DetailSkeleton label="Memuat laporan" />
+          <ListSkeleton rows={3} chips={2} label="Memuat pembayaran" />
+        </>,
+      ),
+    );
+    const hidden = { includeHiddenElements: true };
+    // DetailSkeleton: one Card of a heading, three text lines and the 48 action row; no key-value block or address well.
+    expect(screen.queryAllByTestId(/^detail-skeleton-/, hidden)).toHaveLength(0);
+    const detail = screen.getByLabelText("Memuat laporan");
+    const card = drawnChildren(detail)[0];
+    expect(drawnChildren(card).map((k) => stackHeight(k))).toEqual([28, 23, 23, 18, 48]);
+    // ListSkeleton: one Card per row (name and two caption lines), not one ListCard of 64 rows; chips at 48 wrapping.
+    expect(screen.queryAllByTestId("list-card", hidden)).toHaveLength(0);
+    const rows = screen.queryAllByTestId(/^list-skeleton-row-/, hidden);
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(flat(row).gap).toBe(8);
+      expect(drawnChildren(row).map((k) => flat(k).height)).toEqual([14, 10, 10]);
+    }
+    const frame = screen.getByTestId("list-skeleton-chips", hidden);
+    expect(flat(frame)).toMatchObject({ flexWrap: "wrap", gap: 8 });
+    for (const chip of screen.queryAllByTestId(/^list-skeleton-chip-/, hidden)) expect(flat(chip).height).toBe(48);
+  });
+
   it("a customer's page waits behind the customer skeleton under the name its link carried", async () => {
     renderWith(runtimeWith(owner, { sellerCustomers: jest.fn(never) }), withDapurScale(<CustomerDetail id="c-01" title="Andre Kusuma" />));
     expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
@@ -591,7 +622,7 @@ describe("Pelanggan", () => {
     expect(kv).toHaveLength(5);
     for (const row of kv) expect(flat(row).height).toBe(40);
     expect(flat(screen.getByTestId("detail-skeleton-actions", { includeHiddenElements: true })).height).toBe(50);
-    expect(flat(screen.getByTestId("detail-skeleton-address", { includeHiddenElements: true })).height).toBe(56);
+    expect(flat(screen.getByTestId("detail-skeleton-address", { includeHiddenElements: true }))).toMatchObject({ height: 56, marginTop: 8 });
     expect(screen.queryByText("Memuat…")).toBeNull();
   });
 });

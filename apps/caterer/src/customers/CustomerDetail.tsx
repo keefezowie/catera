@@ -30,8 +30,15 @@ import { DetailSkeleton } from "../skeletons";
 const SCHEDULE_CAP = 5;
 /** The screen body spaces its blocks 16 apart; the address and the schedules sit the Dapur section gap (24) apart. */
 const SECTION_LIFT = nativeLayout.dense.sectionGap - 16;
-/** Below this effective width (`width / fontScale`) the two action buttons stack, so neither label is squeezed. */
-const STACK_BELOW = 340;
+/**
+ * Below this effective width (`width / fontScale`) the two action buttons stack, so neither label wraps inside its 50
+ * pill: at 360 the renew label gets about half of the 328 inner width and does not fit. From 400 up they share a row
+ * (WhatsApp's label about 100 and renew's about 180, with 16 padding each side and the 8 gap, is near 350 of the 380 at
+ * 412); the row wraps, so if they still do not fit the renew button drops to its own full-width line.
+ */
+const STACK_BELOW = 400;
+/** In a row each action takes its own width and shares what is left, so one alone fills the row. */
+const GROW = { flexGrow: 1, flexShrink: 0 } as const;
 
 /**
  * One customer: when their package ends, how to reach them, and the renewal link. `title` is the name the link that
@@ -93,7 +100,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
           {record.error ? (
             <ReadError art message={record.error} onRetry={() => void record.reload()} />
           ) : loading ? (
-            <DetailSkeleton label={t("Memuat pelanggan", "Loading the customer")} />
+            <DetailSkeleton shape="customer" label={t("Memuat pelanggan", "Loading the customer")} />
           ) : (
             <Text>{t("Pelanggan ini tidak ditemukan.", "This customer was not found.")}</Text>
           )}
@@ -140,13 +147,13 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
               </ListCard>
               {chat || renewable ? (
                 <View style={{ gap: 8 }}>
-                  <View testID="customer-actions" style={{ flexDirection: stacked ? "column" : "row", gap: 8 }}>
+                  <View testID="customer-actions" style={{ flexDirection: stacked ? "column" : "row", flexWrap: stacked ? "nowrap" : "wrap", gap: 8 }}>
                     {chat ? (
                       <Button
                         variant="secondary"
                         label={t("Chat WhatsApp", "WhatsApp chat")}
                         onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
-                        style={stacked ? undefined : { flexShrink: 0 }}
+                        style={stacked ? undefined : GROW}
                       />
                     ) : null}
                     {renewable ? (
@@ -155,7 +162,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
                         busy={busy && which === s.id}
                         disabled={busy && which !== s.id}
                         onPress={() => void renew(s)}
-                        style={stacked ? undefined : { flex: 1 }}
+                        style={stacked ? undefined : GROW}
                       />
                     ) : null}
                   </View>

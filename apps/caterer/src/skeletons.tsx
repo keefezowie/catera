@@ -2,7 +2,7 @@ import { View, type DimensionValue } from "react-native";
 import { useMobile } from "@catera/mobile-core";
 import { Card, Skeleton, SkeletonGroup, trackLabelLines } from "@catera/mobile-ui";
 import { nativeLayout } from "@catera/design-tokens";
-import { ListCard, useTouchTarget } from "@catera/mobile-ui";
+import { ListCard, useScreenMargin, useTouchTarget } from "@catera/mobile-ui";
 
 /**
  * Dapur's loading shapes (Phase F task 6). Each one is drawn in the place and roughly the size of what it stands for, so
@@ -188,101 +188,146 @@ export function MenuWeekSkeleton() {
 }
 
 /**
- * A list of records while it loads: one `ListCard` of two-line rows at the loaded row's 64 (a name line and a meta
- * line, then the 48 button's place at the right), with the filter chips above it when `chips` is set (Pelanggan's
- * Aktif, Segera berakhir, Selesai): 34 chips drawn in the 48 frame the loaded chips sit in, so the page does not move
- * when the list arrives. `bare` draws the rows without their own card, for rows that sit inside a card already (Usaha's
- * packages: a 40dp photo, the name and its price line, at the row's 56dp).
+ * A list of records while it loads, one card per row with a name and two caption lines (a step list). `bare` draws the
+ * rows without their own cards, for rows that sit inside a card already (Usaha's packages: a 40dp photo, the name and
+ * its price line, at the row's 56dp). `shape="customer"` is Pelanggan's list as it is laid out: the filter chips (34,
+ * in a frame as tall as the touch target, 48 in Dapur, running to the screen edge) over one `ListCard` of two-line
+ * rows at the loaded row's 64 (a name line, a meta line, the 48 button's place at the right). Every other caller keeps
+ * the card-per-row shape.
  */
 export function ListSkeleton({
   rows,
   label,
   bare = false,
   chips = 0,
+  shape = "default",
 }: {
   rows: number;
   label: string;
   bare?: boolean;
-  /** A row of filter chips over the rows, 34 tall in a frame as tall as the touch target (48 in Dapur). */
+  /** A row of filter chips over the rows (Pelanggan's Aktif, Segera berakhir, Selesai). */
   chips?: number;
+  shape?: "default" | "customer";
 }) {
   const shapes = Array.from({ length: rows }, (_, i) => i);
   const frame = useTouchTarget();
-  const list = shapes.map((i) =>
-    bare ? (
-      <View key={i} testID={`list-skeleton-row-${i}`} style={{ height: 56, flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <Skeleton width={40} height={40} radius={8} />
-        <View style={{ flex: 1, gap: 6 }}>
-          <Skeleton width={i % 2 ? "50%" : "65%"} height={12} radius={6} />
-          <Skeleton width="35%" height={10} radius={5} />
+  const margin = useScreenMargin();
+  if (shape === "customer") {
+    return (
+      <SkeletonGroup label={label}>
+        <View style={{ gap: 8 }}>
+          {chips ? (
+            <View
+              testID="list-skeleton-chips"
+              style={{ height: frame, flexDirection: "row", alignItems: "center", gap: 8, marginRight: -margin }}
+            >
+              {Array.from({ length: chips }, (_, i) => (
+                <Skeleton
+                  key={i}
+                  width={i === 1 ? 148 : 108}
+                  height={nativeLayout.control.chip}
+                  radius={nativeLayout.control.chip / 2}
+                  testID={`list-skeleton-chip-${i}`}
+                />
+              ))}
+            </View>
+          ) : null}
+          <ListCard inset={0}>
+            {shapes.map((i) => (
+              <View
+                key={i}
+                testID={`list-skeleton-row-${i}`}
+                style={{ height: nativeLayout.row.compact, flexDirection: "row", alignItems: "center", gap: 12 }}
+              >
+                <View style={{ flex: 1 }}>
+                  {/* rowTitle's 22 line and meta's 18 line, centred in the 64 row as the loaded text is. */}
+                  <Line width={i % 2 ? "45%" : "60%"} block={12} line={22} />
+                  <Line width={i % 2 ? "70%" : "80%"} block={10} line={18} />
+                </View>
+                <Skeleton width={24} height={24} radius={12} />
+              </View>
+            ))}
+          </ListCard>
         </View>
-      </View>
-    ) : (
-      <View
-        key={i}
-        testID={`list-skeleton-row-${i}`}
-        style={{ height: nativeLayout.row.compact, flexDirection: "row", alignItems: "center", gap: 12 }}
-      >
-        <View style={{ flex: 1 }}>
-          {/* rowTitle's 22 line and meta's 18 line, centred in the 64 row as the loaded text is. */}
-          <Line width={i % 2 ? "45%" : "60%"} block={12} line={22} />
-          <Line width={i % 2 ? "70%" : "80%"} block={10} line={18} />
-        </View>
-        <Skeleton width={24} height={24} radius={12} />
-      </View>
-    ),
-  );
+      </SkeletonGroup>
+    );
+  }
   return (
     <SkeletonGroup label={label}>
-      <View style={{ gap: bare ? 0 : 8 }}>
+      <View style={{ gap: bare ? 0 : 16 }}>
         {chips ? (
-          <View testID="list-skeleton-chips" style={{ height: frame, flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <View testID="list-skeleton-chips" style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {Array.from({ length: chips }, (_, i) => (
-              <Skeleton
-                key={i}
-                width={i === 1 ? 148 : 108}
-                height={nativeLayout.control.chip}
-                radius={nativeLayout.control.chip / 2}
-                testID={`list-skeleton-chip-${i}`}
-              />
+              <Skeleton key={i} width={i === 1 ? 148 : 108} height={48} radius={9} testID={`list-skeleton-chip-${i}`} />
             ))}
           </View>
         ) : null}
-        {bare ? list : <ListCard inset={0}>{list}</ListCard>}
+        {shapes.map((i) =>
+          bare ? (
+            <View key={i} testID={`list-skeleton-row-${i}`} style={{ height: 56, flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Skeleton width={40} height={40} radius={8} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <Skeleton width={i % 2 ? "50%" : "65%"} height={12} radius={6} />
+                <Skeleton width="35%" height={10} radius={5} />
+              </View>
+            </View>
+          ) : (
+            <Card key={i}>
+              <View testID={`list-skeleton-row-${i}`} style={{ gap: 8 }}>
+                <Skeleton width={i % 2 ? "45%" : "60%"} height={14} radius={7} />
+                <Skeleton width="50%" height={10} radius={5} />
+                <Skeleton width="30%" height={10} radius={5} />
+              </View>
+            </Card>
+          ),
+        )}
       </View>
     </SkeletonGroup>
   );
 }
 
 /**
- * One record's page while it loads (a customer, a report, a day's menu, a package), drawn as the customer's detail
- * is laid out: a meta status line, one `ListCard` of five 40 key-value rows, the 50 action row and the 56 address well,
- * 16 apart as the screen body spaces them.
+ * One record's page while it loads (a report, a day's menu, a package): a heading, three text lines and the row its
+ * main action takes. `shape="customer"` is the customer's detail as it is laid out: a meta status line, one
+ * `ListCard` of five 40 key-value rows, the 50 action row and the 56 address well (24 below the actions, the section gap).
  */
-export function DetailSkeleton({ label }: { label: string }) {
+export function DetailSkeleton({ label, shape = "default" }: { label: string; shape?: "default" | "customer" }) {
+  if (shape === "customer") {
+    return (
+      <SkeletonGroup label={label}>
+        <View style={{ gap: 16 }}>
+          <Line width="55%" block={10} line={18} />
+          <ListCard inset={0}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <View
+                key={i}
+                testID={`detail-skeleton-kv-${i}`}
+                style={{ height: nativeLayout.row.keyValue, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+              >
+                <Skeleton width={i % 2 ? 56 : 72} height={12} radius={6} />
+                <Skeleton width={i === 0 ? 144 : 96} height={12} radius={6} />
+              </View>
+            ))}
+          </ListCard>
+          <View testID="detail-skeleton-actions" style={{ height: nativeLayout.control.button }}>
+            <Skeleton height={nativeLayout.control.button} radius={nativeLayout.radius.control} />
+          </View>
+          <View testID="detail-skeleton-address" style={{ height: 56, marginTop: nativeLayout.dense.sectionGap - 16 }}>
+            <Skeleton height={56} radius={nativeLayout.radius.control} />
+          </View>
+        </View>
+      </SkeletonGroup>
+    );
+  }
   return (
     <SkeletonGroup label={label}>
-      <View style={{ gap: 16 }}>
-        <Line width="55%" block={10} line={18} />
-        <ListCard inset={0}>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <View
-              key={i}
-              testID={`detail-skeleton-kv-${i}`}
-              style={{ height: nativeLayout.row.keyValue, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}
-            >
-              <Skeleton width={i % 2 ? 56 : 72} height={12} radius={6} />
-              <Skeleton width={i === 0 ? 144 : 96} height={12} radius={6} />
-            </View>
-          ))}
-        </ListCard>
-        <View testID="detail-skeleton-actions" style={{ height: nativeLayout.control.button }}>
-          <Skeleton height={nativeLayout.control.button} radius={nativeLayout.radius.control} />
-        </View>
-        <View testID="detail-skeleton-address" style={{ height: 56 }}>
-          <Skeleton height={56} radius={nativeLayout.radius.control} />
-        </View>
-      </View>
+      <Card>
+        <Line width="60%" block={18} line={28} />
+        <Line width="90%" block={12} line={23} />
+        <Line width="75%" block={12} line={23} />
+        <Line width="40%" block={10} line={18} />
+        <Skeleton height={48} radius={12} />
+      </Card>
     </SkeletonGroup>
   );
 }
