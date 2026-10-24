@@ -12,7 +12,8 @@ import { selectedFor, type Selection } from "./selection";
  * "Sampai (n)" for the ones on their way. Each counts only the stops it can take, so a stop that has already left is
  * not part of Berangkat, and a button with nothing to do waits. Berangkat asks first (customers are told) and goes
  * through `delivery.depart` with exactly these stops; Sampai opens the proof-photo sheet. A failure is a `FormError`
- * at the bar with "Coba lagi".
+ * at the bar with "Coba lagi". The caption line ("Pilih pengantaran dulu.") keeps its room once something is selected, so
+ * the bar never changes height.
  */
 export function SelectionBar({
   ops,
@@ -80,9 +81,10 @@ export function SelectionBar({
   const stacked = useStackedLayout(340);
   return (
     <View testID="selection-bar" style={{ gap: 8 }}>
-      {selection.selected.size === 0 ? (
-        <Text variant="caption">{t("Pilih pengantaran dulu.", "Select deliveries first.")}</Text>
-      ) : null}
+      {/* The line's room is kept whether or not it has words, so the bar is one height from 0 to n selected. */}
+      <View testID="selection-caption" style={{ minHeight: 18 }}>
+        {selection.selected.size === 0 ? <Text variant="meta">{t("Pilih pengantaran dulu.", "Select deliveries first.")}</Text> : null}
+      </View>
       <View testID="selection-actions" style={{ flexDirection: stacked ? "column" : "row", gap: 8 }}>
         <Button
           style={stacked ? undefined : { flex: 1 }}

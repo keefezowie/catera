@@ -1,4 +1,6 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react-native";
+import { render } from "./render-dapur";
+import { StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import NetInfo from "@react-native-community/netinfo";
 import { router } from "expo-router";
@@ -535,5 +537,52 @@ describe("narrow width and large text (360dp, font scale 1.3)", () => {
     renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
     await pilih();
     expect(flat(screen.getByTestId("selection-actions")).flexDirection).toBe("row");
+  });
+});
+
+describe("Pilih on the Dapur scale", () => {
+  const box = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
+  const day = () => dayWith([cooking, cooking, out, waiting]);
+
+  it("leaves the run's heading as a live title with a 48 Selesai, and opens each stop's row as a 64 checkbox", async () => {
+    renderToday(runtimeFor(day));
+    await pilih();
+    expect(screen.getByTestId("order-live").props.accessibilityLiveRegion).toBe("polite");
+    expect(box(screen.getByRole("button", { name: "Selesai" })).minHeight).toBe(48);
+    // The check circle is 24 and the row is 64, like every stop of the run.
+    const row = screen.getByTestId("stop-1");
+    expect(box(row).minHeight).toBe(64);
+    expect(box(within(row).getByTestId("stop-1-circle"))).toMatchObject({ width: 24, height: 24 });
+    // Every stop is listed while picking, with no "Lihat n alamat lainnya".
+    expect(screen.queryByText(/alamat lainnya/)).toBeNull();
+    expect(screen.getAllByRole("checkbox")).toHaveLength(4);
+    // The area header's action is a 48 target too.
+    for (const action of screen.getAllByRole("button", { name: /^Pilih semua: / })) expect(box(action).minHeight).toBe(48);
+  });
+
+  it("keeps the bar one height with 0, 1 and n selected: the caption line holds its room", async () => {
+    renderToday(runtimeFor(day));
+    await pilih();
+    const slot = () => box(screen.getByTestId("selection-caption"));
+    const none = slot();
+    expect(screen.getByText("Pilih pengantaran dulu.")).toBeTruthy();
+    fireEvent.press(stopBox(/Bu Sari/));
+    expect(screen.queryByText("Pilih pengantaran dulu.")).toBeNull();
+    expect(slot()).toEqual(none);
+    fireEvent.press(stopBox(/Kost Damai/));
+    expect(slot()).toEqual(none);
+    expect(none.minHeight).toBe(18);
+    // Both buttons are the Dapur 50, whatever is selected.
+    for (const name of [/^Berangkat \(/, /^Sampai \(/]) expect(box(screen.getByRole("button", { name })).minHeight).toBe(50);
+  });
+
+  it("stacks the bar's buttons below 340 effective width and keeps their labels whole", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    renderToday(runtimeFor(day));
+    await pilih();
+    expect(box(screen.getByTestId("selection-actions")).flexDirection).toBe("column");
+    fireEvent.press(stopBox(/Bu Sari/));
+    expect(screen.getByRole("button", { name: "Berangkat (1)" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sampai (0)" })).toBeTruthy();
   });
 });

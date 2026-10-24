@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { RefreshControl, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
 import {
   errorLabel,
   jakartaDay,
@@ -14,8 +13,6 @@ import {
   type DeliveryIssue,
   type KitchenMeal,
   type KitchenSession,
-  type Locale,
-  type SellerAttentionItem,
   type SellerOperationsState,
 } from "@catera/domain";
 import { useData, useMobile, useTrack, type MobileRuntime, plural } from "@catera/mobile-core";
@@ -24,17 +21,14 @@ import {
   Card,
   ConnectionBanner,
   FadeSwap,
-  fontFor,
-  MoodFill,
+  FigureStrip,
   MoodHeader,
-  PressableRow,
   PressableScale,
   RantangTrack,
   trackCounts,
   trackStage,
   Screen,
   StateArt,
-  StickyAction,
   Text,
   useColors,
   useConfirm,
@@ -42,7 +36,6 @@ import {
   useHaptic,
   useMood,
   useMoodColors,
-  useStackedLayout,
 } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
@@ -51,18 +44,10 @@ import { useStopSelection } from "./selection";
 import { SessionCard } from "./SessionCard";
 import { useTicks } from "./ticks";
 import { useRouteView } from "./DeliveryOrder";
-import { replyHref } from "../hrefs";
-import { dapurLink } from "../links";
-import { openLink } from "../nav";
+import { LiveSlot } from "./LiveSlot";
+import { CAPTION_RESERVE, FIGURE_GAP, FIGURE_TOP, SECTION_GAP } from "./rows";
 import { ReadError } from "../ReadError";
 import { TodayCountSkeleton, TodaySkeleton } from "../skeletons";
-
-/**
- * The cooking mascot's size in the count card (spec 7.2): about the height of the portions and their caption. Its slot
- * is held in the numbers row for the whole session (`StateArt held`), so the card keeps one shape before, during and
- * after cooking.
- */
-const COOKING_ART = 72;
 
 /** A day's read; `savedAt` is set when it is the copy this phone kept, not a fresh answer. */
 type LoadedDay = { data: SellerOperationsState; savedAt: string | null };
@@ -88,61 +73,31 @@ async function keptDay(actorId: string, catererId: string, date: string): Promis
 }
 
 /**
- * The session's headline numbers on the mood's hero fill: portions to cook, addresses, and when the first window
- * opens, with the rantang track under them showing how far the meal has got. The fill is `MoodFill`, so it
- * cross-fades with the header's own timing; the shadow sits on its base layer.
+ * The session's headline figures in the header, under the date: porsi (the lead), paket and alamat in one strip, with
+ * when the first window opens as its subline, and the compact rantang track under it showing how far the meal has got.
+ * The strip is the theme's surface, which is also the hero surface of both moods, so it needs no fill of its own and
+ * does not cross-fade with the header. The mascot is not here (it stays on the done and empty cards).
  */
-function CountCard({ ops, session }: { ops: SellerOperationsState; session: KitchenSession }) {
+function HeaderFigures({ ops, session }: { ops: SellerOperationsState; session: KitchenSession }) {
   const { t, locale } = useMobile();
-  const palette = useMoodColors();
   const { meal, portions, addresses } = session;
   // The window opens with the first row still being served: a failed or cancelled row's hours do not count.
   const served = new Set(session.stops.map((s) => s.deliveryId));
   const start = sessionStart({ ...ops, deliveries: ops.deliveries.filter((d) => served.has(d.id)) }, meal);
-  const stacked = useStackedLayout(340);
-  const caption = (
-    <Text testID="session-count-caption" variant="caption" style={{ color: palette.heroMeta }}>
-      {meal === "lunch"
-        ? t(`porsi siang · ${addresses} alamat`, `lunch portions · ${plural(addresses, "address", "addresses")}`)
-        : t(`porsi malam · ${addresses} alamat`, `dinner portions · ${plural(addresses, "address", "addresses")}`)}
-    </Text>
-  );
   return (
-    <View
-      testID="session-count"
-      style={{ gap: 16, padding: 16, borderRadius: 22, borderCurve: "continuous" }}
-    >
-      <MoodFill surface="hero" testID="session-count-fill" radius={22} heroShadow />
-      <View
-        testID="session-count-row"
-        style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}
-      >
-        <View testID="session-count-numbers" style={{ flex: 1, flexShrink: 1 }}>
-          <Text variant="number" style={{ color: palette.heroText }}>
-            {String(portions)}
-          </Text>
-          {stacked ? null : caption}
-        </View>
-        {/* The cooking mascot's slot, in the numbers row between the portions and "Antar": `[numbers][slot][Antar]`.
-            After "Mulai masak", while the whole session cooks, the mascot stands in it at about the numbers' own
-            height, fading in, and fades out at "Berangkat antar". Before and after, the slot is held empty and reads as
-            the space between the count and the time. It always takes its width, so the card keeps one height and the
-            caption wraps the same way through the whole session. */}
-        <StateArt
-          pose="memasak"
-          base={COOKING_ART}
-          held={session.journey.stage !== "preparing"}
-          style={{ alignSelf: "flex-end" }}
-        />
-        {start ? (
-          <Text variant="label" style={{ color: palette.heroText, flexShrink: 0 }}>
-            {t(`Antar ${start}`, `Delivery ${start}`)}
-          </Text>
-        ) : null}
-      </View>
-      {/* Large text or a narrow phone: the caption leaves the numbers' column for the card's full width. */}
-      {stacked ? caption : null}
+    <View testID="session-count" style={{ gap: FIGURE_GAP, marginTop: FIGURE_TOP }}>
+      <FigureStrip
+        testID="session-figures"
+        lead
+        cells={[
+          { label: t("porsi", "portions"), value: String(portions) },
+          { label: t("paket", "packages"), value: String(session.recap.byPackage.length) },
+          { label: t("alamat", "addresses"), value: String(addresses) },
+        ]}
+        subline={start ? t(`Antar ${start}`, `Delivery ${start}`) : undefined}
+      />
       <RantangTrack
+        size="compact"
         stage={trackStage(session.journey)}
         caption={journeyCaption(session.journey, locale, "kitchen") ?? undefined}
         counts={trackCounts(session.counts)}
@@ -256,14 +211,26 @@ function KitchenAction({
   // Once some stops have left, the button takes whatever is still waiting, and the portions say how many.
   const left = session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0;
   const portions = left ? session.remaining.portions : session.portions;
+  // The push reaches only customers with an account, and the kitchen cannot count them, so no number is promised.
+  const caption = cook
+    ? undefined
+    : t(
+        "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
+        "Customers using the Catera app get a notification when you head out.",
+      );
   return (
-    <View style={{ gap: 8 }}>
-      {note ? (
-        <Text selectable variant="caption">
-          {note}
-        </Text>
-      ) : null}
-      <StickyAction
+    <View testID="sticky-action" style={{ gap: 8 }}>
+      {/* The caption line keeps its room with or without words ("Mulai masak" has none), so the footer is one height
+          from "Mulai masak" to "Berangkat antar" and nothing under the list shifts when it changes. */}
+      <View testID="kitchen-action-caption" style={{ minHeight: CAPTION_RESERVE }}>
+        {note ? (
+          <Text selectable variant="meta">
+            {note}
+          </Text>
+        ) : null}
+        {caption ? <Text variant="meta">{caption}</Text> : null}
+      </View>
+      <Button
         label={
           cook
             ? t("Mulai masak", "Start cooking")
@@ -271,17 +238,9 @@ function KitchenAction({
               ? t(`Berangkat semua sisa · ${portions} porsi`, `Head out with everything left · ${plural(portions, "portion")}`)
               : t(`Berangkat antar · ${portions} porsi`, `Head out · ${plural(portions, "portion")}`)
         }
-        // The push reaches only customers with an account, and the kitchen cannot count them, so no number is promised.
-        caption={
-          cook
-            ? undefined
-            : t(
-                "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
-                "Customers using the Catera app get a notification when you head out.",
-              )
-        }
         busy={busy}
         onPress={() => void ask()}
+        spinnerTestID="sticky-action-spinner"
       />
     </View>
   );
@@ -455,6 +414,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
       }
       header={
         <MoodHeader
+          band
           meta={[catererName, dayWord].filter(Boolean).join(" · ")}
           toggle
           title={
@@ -466,20 +426,20 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               onPress={() => setOffset(offset === "0" ? "1" : "0")}
               style={{ minHeight: 48, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8 }}
             >
-              <Text variant="title" style={{ color: m.headerText, flexShrink: 1 }}>
+              <Text variant="heroTitle" style={{ color: m.headerText, flexShrink: 1 }}>
                 {shortDate(date, locale)}
               </Text>
-              <Ionicons name="chevron-down" size={22} color={m.headerText} />
+              <Ionicons name="chevron-down" size={20} color={m.headerText} />
             </PressableScale>
           }
         >
-          {/* The count card enters from its skeleton as one block, in the same place on the header. It is keyed by
+          {/* The figures enter from their skeleton as one block, in the same place on the header. They are keyed by
               day and meal, so the mood toggle and Hari ini/Besok mount the other session's track in place instead of
               sliding it (Decision A); only a stage change of the same session moves it. */}
           {loading || (ops && session) ? (
             <FadeSwap swapKey={loading ? "loading" : "count"}>
               {ops && session ? (
-                <CountCard key={`${date}:${session.meal}`} ops={ops} session={session} />
+                <HeaderFigures key={`${date}:${session.meal}`} ops={ops} session={session} />
               ) : (
                 <TodayCountSkeleton />
               )}
@@ -499,14 +459,14 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           antar, Semua beres) or the Siang / Malam switch is the same day answering a tap: its parts change in place,
           so the body neither fades from zero nor blanks for a frame. */}
       <FadeSwap swapKey={`${loading ? "loading" : "day"}-${date}`}>
-        <View style={{ gap: 16 }}>
+        <View style={{ gap: SECTION_GAP }}>
           {day.fromCache && day.loading ? (
             // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.
-            <Text testID="day-refreshing" variant="caption">
+            <Text testID="day-refreshing" variant="meta">
               {t("Memperbarui…", "Updating…")}
             </Text>
           ) : day.data?.savedAt ? (
-            <Text testID="day-kept" variant="caption">
+            <Text testID="day-kept" variant="meta">
               {t(
                 "Ini data terakhir yang tersimpan. Mulai masak dan Berangkat kembali setelah data diperbarui.",
                 "This is the last data saved. The Start cooking and Head out buttons come back once the data is refreshed.",
@@ -515,20 +475,19 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           ) : null}
           {!ops && day.error ? <ReadError art message={day.error} onRetry={() => void day.reload()} /> : null}
           {loading ? <TodaySkeleton /> : null}
-          {newKitchen ? <MulaiCard /> : null}
-          {offset === "0" ? (
-            <>
-              {!issues.data && issues.error ? (
-                // A failed read must not look like "no reports".
-                <ReadError
-                  message={t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
-                  onRetry={() => void issues.reload()}
-                />
-              ) : null}
-              <ReportCards issues={issues.data ?? []} />
-              <ActionCards items={attention.data?.items ?? []} />
-            </>
+          {offset === "0" && !issues.data && issues.error ? (
+            // A failed read must not look like "no reports".
+            <ReadError
+              message={t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
+              onRetry={() => void issues.reload()}
+            />
           ) : null}
+          {/* The live slot: the first of the setup card, the reports and the attention items, the rest one tap away. */}
+          <LiveSlot
+            setup={newKitchen}
+            issues={offset === "0" ? (issues.data ?? []) : []}
+            attention={offset === "0" ? (attention.data?.items ?? []) : []}
+          />
           {ops && done ? (
             <DoneCard ops={ops} onTomorrow={() => setOffset("1")} />
           ) : ops && session ? (
@@ -588,7 +547,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                   ? t("Tidak ada yang dimasak hari ini.", "Nothing to cook today.")
                   : t("Tidak ada yang dimasak besok.", "Nothing to cook tomorrow.")}
               </Text>
-              <Text variant="caption" style={{ textAlign: "center" }}>
+              <Text variant="meta" style={{ textAlign: "center" }}>
                 {t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}
               </Text>
             </Card>
@@ -596,147 +555,5 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
         </View>
       </FadeSwap>
     </Screen>
-  );
-}
-
-/** Reports still waiting on the caterer, each naming who, which day and meal; tap to answer in the reply sheet. */
-function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
-  const { t, locale } = useMobile();
-  const c = useColors();
-  const waiting = issues.filter((i) => !i.case_id && (i.status === "open" || i.status === "responded"));
-  return (
-    <>
-      {waiting.map((i) => {
-        const who = i.customerName || t("Pelanggan", "A customer");
-        return (
-          <PressableRow
-            key={i.id}
-            accessibilityRole="button"
-            accessibilityLabel={`${t("Buka laporan", "Open report")}: ${who}`}
-            onPress={() => router.push(replyHref(i.id, i.customerName) as never)}
-          >
-            <Card tone="attention" style={{ flexDirection: "row", alignItems: "center" }}>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ fontFamily: fontFor("800") }}>{`${who} ${t("melaporkan masalah", "reported a problem")}`}</Text>
-                <Text variant="label">{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
-                <Text variant="caption">{i.subject}</Text>
-                {i.status === "responded" ? (
-                  <Text variant="caption" style={{ color: c.charcoal }}>
-                    {t("Sudah kamu balas. Tandai selesai kalau sudah beres.", "You replied. Mark it done once it's sorted.")}
-                  </Text>
-                ) : null}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={c.muted} />
-            </Card>
-          </PressableRow>
-        );
-      })}
-    </>
-  );
-}
-
-// Delivery reports have their own cards above (ReportCards).
-const attentionLabels: Partial<Record<SellerAttentionItem["kind"], [string, string]>> = {
-  support: ["Pertanyaan pelanggan menunggu", "A customer question is waiting"],
-  delivery: ["Ada pengantaran bermasalah", "A delivery needs attention"],
-  choice_fallback: ["Menu pilihan pelanggan perlu dicek", "Customer menu choices need a check"],
-  choice_deadline: ["Batas pilih menu pelanggan sudah dekat", "Customer menu choice deadline is near"],
-  payment: ["Ada pembayaran yang perlu dicek", "A payment needs attention"],
-};
-
-/**
- * The delivery rows read "2026-10-20 · dinner · Paket" from the server. Build the line from the payload's own
- * `serviceDate`, `meal` and `packageName` when they are there, and from that string when they are not, then show
- * the day and meal the way the rest of Dapur does ("Selasa 20 Okt · Makan malam · Paket").
- */
-function attentionContext(item: SellerAttentionItem, locale: Locale) {
-  const context = item.context;
-  const tail = (name?: string | null) => (name ? ` · ${name}` : "");
-  if (item.kind === "delivery" || item.kind === "choice_fallback" || item.kind === "choice_deadline") {
-    if (item.serviceDate && item.meal) return `${shortDate(item.serviceDate, locale)} · ${mealLabel(item.meal, locale)}${tail(item.packageName)}`;
-    const m = /^([0-9]{4}-[0-9]{2}-[0-9]{2}) · (lunch|dinner)(?=$| · |:)/.exec(context ?? "");
-    if (m) return `${shortDate(m[1], locale)} · ${mealLabel(m[2], locale)}${context.slice(m[0].length)}`;
-  }
-  return context;
-}
-
-function ActionCards({ items }: { items: SellerAttentionItem[] }) {
-  const { t, locale } = useMobile();
-  const c = useColors();
-  const shown = items.filter((i) => attentionLabels[i.kind]).slice(0, 3);
-  return (
-    <>
-      {shown.map((item) => {
-        const [id, en] = attentionLabels[item.kind]!;
-        const line = attentionContext(item, locale);
-        // "/" is dapurLink's answer for "no Dapur screen for this": Hari ini is already where we are.
-        const route = dapurLink(item.href);
-        const link = route !== "/";
-        const card = (
-          <Card tone="attention" style={link ? { flexDirection: "row", alignItems: "center" } : undefined}>
-            <View testID={`attention-body-${item.id}`} style={{ flex: link ? 1 : undefined, gap: 10 }}>
-              <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
-              {line ? <Text variant="caption">{line}</Text> : null}
-            </View>
-            {link ? <Ionicons name="chevron-forward" size={18} color={c.muted} /> : null}
-          </Card>
-        );
-        return link ? (
-          <PressableRow key={item.id} testID={`attention-${item.id}`} accessibilityRole="link" onPress={() => openLink(route)}>
-            {card}
-          </PressableRow>
-        ) : (
-          <View key={item.id} testID={`attention-${item.id}`}>
-            {card}
-          </View>
-        );
-      })}
-    </>
-  );
-}
-
-function MulaiCard() {
-  const { t } = useMobile();
-  const c = useColors();
-  const steps: [string, string, string][] = [
-    [t("Buat paket pertama", "Create your first package"), t("Nama, foto, harga, hari antar", "Name, photo, price, days"), "/paket/baru"],
-    [t("Pindahkan pelanggan lama", "Bring in existing customers"), t("Kirim foto buku catatan atau chat WhatsApp", "Send a notebook photo or WhatsApp chat"), "/impor"],
-    [t("Aktifkan pembayaran", "Turn on payments"), t("Perlu sebelum perpanjangan pertama", "Needed before the first renewal"), "/aktifkan"],
-  ];
-  return (
-    <>
-      {/* Direction K: a plain card. Forest fills only the first step, the one brand control here; the rest sit on sage. */}
-      <Card>
-        <Text variant="heading">{t("Siapkan dapurmu", "Set up your kitchen")}</Text>
-        {steps.map(([title, sub, href], i) => (
-          <PressableRow
-            key={href}
-            accessibilityRole="button"
-            onPress={() => router.push(href as never)}
-            style={{
-              minHeight: 56,
-              padding: 12,
-              borderRadius: 12,
-              backgroundColor: i === 0 ? c.forest : c.sage,
-              gap: 2,
-            }}
-          >
-            <Text style={{ fontFamily: fontFor("800"), color: i === 0 ? c.cream : c.charcoal }}>{title}</Text>
-            <Text variant="caption" style={{ color: i === 0 ? c.cream : c.muted }}>
-              {sub}
-            </Text>
-          </PressableRow>
-        ))}
-      </Card>
-      <Card>
-        <Text variant="heading">{t("Setelah ada pelanggan", "Once you have customers")}</Text>
-        <Text variant="caption">
-          {t(
-            "Halaman ini menunjukkan porsi yang perlu dimasak dan rute antar, hari ini dan besok.",
-            "This page shows what to cook and where to deliver, today and tomorrow.",
-          )}
-        </Text>
-      </Card>
-    </>
   );
 }

@@ -1,5 +1,6 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Linking, Pressable, Share } from "react-native";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react-native";
+import { render } from "./render-dapur";
+import { Linking, Pressable, Share, StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
@@ -11,7 +12,7 @@ import { MoodProvider, ToastProvider, useMood } from "@catera/mobile-ui";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { dishKey } from "../src/today/ticks";
-import { canvasDay, report } from "./fixtures";
+import { canvasDay, delivery, report } from "./fixtures";
 import { spyFades } from "./fade";
 import { confirm, lastConfirm, resetSheets, SheetHost } from "./sheet-host";
 
@@ -141,8 +142,9 @@ describe("the count card's rantang track", () => {
     const runtime = runtimeWith(async () => served);
     renderToday(runtime);
     const card = await screen.findByTestId("session-count");
-    expect(within(card).getByTestId("rantang-track")).toBeTruthy();
-    expect(within(card).getByText("Terjadwal")).toBeTruthy();
+    // The compact track leaves its words line out of the picture; they are the first thing its accessibility value says.
+    const words = () => (within(screen.getByTestId("session-count")).getByTestId("rantang-track").props.accessibilityValue.text as string).split(". ")[0];
+    expect(words()).toBe("Terjadwal");
     // The three stop labels are decoration for the eye; a screen reader gets the caption.
     const hidden = { includeHiddenElements: true };
     expect(within(card).getByText("Dimasak", hidden)).toBeTruthy();
@@ -152,7 +154,7 @@ describe("the count card's rantang track", () => {
     served = kitchenDay([cooking]);
     fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
-    expect(await within(screen.getByTestId("session-count")).findByText("Dimasak 08.10")).toBeTruthy();
+    await waitFor(() => expect(words()).toBe("Dimasak 08.10"));
   });
 });
 
@@ -172,8 +174,8 @@ describe("the count card's four-stop track with mixed stages", () => {
     expect([0, 1, 2, 3].map(figure)).toEqual(["0", "2", "1", "1"]);
     const track = within(card).getByTestId("rantang-track");
     // The caption, the line, the ring and the sentence all follow the furthest stage, so they never disagree.
-    expect((within(card).getByTestId("rantang-track-caption").children as string[]).join("")).toBe("Ditandai sampai");
-    expect(within(card).queryByText("Dimasak 08.10")).toBeNull();
+    expect((track.props.accessibilityValue.text as string).split(". ")[0]).toBe("Ditandai sampai");
+    expect(track.props.accessibilityValue.text).not.toContain("Dimasak 08.10");
     expect(track.props.accessibilityLabel).toBe("Pesanan: Ditandai sampai, langkah 4 dari 4");
     expect(within(card).getByTestId("rantang-track-stop-3-half", hidden)).toBeTruthy();
   });
@@ -289,10 +291,8 @@ describe("Daftar masak", () => {
 
     // Dinner has its own list, so the lunch tick is not shown there.
     fireEvent.press(screen.getByLabelText("ke Malam"));
-    await screen.findByText("Makan malam");
     await waitFor(() => expect(checked()).toBe(false));
     fireEvent.press(screen.getByLabelText("ke Siang"));
-    await screen.findByText("Makan siang");
     await waitFor(() => expect(checked()).toBe(true));
     // No reload on the way: the checklist stayed mounted, so the stored ticks were read once.
     expect(ticksReads()).toBe(1);
@@ -395,7 +395,7 @@ describe("Mulai masak", () => {
     expect(screen.queryByText(/^Berangkat antar/)).toBeNull();
     // The action follows the least advanced row; the track and its words follow the furthest one.
     const card = within(screen.getByTestId("session-count"));
-    expect((card.getByTestId("rantang-track-caption").children as string[]).join("")).toBe("Diantar");
+    expect((card.getByTestId("rantang-track").props.accessibilityValue.text as string).split(". ")[0]).toBe("Diantar");
     expect(card.getByTestId("rantang-track").props.accessibilityLabel).toBe("Pesanan: Diantar, langkah 3 dari 4");
   });
 
@@ -844,7 +844,7 @@ describe("the order across the stages", () => {
     expect(screen.queryByText("Daftar masak")).toBeNull();
     expect(screen.queryByText("Per paket")).toBeNull();
     expect(screen.getByText("Dapur Bu Rina · Sedang diantar")).toBeTruthy();
-    expect(within(screen.getByTestId("session-count")).getByText("Berangkat 09.30")).toBeTruthy();
+    expect(within(screen.getByTestId("session-count")).getByTestId("rantang-track").props.accessibilityValue.text).toMatch(/^Berangkat 09.30/);
     expect(screen.getByText(LINE)).toBeTruthy();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
     // The order and its buttons are all still there.
@@ -1054,5 +1054,332 @@ describe("Hari ini across a stage change", () => {
     // Checked in the very render the new stage appears in: no unticked frame while a fresh read runs.
     expect(screen.getByLabelText("6× Telur balado").props.accessibilityState?.checked).toBe(true);
     expect((SecureStore.getItemAsync as jest.Mock).mock.calls.filter(([k]) => String(k).includes("ticks.")).length).toBe(reads);
+  });
+});
+
+/**
+ * Hari ini on the Dapur scale (layout rethink, spec 3.1): the cooking list and the delivery run are their own sections
+ * under a header that carries the day's figures and the compact track. Jest has no layout engine, so each size is read
+ * from the style that sets it, the way the other layout tests do.
+ */
+describe("Hari ini on the Dapur scale", () => {
+  type Node = ReturnType<typeof screen.getByTestId>;
+  const box = (n: { props: { style?: unknown } }) => StyleSheet.flatten(n.props.style as never) as Record<string, unknown>;
+  const hidden = { includeHiddenElements: true };
+  /** Document order of the tree's drawn nodes, so "A is above B" is "A comes before B". */
+  const before = (root: Node, a: object, b: object) => {
+    const all = root.findAll((n) => typeof n.type === "string");
+    return all.indexOf(a as never) < all.indexOf(b as never);
+  };
+  /** The canvas day with six stops, so "Lihat 3 alamat lainnya" has something to say. */
+  const sixStops = (meals: MealState[] = [scheduled]) => {
+    const day = kitchenDay(meals);
+    const extra = ["Pak Budi", "Bu Wati"].map((who) => ({
+      ...delivery({ id: "p-rumahan", name: "Makan Siang Rumahan" }, who, 1),
+      service_date: TODAY,
+      meals: [{ meal: "lunch", ...meals[0] }],
+    }));
+    day.deliveries = [...day.deliveries, ...(extra as never)];
+    return day;
+  };
+
+  describe("the header", () => {
+    it("runs the meta row, the date button, the figure strip with its Antar line and the compact track", async () => {
+      const day = kitchenDay([scheduled]);
+      for (const d of day.deliveries) {
+        const windows = { lunch: "10.30–12.00", dinner: "18.00–19.30" };
+        d.offer = { ...d.offer, windows } as typeof d.offer;
+      }
+      renderToday(runtimeWith(async () => day));
+      const header = await screen.findByTestId("mood-header");
+      const row = within(header).getByTestId("mood-header-row");
+      const date = within(header).getByRole("button", { name: /, ganti hari$/ });
+      const strip = await within(header).findByTestId("session-figures");
+      const track = within(header).getByTestId("rantang-track");
+      expect(before(header, row, date)).toBe(true);
+      expect(before(header, date, strip)).toBe(true);
+      expect(before(header, strip, track)).toBe(true);
+      // Porsi leads, then paket and alamat, with "Antar" as the strip's own line.
+      const cell = (i: number) => within(strip).getByTestId(`session-figures-cell-${i}`);
+      expect(cell(0).props.accessibilityLabel).toBe("34 porsi");
+      expect(cell(1).props.accessibilityLabel).toBe("2 paket");
+      expect(cell(2).props.accessibilityLabel).toBe("4 alamat");
+      expect(within(strip).getByText("Antar 10.30")).toBeTruthy();
+      // The mascot is not in the header (it stays on the done and empty cards), and no hero fill is drawn behind it.
+      expect(within(header).queryByTestId(/^mascot-/, hidden)).toBeNull();
+      expect(within(header).queryByTestId("session-count-fill-siang", hidden)).toBeNull();
+    });
+
+    it("sets the date as a 24/30 button at least 48 tall, in a 36 meta row", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const date = await screen.findByRole("button", { name: /, ganti hari$/ });
+      expect(box(date).minHeight).toBe(48);
+      const title = within(date).getByText(/^Kamis 8 Okt$/);
+      expect(box(title)).toMatchObject({ fontSize: 24, lineHeight: 30 });
+      // The band's top row is 36, with the Siang / Malam toggle at its end.
+      const header = screen.getByTestId("mood-header");
+      expect(box(within(header).getByTestId("mood-header-row")).minHeight).toBe(36);
+      expect(within(header).getByRole("tab", { name: "Siang" })).toBeTruthy();
+    });
+
+    it("draws the track compact: a 40 rail, no words line, the words kept for a screen reader", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const track = await screen.findByTestId("rantang-track");
+      expect(box(within(track).getByTestId("rantang-track-rail")).height).toBe(40);
+      expect(within(track).queryByTestId("rantang-track-caption")).toBeNull();
+      expect(track.props.accessibilityValue.text).toContain("Terjadwal");
+      // Rings of 32 round discs of 24.
+      expect(box(within(track).getByTestId("rantang-track-stop-1", hidden)).width).toBe(32);
+      expect(box(within(track).getByTestId("rantang-track-stop-1-disc", hidden)).width).toBe(24);
+    });
+
+    it("is the date and meta row only when there is no session", async () => {
+      const day = kitchenDay([scheduled]);
+      day.deliveries = [];
+      renderToday(runtimeWith(async () => day));
+      await screen.findByText("Tidak ada yang dimasak hari ini.");
+      const header = screen.getByTestId("mood-header");
+      expect(within(header).queryByTestId("session-figures")).toBeNull();
+      expect(within(header).queryByTestId("rantang-track")).toBeNull();
+      expect(within(header).getByRole("button", { name: /, ganti hari$/ })).toBeTruthy();
+    });
+
+    it("words the figures in English", async () => {
+      const runtime = runtimeWith(async () => kitchenDay([scheduled]));
+      store().set(runtime.storageKey("locale"), "en");
+      renderToday(runtime);
+      const strip = await screen.findByTestId("session-figures");
+      await waitFor(() => expect(within(strip).getByTestId("session-figures-cell-0").props.accessibilityLabel).toBe("34 portions"));
+      expect(within(strip).getByTestId("session-figures-cell-1").props.accessibilityLabel).toBe("2 packages");
+      expect(within(strip).getByTestId("session-figures-cell-2").props.accessibilityLabel).toBe("4 addresses");
+    });
+  });
+
+  describe("Daftar masak and Per paket", () => {
+    it("heads the list with its count and two 48 actions, over a ListCard of 56 rows", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const list = await screen.findByTestId("cooking-list");
+      expect(within(list).getByText("Daftar masak")).toBeTruthy();
+      expect(within(list).getByText("5 menu")).toBeTruthy();
+      for (const name of ["Bagikan", "Cetak"]) {
+        const action = within(list).getByRole("button", { name });
+        expect(box(action)).toMatchObject({ width: 48, height: 48 });
+      }
+      const rows = within(list).getAllByRole("checkbox");
+      expect(rows).toHaveLength(5);
+      for (const row of rows) expect(box(row).minHeight).toBe(56);
+      expect(box(within(list).getByTestId("check-row-0-content")).minHeight).toBe(56);
+      expect(box(within(list).getByTestId("check-row-0-box"))).toMatchObject({ width: 48, height: 48 });
+      // A photo is 40 with radius 8, and so is the icon that stands in for one.
+      let frame = within(list).getByTestId("check-row-1-image").parent;
+      while (frame && box(frame).borderRadius === undefined) frame = frame.parent;
+      expect(box(frame!)).toMatchObject({ width: 40, height: 40, borderRadius: 8 });
+      expect(box(within(list).getByTestId("check-row-0-icon", hidden))).toMatchObject({ width: 40, height: 40, borderRadius: 8 });
+      // The hairlines start at the name: 48 + 12 + 40 + 12.
+      expect(box(within(list).getAllByTestId("list-card-separator")[0]).marginLeft).toBe(112);
+    });
+
+    it("keeps four digits in the 48 quantity column without moving the dish's name", async () => {
+      const day = kitchenDay([scheduled]);
+      day.deliveries[2] = { ...day.deliveries[2], portions: 1229 } as never;
+      renderToday(runtimeWith(async () => day));
+      expect(await screen.findByLabelText("1240× Nasi putih")).toBeTruthy();
+      const quantity = (i: number) => screen.getByTestId(`check-row-${i}-quantity`);
+      // Telur balado is the Hemat-only dish: 6 portions, in the fourth row.
+      const telur = screen.getAllByRole("checkbox").findIndex((r) => r.props.accessibilityLabel === "6× Telur balado");
+      expect(quantity(0).props.children).toBe(1240);
+      expect(quantity(telur).props.children).toBe(6);
+      for (const i of [0, telur]) {
+        expect(box(quantity(i))).toMatchObject({ width: 48, textAlign: "right" });
+        expect(quantity(i).props.numberOfLines).toBe(1);
+        expect(quantity(i).props.adjustsFontSizeToFit).toBe(true);
+      }
+      // The name starts in the same place in both rows: nothing before it grows with the digits.
+      const name = (i: number) => within(screen.getByTestId(`check-row-${i}`)).getByText(i === 0 ? "Nasi putih" : "Telur balado");
+      expect(box(name(0)).flex).toBe(1);
+      expect(box(name(0)).minWidth).toBeUndefined();
+      expect(box(name(telur)).minWidth).toBeUndefined();
+    });
+
+    it("leaves a ticked row where it is", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const rowsBefore = (await screen.findAllByRole("checkbox")).map((r) => r.props.accessibilityLabel);
+      fireEvent.press(screen.getByLabelText("6× Telur balado"));
+      await waitFor(() => expect(screen.getByLabelText("6× Telur balado").props.accessibilityState.checked).toBe(true));
+      expect(screen.getAllByRole("checkbox").map((r) => r.props.accessibilityLabel)).toEqual(rowsBefore);
+    });
+
+    it("puts the kitchen-truth lines and Isi menu directly under the list, before the note about ticks", async () => {
+      const day = kitchenDay([scheduled]);
+      day.datedMenus = (day.datedMenus as unknown as { package_id: string }[]).filter((m) => m.package_id === "p-hemat") as never;
+      renderToday(runtimeWith(async () => day));
+      const list = await screen.findByTestId("cooking-list");
+      const card = within(list).getByTestId("list-card");
+      const line = within(list).getByText(/^Menu belum diisi · Makan Siang Rumahan/);
+      const button = within(list).getByRole("button", { name: "Isi menu Makan Siang Rumahan" });
+      const note = within(list).getByText("Centang ini cuma catatan dapur. Pelanggan tidak melihatnya.");
+      expect(before(list, card, line)).toBe(true);
+      expect(before(list, line, button)).toBe(true);
+      expect(before(list, button, note)).toBe(true);
+      expect(box(button).minHeight).toBe(48);
+    });
+
+    it("lists the packages as 40 rows ending on one right edge", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const section = await screen.findByTestId("per-package");
+      expect(within(section).getByText("Per paket")).toBeTruthy();
+      const rows = ["p-rumahan", "p-hemat"].map((id) => within(section).getByTestId(`per-package-${id}`));
+      for (const row of rows) expect(box(row).minHeight).toBe(40);
+      expect(rows[0].props.accessibilityLabel).toBe("Makan Siang Rumahan, 28 porsi");
+      expect(rows[1].props.accessibilityLabel).toBe("Paket Hemat Kantor, 6 porsi");
+      // The hairline between them runs the card's whole width.
+      expect(box(within(section).getByTestId("list-card-separator")).marginLeft).toBe(0);
+    });
+
+    it("keeps the sections 24 apart", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      expect(box(await screen.findByTestId("session-card")).gap).toBe(24);
+    });
+  });
+
+  describe("Urutan antar", () => {
+    it("heads the run with its count and Pilih, and lists 64 rows, three stops then a link", async () => {
+      // Pilih is offered once a stop can leave or arrive, so the meal is cooking.
+      renderToday(runtimeWith(async () => sixStops([cooking])));
+      const run = await screen.findByTestId("delivery-order");
+      const header = within(run).getByTestId("section-header");
+      expect(within(header).getByText("Urutan antar")).toBeTruthy();
+      expect(within(header).getByText("6 alamat")).toBeTruthy();
+      expect(box(within(header).getByRole("button", { name: "Pilih" })).minHeight).toBe(48);
+      for (const n of [1, 2, 3]) expect(box(within(run).getByTestId(`stop-${n}`)).minHeight).toBe(64);
+      expect(within(run).queryByTestId("stop-4")).toBeNull();
+      const more = within(run).getByRole("button", { name: "Lihat 3 alamat lainnya" });
+      expect(box(more).minHeight).toBe(48);
+      fireEvent.press(more);
+      expect(within(run).getByTestId("stop-6")).toBeTruthy();
+      expect(within(run).queryByText("Lihat 3 alamat lainnya")).toBeNull();
+    });
+
+    it("holds the map and the … in one 96 column at the same place on every row", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await screen.findByTestId("stop-1");
+      for (const n of [1, 2, 3]) {
+        const row = screen.getByTestId(`stop-${n}`);
+        const actions = within(row).getByTestId(`stop-${n}-actions`);
+        expect(box(actions)).toMatchObject({ width: 96, flexGrow: 0, flexShrink: 0 });
+        expect(within(actions).getAllByRole("button")).toHaveLength(2);
+        for (const button of within(actions).getAllByRole("button")) expect(box(button)).toMatchObject({ width: 48, height: 48 });
+        // A 28 order badge starts the row.
+        expect(box(within(row).getByTestId(`stop-${n}-badge`))).toMatchObject({ width: 28, height: 28 });
+      }
+      // The hairlines start at the name: the badge and the 12 gap.
+      expect(box(within(screen.getByTestId("delivery-order")).getAllByTestId("list-card-separator")[0]).marginLeft).toBe(40);
+    });
+
+    it("keeps the first three stops' name on one or two lines and the address on one", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const title = await screen.findByTestId("stop-1-title");
+      expect(title.props.numberOfLines).toBe(2);
+      expect(box(title)).toMatchObject({ fontSize: 17, lineHeight: 22 });
+      const address = within(screen.getByTestId("stop-1")).getByText(/^Jl\. Melati/);
+      expect(address.props.numberOfLines).toBe(1);
+    });
+
+    it("stacks Maps and WhatsApp as two full-width 50 secondary buttons, the route caption under them", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const maps = await screen.findByRole("button", { name: "Buka semua di Peta" });
+      const share = screen.getByRole("button", { name: "Bagikan rute ke WhatsApp" });
+      for (const button of [maps, share]) expect(box(button).minHeight).toBe(50);
+      // Neither is the screen's one primary: the footer is.
+      expect(box(maps).backgroundColor).toEqual(box(share).backgroundColor);
+      expect(box(maps).flex).toBeUndefined();
+      expect(box(share).flex).toBeUndefined();
+      const caption = screen.getByText(/^Tandai Sampai dengan foto bukti/);
+      expect(before(screen.getByTestId("delivery-order"), share, caption)).toBe(true);
+    });
+  });
+
+  describe("after departure", () => {
+    const out = { status: "out_for_delivery", cooking_started_at: cooking.cooking_started_at, departed_at: "2026-10-08T03:00:00Z" };
+
+    it("folds the cooking part into one 48 row and starts the run under it", async () => {
+      renderToday(runtimeWith(async () => kitchenDay([out])));
+      const summary = await screen.findByTestId("cooked-summary");
+      expect(within(summary).getByText("Sudah dimasak · 34 porsi")).toBeTruthy();
+      expect(box(summary).minHeight).toBe(48);
+      expect(screen.queryByText("Daftar masak")).toBeNull();
+      expect(screen.queryByText("Per paket")).toBeNull();
+      // The figures and the track stay in the header, and the header says it is out.
+      expect(screen.getByTestId("session-figures")).toBeTruthy();
+      expect(screen.getByText(/Sedang diantar/)).toBeTruthy();
+      expect(screen.getByText("Urutan antar")).toBeTruthy();
+    });
+
+    it("starts Antar one row (48) and one gap (24) under where the cooking part began", async () => {
+      const first = renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const card = await screen.findByTestId("session-card");
+      // Before: the cooking list opens the session card, and the run is far below it.
+      const topOf = (root: Node, id: string) =>
+        root.findAll((n) => typeof n.type === "string").filter((n) => ["cooking-list", "cooked-summary", "delivery-order"].includes(n.props.testID));
+      expect(topOf(card, "").map((n) => n.props.testID)).toEqual(["cooking-list", "delivery-order"]);
+      first.unmount();
+      renderToday(runtimeWith(async () => kitchenDay([out])));
+      const after = await screen.findByTestId("session-card");
+      // After: the summary opens it, and Antar follows it directly: 48 + the 24 section gap, not a whole list further down.
+      const parts = topOf(after, "");
+      expect(parts.map((n) => n.props.testID)).toEqual(["cooked-summary", "delivery-order"]);
+      expect((box(parts[0]).minHeight as number) + (box(after).gap as number)).toBe(72);
+    });
+  });
+
+  describe("the footer", () => {
+    it("is one height from Mulai masak to Berangkat antar: the caption line keeps its room", async () => {
+      let served = kitchenDay([scheduled]);
+      renderToday(runtimeWith(async () => served));
+      const cook = await screen.findByTestId("kitchen-action-caption");
+      const cookBox = box(cook);
+      const cookButton = box(screen.getByRole("button", { name: "Mulai masak" }));
+      expect(cookBox.minHeight).toBe(36);
+      expect(within(cook).queryByText(/notifikasi/)).toBeNull();
+
+      served = kitchenDay([cooking]);
+      fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+      await lastConfirm().press("Mulai");
+      await screen.findByText("Berangkat antar · 34 porsi");
+      const depart = screen.getByTestId("kitchen-action-caption");
+      expect(within(depart).getByText(/notifikasi/)).toBeTruthy();
+      expect(box(depart)).toEqual(cookBox);
+      expect(box(screen.getByRole("button", { name: "Berangkat antar · 34 porsi" })).minHeight).toBe(cookButton.minHeight);
+      expect(box(screen.getByTestId("sticky-action")).gap).toBe(8);
+    });
+  });
+
+  describe("staff", () => {
+    const staff = { id: "u-2", role: "staff", name: "Mbak Sari", catererId: "k-1" };
+    const staffRuntime = (day: SellerOperationsState) => {
+      const runtime = runtimeWith(async () => day);
+      (runtime.api.me as jest.Mock).mockResolvedValue({ actor: staff, demo: false });
+      return runtime;
+    };
+
+    it("sees the same header and lists, with no setup card and no Isi menu", async () => {
+      renderToday(staffRuntime(kitchenDay([scheduled], { dishes: false })));
+      expect(await screen.findByTestId("session-figures")).toBeTruthy();
+      expect(await screen.findAllByText(/^Menu belum diisi · /)).toHaveLength(2);
+      expect(screen.queryByText("Isi menu")).toBeNull();
+      expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
+      expect(screen.getByText("Daftar masak")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Mulai masak" })).toBeTruthy();
+    });
+
+    it("never shows a new kitchen's setup card to a helper", async () => {
+      const day = kitchenDay([scheduled]);
+      day.deliveries = [];
+      day.offers = [];
+      renderToday(staffRuntime(day));
+      await screen.findByText("Tidak ada yang dimasak hari ini.");
+      expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
+      expect(screen.queryByTestId("live-slot")).toBeNull();
+    });
   });
 });

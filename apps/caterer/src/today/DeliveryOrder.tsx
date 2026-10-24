@@ -9,7 +9,17 @@ import {
   type Stop,
 } from "@catera/domain";
 import { useMobile, plural } from "@catera/mobile-core";
-import { Button, StopRow, Text, useColors } from "@catera/mobile-ui";
+import {
+  Button,
+  ListCard,
+  SectionHeader,
+  STOP_ROW_INSET,
+  STOP_ROW_PICKING_INSET,
+  StopRow,
+  Text,
+  useColors,
+} from "@catera/mobile-ui";
+import { ACTION, ActionPair, HEADING_GAP, HEADING_LINE, LinkRow, TextAction } from "./rows";
 import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
 import { areaRuns, selectableStops, stopChoices, type Selection } from "./selection";
 
@@ -18,7 +28,7 @@ const FIRST_STOPS = 3;
 /** Where `routeMapsUrl` cuts the route: a Google Maps directions link takes at most this many addresses. */
 const ROUTE_LIMIT = 10;
 /** The width of the number badge and its gap in `StopRow`, so a note lines up under the name. */
-const NOTE_INDENT = 40;
+const NOTE_INDENT = STOP_ROW_INSET;
 
 /** How much of the order is open: every stop shown (`all`), and the WhatsApp part the next share sends (`part`). */
 export type RouteView = { all: boolean; part: number; showAll(): void; setPart(part: number): void };
@@ -49,7 +59,8 @@ const failable = (ops: SellerOperationsState, stop: Stop, meal: KitchenMeal) =>
   canReportFailed(ops.deliveries.find((d) => d.id === stop.deliveryId), meal);
 
 /**
- * "Urutan antar": the session's stops in route order, as numbered rows with a map button and, where the sheet would
+ * "Urutan antar": a section whose heading carries how many addresses ("14 alamat") and "Pilih", over one `ListCard` of the
+ * session's stops in route order, as numbered rows with a map button and, where the sheet would
  * send something, a "…" button for the stop's exception sheet, a form sheet over Hari ini (a failed delivery, or moving
  * the day). A delivered stop has
  * neither, so it has no "…". The first three show; the rest are one tap away. Under them: the whole route in Maps, the
@@ -119,127 +130,157 @@ export function DeliveryOrder({
         : t("Pindah tanggal", "Move date")
     }: ${s.name}`;
 
-  return (
-    <View testID="delivery-order" style={{ gap: 12 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 48 }}>
-        <View testID="order-live" accessibilityLiveRegion={picking ? "polite" : "none"} style={{ flex: 1 }}>
-          <Text testID="order-title" variant="label" accessibilityRole="header">
-            {picking
-              ? selection!.selected.size
-                ? t(`${selection!.selected.size} dipilih`, `${selection!.selected.size} selected`)
-                : t("Pilih pengantaran", "Select deliveries")
-              : t("Urutan antar", "Delivery order")}
-          </Text>
-        </View>
-        {picking ? (
-          <Button variant="text" label={t("Selesai", "Done")} onPress={selection!.stop} />
-        ) : canPick ? (
-          <Button variant="text" label={t("Pilih", "Select")} onPress={selection!.start} />
+  const count = t(`${stops.length} alamat`, plural(stops.length, "address", "addresses"));
+  // One row of the list: the stop, and under it the customer's note for this stop where it has one.
+  const stopRow = (s: Stop) => {
+    const choice = stopChoices(s, t);
+    return (
+      <View key={s.deliveryId}>
+        <StopRow
+          testID={`stop-${s.n}`}
+          n={s.n}
+          name={s.name}
+          detail={t(`${s.portions} porsi · ${s.packageName}`, `${plural(s.portions, "portion")} · ${s.packageName}`)}
+          address={[s.addressLine, s.area].filter(Boolean).join(", ")}
+          mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
+          onMap={() => void Linking.openURL(s.mapsUrl)}
+          onMore={hasMore(s) ? () => openSheet(s) : undefined}
+          moreLabel={hasMore(s) ? moreLabel(s) : undefined}
+          selection={
+            picking
+              ? {
+                  selected: selection!.selected.has(s.deliveryId),
+                  disabled: !choice.selectable,
+                  onToggle: () => selection!.toggle(s.deliveryId),
+                  note: choice.note ?? undefined,
+                }
+              : undefined
+          }
+        />
+        {s.note ? (
+          <View style={{ paddingLeft: picking ? STOP_ROW_PICKING_INSET : NOTE_INDENT, paddingBottom: 8 }}>
+            <Text variant="meta" style={{ color: c.charcoal }}>
+              {s.note}
+            </Text>
+          </View>
         ) : null}
       </View>
+    );
+  };
+  const moreLink = hidden > 0 && !picking;
+
+  return (
+    <View testID="delivery-order">
+      {picking ? (
+        // Picking has its own heading: a live title ("Pilih pengantaran", then "n dipilih") and Selesai, on the same lines
+        // as the section header it takes the place of.
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            minHeight: HEADING_LINE,
+            marginBottom: HEADING_GAP,
+          }}
+        >
+          <View testID="order-live" accessibilityLiveRegion="polite" style={{ flex: 1 }}>
+            <Text testID="order-title" variant="section" accessibilityRole="header">
+              {selection!.selected.size
+                ? t(`${selection!.selected.size} dipilih`, `${selection!.selected.size} selected`)
+                : t("Pilih pengantaran", "Select deliveries")}
+            </Text>
+          </View>
+          <View style={{ flexShrink: 0, marginVertical: -(ACTION - HEADING_LINE) / 2 }}>
+            <TextAction label={t("Selesai", "Done")} edge={-12} onPress={selection!.stop} />
+          </View>
+        </View>
+      ) : (
+        <View testID="order-live" accessibilityLiveRegion="none">
+          <SectionHeader
+            title={t("Urutan antar", "Delivery order")}
+            count={stops.length ? count : undefined}
+            action={
+              canPick ? (
+                <ActionPair>
+                  <TextAction label={t("Pilih", "Select")} edge={-12} onPress={selection!.start} />
+                </ActionPair>
+              ) : undefined
+            }
+          />
+        </View>
+      )}
       {stops.length ? (
         <>
-          <View>
+          <View style={{ gap: HEADING_GAP }}>
             {(picking ? areaRuns(shown) : [{ area: "", stops: shown }]).map((run) => {
               const open = run.stops.filter((x) => stopChoices(x, t).selectable);
               const every = open.length > 0 && open.every((x) => selection!.selected.has(x.deliveryId));
               return (
                 <View key={`${run.area}-${run.stops[0].deliveryId}`}>
                   {picking ? (
-                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 48 }}>
-                      <Text variant="label" style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: ACTION }}>
+                      <Text variant="bodyStrong" style={{ flex: 1 }}>
                         {run.area || t("Tanpa area", "No area")}
                       </Text>
                       {open.length ? (
-                        <Button
-                          variant="text"
+                        <TextAction
                           label={every ? t("Lepas semua", "Clear all") : t("Pilih semua", "Select all")}
                           accessibilityLabel={`${every ? t("Lepas semua", "Clear all") : t("Pilih semua", "Select all")}: ${run.area || t("Tanpa area", "No area")}`}
+                          edge={-12}
                           onPress={() => selection!.setMany(open.map((x) => x.deliveryId), !every)}
                         />
                       ) : null}
                     </View>
                   ) : null}
-                  {run.stops.map((s, i) => {
-                    const choice = stopChoices(s, t);
-                    return (
-                      <View
-                        key={s.deliveryId}
-                        style={{ borderTopWidth: i || picking ? 1 : 0, borderTopColor: c.line, paddingVertical: 4 }}
-                      >
-                        <StopRow
-                          testID={`stop-${s.n}`}
-                          n={s.n}
-                          name={s.name}
-                          detail={t(`${s.portions} porsi · ${s.packageName}`, `${plural(s.portions, "portion")} · ${s.packageName}`)}
-                          address={[s.addressLine, s.area].filter(Boolean).join(", ")}
-                          mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
-                          onMap={() => void Linking.openURL(s.mapsUrl)}
-                          onMore={hasMore(s) ? () => openSheet(s) : undefined}
-                          moreLabel={hasMore(s) ? moreLabel(s) : undefined}
-                          selection={
-                            picking
-                              ? {
-                                  selected: selection!.selected.has(s.deliveryId),
-                                  disabled: !choice.selectable,
-                                  onToggle: () => selection!.toggle(s.deliveryId),
-                                  note: choice.note ?? undefined,
-                                }
-                              : undefined
-                          }
-                        />
-                        {s.note ? (
-                          <View style={{ paddingLeft: NOTE_INDENT, paddingBottom: 8 }}>
-                            <Text variant="caption" style={{ color: c.charcoal }}>
-                              {s.note}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    );
-                  })}
+                  <ListCard inset={picking ? STOP_ROW_PICKING_INSET : STOP_ROW_INSET}>
+                    {run.stops.map(stopRow)}
+                    {moreLink ? (
+                      <LinkRow
+                        key="more"
+                        inset={STOP_ROW_INSET}
+                        label={
+                          hidden === 1
+                            ? t("Lihat 1 alamat lainnya", "Show 1 more address")
+                            : t(`Lihat ${hidden} alamat lainnya`, `Show ${hidden} more addresses`)
+                        }
+                        onPress={showAll}
+                      />
+                    ) : null}
+                  </ListCard>
                 </View>
               );
             })}
           </View>
-          {hidden > 0 && !picking ? (
-            <Button
-              variant="text"
-              label={
-                hidden === 1
-                  ? t("Lihat 1 alamat lainnya", "Show 1 more address")
-                  : t(`Lihat ${hidden} alamat lainnya`, `Show ${hidden} more addresses`)
-              }
-              onPress={showAll}
-            />
-          ) : null}
-          {picking ? null : <View style={{ gap: 8 }}>
-            {route ? (
+          {picking ? null : (
+            <View style={{ gap: 8, marginTop: HEADING_GAP }}>
+              {route ? (
+                <Button
+                  variant="secondary"
+                  label={
+                    // Only a route cut at the link's limit is "the first n"; stops with no address are left out quietly.
+                    stops.length > route.count && route.count >= ROUTE_LIMIT
+                      ? t(`Buka ${route.count} alamat pertama di Peta`, `Open the first ${route.count} addresses in Maps`)
+                      : t("Buka semua di Peta", "Open all in Maps")
+                  }
+                  onPress={() => void Linking.openURL(route.url)}
+                />
+              ) : null}
               <Button
                 variant="secondary"
                 label={
-                  // Only a route cut at the link's limit is "the first n"; stops with no address are left out quietly.
-                  stops.length > route.count && route.count >= ROUTE_LIMIT
-                    ? t(`Buka ${route.count} alamat pertama di Peta`, `Open the first ${route.count} addresses in Maps`)
-                    : t("Buka semua di Peta", "Open all in Maps")
+                  at === 0
+                    ? t("Bagikan rute ke WhatsApp", "Share route to WhatsApp")
+                    : `${t("Bagikan bagian", "Share part")} ${at + 1}`
                 }
-                onPress={() => void Linking.openURL(route.url)}
+                onPress={async () => {
+                  await Share.share({ message: parts[at] });
+                  setPart(at + 1 < parts.length ? at + 1 : 0);
+                }}
               />
-            ) : null}
-            <Button
-              label={
-                at === 0
-                  ? t("Bagikan rute ke WhatsApp", "Share route to WhatsApp")
-                  : `${t("Bagikan bagian", "Share part")} ${at + 1}`
-              }
-              onPress={async () => {
-                await Share.share({ message: parts[at] });
-                setPart(at + 1 < parts.length ? at + 1 : 0);
-              }}
-            />
-          </View>}
+            </View>
+          )}
           {report === "today" && !picking ? (
-            <Text variant="caption">
+            <Text variant="meta" style={{ marginTop: HEADING_GAP }}>
               {t(
                 "Tandai Sampai dengan foto bukti. Pelanggan lalu mengonfirmasi, dan tanpa laporan pengantaran ditandai sampai otomatis.",
                 "Mark Arrived with a proof photo. The customer then confirms, and with no report the delivery is marked as arrived automatically.",

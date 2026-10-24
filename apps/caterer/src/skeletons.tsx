@@ -1,8 +1,8 @@
 import { View, type DimensionValue } from "react-native";
 import { useMobile } from "@catera/mobile-core";
-import { Card, COMPACT_MEDIA_INSET, Skeleton, SkeletonGroup, trackLabelLines } from "@catera/mobile-ui";
+import { Card, CHECK_ROW_INSET, COMPACT_MEDIA_INSET, ListCard, Skeleton, SkeletonGroup, trackLabelLines, useScreenMargin, useTouchTarget } from "@catera/mobile-ui";
 import { nativeLayout } from "@catera/design-tokens";
-import { ListCard, useScreenMargin, useTouchTarget } from "@catera/mobile-ui";
+import { CHECK_HEIGHT, FIGURE_GAP, FIGURE_TOP, HEADING_GAP, HEADING_LINE, PACKAGE_HEIGHT, SECTION_GAP } from "./today/rows";
 
 /**
  * Dapur's loading shapes (Phase F task 6). Each one is drawn in the place and roughly the size of what it stands for, so
@@ -25,12 +25,13 @@ function Line({ width, block, line, onMood, testID }: { width: DimensionValue; b
 const STOPS = [0, 1, 2, 3] as const;
 
 /**
- * The count card's numbers on the mood surface, for Hari ini's header while the day loads: the portion figure, its
- * caption and the rantang track (its caption, the rail and the stop labels), at the card's padding. The track block is
- * as tall as `RantangTrack` (caption line, rail, stop label and count lines, 8dp apart), so the header keeps its height when the card
- * replaces it. The blocks take the mood's toggle track, which stands off the header fill in Siang and Malam, light and
- * dark (the hero fill is not drawn: in light Malam it is the same colour as the track). The body's `TodaySkeleton`
- * names the wait, so this one is hidden from screen readers.
+ * The header's figures while the day loads: the porsi, paket and alamat strip (label and value lines in the strip's own
+ * 12 16 padding, without its "Antar" subline) and the compact rantang track (its 40 rail and the stop labels and
+ * counts, 8dp apart), 12dp apart under the date like the loaded pair. The track block is as tall as `RantangTrack
+ * size="compact"` and the strip as tall as `FigureStrip`, so the header keeps its height when the figures replace it. The
+ * blocks take the mood's toggle track, which stands off the header fill in Siang and Malam, light and dark (the strip's
+ * surface is not drawn: in light Malam it is nearly the header's colour). The body's `TodaySkeleton` names the wait, so
+ * this one is hidden from screen readers.
  */
 export function TodayCountSkeleton() {
   // The stop labels take two lines' room in a language where one wraps (English "On the way"), so the block does too.
@@ -40,19 +41,26 @@ export function TodayCountSkeleton() {
       testID="today-count-skeleton"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{ gap: 16, padding: 16 }}
+      style={{ gap: FIGURE_GAP, marginTop: FIGURE_TOP }}
     >
       <SkeletonGroup label="">
-        <View style={{ gap: 16 }}>
-          <View style={{ gap: 4 }}>
-            {/* The 40pt tabular figure, then "porsi siang · n alamat". */}
-            <Line width={72} block={36} line={48} onMood testID="today-count-block-number" />
-            <Line width={160} block={10} line={18} onMood testID="today-count-block-caption" />
+        <View style={{ gap: FIGURE_GAP }}>
+          {/* The strip: three cells (the 13 label line over the 40 figure) inside 12 16. Its "Antar" subline is left out: a
+              kitchen may have no window to show, and a skeleton is never taller than what replaces it. */}
+          <View testID="today-count-strip" style={{ paddingVertical: 12, paddingHorizontal: 16 }}>
+            <View style={{ flexDirection: "row", gap: 16 }}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{ flex: 1 }}>
+                  <Line width={i ? 40 : 32} block={10} line={18} onMood testID={`today-count-block-label-${i}`} />
+                  {/* The 32/40 lead figure, then the 20/26 siblings in the same 40 line. */}
+                  <Line width={i ? 32 : 56} block={i ? 20 : 32} line={40} onMood testID={i ? `today-count-block-value-${i}` : "today-count-block-number"} />
+                </View>
+              ))}
+            </View>
           </View>
           <View testID="today-count-track" style={{ gap: 8 }}>
-            <Line width={140} block={12} line={23} onMood testID="today-count-block-track-caption" />
-            {/* The track's rail (marker, line and stops) as one bar along its foot. */}
-            <View style={{ height: 64, justifyContent: "flex-end", paddingBottom: 14 }}>
+            {/* The track's rail (stops and line) as one bar through the middle of its 40. */}
+            <View testID="today-count-rail" style={{ height: 40, justifyContent: "center" }}>
               <Skeleton height={8} radius={4} onMood testID="today-count-block-track" />
             </View>
             <View style={{ flexDirection: "row" }}>
@@ -71,44 +79,54 @@ export function TodayCountSkeleton() {
 }
 
 /**
- * Hari ini's session card while the day loads: its meal label, the "Per paket" label with two package rows at the
- * recap Row's 40dp, "Daftar masak" and four checklist rows at CheckRow's 56dp, each a dish photo, the dish name and the
- * round tick.
+ * Hari ini's sections while the day loads: "Daftar masak" with four checklist rows at CheckRow's 56dp (the 48 quantity
+ * column, the 40 dish photo, the name and the 48 round tick) and "Per paket" with two package rows at KeyValueRow's 40,
+ * each heading 26 tall with 12 under it, 24 between the sections, built from the loaded layout's own constants.
  */
 export function TodaySkeleton() {
   const { t } = useMobile();
   return (
     <SkeletonGroup label={t("Memuat dapur", "Loading the kitchen")}>
-      <Card>
-        <Line width={96} block={12} line={23} />
+      <View style={{ gap: SECTION_GAP }}>
         <View>
-          <Line width={72} block={12} line={23} />
-          {[0, 1].map((i) => (
-            <View
-              key={i}
-              testID={`today-skeleton-package-${i}`}
-              style={{ height: 40, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
-            >
-              <Skeleton width={i ? "40%" : "55%"} height={14} radius={7} />
-              <Skeleton width={24} height={14} radius={7} />
-            </View>
-          ))}
+          <Line width={120} block={14} line={HEADING_LINE} />
+          <View style={{ height: HEADING_GAP }} />
+          <ListCard inset={CHECK_ROW_INSET}>
+            {[0, 1, 2, 3].map((i) => (
+              <View
+                key={i}
+                testID={`today-skeleton-row-${i}`}
+                style={{ height: CHECK_HEIGHT, flexDirection: "row", alignItems: "center", gap: 12 }}
+              >
+                <View style={{ width: 48, alignItems: "flex-end" }}>
+                  <Skeleton width={28} height={16} radius={8} />
+                </View>
+                <Skeleton width={40} height={40} radius={8} />
+                <View style={{ flex: 1 }}>
+                  <Skeleton width={i % 2 ? "55%" : "70%"} height={14} radius={7} />
+                </View>
+                <Skeleton width={48} height={48} radius={24} />
+              </View>
+            ))}
+          </ListCard>
         </View>
-        <Line width={120} block={12} line={23} />
-        {[0, 1, 2, 3].map((i) => (
-          <View
-            key={i}
-            testID={`today-skeleton-row-${i}`}
-            style={{ height: 56, flexDirection: "row", alignItems: "center", gap: 12 }}
-          >
-            <Skeleton width={44} height={44} radius={10} />
-            <View style={{ flex: 1 }}>
-              <Skeleton width={i % 2 ? "55%" : "70%"} height={14} radius={7} />
-            </View>
-            <Skeleton width={48} height={48} radius={24} />
-          </View>
-        ))}
-      </Card>
+        <View>
+          <Line width={88} block={14} line={HEADING_LINE} />
+          <View style={{ height: HEADING_GAP }} />
+          <ListCard inset={0}>
+            {[0, 1].map((i) => (
+              <View
+                key={i}
+                testID={`today-skeleton-package-${i}`}
+                style={{ height: PACKAGE_HEIGHT, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+              >
+                <Skeleton width={i ? "40%" : "55%"} height={14} radius={7} />
+                <Skeleton width={48} height={14} radius={7} />
+              </View>
+            ))}
+          </ListCard>
+        </View>
+      </View>
     </SkeletonGroup>
   );
 }

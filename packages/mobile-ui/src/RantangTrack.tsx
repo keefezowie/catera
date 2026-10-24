@@ -25,13 +25,20 @@ export type TrackCounts = Partial<Record<Exclude<TrackStage, "issue">, number>>;
 type Flow = Exclude<TrackStage, "issue">;
 
 const ease = Easing.bezier(...nativeMotion.ease);
-const MARKER = 24;
-const DISC = 28;
-const RING = 36;
+/**
+ * The track's geometry per size. `regular` is the rantang marker riding above a 36 ring rail (64 with the 4 between);
+ * `compact` (Dapur's Hari ini header) is a 40 rail of 32 rings round 24 discs, the marker drawn on the current stop.
+ */
+const SIZES = {
+  regular: { marker: 24, disc: 28, ring: 36, glyph: 16, rail: 64 },
+  compact: { marker: 24, disc: 24, ring: 32, glyph: 14, rail: 40 },
+} as const;
+type Dims = (typeof SIZES)[keyof typeof SIZES];
+/** The rantang drawn on the current stop of a compact track, on a 24 disc. */
+const COMPACT_MARKER_GLYPH = 18;
 const LINE = 2;
 const STOPS = 4;
 const LAST = STOPS - 1;
-const GLYPH = 16;
 const CURRENT_SCALE = 1.14;
 /** Stop centres sit at 0, 1/3, 2/3 and 1 of the rail, so the rail is inset by half of one label column on each side. */
 const INSET = `${100 / STOPS / 2}%` as const;
@@ -131,6 +138,7 @@ export function RantangTrack({
   caption,
   counts,
   reached = "out_for_delivery",
+  size = "regular",
   testID = "rantang-track",
 }: {
   stage: TrackStage;
@@ -138,8 +146,15 @@ export function RantangTrack({
   caption?: string;
   counts?: TrackCounts;
   reached?: TrackReached;
+  /**
+   * `compact` (Dapur): a 40 rail with the state-words line left out of the picture (it stays in the accessibility
+   * label) and the marker drawn on the current stop. The default is the track as it always was.
+   */
+  size?: "regular" | "compact";
   testID?: string;
 }) {
+  const dims: Dims = SIZES[size];
+  const compact = size === "compact";
   const ink = useMoodColors();
   const reduced = useReduced();
   const mobile = useMobile();
@@ -170,8 +185,8 @@ export function RantangTrack({
 
   // The marker and the line stop at the end of the rail even when the last stop is passed.
   const marker = useAnimatedStyle(
-    () => ({ transform: [{ translateX: (Math.min(position.value, LAST) / LAST) * width - MARKER / 2 }] }),
-    [width],
+    () => ({ transform: [{ translateX: (Math.min(position.value, LAST) / LAST) * width - dims.marker / 2 }] }),
+    [width, dims.marker],
   );
   // A full-width bar grown from its left edge, so the progress is a transform and not a width.
   const progress = useAnimatedStyle(() => ({ transform: [{ scaleX: Math.max(Math.min(position.value, LAST) / LAST, 0.0001) }] }));
@@ -210,30 +225,59 @@ export function RantangTrack({
     i === LAST ? (counts?.arrived_unconfirmed ?? 0) + (counts?.delivered ?? 0) : (counts?.[ORDER[i] as Flow] ?? 0);
   const state = [words, ...(counts ? labels.map((label, i) => `${label} ${total(i)}`) : [])].join(". ");
 
+  // Regular: the rantang rides above the rail. Compact: it is drawn on the current stop, on a disc that hides the
+  // stop's own glyph, so it sits after the stops in the tree (on top of them).
+  const markerView = (
+    <Animated.View
+      testID={`${testID}-marker`}
+      style={[
+        {
+          position: "absolute",
+          top: compact ? (dims.rail - dims.marker) / 2 : 0,
+          left: 0,
+          width: dims.marker,
+          height: dims.marker,
+          opacity: measured ? 1 : 0,
+        },
+        compact ? { borderRadius: dims.marker / 2, backgroundColor: ink.hero, alignItems: "center", justifyContent: "center" } : null,
+        marker,
+      ]}
+    >
+      <Rantang
+        size={compact ? COMPACT_MARKER_GLYPH : dims.marker}
+        color={issue ? ink.heroWarn : ink.heroText}
+        filled={stage !== "scheduled"}
+        testID={`${testID}-marker-glyph`}
+      />
+    </Animated.View>
+  );
+
   return (
     <View testID={testID} accessible accessibilityLabel={sentence} accessibilityValue={{ text: state }} style={{ gap: 8 }}>
-      {/* The caption carries the cooking and departure times, so its figures are tabular. */}
-      <Text
-        testID={`${testID}-caption`}
-        variant="label"
-        style={{ color: issue ? ink.heroWarn : ink.heroText, fontVariant: ["tabular-nums"] }}
-      >
-        {words}
-      </Text>
+      {/* The caption carries the cooking and departure times, so its figures are tabular. A compact track leaves it out
+          of the picture: the accessibility value above says the same words. */}
+      {compact ? null : (
+        <Text
+          testID={`${testID}-caption`}
+          variant="label"
+          style={{ color: issue ? ink.heroWarn : ink.heroText, fontVariant: ["tabular-nums"] }}
+        >
+          {words}
+        </Text>
+      )}
       <View style={{ paddingHorizontal: INSET }}>
-        <View testID={`${testID}-rail`} onLayout={onLayout} style={{ height: MARKER + 4 + RING }}>
-          <Animated.View
-            testID={`${testID}-marker`}
-            style={[{ position: "absolute", top: 0, left: 0, width: MARKER, height: MARKER, opacity: measured ? 1 : 0 }, marker]}
+        <View testID={`${testID}-rail`} onLayout={onLayout} style={{ height: dims.rail }}>
+          {compact ? null : markerView}
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: compact ? (dims.rail - dims.ring) / 2 : dims.marker + 4,
+              height: dims.ring,
+              justifyContent: "center",
+            }}
           >
-            <Rantang
-              size={MARKER}
-              color={issue ? ink.heroWarn : ink.heroText}
-              filled={stage !== "scheduled"}
-              testID={`${testID}-marker-glyph`}
-            />
-          </Animated.View>
-          <View style={{ position: "absolute", left: 0, right: 0, top: MARKER + 4, height: RING, justifyContent: "center" }}>
             <View testID={`${testID}-line`} style={{ height: LINE, borderRadius: LINE / 2, backgroundColor: ink.heroMeta }} />
             <Animated.View
               testID={`${testID}-progress`}
@@ -278,10 +322,12 @@ export function RantangTrack({
                 warn={warn}
                 issue={issue}
                 half={i === LAST && !issue}
+                dims={dims}
                 testID={`${testID}-stop-${i}`}
               />
             ))}
           </View>
+          {compact ? markerView : null}
         </View>
       </View>
       <View
@@ -348,17 +394,18 @@ export function RantangTrack({
   );
 }
 
-const layer = {
-  position: "absolute",
-  left: 0,
-  top: 0,
-  width: DISC,
-  height: DISC,
-  borderRadius: DISC / 2,
-  alignItems: "center",
-  justifyContent: "center",
-  overflow: "hidden",
-} as const;
+const layerOf = (disc: number) =>
+  ({
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: disc,
+    height: disc,
+    borderRadius: disc / 2,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  }) as const;
 
 /**
  * One stop, drawn in layers that fade by the fill's position: the outline ahead (`heroMeta`), the outline of the stop
@@ -372,6 +419,7 @@ function TrackStop({
   warn,
   issue,
   half,
+  dims,
   testID,
 }: {
   index: number;
@@ -379,9 +427,12 @@ function TrackStop({
   warn: SharedValue<number>;
   issue: boolean;
   half: boolean;
+  dims: Dims;
   testID: string;
 }) {
   const ink = useMoodColors();
+  const { disc: DISC, ring: RING, glyph: GLYPH } = dims;
+  const layer = layerOf(DISC);
   const last = index === LAST;
   const glyph = GLYPHS[index];
   // For `issue` the stop the meal got to counts as passed: the fill ends there and the warning takes over after it.

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react-native";
+import { render } from "./render-dapur";
 import * as ReactNative from "react-native";
 import { Share, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -102,15 +103,16 @@ it("shows the lunch cooking total for the day", async () => {
   renderToday(runtimeWith(same(canvasDay())));
   expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
   expect(screen.getByText("Makan Siang Rumahan")).toBeTruthy();
-  // The session card names its meal but does not repeat the count in a second large number.
-  expect(screen.getByText("Makan siang")).toBeTruthy();
+  // The count is the strip's lead figure, once: no second large number, and the old 40 "number" style is gone.
   expect(screen.getByText("Per paket")).toBeTruthy();
   expect(screen.getAllByText("34")).toHaveLength(1);
-  expect(screen.queryByText(/^\d+ porsi$/)).toBeNull();
-  const large = screen.UNSAFE_root.findAll(
-    (n) => typeof n.type === "string" && n.type === "Text" && StyleSheet.flatten(n.props.style)?.fontSize === 40,
-  );
-  expect(large).toHaveLength(1);
+  const lead = (size: number) =>
+    screen.UNSAFE_root.findAll(
+      (n) => typeof n.type === "string" && n.type === "Text" && StyleSheet.flatten(n.props.style)?.fontSize === size,
+    );
+  expect(lead(32)).toHaveLength(1);
+  expect(lead(40)).toHaveLength(0);
+  expect(screen.queryByText("Makan siang")).toBeNull();
 });
 
 it("shares the route as WhatsApp-ready text", async () => {
@@ -167,7 +169,8 @@ it("report cards and setup rows dim on press and still navigate", async () => {
   fireEvent(card(), "responderGrant", touch);
   expect(StyleSheet.flatten(card().props.style).opacity).toBe(0.7);
   // Same chevron as the link attention cards.
-  expect(within(card()).UNSAFE_getByType(Ionicons).props).toMatchObject({ name: "chevron-forward", size: 18, color: nativeThemes.light.muted });
+  const chevron = within(card()).UNSAFE_getAllByType(Ionicons).find((i) => i.props.name === "chevron-forward");
+  expect(chevron!.props).toMatchObject({ size: 18, color: nativeThemes.light.muted });
   fireEvent.press(card());
   // The link opens the reply sheet and carries the customer's name, so its title is final on its first frame.
   expect(router.push).toHaveBeenCalledWith("/balas/i-1?title=Nadia%20Putri");
@@ -285,6 +288,10 @@ it("names the customer, day and meal on a problem report and opens it", async ()
     timezone: "Asia/Jakarta",
   });
   renderToday(runtime);
+  // One to-do shows (the report, which comes first); the question waits behind "1 hal lainnya" and opens in place.
+  expect(await screen.findByText("Nadia Putri melaporkan masalah")).toBeTruthy();
+  expect(screen.queryByText("Pertanyaan pelanggan menunggu")).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "1 hal lainnya" }));
   expect(await screen.findByText("Pertanyaan pelanggan menunggu")).toBeTruthy();
   fireEvent.press(await screen.findByText("Nadia Putri melaporkan masalah"));
   expect(router.push).toHaveBeenCalledWith("/balas/i-1?title=Nadia%20Putri");
@@ -355,8 +362,8 @@ describe("session cards", () => {
       deliveries: [{ ...base.deliveries[0], portions: 1, customer: { id: "c-9", name: "Nadia Putri" } }],
     } as unknown as typeof base;
     renderToday(runtimeWith(async () => day));
-    expect(await screen.findByText("Makan siang")).toBeTruthy();
-    expect(within(screen.getByTestId("session-count")).getByText("1")).toBeTruthy();
+    expect(await screen.findByTestId("session-card")).toBeTruthy();
+    expect(within(screen.getByTestId("session-count")).getByTestId("session-figures-cell-0").props.accessibilityLabel).toBe("1 porsi");
     expect(screen.getByText("Nadia Putri")).toBeTruthy();
     expect(screen.getByText("Bagikan rute ke WhatsApp")).toBeTruthy();
     expect(screen.queryByText("Makan malam")).toBeNull();
@@ -487,51 +494,52 @@ describe("Hari ini by mood", () => {
     expect(screen.queryByText("Masak")).toBeNull();
   });
 
-  describe("the count card", () => {
-    it("sits on the mood hero fill and counts the mood's meal", async () => {
+  describe("the figure strip", () => {
+    it("is the theme's surface under the date, leading with the mood's portions", async () => {
       renderMood(runtimeWith(async () => timedDay()));
       const card = await screen.findByTestId("session-count");
-      const number = within(card).getByText("34");
+      const strip = within(card).getByTestId("session-figures");
+      const number = within(strip).getByText("34");
+      // The lead figure is the 32/40 tabular variant, in the ink.
       expect(StyleSheet.flatten(number.props.style)).toMatchObject({
-        color: nativeMood.light.siang.heroText,
+        fontSize: 32,
+        lineHeight: 40,
         fontVariant: expect.arrayContaining(["tabular-nums"]),
+        color: nativeThemes.light.charcoal,
       });
-      const caption = within(card).getByText("porsi siang · 4 alamat");
-      expect(StyleSheet.flatten(caption.props.style).color).toBe(nativeMood.light.siang.heroMeta);
+      expect(within(strip).getByText("porsi")).toBeTruthy();
+      expect(within(strip).getByText("paket")).toBeTruthy();
+      expect(within(strip).getByText("alamat")).toBeTruthy();
       // The earliest of the lunch windows: Paket Hemat opens at 10.30.
-      expect(within(card).getByText("Antar 10.30")).toBeTruthy();
-      expect(flat("session-count-fill-siang").backgroundColor).toBe(nativeMood.light.siang.hero);
-      expect(flat("session-count-fill-malam").backgroundColor).toBe(nativeMood.light.malam.hero);
-      expect(flat("session-count")).toMatchObject({ borderRadius: 22, borderCurve: "continuous" });
-      // The one shadow sits on the base fill (MoodFill), from the current mood's token.
-      expect(flat("session-count-fill-siang")).toMatchObject({ borderRadius: 22, boxShadow: nativeMood.light.siang.heroShadow });
-      expect(flat("session-count-fill-malam").boxShadow).toBeUndefined();
+      expect(within(strip).getByText("Antar 10.30")).toBeTruthy();
+      // One card on the header: the theme's surface (which is the hero surface of both moods), radius 16, no hero fill.
+      expect(flat("session-figures")).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderRadius: 16, borderCurve: "continuous" });
+      expect(screen.queryByTestId("session-count-fill-siang", { includeHiddenElements: true })).toBeNull();
     });
 
-    it("cross-fades its Malam fill over the Siang one when the mood switches (instant under reduced motion)", async () => {
+    it("needs no fill that fades: the strip is the same surface in Siang and Malam while the header's own fill fades", async () => {
       jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
       renderMood(runtimeWith(async () => toDinner(timedDay())));
       await screen.findByTestId("session-count");
-      // Both layers are always mounted; only the Malam one's opacity says which mood is showing.
-      expect(flat("session-count-fill-malam").opacity).toBe(0);
+      expect(nativeMood.light.siang.hero).toBe(nativeThemes.light.surface);
+      expect(nativeMood.light.malam.hero).toBe(nativeThemes.light.surface);
       expect(flat("mood-fill-malam").opacity).toBe(0);
+      expect(flat("session-figures").backgroundColor).toBe(nativeThemes.light.surface);
       fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       expect(await within(screen.getByTestId("session-count")).findByText("23")).toBeTruthy();
-      expect(flat("session-count-fill-malam").opacity).toBe(1);
       expect(flat("mood-fill-malam").opacity).toBe(1);
+      expect(flat("session-figures").backgroundColor).toBe(nativeThemes.light.surface);
       fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
       expect(await within(screen.getByTestId("session-count")).findByText("11")).toBeTruthy();
-      expect(flat("session-count-fill-malam").opacity).toBe(0);
+      expect(flat("mood-fill-malam").opacity).toBe(0);
     });
 
     it("follows the mood to the dinner session", async () => {
       renderMood(runtimeWith(async () => toDinner(timedDay())), MALAM_NOW);
       const card = await screen.findByTestId("session-count");
       expect(within(card).getByText("23")).toBeTruthy();
-      expect(within(card).getByText("porsi malam · 1 alamat")).toBeTruthy();
+      expect(within(card).getByTestId("session-figures-cell-2").props.accessibilityLabel).toBe("1 alamat");
       expect(within(card).getByText("Antar 17.45")).toBeTruthy();
-      expect(StyleSheet.flatten(within(card).getByText("23").props.style).color).toBe(nativeMood.light.malam.heroText);
-      expect(flat("session-count-fill-siang").boxShadow).toBe(nativeMood.light.malam.heroShadow);
     });
 
     it("is worded in English", async () => {
@@ -539,7 +547,9 @@ describe("Hari ini by mood", () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
       renderMood(runtime);
       const card = await screen.findByTestId("session-count");
-      expect(await within(card).findByText("lunch portions · 4 addresses")).toBeTruthy();
+      expect(await within(card).findByText("portions")).toBeTruthy();
+      expect(within(card).getByText("packages")).toBeTruthy();
+      expect(within(card).getByText("addresses")).toBeTruthy();
       expect(within(card).getByText("Delivery 10.30")).toBeTruthy();
     });
   });
@@ -547,14 +557,11 @@ describe("Hari ini by mood", () => {
   describe("one session at a time", () => {
     it("shows only the mood's session card and swaps it with the toggle", async () => {
       renderMood(runtimeWith(async () => toDinner(canvasDay())));
-      expect(await screen.findByText("Makan siang")).toBeTruthy();
-      expect(screen.queryByText("Makan malam")).toBeNull();
+      expect(await screen.findByText("Keluarga Hartono")).toBeTruthy();
       expect(screen.queryByText("Kost Damai")).toBeNull();
 
       fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
-      expect(await screen.findByText("Makan malam")).toBeTruthy();
-      expect(screen.getByText("Kost Damai")).toBeTruthy();
-      expect(screen.queryByText("Makan siang")).toBeNull();
+      expect(await screen.findByText("Kost Damai")).toBeTruthy();
       expect(screen.queryByText("Keluarga Hartono")).toBeNull();
       expect(tabsSelected()).toEqual([false, true]);
     });
@@ -562,12 +569,11 @@ describe("Hari ini by mood", () => {
     it("in Malam with only lunch work says so and offers the lunch session", async () => {
       renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
       expect(await screen.findByText("Tidak ada pengantaran makan malam.")).toBeTruthy();
-      expect(screen.queryByText("Makan siang")).toBeNull();
       expect(screen.queryByTestId("session-count")).toBeNull();
       expect(tabsSelected()).toEqual([false, true]);
 
       fireEvent.press(screen.getByRole("button", { name: "Lihat makan siang · 34 porsi" }));
-      expect(await screen.findByText("Makan siang")).toBeTruthy();
+      expect(await screen.findByTestId("session-card")).toBeTruthy();
       expect(tabsSelected()).toEqual([true, false]);
       expect(screen.queryByText("Tidak ada pengantaran makan malam.")).toBeNull();
       expect(within(screen.getByTestId("session-count")).getByText("34")).toBeTruthy();
@@ -577,7 +583,7 @@ describe("Hari ini by mood", () => {
       renderMood(runtimeWith(async () => dinnerOnly()));
       expect(await screen.findByText("Tidak ada pengantaran makan siang.")).toBeTruthy();
       fireEvent.press(screen.getByRole("button", { name: "Lihat makan malam · 34 porsi" }));
-      expect(await screen.findByText("Makan malam")).toBeTruthy();
+      expect(await screen.findByTestId("session-card")).toBeTruthy();
       expect(tabsSelected()).toEqual([false, true]);
     });
 
@@ -710,9 +716,9 @@ describe("unfilled menus on the session card", () => {
     renderToday(runtimeWith(same(canvasDay())));
     expect(await screen.findByText("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur")).toBeTruthy();
     expect(screen.getByText("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur")).toBeTruthy();
-    // A to-do status in bold charcoal, never a bare danger caption.
+    // A to-do status in strong charcoal (bodyStrong), never a bare danger caption.
     for (const line of screen.getAllByText(/^Menu belum diisi · /))
-      expect(StyleSheet.flatten(line.props.style)).toMatchObject({ color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" });
+      expect(StyleSheet.flatten(line.props.style)).toMatchObject({ color: nativeThemes.light.charcoal, fontSize: 15, lineHeight: 22, fontFamily: "Jakarta-SemiBold" });
     expect(screen.queryByText(/Lauk ×/)).toBeNull();
     expect(screen.queryByText(/Nasi ×/)).toBeNull();
     const buttons = screen.getAllByText("Isi menu");
@@ -749,7 +755,7 @@ describe("unfilled menus on the session card", () => {
   it("puts the unfilled line, not placeholder dishes, in the shared recap", async () => {
     const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
     renderToday(runtimeWith(same(canvasDay())));
-    fireEvent.press(await screen.findByText("Bagikan"));
+    fireEvent.press(await screen.findByRole("button", { name: "Bagikan" }));
     const message = (share.mock.calls[0][0] as { message: string }).message;
     expect(message).toContain("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur");
     expect(message).toContain("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur");
@@ -761,7 +767,7 @@ describe("printed recap", () => {
   it("prints the unfilled line too", async () => {
     const Print = require("expo-print") as { printAsync: jest.Mock };
     renderToday(runtimeWith(same(canvasDay())));
-    fireEvent.press(await screen.findByText("Cetak"));
+    fireEvent.press(await screen.findByRole("button", { name: "Cetak" }));
     expect(Print.printAsync.mock.calls[0][0].html).toContain("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur");
     expect(Print.printAsync.mock.calls[0][0].html).toContain("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur");
   });
@@ -796,6 +802,8 @@ describe("attention cards", () => {
     });
     renderToday(runtime);
     expect(await within(await screen.findByTestId("attention-body-a-7")).findByText("Rabu 21 Okt · Makan siang · Paket Hemat")).toBeTruthy();
+    // The second item is behind "1 hal lainnya".
+    fireEvent.press(screen.getByRole("button", { name: "1 hal lainnya" }));
     expect(within(screen.getByTestId("attention-body-a-8")).getByText("Rabu 21 Okt · Makan malam")).toBeTruthy();
   });
 
@@ -819,13 +827,15 @@ describe("attention cards", () => {
     });
     renderToday(runtime);
     const link = await screen.findByRole("link", { name: /Ada pembayaran yang perlu dicek/ });
-    const chevrons = within(link).UNSAFE_getAllByType(Ionicons);
+    const chevrons = within(link).UNSAFE_getAllByType(Ionicons).filter((i) => String(i.props.name).startsWith("chevron"));
     expect(chevrons).toHaveLength(1);
     expect(chevrons[0].props).toMatchObject({ name: "chevron-forward", size: 18, color: nativeThemes.light.muted });
-expect(within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicons)).toHaveLength(0);
-    // Both kinds keep the Card's 10 between title and context.
+    fireEvent.press(screen.getByRole("button", { name: "1 hal lainnya" }));
+    const plain = within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicons);
+    expect(plain.filter((i) => String(i.props.name).startsWith("chevron"))).toHaveLength(0);
+    // Both kinds are 64 rows: the title (rowTitle) and its context in the same text column.
     for (const id of ["a-1", "a-2"]) {
-      expect(StyleSheet.flatten(screen.getByTestId(`attention-body-${id}`).props.style).gap).toBe(10);
+      expect(StyleSheet.flatten(screen.getByTestId(`attention-${id}`).props.style)).toMatchObject({ minHeight: 64, gap: 12 });
     }
   });
 
@@ -837,5 +847,145 @@ expect(within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicon
     expect(screen.queryByRole("link", { name: /Pertanyaan pelanggan menunggu/ })).toBeNull();
     fireEvent.press(screen.getByText("Pertanyaan pelanggan menunggu"));
     expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("the live slot", () => {
+  const box = (n: { props: { style?: unknown } }) => StyleSheet.flatten(n.props.style as never) as Record<string, unknown>;
+  const item = (id: string, kind: string, context: string, href = "/seller/support") => ({
+    id, kind, priority: 1, at_time: "2026-10-08T05:40:00Z", context, href,
+  });
+  /** One waiting report and two attention items: three to-dos in all. */
+  const busy = (extra: Record<string, unknown> = {}) => {
+    const runtime = runtimeWith(same(canvasDay()));
+    (runtime.api.request as jest.Mock).mockImplementation(async (path: string) => (path.startsWith("delivery-issues") ? [report(extra)] : []));
+    (runtime.api.sellerAttention as jest.Mock).mockResolvedValue({
+      items: [item("a-1", "support", "Tanya tagihan"), item("a-2", "payment", "Bu Sari", "/seller/customers")],
+      total: 2,
+      nextCursor: null,
+      timezone: "Asia/Jakarta",
+    });
+    return runtime;
+  };
+
+  it("shows one to-do and opens the other two in place from the 2 hal lainnya link", async () => {
+    renderToday(busy());
+    const slot = await screen.findByTestId("live-slot");
+    // The first, in the existing order (reports, then attention items): the report; the rest wait.
+    expect(within(slot).getByText("Nadia Putri melaporkan masalah")).toBeTruthy();
+    expect(within(slot).queryByText("Pertanyaan pelanggan menunggu")).toBeNull();
+    expect(within(slot).queryByText("Ada pembayaran yang perlu dicek")).toBeNull();
+    const more = within(slot).getByRole("button", { name: "2 hal lainnya" });
+    expect(box(more).minHeight).toBe(48);
+    expect(more.props.accessibilityState).toMatchObject({ expanded: false });
+    const card = within(slot).getByTestId("live-card");
+    fireEvent.press(more);
+    // In place: the same card holds all three, in order, and the link is gone. No route was opened.
+    expect(within(slot).getByTestId("live-card")).toBe(card);
+    const labels = ["Nadia Putri melaporkan masalah", "Pertanyaan pelanggan menunggu", "Ada pembayaran yang perlu dicek"];
+    const all = card.findAll((n) => typeof n.type === "string");
+    const places = labels.map((label) => all.indexOf(within(card).getByText(label)));
+    expect(places).toEqual([...places].sort((a, b) => a - b));
+    expect(within(slot).queryByRole("button", { name: /hal lainnya/ })).toBeNull();
+    expect(router.push).not.toHaveBeenCalled();
+    // Every row is a 64.
+    for (const row of [within(card).getByRole("button", { name: "Buka laporan: Nadia Putri" }), within(card).getByTestId("attention-a-1")])
+      expect(box(row).minHeight).toBe(64);
+  });
+
+  it("draws the card in the attention tone, as the reports and items had", async () => {
+    renderToday(busy());
+    const card = await screen.findByTestId("live-card");
+    expect(box(card)).toMatchObject({
+      backgroundColor: nativeThemes.light.cream,
+      borderColor: nativeThemes.light.attentionBorder,
+      borderRadius: 16,
+    });
+  });
+
+  it("says when the report was already replied to, and says nothing more when it was not", async () => {
+    const first = renderToday(busy());
+    await screen.findByText("Nadia Putri melaporkan masalah");
+    expect(screen.queryByText("Sudah kamu balas. Tandai selesai kalau sudah beres.")).toBeNull();
+    first.unmount();
+    renderToday(busy({ status: "responded" }));
+    expect(await screen.findByText("Sudah kamu balas. Tandai selesai kalau sudah beres.")).toBeTruthy();
+  });
+
+  it("is left out when nothing waits, and on Besok even when reports do", async () => {
+    const first = renderToday(runtimeWith(same(canvasDay())));
+    await screen.findByTestId("session-card");
+    expect(screen.queryByTestId("live-slot")).toBeNull();
+    first.unmount();
+
+    renderToday(busy());
+    await screen.findByTestId("live-slot");
+    fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
+    await waitFor(() => expect(screen.queryByTestId("live-slot")).toBeNull());
+    expect(screen.queryByRole("button", { name: "Pilih" })).toBeNull();
+  });
+
+  it("keeps a new kitchen's setup card first, with the reports one tap behind it", async () => {
+    const runtime = runtimeWith(async () => emptyDay());
+    (runtime.api.request as jest.Mock).mockImplementation(async (path: string) => (path.startsWith("delivery-issues") ? [report()] : []));
+    renderToday(runtime);
+    expect(await screen.findByText("Siapkan dapurmu")).toBeTruthy();
+    expect(screen.queryByText("Nadia Putri melaporkan masalah")).toBeNull();
+    // The setup steps are 56 rows.
+    for (const name of [/Buat paket pertama/, /Pindahkan pelanggan lama/, /Aktifkan pembayaran/])
+      expect(box(screen.getByRole("button", { name })).minHeight).toBe(56);
+    fireEvent.press(screen.getByRole("button", { name: "1 hal lainnya" }));
+    expect(await screen.findByText("Nadia Putri melaporkan masalah")).toBeTruthy();
+  });
+
+  it("words the link in English", async () => {
+    const runtime = busy();
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
+    renderToday(runtime);
+    expect(await screen.findByRole("button", { name: "2 more" })).toBeTruthy();
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.delete(runtime.storageKey("locale"));
+  });
+});
+
+describe("the compact rantang track and the regular one", () => {
+  it("leaves the regular track as it was: a 64 rail, the words line drawn, the marker above the rail", () => {
+    const { RantangTrack } = require("@catera/mobile-ui") as typeof import("@catera/mobile-ui");
+    render(
+      <MobileProvider runtime={runtimeWith(same(canvasDay()))} linkMapper={(h) => h}>
+        <RantangTrack stage="preparing" caption="Dimasak 08.10" />
+      </MobileProvider>,
+    );
+    const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
+    expect(flat("rantang-track-rail").height).toBe(64);
+    expect(screen.getByTestId("rantang-track-caption").props.children).toBe("Dimasak 08.10");
+    expect(flat("rantang-track-marker")).toMatchObject({ top: 0, width: 24, height: 24 });
+    expect(flat("rantang-track-stop-1")).toMatchObject({ width: 36, height: 36 });
+    expect(flat("rantang-track-stop-1-disc")).toMatchObject({ width: 28, height: 28 });
+  });
+});
+
+describe("dark Malam", () => {
+  it("draws the figure strip on the dark surface and the compact track on the dark mood, in Malam", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    const day = canvasDay();
+    for (const d of day.deliveries) d.meals = d.meals.map((m) => ({ ...m, meal: "dinner" }));
+    render(
+      <ThemeProvider storageKey="t.theme">
+        <MoodProvider now={() => new Date("2026-10-08T12:00:00Z")}>
+          <MobileProvider runtime={runtimeWith(async () => day)} linkMapper={(h) => h}>
+            <TodayScreen />
+          </MobileProvider>
+        </MoodProvider>
+      </ThemeProvider>,
+    );
+    const strip = await screen.findByTestId("session-figures");
+    expect(StyleSheet.flatten(strip.props.style).backgroundColor).toBe(nativeThemes.dark.surface);
+    expect(nativeMood.dark.malam.hero).toBe(nativeThemes.dark.surface);
+    expect(StyleSheet.flatten(within(strip).getByText("34").props.style).color).toBe(nativeThemes.dark.charcoal);
+    const rail = screen.getByTestId("rantang-track-rail", { includeHiddenElements: true });
+    expect(StyleSheet.flatten(rail.props.style).height).toBe(40);
+    expect(StyleSheet.flatten(screen.getByTestId("rantang-track-line", { includeHiddenElements: true }).props.style).backgroundColor).toBe(
+      nativeMood.dark.malam.heroMeta,
+    );
   });
 });

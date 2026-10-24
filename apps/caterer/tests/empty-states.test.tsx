@@ -16,6 +16,7 @@ import { MenuWeek } from "../src/menu/MenuWeek";
 import { ReportScreen } from "../src/today/ReportScreen";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { canvasDay } from "./fixtures";
+import { withDapurScale } from "./dapur-scale";
 
 /**
  * Spec 7.2, Task 13: Dapur's empty, done and failed states show their delivered mascot still, 120pt and centred above
@@ -132,14 +133,14 @@ const STATES: State[] = [
     name: "Hari ini with no session",
     pose: "tidur",
     runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => ({ ...day("scheduled"), deliveries: [] })) }),
-    ui: <TodayScreen />,
+    ui: withDapurScale(<TodayScreen />),
     copy: ["Tidak ada yang dimasak hari ini.", "Pesanan baru akan muncul di sini."],
   },
   {
     name: "Hari ini with no session for this meal",
     pose: "tidur",
     runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => day("scheduled", "dinner")) }),
-    ui: <TodayScreen />,
+    ui: withDapurScale(<TodayScreen />),
     copy: ["Tidak ada pengantaran makan siang."],
     action: /^Lihat makan malam · \d+ porsi$/,
   },
@@ -147,7 +148,7 @@ const STATES: State[] = [
     name: "Semua beres hari ini",
     pose: "merayakan",
     runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => day("delivered")) }),
-    ui: <TodayScreen />,
+    ui: withDapurScale(<TodayScreen />),
     copy: ["Semua beres hari ini", "Semua pengantaran sudah ditandai sampai."],
     action: "Lihat besok",
   },
@@ -155,7 +156,7 @@ const STATES: State[] = [
     name: "Hari ini that could not load",
     pose: "bingung",
     runtime: () => runtimeWith({ sellerOperations: jest.fn(offline) }),
-    ui: <TodayScreen />,
+    ui: withDapurScale(<TodayScreen />),
     copy: [],
     action: "Coba lagi",
   },
@@ -288,40 +289,23 @@ describe("each empty and error state shows its pose and keeps its copy and actio
   });
 });
 
-describe("the cooking session", () => {
-  it("shows the cooking mascot at 72 beside the count card's numbers while the session is cooking", async () => {
-    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));
-    const card = await screen.findByTestId("session-count");
-    const art = await within(card).findByTestId("mascot-memasak", hidden);
-    expect(artHeight(art)).toBe(72);
-    // In the numbers' row, beside the portions.
-    const row = within(card).getByTestId("session-count-row", hidden);
-    expect(within(row).getByTestId("mascot-memasak", hidden)).toBeTruthy();
-    expect(within(row).getByText(/^\d+$/)).toBeTruthy();
-    for (const pose of POSES.filter((p) => p !== "memasak")) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
+describe("the header holds no cooking mascot", () => {
+  // The cooking mascot's slot left the count card with the card itself (Dapur layout, spec 3.1): the header is the
+  // meta row, the date, the figure strip and the compact track. The mascot stays on the done and empty states above.
+  it("draws no mascot before cooking, while it cooks, or once the meal is on its way", async () => {
+    for (const status of ["scheduled", "preparing", "out_for_delivery"]) {
+      render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day(status)) }), withDapurScale(<TodayScreen />)));
+      await screen.findByTestId("session-count");
+      for (const pose of POSES) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
+      expect(screen.queryByTestId("mascot-memasak-slot", hidden)).toBeNull();
+      screen.unmount();
+    }
   });
 
-  it("gives the caption the card's full width on a 360dp phone at font scale 1.3, so it does not wrap to four lines", async () => {
-    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));
-    const card = await screen.findByTestId("session-count");
-    const caption = await within(card).findByTestId("session-count-caption", hidden);
-    expect(within(within(card).getByTestId("session-count-numbers", hidden)).queryByTestId("session-count-caption", hidden)).toBeNull();
-    expect(within(within(card).getByTestId("session-count-row", hidden)).queryByTestId("session-count-caption", hidden)).toBeNull();
-    expect(caption.props.children).toMatch(/porsi siang|lunch portions/);
-  });
-
-  it("shrinks it to 58 on a 360dp phone at font scale 1.3", async () => {
-    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));
-    const card = await screen.findByTestId("session-count");
-    expect(artHeight(await within(card).findByTestId("mascot-memasak", hidden))).toBe(58);
-  });
-
-  it("keeps the count card's layout the same before, during and after cooking: the slot is held in the numbers row", async () => {
-    // A 360dp phone at the default text size, where the caption has the least room.
+  it("keeps the strip and the track the same size before, during and after cooking", async () => {
+    // A 360dp phone at the default text size, where the strip has the least room in one row.
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
-    // A lunch window the caterer set, so the row carries "Antar 11.30" beside the slot.
+    // A lunch window the caterer set, so the strip carries "Antar 11.30" in every stage.
     const windowed = (status: string): SellerOperationsState => {
       const ops = day(status);
       ops.deliveries = ops.deliveries.map(
@@ -330,31 +314,16 @@ describe("the cooking session", () => {
       return ops;
     };
     const layout = async (status: string) => {
-      render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => windowed(status)) }), <TodayScreen />));
+      render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => windowed(status)) }), withDapurScale(<TodayScreen />)));
       const card = await screen.findByTestId("session-count");
-      const cooking = status === "preparing";
-      const slotId = cooking ? "mascot-memasak" : "mascot-memasak-slot";
-      const slot = within(card).getByTestId(slotId, hidden);
-      const box = StyleSheet.flatten(
-        within(slot).getByTestId("mascot-art-fade", hidden).props.style,
-      );
-      const row = within(card).getByTestId("session-count-row", hidden);
-      const caption = within(card).getByTestId("session-count-caption", hidden);
-      const numbers = within(card).getByTestId("session-count-numbers", hidden);
-      const antar = within(row).getByText(/^Antar /, hidden);
+      const flat = (id: string) => StyleSheet.flatten(within(card).getByTestId(id, hidden).props.style);
       const shape = {
-        row: StyleSheet.flatten(row.props.style),
-        numbers: StyleSheet.flatten(numbers.props.style),
-        caption: { text: caption.props.children, lines: caption.props.numberOfLines },
-        antar: StyleSheet.flatten(antar.props.style),
-        // `[numbers flex:1][slot][Antar]` in one row: the slot always takes its width beside the numbers' column
-        // (never inside it, never stacked over "Antar"), so the caption wraps the same way in every stage.
-        slotInRow: within(row).queryByTestId(slotId, hidden) !== null,
-        slotInNumbers: within(numbers).queryByTestId(slotId, hidden) !== null,
-        antarInNumbers: within(numbers).queryByText(/^Antar /, hidden) !== null,
-        stacked: within(card).queryByTestId("session-count-side", hidden) !== null,
-        slot: StyleSheet.flatten(slot.props.style),
-        box: { width: box.width, height: box.height },
+        card: StyleSheet.flatten(card.props.style),
+        strip: flat("session-figures"),
+        rail: flat("rantang-track-rail"),
+        subline: within(card).queryByText("Antar 11.30", hidden) !== null,
+        grid: within(card).queryByTestId("session-figures-grid", hidden) !== null,
+        words: within(card).queryByTestId("rantang-track-caption", hidden) !== null,
       };
       screen.unmount();
       return shape;
@@ -364,90 +333,24 @@ describe("the cooking session", () => {
     const after = await layout("out_for_delivery");
     expect(during).toEqual(before);
     expect(after).toEqual(before);
-    expect(before).toMatchObject({ slotInRow: true, slotInNumbers: false, antarInNumbers: false, stacked: false });
-    expect(before.box.height).toBe(72);
+    expect(before).toMatchObject({ subline: true, grid: false, words: false });
+    expect(before.rail.height).toBe(40);
   });
 
-  /** `withTiming` calls that move a value to `to` over `nativeMotion.content`. */
-  const contentFades = (timing: jest.SpyInstance, to: number) =>
-    timing.mock.calls.filter(([value, config]) => value === to && (config as { duration?: number })?.duration === 440);
-  const opacityOf = (el: ReturnType<typeof screen.getByTestId>) => StyleSheet.flatten(el.props.style).opacity;
-
-  it("changes only the mascot's opacity at Mulai masak and Berangkat antar: one box that never remounts", async () => {
-    const reads = jest.fn(async () => day("scheduled"));
-    const timing = jest.spyOn(Reanimated, "withTiming");
-    render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
-    const box = await screen.findByTestId("mascot-memasak-slot", hidden);
-    const fade = within(box).getByTestId("mascot-art-fade", hidden);
-    expect(opacityOf(fade)).toBe(0);
-
-    timing.mockClear();
-    reads.mockImplementation(async () => day("preparing"));
-    await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
-    // The same box and the same fading view, now drawn: no mount, so no layout animation, just the opacity to 1.
-    expect(await screen.findByTestId("mascot-memasak", hidden)).toBe(box);
-    expect(within(box).getByTestId("mascot-art-fade", hidden)).toBe(fade);
-    expect(contentFades(timing, 1).length).toBeGreaterThan(0);
-    for (const el of [box, fade]) {
-      expect(el.props.entering).toBeUndefined();
-      expect(el.props.exiting).toBeUndefined();
-    }
-
-    timing.mockClear();
-    reads.mockImplementation(async () => day("out_for_delivery"));
-    await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
-    expect(await screen.findByTestId("mascot-memasak-slot", hidden)).toBe(box);
-    expect(within(box).getByTestId("mascot-art-fade", hidden)).toBe(fade);
-    expect(contentFades(timing, 0).length).toBeGreaterThan(0);
+  it("stacks the figures as a 2-column grid on a 360dp phone at font scale 1.3, the lead across both", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
+    const card = await screen.findByTestId("session-count");
+    const grid = await within(card).findByTestId("session-figures-grid", hidden);
+    expect(StyleSheet.flatten(within(grid).getByTestId("session-figures-cell-0", hidden).props.style).width).toBe("100%");
+    // The primary label of the strip's lead is whole: one line of the label and the number, no clipping.
+    expect(within(card).getByText("porsi", hidden).props.numberOfLines).toBeUndefined();
   });
 
-  it("makes the change at once under reduced motion", async () => {
-    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    const reads = jest.fn(async () => day("scheduled"));
-    const timing = jest.spyOn(Reanimated, "withTiming");
-    render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
-    const box = await screen.findByTestId("mascot-memasak-slot", hidden);
-    for (const next of ["preparing", "out_for_delivery"]) {
-      timing.mockClear();
-      reads.mockImplementation(async () => day(next));
-      await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
-      await screen.findByTestId(next === "preparing" ? "mascot-memasak" : "mascot-memasak-slot", hidden);
-      expect(contentFades(timing, 0)).toHaveLength(0);
-      expect(contentFades(timing, 1)).toHaveLength(0);
-      expect(opacityOf(within(box).getByTestId("mascot-art-fade", hidden))).toBe(next === "preparing" ? 1 : 0);
-    }
-  });
-
-  it("draws a session already cooking at first paint at full opacity: the header's fade brings it in", async () => {
-    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));
-    const art = await screen.findByTestId("mascot-memasak", hidden);
-    expect(opacityOf(within(art).getByTestId("mascot-art-fade", hidden))).toBe(1);
-    expect(art.props.entering).toBeUndefined();
-  });
-
-  it("leaves with its block: switching to Besok leaves no cooking mascot behind and it has no exit animation", async () => {
-    const reads = jest.fn((_id: string, date: string) =>
-      date === TODAY ? Promise.resolve(day("preparing")) : new Promise<SellerOperationsState>(() => undefined),
-    );
-    render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
-    const art = await screen.findByTestId("mascot-memasak", hidden);
-    for (const el of [art, within(art).getByTestId("mascot-art-fade", hidden)]) {
-      expect(el.props.exiting).toBeUndefined();
-      expect(el.props.entering).toBeUndefined();
-    }
-    fireEvent.press(screen.getByRole("button", { name: /ganti hari$/ }));
-    await waitFor(() => expect(screen.queryByTestId("session-count", hidden)).toBeNull());
-    expect(screen.queryByTestId("mascot-memasak", hidden)).toBeNull();
-    expect(screen.queryByTestId("mascot-memasak-slot", hidden)).toBeNull();
-  });
-
-  it("shows no mascot before cooking starts or once the meal is on its way", async () => {
-    for (const status of ["scheduled", "out_for_delivery"]) {
-      render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day(status)) }), <TodayScreen />));
-      await screen.findByTestId("session-count");
-      for (const pose of POSES) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
-      screen.unmount();
-    }
+  it("leaves a copy of the header's track to the screen reader: the words are in its accessibility value", async () => {
+    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
+    const track = await screen.findByTestId("rantang-track", hidden);
+    expect((track.props.accessibilityValue.text as string).split(". ")[0]).toMatch(/^Dimasak/);
   });
 });
 
@@ -460,8 +363,4 @@ it("mascot art is hidden from screen readers", async () => {
     expect(art.props.accessibilityElementsHidden).toBe(true);
     screen.unmount();
   }
-  render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));
-  const art = await screen.findByTestId("mascot-memasak", hidden);
-  expect(screen.queryByTestId("mascot-memasak")).toBeNull();
-  expect(art.props.accessible).toBe(false);
 });

@@ -193,7 +193,7 @@ const textsIn = (node: ReturnType<typeof screen.getByTestId>) => node.findAll((n
 describe("Hari ini", () => {
   it("Hari ini loading shows the count card and checklist skeleton under the live header", async () => {
     const day = jest.fn(never);
-    renderWith(runtimeWith(owner, { sellerOperations: day }), <TodayScreen />);
+    renderWith(runtimeWith(owner, { sellerOperations: day }), withDapurScale(<TodayScreen />));
     // The header is live: its date button and the Siang / Malam toggle work while the day loads.
     const header = await screen.findByTestId("mood-header");
     expect(within(header).getByLabelText(/, ganti hari$/)).toBeTruthy();
@@ -219,7 +219,7 @@ describe("Hari ini", () => {
 
   it("the loaded day replaces both skeletons", async () => {
     const read = held<SellerOperationsState>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), <TodayScreen />);
+    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     expect(await screen.findByLabelText("Memuat dapur")).toBeTruthy();
     await act(async () => read.answer(today()));
     expect(await screen.findByTestId("session-count")).toBeTruthy();
@@ -229,7 +229,7 @@ describe("Hari ini", () => {
 
   it("the count skeleton's track is as tall as the loaded rantang track, so the header keeps its height at the swap", async () => {
     const read = held<SellerOperationsState>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), <TodayScreen />);
+    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
     const track = within(header).getByTestId("today-count-track", { includeHiddenElements: true });
     // The stop labels' row sits under the rail, its blocks on the mood surface like the rest.
@@ -240,29 +240,47 @@ describe("Hari ini", () => {
     const waiting = stackHeight(track);
     await act(async () => read.answer(today()));
     const loaded = stackHeight(await screen.findByTestId("rantang-track"));
-    // The caption line (23), the rail (64) and the stop labels' and counts' lines (18 each), 8dp apart.
-    expect(loaded).toBe(23 + 8 + 64 + 8 + 36);
+    // The compact track: the 40 rail, then the stop labels' and counts' lines (18 each), 8dp apart. Its words line is
+    // not drawn, so there is no caption line above the rail.
+    expect(loaded).toBe(40 + 8 + 36);
     expect(waiting).toBe(loaded);
+  });
+
+  it("the count skeleton's strip is as tall as the loaded figure strip, and both sit 12 under the date and 12 apart", async () => {
+    const read = held<SellerOperationsState>();
+    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
+    const header = await screen.findByTestId("mood-header");
+    const skeleton = within(header).getByTestId("today-count-skeleton", { includeHiddenElements: true });
+    const waitingStrip = stackHeight(within(skeleton).getByTestId("today-count-strip", { includeHiddenElements: true }));
+    const waitingFlow = flat(skeleton);
+    await act(async () => read.answer(today()));
+    const loadedStrip = stackHeight(await screen.findByTestId("session-figures"));
+    const loadedFlow = flat(screen.getByTestId("session-count"));
+    // 12 + (18 + 40) + 12 = 82 in both: the day has no window, so the strip has no "Antar" line yet.
+    expect(loadedStrip).toBe(82);
+    expect(waitingStrip).toBe(82);
+    expect(waitingFlow).toMatchObject({ gap: 12, marginTop: 8 });
+    expect(loadedFlow).toMatchObject({ gap: 12, marginTop: 8 });
   });
 
   it("in English the stop labels hold two lines' room (On the way wraps), in the track and in its skeleton alike", async () => {
     const read = held<SellerOperationsState>();
     const runtime = runtimeWith(owner, { sellerOperations: read.fn });
     secureStore.set(runtime.storageKey("locale"), "en");
-    renderWith(runtime, <TodayScreen />);
+    renderWith(runtime, withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
     await waitFor(() => expect(within(header).getByLabelText(/, change day$/)).toBeTruthy());
     const waiting = stackHeight(within(header).getByTestId("today-count-track", { includeHiddenElements: true }));
     await act(async () => read.answer(today()));
     const loaded = stackHeight(await screen.findByTestId("rantang-track"));
-    // The caption line (23), the rail (64), two label lines (36) and the count line (18), 8dp apart.
-    expect(loaded).toBe(23 + 8 + 64 + 8 + 54);
+    // The compact rail (40), two label lines (36) and the count line (18), 8dp apart.
+    expect(loaded).toBe(40 + 8 + 54);
     expect(waiting).toBe(loaded);
     secureStore.delete(runtime.storageKey("locale"));
   });
 
   it("Malam's skeleton sits on the Malam header, visible against its fill", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <TodayScreen />, MALAM);
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />), MALAM);
     const header = await screen.findByTestId("mood-header");
     const count = within(header).getByTestId("today-count-skeleton", { includeHiddenElements: true });
     const block = count.find((n) => host(n) && n.props.testID === "today-count-block-number");
@@ -273,7 +291,7 @@ describe("Hari ini", () => {
 
   it("in the dark theme the skeleton reads the dark mood and the dark sage", async () => {
     secureStore.set("sk.theme", "dark");
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <TodayScreen />);
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
     // The stored choice is read from the phone, so the dark palette lands a moment after the first frame.
     await waitFor(() =>
@@ -293,7 +311,7 @@ describe("Hari ini", () => {
           throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
         }),
       }),
-      <TodayScreen />,
+      withDapurScale(<TodayScreen />),
     );
     expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
     expect(skeletonNames()).toEqual([]);
@@ -308,7 +326,7 @@ describe("Hari ini", () => {
           throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
         }),
       }),
-      <TodayScreen />,
+      withDapurScale(<TodayScreen />),
     );
     expect(await screen.findByText(/Ini data terakhir yang tersimpan/)).toBeTruthy();
     expect(screen.getByTestId("session-count")).toBeTruthy();
@@ -317,7 +335,7 @@ describe("Hari ini", () => {
 
   it("pull to refresh on Hari ini keeps the session on screen", async () => {
     const day = jest.fn(async () => today());
-    renderWith(runtimeWith(owner, { sellerOperations: day }), <TodayScreen />);
+    renderWith(runtimeWith(owner, { sellerOperations: day }), withDapurScale(<TodayScreen />));
     expect(await screen.findByTestId("session-count")).toBeTruthy();
     const scroll = screen.getByTestId("screen-scroll");
     const control = scroll.props.refreshControl as ReactElement<ReactNative.RefreshControlProps>;
@@ -343,7 +361,7 @@ describe("Hari ini", () => {
   });
 
   it("the pull spinner takes the theme's ink and surface", async () => {
-    renderWith(runtimeWith(owner), <TodayScreen />);
+    renderWith(runtimeWith(owner), withDapurScale(<TodayScreen />));
     await screen.findByTestId("session-count");
     const control = screen.getByTestId("screen-scroll").props.refreshControl as ReactElement<ReactNative.RefreshControlProps>;
     expect(control.props.tintColor).toBe(nativeThemes.light.forest);
@@ -356,7 +374,7 @@ describe("Hari ini", () => {
     const repeat = jest.spyOn(Reanimated, "withRepeat");
     const timing = jest.spyOn(Reanimated, "withTiming");
     const read = held<SellerOperationsState>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), <TodayScreen />);
+    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     expect(await screen.findByLabelText("Memuat dapur")).toBeTruthy();
     expect(repeat).not.toHaveBeenCalled();
     await act(async () => read.answer(today()));
@@ -365,7 +383,7 @@ describe("Hari ini", () => {
   });
 
   it("skeleton rows hold the checklist row's height and draw no text, so a 1.3 font scale only makes the loaded day taller", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <TodayScreen />);
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />));
     const body = await screen.findByLabelText("Memuat dapur");
     for (let i = 0; i < 4; i += 1) {
       const row = within(body).getByTestId(`today-skeleton-row-${i}`, { includeHiddenElements: true });
@@ -375,6 +393,26 @@ describe("Hari ini", () => {
     expect(textsIn(body)).toEqual([]);
     const header = screen.getByTestId("mood-header");
     expect(textsIn(within(header).getByTestId("today-count-skeleton", { includeHiddenElements: true }))).toEqual([]);
+  });
+
+  it("the body skeleton is built from the loaded layout's numbers: 56 check rows with a 48 quantity column and a 40 photo, 40 package rows, 24 between the sections", async () => {
+    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />));
+    const body = await screen.findByLabelText("Memuat dapur");
+    const hiddenToo = { includeHiddenElements: true };
+    const row = within(body).getByTestId("today-skeleton-row-0", hiddenToo);
+    expect(flat(row).height).toBe(56);
+    const parts = drawnChildren(row);
+    // The quantity column, the photo, the name and the tick.
+    expect(flat(parts[0]).width).toBe(48);
+    expect(flat(parts[1])).toMatchObject({ width: 40, height: 40, borderRadius: 8 });
+    expect(flat(parts[3])).toMatchObject({ width: 48, height: 48 });
+    for (const i of [0, 1]) expect(flat(within(body).getByTestId(`today-skeleton-package-${i}`, hiddenToo)).height).toBe(40);
+    // Two sections under one 24 gap, each a 26 heading line and 12 above its card, the card with its hairline inset.
+    const sections = drawnChildren(drawnChildren(body)[0]);
+    expect(flat(drawnChildren(body)[0]).gap).toBe(24);
+    expect(sections).toHaveLength(2);
+    expect(flat(drawnChildren(sections[0])[0]).height).toBe(26);
+    expect(flat(drawnChildren(sections[0])[1]).height).toBe(12);
   });
 });
 
