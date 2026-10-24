@@ -44,6 +44,8 @@ function appPathOf(link: string) {
 
 /** First path segments of the screens that sit above the tabs in the root stack. */
 const ROOT_STACK = new Set(["aktifkan", "impor", "impor-baris", "impor-foto", "pindah-tanggal", "masuk", "daftar"]);
+/** Routes the app opens itself (never from an OS link) that a link may still name; they pass through like ROOT_STACK. */
+const OWN_ROUTES = new Set(["aksi", "konfirmasi"]);
 
 /**
  * Every screen of the shared tab folder, from the role table (`SCREEN_TAB`), as a path test with the tab it belongs
@@ -68,8 +70,8 @@ function screenOfPath(app: string): { tab: CatererTab; path: string } | null {
  * `/`) opens its own tab; a screen of the shared tab folder opens in the tab `SCREEN_TAB` gives it, with that tab's root
  * behind it (`/uang` is `/(tabs)/(usaha)/uang`, `/laporan/{id}` is `/(tabs)/(index)/laporan/{id}`). Every tab's stack
  * holds every one of these screens and a cold start has no current tab to prefer, so without the group the router picks
- * one by the shape of the route tree. A role without that tab falls to its guard, which shows Hari ini. Any other link
- * (the screens above the tabs) passes through. Every OS link loses its `title`: anyone can craft one, so only links the
+ * one by the shape of the route tree. A role without that tab falls to its guard, which shows Hari ini. A screen above the tabs passes
+ * through; a path the app has no screen for opens Hari ini, so no link lands on an unmatched route. Every OS link loses its `title`: anyone can craft one, so only links the
  * app builds may name a screen before its record loads.
  */
 export function redirectSystemPath({ path: link }: { path: string; initial: boolean }): string {
@@ -81,9 +83,11 @@ export function redirectSystemPath({ path: link }: { path: string; initial: bool
     if (root) return `${groupHref(root.tab)}${rest}`;
     const screen = screenOfPath(app);
     if (screen) return `/(tabs)/(${screen.tab})/${screen.path}${rest}`;
-    return path;
+    const first = app.replace(/^\/+/, "").split(/[/?#]/)[0];
+    if (ROOT_STACK.has(first) || OWN_ROUTES.has(first)) return path;
+    return groupHref("index");
   } catch {
-    return path;
+    return groupHref("index");
   }
 }
 

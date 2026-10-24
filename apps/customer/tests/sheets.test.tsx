@@ -7,7 +7,7 @@ import { render } from "@testing-library/react-native";
 import { NavigationContext } from "expo-router/react-navigation";
 import { router } from "expo-router";
 import { act, fireEvent, renderRouter, screen, within } from "expo-router/testing-library";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativeMotion, nativeThemes } from "@catera/design-tokens";
 import {
   ActionSheet,
   canHoldRemoval,
@@ -431,6 +431,12 @@ describe("ActionSheet", () => {
     expect(screen.getByText("Nasi Bakar")).toBeTruthy();
     expect(screen.getByText("Makan siang")).toBeTruthy();
     expect(screen.getByTestId("action-context-image").props.source).toEqual({ uri: "https://img.example/nasi.jpg" });
+  });
+
+  it("draws the context photo with a continuous corner and a reduced-motion-aware fade", () => {
+    tree("android", { context: { image: "https://img.example/nasi.jpg", title: "Nasi Bakar", lines: [] } });
+    expect(StyleSheet.flatten(screen.getByTestId("action-context-frame").props.style)).toMatchObject({ borderRadius: 12, borderCurve: "continuous" });
+    expect(screen.getByTestId("action-context-image").props.transition).toBe(nativeMotion.selection);
   });
 });
 

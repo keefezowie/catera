@@ -247,7 +247,7 @@ function StopRowV2({
     <View style={{ flex: 1, minWidth: 0 }}>
       <Text testID={`${testID}-title`} variant="rowTitle" numberOfLines={1}>
         <Text variant="rowTitle">{name}</Text>
-        {portions ? <Text variant="meta">{` · ${portions}`}</Text> : null}
+        {portions ? <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>{` · ${portions}`}</Text> : null}
       </Text>
       <Text testID={`${testID}-meta`} variant="meta" numberOfLines={1}>
         {meta}

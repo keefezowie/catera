@@ -203,6 +203,7 @@ describe("SectionHeader count and node action", () => {
     expect(screen.getByText("Daftar masak").props.accessibilityRole).toBe("header");
     const count = screen.getByText("9 menu");
     expect(flat(count)).toMatchObject({ fontSize: 13, lineHeight: 18, flexShrink: 0 });
+    expect(flat(count).fontVariant).toEqual(["tabular-nums"]);
   });
 
   it("takes a node in its trailing slot, which overhangs the 26 heading line so a 48 button does not grow it", () => {
@@ -294,6 +295,11 @@ describe("CheckRow and StopRow take the Dapur geometry from the 48 touch target,
     under("v2", 44, stopRow());
     expect(screen.queryByTestId("sr-actions")).toBeNull();
     expect(flat(screen.getByTestId("sr")).minHeight).toBe(56);
+  });
+
+  it("StopRow's portions figure is tabular", () => {
+    under("v2", 48, <StopRow testID="sr" n={1} name="Bu Rina" portions="8 porsi" address="Jl. Melati 1" onMap={() => {}} mapLabel="Peta" onMore={() => {}} moreLabel="Lainnya" />);
+    expect(flat(screen.getByText(" · 8 porsi")).fontVariant).toEqual(["tabular-nums"]);
   });
 
   it("a 48 target draws the Dapur rows", () => {

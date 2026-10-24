@@ -409,9 +409,19 @@ describe("links from the system", () => {
     }
   });
 
-  it("passes every other link through unchanged", () => {
-    for (const path of ["/aktifkan", "/impor", "/impor-baris?n=1", "/impor-foto?i=1", "/index", "/apa-ini", "/laporan", "/uang/lain"])
-      expect(rewrite(path)).toBe(path);
+  it("passes the screens above the tabs through unchanged", () => {
+    for (const path of ["/aktifkan", "/impor", "/impor-baris?n=1", "/impor-foto?i=1", "/masuk", "/aksi", "/konfirmasi"]) expect(rewrite(path)).toBe(path);
+  });
+
+  it("sends a path the app has no screen for to Hari ini, never an unmatched route", () => {
+    for (const path of ["/index", "/apa-ini", "/laporan", "/uang/lain", "https://dapur.example.test/halaman/baru", "catera-dapur://tidak-ada?x=1", "/pelanggan/a/b"])
+      expect(rewrite(path)).toBe("/(tabs)/(index)");
+  });
+
+  it("has an unmatched-route screen that redirects to Hari ini", () => {
+    const element = require("../app/+not-found").default();
+    expect(element.type).toBe(require("expo-router").Redirect);
+    expect(element.props.href).toBe("/");
   });
 
   it("drops the title from every OS link and keeps the rest of it", () => {

@@ -2,7 +2,8 @@ import { Fragment } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
-import { useHaptic } from "./motion";
+import { nativeMotion } from "@catera/design-tokens";
+import { useHaptic, useReduced } from "./motion";
 import { SheetFitBody, SheetHeader } from "./SheetHeader";
 import { useActionRoute, type ActionItem, type ActionSheetInput } from "./sheets";
 import { useColors } from "./theme";
@@ -28,6 +29,7 @@ export function ActionSheet({
   os = process.env.EXPO_OS,
 }: ActionSheetInput & { onChoose: (key: string) => void; os?: string }) {
   const palette = useColors();
+  const reduced = useReduced();
   const haptic = useHaptic();
   const ios = os === "ios";
   const inset = ios ? 20 : 24;
@@ -40,13 +42,16 @@ export function ActionSheet({
       {context ? (
         <View testID="action-context" style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: inset, paddingBottom: 12 }}>
           {context.image ? (
-            <Image
-              testID="action-context-image"
-              source={{ uri: context.image }}
-              contentFit="cover"
-              accessible={false}
-              style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: palette.sage }}
-            />
+            <View testID="action-context-frame" style={{ width: 56, height: 56, borderRadius: 12, borderCurve: "continuous", overflow: "hidden", backgroundColor: palette.sage }}>
+              <Image
+                testID="action-context-image"
+                source={{ uri: context.image }}
+                contentFit="cover"
+                accessible={false}
+                transition={reduced ? 0 : nativeMotion.selection}
+                style={{ width: 56, height: 56 }}
+              />
+            </View>
           ) : null}
           <View style={{ flex: 1, gap: 2 }}>
             <RNText selectable style={{ fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: palette.charcoal }}>

@@ -2,6 +2,7 @@ import { View } from "react-native";
 import { nativeThemes } from "@catera/design-tokens";
 import { Photo } from "./PhotoRing";
 import { Text } from "./components";
+import { withAlpha } from "./withAlpha";
 
 // A cover sits on a photo, so its inks do not follow the theme: the photo is the same in both.
 const ink = nativeThemes.light;
@@ -51,7 +52,7 @@ export function StoryCover({
           right: 0,
           bottom: 0,
           left: 0,
-          experimental_backgroundImage: "linear-gradient(rgba(27,27,26,0) 40%, rgba(27,27,26,0.9))",
+          experimental_backgroundImage: `linear-gradient(${withAlpha(ink.overlayInk, 0)} 40%, ${withAlpha(ink.overlayInk, 0.9)})`,
         }}
       />
       <View

@@ -77,6 +77,6 @@ const useStyles = themedStyles(() => ({
   },
   title: { flex: 1 },
   rowWithAction: { minHeight: NODE_ACTION_HEIGHT },
-  count: { flexShrink: 0 },
+  count: { flexShrink: 0, fontVariant: ["tabular-nums"] },
   trailing: { flexDirection: "row", alignItems: "center", flexShrink: 0 },
 }));
