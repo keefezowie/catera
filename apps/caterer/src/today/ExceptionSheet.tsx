@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { View, type DimensionValue } from "react-native";
 import { router, useNavigation, useRoute } from "expo-router";
 import {
   errorLabel,
@@ -9,19 +8,25 @@ import {
   type KitchenMeal,
   type SellerOperationsState,
 } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile, plural } from "@catera/mobile-core";
 import {
   Button,
+  DecorativeIcon,
   FormError,
-  fontFor,
-  PressableScale,
+  GLYPH_INSET,
+  GlyphCircle,
+  ListCard,
+  PressableRow,
   SheetBody,
+  SheetFooter,
   SheetHeader,
   Skeleton,
   SkeletonGroup,
   Text,
   useBusy,
   useColors,
+  useHaptic,
   useToast,
 } from "@catera/mobile-ui";
 import { issueSteps } from "./exceptions";
@@ -80,6 +85,84 @@ export function Frame({ title, context, children }: { title: string; context?: s
     <View testID="exception-sheet" style={{ flex: 1 }}>
       <SheetHeader title={title} context={context} closeLabel={t("Tutup", "Close")} />
       <SheetBody>{children}</SheetBody>
+    </View>
+  );
+}
+
+/** The pinned primary action's loading block: the 50 button the footer will hold, drawn in the footer so it does not pop in. */
+export function FooterSkeleton({ testID }: { testID: string }) {
+  return (
+    <SheetFooter>
+      <SkeletonGroup>
+        <Skeleton testID={testID} height={nativeLayout.control.button} radius={nativeLayout.radius.control} />
+      </SkeletonGroup>
+    </SheetFooter>
+  );
+}
+
+/** One text line as a block: the line's own height with the block centred in it, like the glyphs it stands for. */
+export function SkeletonLine({ width, block, line }: { width: DimensionValue; block: number; line: number }) {
+  return (
+    <View style={{ height: line, justifyContent: "center" }}>
+      <Skeleton width={width} height={block} radius={block / 2} />
+    </View>
+  );
+}
+
+/**
+ * One option of the stop's sheet: a 40 glyph circle, a `rowTitle` and the consequence in `meta`, 64 tall and growing with
+ * the text (the copy is two sentences, so it wraps instead of ending in an ellipsis). A `onPress` makes it a button
+ * with a chevron; without one it is the report's own description, which the footer's button sends.
+ */
+function OptionRow({
+  testID,
+  glyph,
+  title,
+  body,
+  onPress,
+  accessibilityLabel,
+}: {
+  testID: string;
+  glyph: "warning-outline" | "calendar-outline";
+  title: string;
+  body: string;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+}) {
+  const c = useColors();
+  const haptic = useHaptic();
+  const style = {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: nativeLayout.space.md,
+    minHeight: nativeLayout.row.compact,
+    paddingVertical: nativeLayout.space.sm,
+  } as const;
+  const content = (
+    <>
+      <GlyphCircle testID={`${testID}-glyph`}>
+        <DecorativeIcon name={glyph} size={20} color={c.forest} />
+      </GlyphCircle>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text variant="rowTitle">{title}</Text>
+        <Text variant="meta">{body}</Text>
+      </View>
+      {onPress ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : null}
+    </>
+  );
+  return onPress ? (
+    <PressableRow testID={testID} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? title}
+      onPress={() => {
+        haptic.select();
+        onPress();
+      }}
+      style={style}
+    >
+      {content}
+    </PressableRow>
+  ) : (
+    <View testID={testID} style={style}>
+      {content}
     </View>
   );
 }
@@ -157,13 +240,29 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
         {day.error ? (
           <ReadError message={day.error} onRetry={() => void day.reload()} />
         ) : (
-          <SkeletonGroup label={t("Memuat pengantaran", "Loading the delivery")}>
-            <View style={{ gap: 8 }}>
-              <Skeleton height={64} radius={12} />
-              <Skeleton height={64} radius={12} />
-              <Skeleton height={48} radius={12} />
-            </View>
-          </SkeletonGroup>
+          <>
+            <SkeletonGroup label={t("Memuat pengantaran", "Loading the delivery")}>
+              <View testID="exception-skeleton">
+                <ListCard inset={GLYPH_INSET}>
+                  {[0, 1].map((i) => (
+                    <View
+                      key={i}
+                      testID={`exception-skeleton-row-${i}`}
+                      style={{ height: nativeLayout.row.compact, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
+                    >
+                      <Skeleton width={40} height={40} radius={20} />
+                      <View style={{ flex: 1 }}>
+                        {/* rowTitle's 22 line and meta's 18 line, centred in the 64 row as the loaded text is. */}
+                        <SkeletonLine width={i ? "45%" : "55%"} block={12} line={22} />
+                        <SkeletonLine width={i ? "75%" : "85%"} block={10} line={18} />
+                      </View>
+                    </View>
+                  ))}
+                </ListCard>
+              </View>
+            </SkeletonGroup>
+            <FooterSkeleton testID="exception-skeleton-footer" />
+          </>
         )}
       </Frame>
     );
@@ -182,55 +281,43 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
       title={stop?.name ?? delivery?.customer.name ?? t("Pengantaran", "Delivery")}
       context={stop ? t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`) : undefined}
     >
-      <View style={{ gap: 8 }}>
-        {canFail ? (
-          <View
-            testID="failed-option"
-            style={{ padding: 14, borderRadius: 12, borderWidth: 1, borderColor: c.line, backgroundColor: c.surface, gap: 2 }}
-          >
-            <Text style={{ fontFamily: fontFor("800") }}>{t("Gagal diantar", "Not delivered")}</Text>
-            <Text variant="caption">
-              {t(
+      {canFail || canMove ? (
+        <ListCard inset={GLYPH_INSET}>
+          {canFail ? (
+            <OptionRow
+              testID="failed-option"
+              glyph="warning-outline"
+              title={t("Gagal diantar", "Not delivered")}
+              body={t(
                 "Makanan tidak sampai. Hari ini tidak dihitung sebagai pengantaran dan tidak dibayar ke kamu. Hubungi pelanggan untuk atur penggantinya.",
                 "The food didn't arrive. This day isn't counted as a delivery or paid to you. Contact the customer to arrange a replacement.",
               )}
-            </Text>
-          </View>
-        ) : null}
-        {canMove ? (
-          <PressableScale
-            haptic="select"
-            accessibilityRole="button"
-            accessibilityLabel={t("Pindah tanggal", "Move date")}
-            onPress={openMove}
-            style={{
-              minHeight: 48,
-              padding: 14,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: c.line,
-              backgroundColor: c.surface,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ fontFamily: fontFor("800") }}>{t("Pindah tanggal", "Move date")}</Text>
-              <Text variant="caption">
-                {t(
-                  "Pindahkan pengantaran ini ke tanggal lain. Pelanggan yang memakai aplikasi diberi tahu.",
-                  "Move this delivery to another date. Customers who use the app get notified.",
-                )}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={c.muted} />
-          </PressableScale>
-        ) : null}
-        {!canFail && !canMove ? <Text selectable>{nothing}</Text> : null}
-      </View>
-      {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
-      {canFail ? <Button label={t("Tandai gagal diantar", "Mark not delivered")} busy={busy} onPress={() => void save()} /> : null}
+            />
+          ) : null}
+          {canMove ? (
+            <OptionRow
+              testID="move-option"
+              glyph="calendar-outline"
+              title={t("Pindah tanggal", "Move date")}
+              body={t(
+                "Pindahkan pengantaran ini ke tanggal lain. Pelanggan yang memakai aplikasi diberi tahu.",
+                "Move this delivery to another date. Customers who use the app get notified.",
+              )}
+              accessibilityLabel={t("Pindah tanggal", "Move date")}
+              onPress={openMove}
+            />
+          ) : null}
+        </ListCard>
+      ) : (
+        <Text selectable>{nothing}</Text>
+      )}
+      {/* The primary (and the failed save above it) is pinned to the sheet's foot: an Android form sheet opens at full height, so a button in the body would float mid-sheet. */}
+      {canFail || failure ? (
+        <SheetFooter>
+          {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
+          {canFail ? <Button label={t("Tandai gagal diantar", "Mark not delivered")} busy={busy} onPress={() => void save()} /> : null}
+        </SheetFooter>
+      ) : null}
     </Frame>
   );
 }

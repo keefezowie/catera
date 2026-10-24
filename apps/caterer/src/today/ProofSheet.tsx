@@ -1,15 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { Children, Fragment, isValidElement, useEffect, useRef, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { errorLabel, kitchenSession, type KitchenMeal, type Stop } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile, plural } from "@catera/mobile-core";
 import {
   Button,
+  cardEdge,
+  cardEdgeWidth,
+  DecorativeIcon,
   FormError,
   fontFor,
+  MEDIA_INSET,
+  SheetFooter,
   Skeleton,
   SkeletonGroup,
   Text,
@@ -18,7 +23,7 @@ import {
   useStackedLayout,
   useToast,
 } from "@catera/mobile-ui";
-import { Frame, takeParkedDay } from "./ExceptionSheet";
+import { FooterSkeleton, Frame, SkeletonLine, takeParkedDay } from "./ExceptionSheet";
 import { shrinkProof, uploadProof } from "./proof";
 import { selectedFor } from "./selection";
 import { ReadError } from "../ReadError";
@@ -30,7 +35,79 @@ export const proofHref = (ids: string[], meal: KitchenMeal, date: string) =>
 /** One stop's photo: where it is on the phone (already shrunk) and, once sent, the path the server gave it. */
 type Photo = { uri: string; path: string | null };
 
-/** The stop row when it is a tile: its name, the photo or its absence marked, and its own camera button. */
+/** The photo tile: the dish thumb's 56, like a `MediaRow`'s. */
+const THUMB = nativeLayout.thumb.sm;
+
+/**
+ * The stops' list: the look of `ListCard` (surface, radius 16, 16 side padding, a hairline from the text column between
+ * rows) but without its `overflow: hidden`. The proof photo loads the moment the camera returns, and on Android a photo
+ * that finishes loading inside an overflow-hidden rounded view can stay blank; the rows never touch the corners, so
+ * nothing here needs clipping, and the photo rounds its own corners.
+ */
+function ProofList({ children }: { children: ReactNode }) {
+  const c = useColors();
+  const rows = Children.toArray(children);
+  return (
+    <View
+      testID="proof-list"
+      style={{
+        backgroundColor: c.surface,
+        borderRadius: nativeLayout.radius.card,
+        borderCurve: "continuous",
+        paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
+        ...cardEdge(c),
+      }}
+    >
+      {rows.map((child, i) => (
+        <Fragment key={isValidElement(child) && child.key != null ? child.key : i}>
+          {i > 0 ? <View style={{ height: 1, marginLeft: MEDIA_INSET, backgroundColor: c.line }} /> : null}
+          {child}
+        </Fragment>
+      ))}
+    </View>
+  );
+}
+
+/** The loading rows: 72 each, in the list's own look, with the thumb, the two text lines and the camera button's room. */
+function ProofSkeleton() {
+  const c = useColors();
+  return (
+    <View
+      testID="proof-skeleton"
+      style={{
+        backgroundColor: c.surface,
+        borderRadius: nativeLayout.radius.card,
+        borderCurve: "continuous",
+        paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
+        ...cardEdge(c),
+      }}
+    >
+      {[0, 1].map((i) => (
+        <View key={i}>
+          {i > 0 ? <View style={{ height: 1, marginLeft: MEDIA_INSET, backgroundColor: c.line }} /> : null}
+          <View
+            testID={`proof-skeleton-row-${i}`}
+            style={{ height: nativeLayout.row.media, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
+          >
+            <Skeleton width={THUMB} height={THUMB} radius={nativeLayout.radius.thumb} />
+            <View style={{ flex: 1 }}>
+              {/* rowTitle's 22 line and meta's 18 line, centred in the 72 row as the loaded text is. */}
+              <SkeletonLine width={i ? "50%" : "60%"} block={12} line={22} />
+              <SkeletonLine width={i ? "70%" : "80%"} block={10} line={18} />
+            </View>
+            <Skeleton width={88} height={nativeLayout.control.button} radius={nativeLayout.radius.control} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * The stop row: a 72 media row whose thumb is the photo (or the camera glyph while it is missing), the name, the state
+ * word in bold charcoal with the portions and package after it, and its own camera button. Words wrap rather than cut:
+ * a missing photo is a to-do and must read whole.
+ */
 function Tile({
   stop,
   photo,
@@ -54,21 +131,20 @@ function Tile({
       style={{
         flexDirection: stacked ? "column" : "row",
         alignItems: stacked ? "stretch" : "center",
-        gap: 12,
-        padding: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: c.line,
-        backgroundColor: c.surface,
+        gap: nativeLayout.space.md,
+        minHeight: nativeLayout.row.media,
+        paddingVertical: nativeLayout.space.sm,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flexShrink: 1, flex: stacked ? undefined : 1 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md, flexShrink: 1, flex: stacked ? undefined : 1 }}>
+        {/* The photo rounds its own corners and no ancestor clips it (see `ProofList`). */}
         <View
+          testID={`proof-thumb-${stop.deliveryId}`}
           style={{
-            width: 64,
-            height: 64,
-            borderRadius: 10,
-            overflow: "hidden",
+            width: THUMB,
+            height: THUMB,
+            borderRadius: nativeLayout.radius.thumb,
+            borderCurve: "continuous",
             backgroundColor: c.sage,
             alignItems: "center",
             justifyContent: "center",
@@ -79,23 +155,25 @@ function Tile({
               testID={`proof-photo-${stop.deliveryId}`}
               source={{ uri: photo.uri }}
               contentFit="cover"
-              style={{ width: 64, height: 64 }}
+              style={{ width: THUMB, height: THUMB, borderRadius: nativeLayout.radius.thumb }}
               accessibilityLabel={`${t("Foto bukti", "Proof photo")}: ${stop.name}`}
             />
           ) : (
-            <Ionicons name="camera-outline" size={26} color={c.muted} />
+            <DecorativeIcon name="camera-outline" size={22} color={c.muted} />
           )}
         </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontFamily: fontFor("800") }}>{stop.name}</Text>
-          <Text variant="caption">{t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`)}</Text>
-          {/* A missing photo is a to-do on the tile, in words: bold charcoal, never a danger caption. */}
-          <Text testID={`proof-state-${stop.deliveryId}`} variant="caption" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
-            {failed
-              ? t("Foto belum terkirim", "Photo not sent")
-              : photo
-                ? t("Foto siap", "Photo ready")
-                : t("Belum ada foto", "No photo yet")}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="rowTitle">{stop.name}</Text>
+          <Text variant="meta">
+            {/* A missing photo is a to-do on the tile, in words: bold charcoal, never a danger caption. */}
+            <Text testID={`proof-state-${stop.deliveryId}`} variant="meta" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
+              {failed
+                ? t("Foto belum terkirim", "Photo not sent")
+                : photo
+                  ? t("Foto siap", "Photo ready")
+                  : t("Belum ada foto", "No photo yet")}
+            </Text>
+            {` · ${t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`)}`}
           </Text>
         </View>
       </View>
@@ -237,12 +315,12 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
         {day.error ? (
           <ReadError message={day.error} onRetry={() => void day.reload()} />
         ) : (
-          <SkeletonGroup label={t("Memuat pengantaran", "Loading the deliveries")}>
-            <View style={{ gap: 8 }}>
-              <Skeleton height={88} radius={12} />
-              <Skeleton height={88} radius={12} />
-            </View>
-          </SkeletonGroup>
+          <>
+            <SkeletonGroup label={t("Memuat pengantaran", "Loading the deliveries")}>
+              <ProofSkeleton />
+            </SkeletonGroup>
+            <FooterSkeleton testID="proof-skeleton-footer" />
+          </>
         )}
       </Frame>
     );
@@ -262,7 +340,7 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
         "A photo per address, in any order. Customers see it when asked to confirm.",
       )}
     >
-      <View style={{ gap: 8 }}>
+      <ProofList>
         {stops.map((stop) => (
           <Tile
             key={stop.deliveryId}
@@ -273,22 +351,27 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
             onTake={() => void take(stop)}
           />
         ))}
-      </View>
-      {failure ? <FormError message={failure.message} failureKey={failure.key} retry={ready ? () => void send() : undefined} /> : null}
-      <Button
-        label={label}
-        disabled={!ready}
-        busy={busy}
-        accessibilityHint={
-          ready ? undefined : t(`Ambil foto untuk ${missing.length} alamat lagi.`, `Take ${missing.length} more photos first.`)
-        }
-        onPress={() => void send()}
-      />
-      {!ready ? (
-        <Text testID="proof-reason" variant="caption">
-          {t(`Ambil foto untuk ${missing.length} alamat lagi.`, `Take ${missing.length} more ${missing.length === 1 ? "photo" : "photos"} first.`)}
-        </Text>
-      ) : null}
+      </ProofList>
+      {/* The primary and the reason it waits are pinned to the sheet's foot; the reason's line keeps its room once it goes. */}
+      <SheetFooter>
+        {failure ? <FormError message={failure.message} failureKey={failure.key} retry={ready ? () => void send() : undefined} /> : null}
+        <Button
+          label={label}
+          disabled={!ready}
+          busy={busy}
+          accessibilityHint={
+            ready ? undefined : t(`Ambil foto untuk ${missing.length} alamat lagi.`, `Take ${missing.length} more photos first.`)
+          }
+          onPress={() => void send()}
+        />
+        <View testID="proof-reason-slot" style={{ minHeight: 18 }}>
+          {!ready ? (
+            <Text testID="proof-reason" variant="meta">
+              {t(`Ambil foto untuk ${missing.length} alamat lagi.`, `Take ${missing.length} more ${missing.length === 1 ? "photo" : "photos"} first.`)}
+            </Text>
+          ) : null}
+        </View>
+      </SheetFooter>
     </Frame>
   );
 }

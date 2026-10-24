@@ -518,6 +518,72 @@ describe("narrow width and large text (360dp, font scale 1.3)", () => {
     expect(flat(screen.getByTestId(`proof-tile-${day.deliveries[0].id}`)).flexDirection).toBe("row");
   });
 
+  /** The proof sheet for 1 or 4 stops that are all on their way (a 4 stop run needs no cooking row to be selectable). */
+  async function openProofOf(count: 1 | 4) {
+    const day = dayWith([out, out, out, out]);
+    renderToday(runtimeFor(() => day));
+    await pilih();
+    const names = [/Bu Sari/, /Keluarga Hartono/, /Kost Damai/, /Kantor PT Sinar Rasa/].slice(0, count);
+    for (const name of names) fireEvent.press(stopBox(name));
+    fireEvent.press(screen.getByRole("button", { name: `Sampai (${count})` }));
+    await screen.findByText("Foto bukti sampai");
+    return day;
+  }
+  const shotOf = (uri: string) =>
+    (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValueOnce({ canceled: false, assets: [{ uri, width: 3000, height: 4000 }] });
+
+  it.each([1, 4] as const)("the proof sheet draws %i stop(s) as 72 rows with a 56 thumb, radius 8, in one card", async (count) => {
+    phone(411, 1);
+    const day = await openProofOf(count);
+    const list = screen.getByTestId("proof-list");
+    const tiles = within(list).getAllByTestId(/^proof-tile-/);
+    expect(tiles).toHaveLength(count);
+    for (const d of day.deliveries.slice(0, count)) {
+      expect(flat(screen.getByTestId(`proof-tile-${d.id}`)).minHeight).toBe(72);
+      expect(flat(screen.getByTestId(`proof-thumb-${d.id}`))).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+      // No photo yet: the camera glyph is in the thumb, and the words say so.
+      expect(screen.queryByTestId(`proof-photo-${d.id}`)).toBeNull();
+      expect(screen.getByTestId(`proof-state-${d.id}`).props.children).toBe("Belum ada foto");
+    }
+  });
+
+  it("a photo that was taken keeps its own 56 radius and has no clipping ancestor, so it can load late on Android", async () => {
+    phone(411, 1);
+    const day = await openProofOf(1);
+    const id = day.deliveries[0].id;
+    shotOf("file:///sari.jpg");
+    fireEvent.press(screen.getByLabelText(/^Ambil foto: Bu Sari/));
+    await act(async () => undefined);
+    const photo = await screen.findByTestId(`proof-photo-${id}`);
+    expect(flat(photo)).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+    expect(screen.getByTestId(`proof-state-${id}`).props.children).toBe("Foto siap");
+    expect(screen.getByLabelText(/^Ganti foto: Bu Sari/)).toBeTruthy();
+    // Up to the list, nothing around the photo clips it (expo-image can stay blank inside an overflow-hidden rounded view).
+    for (let node = photo.parent; node && node.props?.testID !== "proof-list"; node = node.parent) {
+      expect(flat(node).overflow).not.toBe("hidden");
+    }
+    expect(flat(screen.getByTestId("proof-list")).overflow).not.toBe("hidden");
+  });
+
+  it("pins Sampai (n) and the reason to the sheet's foot, and the reason's line keeps its room once the photos are in", async () => {
+    phone(411, 1);
+    const day = await openProofOf(1);
+    const footer = () => within(screen.getByTestId("sheet-footer"));
+    const body = () => within(screen.getByTestId("sheet-body"));
+    expect(footer().getByRole("button", { name: "Sampai (1)" }).props.accessibilityState.disabled).toBe(true);
+    expect(footer().getByTestId("proof-reason").props.children).toBe("Ambil foto untuk 1 alamat lagi.");
+    expect(body().queryByRole("button", { name: "Sampai (1)" })).toBeNull();
+    expect(body().queryByTestId("proof-reason")).toBeNull();
+    const room = flat(footer().getByTestId("proof-reason-slot")).minHeight;
+    expect(room).toBe(18);
+    shotOf("file:///sari.jpg");
+    fireEvent.press(screen.getByLabelText(/^Ambil foto: Bu Sari/));
+    await act(async () => undefined);
+    await waitFor(() => expect(footer().getByRole("button", { name: "Sampai (1)" }).props.accessibilityState.disabled).toBe(false));
+    expect(footer().queryByTestId("proof-reason")).toBeNull();
+    expect(day.deliveries.length).toBeGreaterThan(0);
+  });
+
   it("the Berangkat and Sampai buttons stack so Berangkat (n) stays on one line", async () => {
     phone(360, 1.3);
     renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));

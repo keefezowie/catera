@@ -13,6 +13,7 @@ import { TodayScreen } from "../src/today/TodayScreen";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { MoveSheet } from "../src/today/MoveSheet";
 import { ReplySheet } from "../src/today/ReportScreen";
+import { ProofSheet } from "../src/today/ProofSheet";
 import { inviteShared, TimScreen } from "../src/business/TimScreen";
 import { UsahaScreen } from "../src/business/UsahaScreen";
 import NewPackageRoute from "../app/(tabs)/(index,pelanggan,menu,usaha)/paket/baru";
@@ -20,6 +21,7 @@ import { ImportAssistant } from "../src/import/ImportAssistant";
 import { ImportRowEditor } from "../src/import/RowEditor";
 import * as offline from "../src/today/offline";
 import { canvasDay, report } from "./fixtures";
+import { withDapurScale } from "./dapur-scale";
 import { declared, lastActionSheet, lastConfirm, lastGuard, resetSheets, SheetHost, unsavedGuard, type Opened } from "./sheet-host";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
@@ -124,14 +126,16 @@ async function stopSheet() {
 function show(runtime: MobileRuntime, ui: React.ReactNode, { dark = false } = {}) {
   if (dark) jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
   return render(
-    <ThemeProvider storageKey="sheets.theme">
-      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-        <ToastProvider>
-          {ui}
-          <SheetHost render={sheetFor} />
-        </ToastProvider>
-      </MobileProvider>
-    </ThemeProvider>,
+    withDapurScale(
+      <ThemeProvider storageKey="sheets.theme">
+        <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+          <ToastProvider>
+            {ui}
+            <SheetHost render={sheetFor} />
+          </ToastProvider>
+        </MobileProvider>
+      </ThemeProvider>,
+    ),
   );
 }
 
@@ -670,8 +674,10 @@ describe("appearance", () => {
   it("the stop sheet reads the dark palette", async () => {
     show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[0].id} meal="lunch" date={TODAY} />, { dark: true });
     const sheet = await stopSheet();
-    const chosen = within(sheet).getByTestId("failed-option");
-    expect(flat(chosen)).toMatchObject({ backgroundColor: nativeThemes.dark.surface, borderColor: nativeThemes.dark.line });
+    // The options sit in one card on the dark surface, the same one the sheet's other cards use.
+    const card = within(sheet).getByTestId("list-card");
+    expect(within(card).getByTestId("failed-option")).toBeTruthy();
+    expect(flat(card)).toMatchObject({ backgroundColor: nativeThemes.dark.surface });
     expect(flat(within(sheet).getByRole("header", { name: "Bu Sari Wulandari" })).color).toBe(nativeThemes.dark.charcoal);
   });
 
@@ -757,5 +763,260 @@ describe("every awaiting command button is busy while it waits", () => {
     fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
     await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
     expect(screen.getAllByTestId("form-error")).toHaveLength(1);
+  });
+});
+
+describe("the action sheets on the Dapur scale", () => {
+  const stopId = () => dayOf(TODAY).deliveries[0].id;
+  const pending = () => new Promise<never>(() => undefined);
+  const bodyOf = () => within(screen.getByTestId("sheet-body"));
+  const footerOf = async () => within(await screen.findByTestId("sheet-footer"));
+
+  describe("Atur antaran", () => {
+    it("lays both options out as 64 rows with 40 glyph circles in one ListCard, the primary pinned in the footer", async () => {
+      show(runtimeWith(), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
+      const sheet = await stopSheet();
+      const cards = within(sheet).getAllByTestId("list-card");
+      expect(cards).toHaveLength(1);
+      const card = within(cards[0]);
+      for (const id of ["failed-option", "move-option"]) {
+        expect(flat(card.getByTestId(id)).minHeight).toBe(64);
+        expect(flat(card.getByTestId(`${id}-glyph`))).toMatchObject({ width: 40, height: 40 });
+      }
+      expect(card.getAllByTestId("list-card-separator")).toHaveLength(1);
+      // The consequence copy shows whole: nothing is cut to a line.
+      expect(card.getByText(/tidak dibayar ke kamu/).props.numberOfLines).toBeUndefined();
+      // The primary waits in the pinned footer, not in the scrolling body.
+      expect((await footerOf()).getByRole("button", { name: "Tandai gagal diantar" })).toBeTruthy();
+      expect(bodyOf().queryByText("Tandai gagal diantar")).toBeNull();
+    });
+
+    it("shows one row and the footer for a report-only stop", async () => {
+      // Keluarga Hartono's change deadline has passed.
+      show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[2].id} meal="lunch" date={TODAY} />);
+      const sheet = await stopSheet();
+      expect(within(sheet).getByTestId("failed-option")).toBeTruthy();
+      expect(within(sheet).queryByTestId("move-option")).toBeNull();
+      expect(within(sheet).queryAllByTestId("list-card-separator")).toHaveLength(0);
+      expect((await footerOf()).getByRole("button", { name: "Tandai gagal diantar" })).toBeTruthy();
+    });
+
+    it("shows only the move row, and no footer, on Besok", async () => {
+      show(runtimeWith(), <ExceptionSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+      const sheet = await stopSheet();
+      expect(within(sheet).queryByTestId("failed-option")).toBeNull();
+      expect(flat(within(sheet).getByTestId("move-option")).minHeight).toBe(64);
+      expect(within(sheet).getByRole("button", { name: "Pindah tanggal" })).toBeTruthy();
+      expect(screen.queryByTestId("sheet-footer")).toBeNull();
+    });
+
+    it("says there is nothing to report, with no card and no footer, for a delivered stop", async () => {
+      days[TODAY] = day({ status: "delivered" });
+      show(runtimeWith(), <ExceptionSheet id={days[TODAY].deliveries[0].id} meal="lunch" date={TODAY} />);
+      expect(await screen.findByText("Tidak ada yang bisa dilaporkan untuk alamat ini.")).toBeTruthy();
+      expect(screen.queryByTestId("list-card")).toBeNull();
+      expect(screen.queryByTestId("sheet-footer")).toBeNull();
+    });
+
+    it("keeps a failed save as a FormError in the footer above the primary", async () => {
+      const command = jest.fn(async () => {
+        throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      });
+      show(runtimeWith({ command }), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
+      await stopSheet();
+      fireEvent.press((await footerOf()).getByRole("button", { name: "Tandai gagal diantar" }));
+      const footer = await footerOf();
+      expect(await footer.findByTestId("form-error")).toBeTruthy();
+      expect(footer.getByRole("button", { name: "Tandai gagal diantar" })).toBeTruthy();
+      expect(bodyOf().queryByTestId("form-error")).toBeNull();
+    });
+
+    it("loads as two 64 rows and the footer's 50 button", async () => {
+      show(runtimeWith({ sellerOperations: jest.fn(pending) }), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
+      expect(await screen.findByTestId("exception-skeleton")).toBeTruthy();
+      expect(flat(screen.getByTestId("exception-skeleton-row-0")).height).toBe(64);
+      expect(flat(screen.getByTestId("exception-skeleton-row-1")).height).toBe(64);
+      expect(screen.queryByTestId("exception-skeleton-row-2")).toBeNull();
+      const footer = await footerOf();
+      expect(flat(footer.getByTestId("exception-skeleton-footer")).height).toBe(50);
+    });
+  });
+
+  describe("Pindah tanggal", () => {
+    const tomorrow = () => dayOf(TOMORROW).deliveries[0].id;
+
+    it("keeps the reason field in the body and Pindah tanggal pinned in the footer", async () => {
+      show(runtimeWith(), <MoveSheet id={tomorrow()} meal="lunch" date={TOMORROW} />);
+      await screen.findByLabelText("Alasan");
+      expect(bodyOf().getByLabelText("Alasan")).toBeTruthy();
+      const footer = await footerOf();
+      expect(footer.getByRole("button", { name: "Pindah tanggal" })).toBeTruthy();
+      expect(footer.queryByLabelText("Alasan")).toBeNull();
+      expect(bodyOf().queryByRole("button", { name: "Pindah tanggal" })).toBeNull();
+    });
+
+    it("loads in the calendar's own height: pager 48, weekdays 16, six 48 weeks, the 20 caption, and the footer", async () => {
+      const held = show(runtimeWith({ deliveryAvailability: jest.fn(pending) }), <MoveSheet id={tomorrow()} meal="lunch" date={TOMORROW} />);
+      const sk = within(await screen.findByTestId("move-skeleton"));
+      const heights = {
+        pager: flat(sk.getByTestId("move-skeleton-pager")).height,
+        weekdays: flat(sk.getByTestId("move-skeleton-weekdays")).height,
+        grid: flat(sk.getByTestId("move-skeleton-grid")).height,
+        caption: flat(sk.getByTestId("move-skeleton-caption")).height,
+      };
+      expect(flat((await footerOf()).getByTestId("move-skeleton-footer")).height).toBe(50);
+      held.unmount();
+
+      show(runtimeWith(), <MoveSheet id={tomorrow()} meal="lunch" date={TOMORROW} />);
+      await screen.findByTestId("calendar-grid");
+      const cell = flat(screen.getByTestId("calendar-week-0").children[0] as never).height as number;
+      const loaded = {
+        pager: flat(screen.getByRole("button", { name: "Bulan sebelumnya" })).height,
+        weekdays: flat(screen.getByTestId("calendar-weekdays", { includeHiddenElements: true }).children[0] as never).lineHeight,
+        grid: cell * 6,
+        caption: flat(screen.getByTestId("calendar-caption").children[0] as never).minHeight,
+      };
+      expect(heights).toEqual({ pager: 48, weekdays: 16, grid: 288, caption: 20 });
+      expect(loaded).toEqual(heights);
+    });
+  });
+
+  describe("Balas laporan", () => {
+    const events = [
+      { id: "e-1", action: "deliveryIssue.respond", body: "Kami antar ulang jam dua.", created_at: "2026-10-08T06:00:00Z" },
+      { id: "e-2", action: "deliveryIssue.respond", body: "Kurir sudah di jalan.", created_at: "2026-10-08T06:20:00Z" },
+      { id: "e-3", action: "deliveryIssue.escalate", body: "Tolong ditinjau.", created_at: "2026-10-08T06:40:00Z" },
+    ];
+    const reply = (issue = report(), actor: Record<string, unknown> = owner) =>
+      show(runtimeWith({ request: jest.fn(async () => [issue]) }, actor), <ReplySheet id="i-1" />);
+
+    it("with no replies: the report is one ListCard, Balas is pinned with Tandai selesai beside it", async () => {
+      reply();
+      expect(await screen.findByLabelText("Balasan untuk pelanggan")).toBeTruthy();
+      const cards = bodyOf().getAllByTestId("list-card");
+      expect(cards).toHaveLength(1);
+      const card = within(cards[0]);
+      expect(card.getByText("Belum sampai")).toBeTruthy();
+      expect(card.getByText("Terkirim")).toBeTruthy();
+      expect(card.getByText("Sudah jam satu, makanan belum datang.")).toBeTruthy();
+      expect(card.getByText("Dikirim")).toBeTruthy();
+      expect(card.getByText("Kamis 8 Okt 12.40")).toBeTruthy();
+      // The field is 88 high at least; it scrolls with the body, the actions do not.
+      expect(flat(bodyOf().getByLabelText("Balasan untuk pelanggan")).minHeight).toBe(88);
+      const footer = await footerOf();
+      const actions = footer.getByTestId("reply-actions");
+      expect(flat(actions).flexDirection).toBe("row");
+      expect(within(actions).getByRole("button", { name: "Balas" })).toBeTruthy();
+      expect(within(actions).getByRole("button", { name: "Tandai selesai" })).toBeTruthy();
+      expect(bodyOf().queryByRole("button", { name: "Balas" })).toBeNull();
+      expect(bodyOf().queryByRole("button", { name: "Tandai selesai" })).toBeNull();
+    });
+
+    it("with 3 earlier replies: they list in their own card, newest below, and the footer is unchanged", async () => {
+      reply(report({ status: "responded", version: 2, events }));
+      await screen.findByLabelText("Balasan untuk pelanggan");
+      const cards = bodyOf().getAllByTestId("list-card");
+      expect(cards).toHaveLength(2);
+      const replies = within(cards[1]);
+      expect(replies.getByText("Kami antar ulang jam dua.")).toBeTruthy();
+      expect(replies.getByText("Kurir sudah di jalan.")).toBeTruthy();
+      expect(replies.getByText("Tolong ditinjau.")).toBeTruthy();
+      expect(replies.getByText("Pelanggan minta Catera meninjau")).toBeTruthy();
+      expect(replies.getAllByTestId("list-card-separator")).toHaveLength(2);
+      expect(within(await screen.findByTestId("sheet-footer")).getByRole("button", { name: "Balas" })).toBeTruthy();
+    });
+
+    it("resolved: no field and no footer, the words say it is done, and WhatsApp stays", async () => {
+      reply(report({ status: "resolved", version: 3, events }));
+      expect(await screen.findByText("Laporan ini sudah selesai.")).toBeTruthy();
+      expect(screen.queryByTestId("sheet-footer")).toBeNull();
+      expect(screen.queryByLabelText("Balasan untuk pelanggan")).toBeNull();
+      expect(screen.getByText("Chat WhatsApp")).toBeTruthy();
+    });
+
+    it("keeps WhatsApp as a 48 link row in the body, not in the footer", async () => {
+      reply();
+      await screen.findByLabelText("Balasan untuk pelanggan");
+      const link = bodyOf().getByRole("button", { name: "Chat WhatsApp" });
+      expect(flat(link).minHeight).toBe(48);
+      expect((await footerOf()).queryByText("Chat WhatsApp")).toBeNull();
+    });
+
+    it("keeps a failed send as a FormError in the footer above the actions", async () => {
+      const command = jest.fn(async () => {
+        throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      });
+      show(runtimeWith({ request: jest.fn(async () => [report()]), command }), <ReplySheet id="i-1" />);
+      fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
+      fireEvent.press((await footerOf()).getByRole("button", { name: "Balas" }));
+      const footer = await footerOf();
+      expect(await footer.findByTestId("form-error")).toBeTruthy();
+      expect(bodyOf().queryByTestId("form-error")).toBeNull();
+    });
+
+    it("puts the two actions in a column below 320 effective width, so no label is cut", async () => {
+      jest.spyOn(Dimensions, "get").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
+      reply();
+      await screen.findByLabelText("Balasan untuk pelanggan");
+      expect(flat((await footerOf()).getByTestId("reply-actions")).flexDirection).toBe("column");
+    });
+
+    it("loads as the report card, a line, the field and the footer's 50 button", async () => {
+      show(runtimeWith({ request: jest.fn(pending) }), <ReplySheet id="i-1" />);
+      expect(await screen.findByTestId("reply-skeleton")).toBeTruthy();
+      expect(flat(screen.getByTestId("reply-skeleton-card")).height).toBe(128);
+      expect(flat(screen.getByTestId("reply-skeleton-hint")).height).toBe(18);
+      expect(flat(screen.getByTestId("reply-skeleton-field")).height).toBe(112);
+      expect(flat((await footerOf()).getByTestId("reply-skeleton-footer")).height).toBe(50);
+    });
+  });
+
+  describe("Foto bukti", () => {
+    const ids = () => dayOf(TODAY).deliveries.slice(0, 2).map((d) => d.id);
+
+    it("loads as 72 rows and the footer's 50 button", async () => {
+      show(runtimeWith({ sellerOperations: jest.fn(pending) }), <ProofSheet ids={ids()} meal="lunch" date={TODAY} />);
+      expect(await screen.findByTestId("proof-skeleton")).toBeTruthy();
+      expect(flat(screen.getByTestId("proof-skeleton-row-0")).height).toBe(72);
+      expect(flat(screen.getByTestId("proof-skeleton-row-1")).height).toBe(72);
+      expect(flat((await footerOf()).getByTestId("proof-skeleton-footer")).height).toBe(50);
+    });
+  });
+
+  describe("Android form sheets open full height, so the primary is pinned to the foot", () => {
+    const os = process.env.EXPO_OS;
+    beforeEach(() => {
+      process.env.EXPO_OS = "android";
+    });
+    afterEach(() => {
+      if (os === undefined) delete process.env.EXPO_OS;
+      else process.env.EXPO_OS = os;
+    });
+
+    const pinned = async (primary: string) => {
+      const footer = await screen.findByTestId("sheet-footer");
+      expect(within(footer).getByRole("button", { name: primary })).toBeTruthy();
+      expect(within(screen.getByTestId("sheet-body")).queryByTestId("sheet-footer")).toBeNull();
+      // 24 on Android: the shared sheet padding.
+      expect(flat(footer).paddingHorizontal).toBe(24);
+    };
+
+    it("Atur antaran", async () => {
+      show(runtimeWith(), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
+      await stopSheet();
+      await pinned("Tandai gagal diantar");
+    });
+
+    it("Balas laporan", async () => {
+      show(runtimeWith({ request: jest.fn(async () => [report()]) }), <ReplySheet id="i-1" />);
+      await screen.findByLabelText("Balasan untuk pelanggan");
+      await pinned("Balas");
+    });
+
+    it("Pindah tanggal", async () => {
+      show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+      await screen.findByLabelText("Alasan");
+      await pinned("Pindah tanggal");
+    });
   });
 });

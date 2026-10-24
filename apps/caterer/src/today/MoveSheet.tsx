@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
+import { nativeLayout } from "@catera/design-tokens";
 import { errorLabel, jakartaDay, kitchenSession, monthOf, shortDate, type DeliveryAvailability, type KitchenMeal } from "@catera/domain";
 import { useData, useMobile, plural } from "@catera/mobile-core";
 import {
@@ -13,8 +14,22 @@ import {
   type CalendarDayState,
   type CalendarReason,
 } from "@catera/mobile-ui";
-import { Frame, canMoveDelivery, takeParkedDay } from "./ExceptionSheet";
+import { FooterSkeleton, Frame, SkeletonLine, canMoveDelivery, takeParkedDay } from "./ExceptionSheet";
 import { ReadError } from "../ReadError";
+
+/**
+ * The calendar's own measures, so its skeleton is as tall as the loaded sheet: the month pager's 48 buttons, the 16 weekday
+ * line, six 48 weeks (a month is always drawn as six), the caption's 20 minimum, the 18 note, and the reason field (a 13
+ * label line, 6, the 50 input, 6 and the hint's line). The sheet's body spaces its blocks 16 apart, as the skeleton does.
+ */
+const PAGER = 48;
+const WEEKDAYS = 16;
+const WEEK = 48;
+const WEEKS = 6;
+const CAPTION = 20;
+const NOTE = 18;
+const FIELD_LABEL = 18;
+const FIELD_HINT = 18;
 
 /** The days the caterer can pick from: today and the sixty after it, the most the availability read answers for. */
 const WINDOW_DAYS = 60;
@@ -115,13 +130,39 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
             }}
           />
         ) : (
-          <SkeletonGroup label={t("Memuat tanggal", "Loading the dates")}>
-            <View style={{ gap: 8 }}>
-              <Skeleton height={48} radius={12} />
-              <Skeleton height={240} radius={12} />
-              <Skeleton height={48} radius={12} />
-            </View>
-          </SkeletonGroup>
+          <>
+            <SkeletonGroup label={t("Memuat tanggal", "Loading the dates")}>
+              <View testID="move-skeleton" style={{ gap: 16 }}>
+                <View testID="move-skeleton-pager" style={{ height: PAGER, alignItems: "center", justifyContent: "center" }}>
+                  <Skeleton width={140} height={14} radius={7} />
+                </View>
+                <View testID="move-skeleton-weekdays" style={{ height: WEEKDAYS, justifyContent: "center" }}>
+                  <Skeleton height={8} radius={4} />
+                </View>
+                <View testID="move-skeleton-grid" style={{ height: WEEK * WEEKS }}>
+                  {Array.from({ length: WEEKS }, (_, row) => (
+                    <View key={row} style={{ height: WEEK, flexDirection: "row", alignItems: "center" }}>
+                      {Array.from({ length: 7 }, (_, col) => (
+                        <View key={col} style={{ flex: 1, alignItems: "center" }}>
+                          <Skeleton width={28} height={28} radius={14} />
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+                <View testID="move-skeleton-caption" style={{ height: CAPTION, justifyContent: "center" }}>
+                  <Skeleton width="60%" height={12} radius={6} />
+                </View>
+                <SkeletonLine width="70%" block={10} line={NOTE} />
+                <View testID="move-skeleton-field" style={{ gap: 6 }}>
+                  <SkeletonLine width={72} block={10} line={FIELD_LABEL} />
+                  <Skeleton height={nativeLayout.control.field} radius={nativeLayout.radius.control} />
+                  <SkeletonLine width="40%" block={10} line={FIELD_HINT} />
+                </View>
+              </View>
+            </SkeletonGroup>
+            <FooterSkeleton testID="move-skeleton-footer" />
+          </>
         )}
       </Frame>
     );

@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { Linking, StyleSheet } from "react-native";
 import { nativeThemes } from "@catera/design-tokens";
 import { useEffect } from "react";
 import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { ToastProvider } from "@catera/mobile-ui";
 import { ReportScreen } from "../src/today/ReportScreen";
+import { withDapurScale } from "./dapur-scale";
 import { report } from "./fixtures";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
@@ -54,7 +55,8 @@ it("shows who reported what, for which day and meal, and when", async () => {
   expect(screen.getByText("Sudah jam satu, makanan belum datang.")).toBeTruthy();
   expect(screen.getByText("Terkirim")).toBeTruthy();
   // 05.40 UTC is 12.40 in Jakarta.
-  expect(screen.getByText("Dikirim Kamis 8 Okt 12.40")).toBeTruthy();
+  expect(screen.getByText("Dikirim")).toBeTruthy();
+  expect(screen.getByText("Kamis 8 Okt 12.40")).toBeTruthy();
 });
 
 it("sends the reply text with Balas", async () => {
@@ -249,3 +251,59 @@ function EnglishReport() {
   }, [locale, setLocale]);
   return locale === "en" ? <ReportScreen id="i-1" /> : null;
 }
+
+describe("the report page on the Dapur scale", () => {
+  const dapur = (runtime: MobileRuntime) =>
+    render(
+      withDapurScale(
+        <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+          <ReportScreen id="i-1" />
+        </MobileProvider>,
+      ),
+    );
+
+  it("draws the report and its replies as ListCards, with no attention card", async () => {
+    dapur(
+      runtimeWith(
+        report({
+          status: "responded",
+          version: 2,
+          events: [
+            { id: "e-1", action: "deliveryIssue.respond", body: "Kami antar ulang jam dua.", created_at: "2026-10-08T06:00:00Z" },
+            { id: "e-2", action: "deliveryIssue.respond", body: "Kurir sudah di jalan.", created_at: "2026-10-08T06:20:00Z" },
+          ],
+        }),
+      ),
+    );
+    expect(await screen.findByText("Dibalas")).toBeTruthy();
+    const cards = screen.getAllByTestId("list-card");
+    expect(cards).toHaveLength(2);
+    expect(within(cards[0]).getByText("Belum sampai")).toBeTruthy();
+    expect(within(cards[0]).getByText("Kamis 8 Okt 12.40")).toBeTruthy();
+    expect(within(cards[1]).getByText("Kami antar ulang jam dua.")).toBeTruthy();
+    expect(within(cards[1]).getByText("Kurir sudah di jalan.")).toBeTruthy();
+  });
+
+  it("pins Balas and Tandai selesai to the page's footer, with a failed send above them", async () => {
+    const runtime = runtimeWith(report());
+    (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
+    dapur(runtime);
+    fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
+    const footer = await screen.findByTestId("screen-footer");
+    expect(within(footer).getByRole("button", { name: "Balas" })).toBeTruthy();
+    expect(within(footer).getByRole("button", { name: "Tandai selesai" })).toBeTruthy();
+    expect(within(screen.getByTestId("screen-scroll")).queryByRole("button", { name: "Balas" })).toBeNull();
+    // The field and the WhatsApp link stay in the scrolling body.
+    expect(within(screen.getByTestId("screen-scroll")).getByLabelText("Balasan untuk pelanggan")).toBeTruthy();
+    expect(within(screen.getByTestId("screen-scroll")).getByRole("button", { name: "Chat WhatsApp" })).toBeTruthy();
+    fireEvent.press(within(footer).getByRole("button", { name: "Balas" }));
+    expect(await within(await screen.findByTestId("screen-footer")).findByTestId("form-error")).toBeTruthy();
+    expect(within(screen.getByTestId("screen-scroll")).queryByTestId("form-error")).toBeNull();
+  });
+
+  it("has no footer once Catera is reviewing the report", async () => {
+    dapur(runtimeWith(report({ status: "escalated", case_id: "case-1" })));
+    expect(await screen.findByText("Ditinjau Catera")).toBeTruthy();
+    expect(screen.queryByTestId("screen-footer")).toBeNull();
+  });
+});

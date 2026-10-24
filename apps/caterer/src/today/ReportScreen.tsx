@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Linking, View } from "react-native";
+import { createContext, use, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Linking, View, type ViewStyle } from "react-native";
 import { router } from "expo-router";
 import {
   addDays,
@@ -10,28 +10,44 @@ import {
   whatsappUrl,
   type DeliveryIssue,
 } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
-  Card,
+  DecorativeIcon,
   FadeSwap,
   Field,
   fontFor,
   FormError,
+  GlyphRow,
+  KeyValueRow,
+  ListCard,
   Screen,
   SheetBody,
+  SheetFooter,
   SheetHeader,
   Skeleton,
   SkeletonGroup,
   Text,
   useBusy,
   useColors,
+  useStackedLayout,
   useToast,
   useUnsavedGuard,
 } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
+import { FooterSkeleton, SkeletonLine } from "./ExceptionSheet";
 import { DetailSkeleton } from "../skeletons";
 import { ReadError } from "../ReadError";
+
+/**
+ * The sheet's loading shapes: the report card at a typical one-line description (the 12 padding, the 22 subject line, 8, the
+ * 22 description, 12, the hairline and the 40 "Dikirim" row, rounded), the 18 line of the reply-by hint, and the reply field
+ * (its 18 label, 6 and the 88 input).
+ */
+const REPORT_CARD = 128;
+const FIELD_LABEL = 18;
+const FIELD_MIN = 88;
 
 /** The server needs at least this much text for a reply or a resolution note. */
 const MIN_BODY = 5;
@@ -100,7 +116,7 @@ export function ReportScreen({ id, title: carried }: { id: string; title?: strin
       : (carried ?? generic);
   // One screen in every state, so the report enters from its skeleton as one block (the FadeSwap below).
   return (
-    <Screen nativeTitle={title}>
+    <ReportPage title={title}>
       <FadeSwap swapKey={issue ? "report" : loading ? "loading" : "other"} style={{ gap: 16 }}>
         {issue ? (
           // No key on the version: a reload after a refused action keeps the typed reply and the message.
@@ -114,7 +130,67 @@ export function ReportScreen({ id, title: carried }: { id: string; title?: strin
           <DetailSkeleton label={t("Memuat laporan", "Loading the report")} />
         )}
       </FadeSwap>
-    </Screen>
+    </ReportPage>
+  );
+}
+
+/**
+ * Where the page's "Balas" and "Tandai selesai" are pinned: the page's own footer, as the sheet pins them in its footer.
+ * The state lives here, in a component whose `children` stay the same element, so setting the footer re-renders only
+ * this frame and never the report that sets it (the way `SheetBody` holds its `SheetFooter`).
+ */
+const PageFooter = createContext<((node: ReactNode) => void) | null>(null);
+
+function ReportPage({ title, children }: { title: string; children: ReactNode }) {
+  const [footer, setFooter] = useState<ReactNode>(null);
+  return (
+    <PageFooter.Provider value={setFooter}>
+      <Screen nativeTitle={title} footer={footer}>
+        {children}
+      </Screen>
+    </PageFooter.Provider>
+  );
+}
+
+/** The report's actions, pinned: in the page's footer on the page, in the sheet's footer in the sheet. */
+function PinnedActions({ children }: { children: ReactNode }) {
+  const page = use(PageFooter);
+  useLayoutEffect(() => {
+    page?.(children);
+  });
+  useLayoutEffect(() => () => page?.(null), [page]);
+  return page ? null : <SheetFooter>{children}</SheetFooter>;
+}
+
+/** Balas (filled) with Tandai selesai (outlined) beside it; one above the other once the width cannot hold both labels. */
+function ReplyActions({
+  reply,
+  resolve,
+}: {
+  /** Each button is drawn with the style that fits the layout: Balas takes the row's spare width, Tandai selesai its own 20 padding. */
+  reply: (style: ViewStyle | undefined) => ReactNode;
+  resolve: (style: ViewStyle | undefined) => ReactNode;
+}) {
+  const stacked = useStackedLayout(320);
+  const balas = reply(stacked ? undefined : { flex: 1 });
+  const selesai = resolve(stacked ? undefined : { paddingHorizontal: 20 });
+  return (
+    <View
+      testID="reply-actions"
+      style={{ flexDirection: stacked ? "column" : "row", alignItems: stacked ? "stretch" : "center", gap: nativeLayout.space.sm }}
+    >
+      {stacked ? (
+        <>
+          {balas}
+          {selesai}
+        </>
+      ) : (
+        <>
+          {selesai}
+          {balas}
+        </>
+      )}
+    </View>
   );
 }
 
@@ -157,14 +233,21 @@ export function ReplySheet({ id, title: carried }: { id: string; title?: string 
       ) : issues.error ? (
         <ReadError message={issues.error} onRetry={() => void issues.reload()} />
       ) : (
-        <SkeletonGroup label={t("Memuat laporan", "Loading the report")}>
-          <View style={{ gap: 12 }}>
-            <Skeleton height={96} radius={14} />
-            <Skeleton width="60%" height={14} />
-            <Skeleton height={88} radius={12} />
-            <Skeleton height={48} radius={12} />
-          </View>
-        </SkeletonGroup>
+        <>
+          <SkeletonGroup label={t("Memuat laporan", "Loading the report")}>
+            <View testID="reply-skeleton" style={{ gap: 16 }}>
+              <Skeleton testID="reply-skeleton-card" height={REPORT_CARD} radius={nativeLayout.radius.card} />
+              <View testID="reply-skeleton-hint" style={{ height: 18, justifyContent: "center" }}>
+                <Skeleton width="70%" height={10} radius={5} />
+              </View>
+              <View testID="reply-skeleton-field" style={{ height: FIELD_LABEL + 6 + FIELD_MIN, gap: 6 }}>
+                <SkeletonLine width={120} block={10} line={FIELD_LABEL} />
+                <Skeleton height={FIELD_MIN} radius={nativeLayout.radius.control} />
+              </View>
+            </View>
+          </SkeletonGroup>
+          <FooterSkeleton testID="reply-skeleton-footer" />
+        </>
       )}
     </SheetFrame>
   );
@@ -242,38 +325,48 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
         <SheetOutcome dirty={open && !sent && reply !== ""} sent={sent} onDiscard={() => drafts.delete(draftKey)} />
       ) : (
         <View style={{ gap: 4 }}>
-          <Text style={{ fontFamily: fontFor("800") }}>{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
-          <Text variant="caption">{i.package_name}</Text>
+          <Text variant="bodyStrong">{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
+          <Text variant="meta">{i.package_name}</Text>
         </View>
       )}
-      <Card tone={open ? "attention" : "surface"}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text variant="heading" style={{ flex: 1 }}>
-            {i.subject}
-          </Text>
-          <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: c.sage }}>
-            <Text variant="label" style={{ color: c.charcoal }}>
-              {reportStatus(i.status, t)}
+      <ListCard inset={0}>
+        <View style={{ paddingVertical: nativeLayout.space.md, gap: nativeLayout.space.sm }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}>
+            <Text variant="rowTitle" style={{ flex: 1 }}>
+              {i.subject}
             </Text>
+            <View style={{ minHeight: 22, paddingHorizontal: 12, borderRadius: 11, backgroundColor: c.sage, justifyContent: "center" }}>
+              <Text variant="label" style={{ color: c.charcoal }}>
+                {reportStatus(i.status, t)}
+              </Text>
+            </View>
           </View>
+          {i.description ? (
+            <Text variant="bodyL" selectable>
+              {i.description}
+            </Text>
+          ) : null}
         </View>
-        {i.description ? <Text>{i.description}</Text> : null}
-        <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-          {`${t("Dikirim", "Sent")} ${sentAt(i.created_at, locale)}`}
-        </Text>
-      </Card>
-      {replies.map((e) => (
-        <Card key={e.id}>
-          <Text variant="label">{t(...eventLabels[e.action])}</Text>
-          <Text>{e.body}</Text>
-          <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-            {sentAt(e.created_at, locale)}
-          </Text>
-        </Card>
-      ))}
+        <KeyValueRow label={t("Dikirim", "Sent")} value={sentAt(i.created_at, locale)} />
+      </ListCard>
+      {replies.length ? (
+        <ListCard inset={0}>
+          {replies.map((e) => (
+            <View key={e.id} style={{ paddingVertical: nativeLayout.space.md, gap: 2 }}>
+              <Text variant="label">{t(...eventLabels[e.action])}</Text>
+              <Text variant="bodyL" selectable>
+                {e.body}
+              </Text>
+              <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
+                {sentAt(e.created_at, locale)}
+              </Text>
+            </View>
+          ))}
+        </ListCard>
+      ) : null}
       {open ? (
         <>
-          {hint ? <Text variant="caption">{hint}</Text> : null}
+          {hint ? <Text variant="meta">{hint}</Text> : null}
           <Field
             label={t("Balasan untuk pelanggan", "Reply to the customer")}
             multiline
@@ -284,26 +377,12 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
             // A field validation: the Field's own error line and edge, never a loose danger caption (spec 5.2).
             error={tooShort ? t("Tulis minimal 5 karakter.", "Write at least 5 characters.") : undefined}
           />
-          {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
-          <Button
-            label={t("Balas", "Reply")}
-            busy={busy && which === "deliveryIssue.respond"}
-            disabled={reply.length < MIN_BODY || (busy && which !== "deliveryIssue.respond")}
-            onPress={() => void act("deliveryIssue.respond")}
-          />
-          <Button
-            variant="secondary"
-            label={t("Tandai selesai", "Mark as done")}
-            busy={busy && which === "deliveryIssue.resolve"}
-            disabled={tooShort || (busy && which !== "deliveryIssue.resolve")}
-            onPress={() => void act("deliveryIssue.resolve")}
-          />
           {!reply ? (
-            <Text variant="caption">{`${t("Pelanggan akan menerima", "The customer will receive")}: “${RESOLVE_NOTE}”`}</Text>
+            <Text variant="meta">{`${t("Pelanggan akan menerima", "The customer will receive")}: “${RESOLVE_NOTE}”`}</Text>
           ) : null}
         </>
       ) : (
-        <Text variant="caption">
+        <Text variant="meta">
           {i.status === "resolved"
             ? t("Laporan ini sudah selesai.", "This report is done.")
             : t("Catera sedang meninjau laporan ini.", "Catera is reviewing this report.")}
@@ -312,11 +391,40 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
       {/* After a refused action the report may have closed meanwhile: the reason still shows. */}
       {failure && !open ? <FormError message={failure.message} failureKey={failure.key} /> : null}
       {i.customerPhone ? (
-        <Button
-          variant="secondary"
-          label={t("Chat WhatsApp", "WhatsApp chat")}
+        <GlyphRow
+          minHeight={nativeLayout.row.info}
+          glyph={<DecorativeIcon name="logo-whatsapp" size={20} color={c.forest} />}
+          title={t("Chat WhatsApp", "WhatsApp chat")}
+          trailing={<DecorativeIcon name="chevron-forward" size={20} color={c.muted} />}
           onPress={() => void Linking.openURL(whatsappUrl("", i.customerPhone!))}
         />
+      ) : null}
+      {/* The actions are pinned to the foot (the sheet's footer, the page's footer), with a failed send above them. */}
+      {open ? (
+        <PinnedActions>
+          {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
+          <ReplyActions
+            reply={(style) => (
+              <Button
+                label={t("Balas", "Reply")}
+                busy={busy && which === "deliveryIssue.respond"}
+                disabled={reply.length < MIN_BODY || (busy && which !== "deliveryIssue.respond")}
+                onPress={() => void act("deliveryIssue.respond")}
+                style={style}
+              />
+            )}
+            resolve={(style) => (
+              <Button
+                variant="secondary"
+                label={t("Tandai selesai", "Mark as done")}
+                busy={busy && which === "deliveryIssue.resolve"}
+                disabled={tooShort || (busy && which !== "deliveryIssue.resolve")}
+                onPress={() => void act("deliveryIssue.resolve")}
+                style={style}
+              />
+            )}
+          />
+        </PinnedActions>
       ) : null}
     </>
   );
