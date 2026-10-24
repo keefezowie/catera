@@ -48,6 +48,35 @@ const REPORT_CARD = 128;
 const FIELD_LABEL = 16;
 const FIELD_MIN = 88;
 
+/**
+ * The report card while it loads: the sage card of the loaded sheet at its typical height, with the same edge (light draws
+ * its card border; dark has none, so the card gets a 1px `line` edge, as a sage `ListCard` does) and its rows as blocks in
+ * the darker track tone, since the plain fill is the card's own step.
+ */
+function ReportCardSkeleton() {
+  const c = useColors();
+  return (
+    <View
+      testID="reply-skeleton-card"
+      style={{
+        height: REPORT_CARD,
+        borderRadius: nativeLayout.radius.card,
+        borderCurve: "continuous",
+        backgroundColor: c.sage,
+        borderWidth: 1,
+        borderColor: c.cardBorder || c.line,
+        paddingHorizontal: nativeLayout.cardPadding - 1,
+        justifyContent: "center",
+        gap: nativeLayout.space.sm,
+      }}
+    >
+      <SkeletonLine width="55%" block={12} line={22} onMood />
+      <SkeletonLine width="85%" block={10} line={18} onMood />
+      <SkeletonLine width="40%" block={10} line={18} onMood />
+    </View>
+  );
+}
+
 /** The server needs at least this much text for a reply or a resolution note. */
 const MIN_BODY = 5;
 /** What "Tandai selesai" sends when nothing is typed. Always Indonesian: the customer reads it, whatever the caterer's language. */
@@ -100,7 +129,6 @@ function useIssue(id: string) {
  */
 export function ReportScreen({ id, title: carried }: { id: string; title?: string }) {
   const { t } = useMobile();
-  const c = useColors();
   const issues = useIssue(id);
   // Until the report arrives the screen keeps the customer's name its link carried, or else is named by what it is;
   // then by the customer who sent it. A failed read or a missing report goes back to what it is: the carried name was
@@ -235,7 +263,7 @@ export function ReplySheet({ id, title: carried }: { id: string; title?: string 
         <>
           <SkeletonGroup label={t("Memuat laporan", "Loading the report")}>
             <View testID="reply-skeleton" style={{ gap: 16 }}>
-              <Skeleton testID="reply-skeleton-card" height={REPORT_CARD} radius={nativeLayout.radius.card} />
+              <ReportCardSkeleton />
               <View testID="reply-skeleton-hint" style={{ height: 18, justifyContent: "center" }}>
                 <Skeleton width="70%" height={10} radius={5} />
               </View>

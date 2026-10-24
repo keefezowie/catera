@@ -17,7 +17,9 @@ export const BARE_GLYPH_INSET = GLYPH_BARE + nativeLayout.space.md;
  * A surface card of rows: radius 16, 16 side padding, a 1px `line` between each pair of children, inset to the text
  * column so it does not run under the thumb. It separates from the canvas by tone, not by a border.
  * `tone="sage"` is for a card on a surface that is itself the card colour (a form sheet, whose dark `cardBorder` is empty so a
- * surface card would have no edge): it takes the `sage` fill and the `surface` is left to what sits on it. `clip={false}`
+ * surface card would have no edge): it takes the `sage` fill and the `surface` is left to what sits on it. Where the palette
+ * draws no card border (dark) the sage card gets a 1px `line` edge, its padding giving up that pixel so the rows still sit
+ * 16 in; sage on the dark surface is about 1.04:1 and would otherwise have no edge at all. `clip={false}`
  * drops the rounded clip, for rows whose photo loads late (an image that finishes loading inside an overflow-hidden
  * rounded view can stay blank on Android); the rows must not reach the corners then. The defaults are unchanged.
  */
@@ -34,12 +36,16 @@ export function ListCard({
 }) {
   const styles = useStyles();
   const c = useColors();
+  const sage =
+    c.cardBorder === ""
+      ? { backgroundColor: c.sage, borderWidth: 1, borderColor: c.line, paddingHorizontal: nativeLayout.cardPadding - 1 }
+      : { backgroundColor: c.sage };
   // toArray already drops null, undefined and booleans, so a conditional child leaves no stray separator.
   const rows = Children.toArray(children);
   return (
     <View
       testID="list-card"
-      style={[styles.card, tone === "sage" && { backgroundColor: c.sage }, !clip && styles.open]}
+      style={[styles.card, tone === "sage" && sage, !clip && styles.open]}
     >
       {rows.map((child, i) => (
         <Fragment key={isValidElement(child) && child.key != null ? child.key : i}>

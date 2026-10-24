@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { View } from "react-native";
 import { Image } from "expo-image";
 import { nativeLayout } from "@catera/design-tokens";
@@ -7,17 +8,20 @@ import { DecorativeIcon } from "./DecorativeIcon";
 /**
  * A square dish photo: 56 (rows), 64 (rich rows) or 48 (a compact row, Dapur Menu's dishes), radius 8. `notSet` is a menu the person has not chosen yet: a
  * 1.5 dashed `controlRing` tile with the utensils glyph. With neither a photo nor `notSet` it is a quiet tone tile.
- * `testID` names the tile; a not-set tile takes `-not-set` after it.
+ * `testID` names the tile; a not-set tile takes `-not-set` after it. `icon` is the not-set tile's glyph (the utensils by
+ * default; a missing proof photo passes the camera).
  */
 export function Thumb({
   uri,
   size = nativeLayout.thumb.sm,
   notSet = false,
+  icon = "restaurant-outline",
   testID = "thumb",
 }: {
   uri?: string | null;
   size?: 48 | 56 | 64;
   notSet?: boolean;
+  icon?: ComponentProps<typeof DecorativeIcon>["name"];
   testID?: string;
 }) {
   const c = useColors();
@@ -26,7 +30,7 @@ export function Thumb({
   if (notSet) {
     return (
       <View testID={`${testID}-not-set`} style={[styles.tile, styles.notSet, box]}>
-        <DecorativeIcon name="restaurant-outline" size={Math.round(size * 0.4)} color={c.controlRing} />
+        <DecorativeIcon name={icon} size={Math.round(size * 0.4)} color={c.controlRing} />
       </View>
     );
   }

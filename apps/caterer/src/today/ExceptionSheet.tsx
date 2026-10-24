@@ -14,7 +14,9 @@ import {
   Button,
   DecorativeIcon,
   FormError,
+  GLYPH_BARE,
   GLYPH_INSET,
+  GlyphCircle,
   ListCard,
   SheetBody,
   SheetFooter,
@@ -136,12 +138,9 @@ function OptionRow({
       testID={testID}
       wrap
       leading={
-        <View
-          testID={`${testID}-glyph`}
-          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" }}
-        >
-          <DecorativeIcon name={glyph} size={20} color={c.forest} />
-        </View>
+        <GlyphCircle testID={`${testID}-glyph`} tone={c.surface}>
+          <DecorativeIcon name={glyph} size={GLYPH_BARE} color={c.forest} />
+        </GlyphCircle>
       }
       title={title}
       meta={body}
@@ -167,7 +166,6 @@ function OptionRow({
  */
 export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMeal; date: string }) {
   const { runtime, actor, t, locale, command } = useMobile();
-  const c = useColors();
   const toast = useToast();
   const catererId = actor?.catererId ?? "";
   const key = `${catererId}:${date}`;

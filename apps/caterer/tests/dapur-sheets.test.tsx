@@ -7,7 +7,7 @@ import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { type SellerOperationsState } from "@catera/domain";
-import { ListCard, SheetHeader, Text, ThemeProvider, ToastProvider, TwoLineRow } from "@catera/mobile-ui";
+import { GlyphCircle, ListCard, SheetHeader, Text, ThemeProvider, ToastProvider, Thumb, TwoLineRow } from "@catera/mobile-ui";
 import TabStack from "../app/(tabs)/(index,pelanggan,menu,usaha)/_layout";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
@@ -677,7 +677,7 @@ describe("appearance", () => {
     // The sheet is the surface and dark draws no card edge, so the options sit in one sage card, with the glyph circles on the surface.
     const card = within(sheet).getByTestId("list-card");
     expect(within(card).getByTestId("failed-option")).toBeTruthy();
-    expect(flat(card)).toMatchObject({ backgroundColor: nativeThemes.dark.sage });
+    expect(flat(card)).toMatchObject({ backgroundColor: nativeThemes.dark.sage, borderWidth: 1, borderColor: nativeThemes.dark.line });
     expect(flat(within(card).getByTestId("failed-option-glyph")).backgroundColor).toBe(nativeThemes.dark.surface);
     expect(flat(within(sheet).getByRole("header", { name: "Bu Sari Wulandari" })).color).toBe(nativeThemes.dark.charcoal);
   });
@@ -865,6 +865,57 @@ describe("the action sheets on the Dapur scale", () => {
       expect(flat(sage).overflow).not.toBe("hidden");
     });
 
+    it("on dark a sage ListCard draws a 1px line edge and keeps its rows 16 in; light and the surface card stay as they were", () => {
+      const cards = (scheme: "light" | "dark") => {
+        jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+        const view = render(
+          withDapurScale(
+            <ThemeProvider storageKey="blocks.theme">
+              <ListCard tone="sage">
+                <Text>a</Text>
+              </ListCard>
+              <ListCard>
+                <Text>b</Text>
+              </ListCard>
+            </ThemeProvider>,
+          ),
+        );
+        const [sage, surface] = screen.getAllByTestId("list-card").map(flat);
+        view.unmount();
+        return { sage, surface };
+      };
+      const dark = cards("dark");
+      expect(dark.sage).toMatchObject({ backgroundColor: nativeThemes.dark.sage, borderWidth: 1, borderColor: nativeThemes.dark.line, paddingHorizontal: 15 });
+      // The 1px edge and the 15 padding put the rows 16 in, as the surface card's 16 does.
+      expect(dark.surface).toMatchObject({ backgroundColor: nativeThemes.dark.surface, paddingHorizontal: 16 });
+      expect(dark.surface.borderWidth).toBeUndefined();
+      const light = cards("light");
+      expect(light.sage).toMatchObject({ backgroundColor: nativeThemes.light.sage, borderWidth: 1, borderColor: nativeThemes.light.cardBorder, paddingHorizontal: 15 });
+      expect(light.surface).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderWidth: 1, paddingHorizontal: 15 });
+    });
+
+    it("GlyphCircle is sage by default and takes a tone; Thumb's not-set glyph is the utensils unless an icon is passed", () => {
+      render(
+        withDapurScale(
+          <ThemeProvider storageKey="blocks.theme">
+            <GlyphCircle testID="plain">
+              <Text>g</Text>
+            </GlyphCircle>
+            <GlyphCircle testID="toned" tone="#123456">
+              <Text>g</Text>
+            </GlyphCircle>
+            <Thumb notSet testID="dish" />
+            <Thumb notSet icon="camera-outline" testID="proof" />
+          </ThemeProvider>,
+        ),
+      );
+      expect(flat(screen.getByTestId("plain")).backgroundColor).toBe(nativeThemes.light.sage);
+      expect(flat(screen.getByTestId("toned")).backgroundColor).toBe("#123456");
+      const glyph = (id: string) => screen.getByTestId(id).findAll((n) => typeof n.props.name === "string")[0].props.name;
+      expect(glyph("dish-not-set")).toBe("restaurant-outline");
+      expect(glyph("proof-not-set")).toBe("camera-outline");
+    });
+
     it("TwoLineRow keeps one line of meta by default, and with wrap=\"meta\" lets it grow with the glyph at the top", () => {
       render(
         withDapurScale(
@@ -1003,10 +1054,20 @@ describe("the action sheets on the Dapur scale", () => {
       expect(flat((await footerOf()).getByTestId("reply-actions")).flexDirection).toBe("column");
     });
 
+    it("draws the loading report card with the same 1px line edge on dark, where a sage card has none of its own", async () => {
+      show(runtimeWith({ request: jest.fn(pending) }), <ReplySheet id="i-1" />, { dark: true });
+      expect(flat(await screen.findByTestId("reply-skeleton-card"))).toMatchObject({
+        height: 128,
+        backgroundColor: nativeThemes.dark.sage,
+        borderWidth: 1,
+        borderColor: nativeThemes.dark.line,
+      });
+    });
+
     it("loads as the report card, a line, the field and the footer's 50 button", async () => {
       show(runtimeWith({ request: jest.fn(pending) }), <ReplySheet id="i-1" />);
       expect(await screen.findByTestId("reply-skeleton")).toBeTruthy();
-      expect(flat(screen.getByTestId("reply-skeleton-card")).height).toBe(128);
+      expect(flat(screen.getByTestId("reply-skeleton-card"))).toMatchObject({ height: 128, backgroundColor: nativeThemes.light.sage, borderWidth: 1 });
       expect(flat(screen.getByTestId("reply-skeleton-hint")).height).toBe(18);
       expect(flat(screen.getByTestId("reply-skeleton-field")).height).toBe(110);
       expect(flat((await footerOf()).getByTestId("reply-skeleton-footer")).height).toBe(50);

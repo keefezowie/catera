@@ -545,7 +545,11 @@ describe("narrow width and large text (360dp, font scale 1.3)", () => {
     for (const d of day.deliveries.slice(0, count)) {
       expect(flat(screen.getByTestId(`proof-tile-${d.id}`)).minHeight).toBe(72);
       // No photo yet: the dashed not-set tile, and the words say so.
-      expect(flat(screen.getByTestId(`proof-thumb-${d.id}-not-set`))).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+      const thumb = screen.getByTestId(`proof-thumb-${d.id}-not-set`);
+      expect(flat(thumb)).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+      // The missing proof photo shows the camera, not the dish tile's utensils.
+      expect(thumb.findAll((n) => n.props.name === "camera-outline").length).toBeGreaterThan(0);
+      expect(thumb.findAll((n) => n.props.name === "restaurant-outline")).toHaveLength(0);
       // The camera action is a text button with a 48 target.
       expect(flat(screen.getByLabelText(new RegExp(`^Ambil foto: ${d.customer.name}`)))).toMatchObject({ minHeight: 48 });
       expect(screen.queryByTestId(`proof-photo-${d.id}`)).toBeNull();

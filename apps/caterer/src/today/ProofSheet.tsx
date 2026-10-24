@@ -113,7 +113,7 @@ function Tile({
           </View>
         ) : (
           // No photo yet: the dashed not-set tile. It holds no image, so its own clip is harmless.
-          <Thumb notSet size={THUMB} testID={`proof-thumb-${stop.deliveryId}`} />
+          <Thumb notSet icon="camera-outline" size={THUMB} testID={`proof-thumb-${stop.deliveryId}`} />
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text variant="rowTitle">{stop.name}</Text>
