@@ -46,7 +46,7 @@ const useStyles = themedStyles((c) => ({
   },
   label: { flex: 1, minWidth: 0, color: c.muted },
   value: { flexShrink: 0, textAlign: "right", fontVariant: ["tabular-nums"] },
-  // The label keeps the width of its longest word (it wraps between words, never inside one); the value takes the rest, up to 60%.
+  // The label keeps the width of its longest word (it wraps between words, never inside one); the value sits at the right edge (marginLeft auto, no grow) and wraps within 60%.
   labelKept: { flexShrink: 0, maxWidth: "40%", color: c.muted },
-  valueWrapping: { flex: 1, maxWidth: "60%", textAlign: "right", fontVariant: ["tabular-nums"] },
+  valueWrapping: { marginLeft: "auto", flexShrink: 1, maxWidth: "60%", textAlign: "right", fontVariant: ["tabular-nums"] },
 }));

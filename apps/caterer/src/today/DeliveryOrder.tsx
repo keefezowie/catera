@@ -157,9 +157,9 @@ export function DeliveryOrder({
               }
             : undefined
         }
-    />
-  );
-};
+      />
+    );
+  };
   const moreLink = hidden > 0 && !picking;
 
   return (

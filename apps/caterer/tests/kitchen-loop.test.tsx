@@ -649,14 +649,14 @@ describe("Urutan antar", () => {
     expect(within(screen.getByTestId("stop-1")).getByTestId("stop-1-meta").props.numberOfLines).toBe(1);
   });
 
-  it("keeps a stop's delivery note under its row, wrapping", async () => {
+  it("keeps a stop's delivery note under its row, on one line", async () => {
     const day = kitchenDay([scheduled]);
     day.deliveries[0].address.instructions = "Pagar hijau, titip di pos satpam";
     renderToday(runtimeWith(async () => day));
     const note = await screen.findByText("Pagar hijau, titip di pos satpam");
     // One more meta line in the stop's own text column, so the row grows by 18 and no more.
     expect(note.props.numberOfLines).toBe(1);
-    expect(note.props.testID).toBe("stop-1-note");
+    expect(note.props.testID).toBe("stop-1-delivery-note");
     expect(within(screen.getByTestId("stop-1")).getByText("Pagar hijau, titip di pos satpam")).toBe(note);
     expect(screen.getByTestId("stop-1-info").props.accessibilityLabel).toMatch(/, Pagar hijau, titip di pos satpam$/);
   });
@@ -1326,12 +1326,12 @@ describe("Hari ini on the Dapur scale", () => {
       // is held to one (a line that may wrap has no height to add up).
       const height = (n: number) => {
         const row = screen.getByTestId(`stop-${n}`);
-        const lines = ["title", "meta", "note"].flatMap((part) => within(row).queryAllByTestId(`stop-${n}-${part}`));
+        const lines = ["title", "meta", "delivery-note"].flatMap((part) => within(row).queryAllByTestId(`stop-${n}-${part}`));
         for (const line of lines) expect(line.props.numberOfLines).toBe(1);
         return Math.max(box(row).minHeight as number, 16 + lines.reduce((sum, line) => sum + (box(line).lineHeight as number), 0));
       };
-      expect(within(screen.getByTestId("stop-1")).queryByTestId("stop-1-note")).toBeTruthy();
-      expect(within(screen.getByTestId("stop-2")).queryByTestId("stop-2-note")).toBeNull();
+      expect(within(screen.getByTestId("stop-1")).queryByTestId("stop-1-delivery-note")).toBeTruthy();
+      expect(within(screen.getByTestId("stop-2")).queryByTestId("stop-2-delivery-note")).toBeNull();
       expect(height(2)).toBe(64);
       expect(height(1)).toBeGreaterThan(64);
       expect(height(1)).toBeLessThanOrEqual(84);

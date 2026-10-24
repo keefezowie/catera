@@ -253,7 +253,7 @@ function StopRowV2({
         {meta}
       </Text>
       {note ? (
-        <Text testID={`${testID}-note`} variant="meta" numberOfLines={1} style={{ color: c.charcoal }}>
+        <Text testID={`${testID}-delivery-note`} variant="meta" numberOfLines={1} style={{ color: c.charcoal }}>
           {note}
         </Text>
       ) : null}

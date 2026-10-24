@@ -998,17 +998,21 @@ describe("the delivery days read as a range", () => {
     const value = within(days).getByText("Mon, Tue, Thu, Fri, Sun");
     // The value may wrap (no line cap) and takes at most 60% of the row, on the right edge.
     expect(value.props.numberOfLines).toBeUndefined();
-    expect(bag(value)).toMatchObject({ maxWidth: "60%", textAlign: "right", flex: 1 });
+    // marginLeft auto and no grow: it ends on the card's right edge like the money rows, whatever the label's width.
+    expect(bag(value)).toMatchObject({ marginLeft: "auto", flexShrink: 1, maxWidth: "60%", textAlign: "right" });
+    expect(bag(value).flex).toBeUndefined();
+    expect(bag(value).flexGrow).toBeUndefined();
     // The label keeps its own width (it breaks between words, never inside one) instead of being squeezed by the value.
     expect(bag(label)).toMatchObject({ flexShrink: 0, maxWidth: "40%" });
     expect(bag(label).flex).toBeUndefined();
     // The capacity ("n portions a day") is text too.
     const capacity = within(screen.getByTestId("paket-fact-kapasitas")).getByText("40 portions a day");
-    expect(bag(capacity)).toMatchObject({ maxWidth: "60%" });
+    expect(bag(capacity)).toMatchObject({ marginLeft: "auto", maxWidth: "60%" });
     // Money is unchanged: the price never shrinks and has no width cap.
     const price = within(screen.getByTestId("paket-fact-harga")).getByText(/per portion$/);
-    expect(bag(price)).toMatchObject({ flexShrink: 0 });
+    expect(bag(price)).toMatchObject({ flexShrink: 0, textAlign: "right" });
     expect(bag(price).maxWidth).toBeUndefined();
+    expect(bag(price).marginLeft).toBeUndefined();
     expect(bag(within(screen.getByTestId("paket-fact-harga")).getByText("Price")).flex).toBe(1);
   });
 });
