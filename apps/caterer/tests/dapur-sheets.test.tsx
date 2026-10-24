@@ -588,7 +588,7 @@ describe("import row editor", () => {
     expect(within(sheet).getByText(/Nama belum ada/)).toBeTruthy();
     fireEvent.changeText(within(sheet).getByLabelText("Nama"), "Bu Ani");
     // The list under the sheet reads the same row.
-    expect(screen.getByRole("button", { name: "Ubah Bu Ani" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Ubah Bu Ani/ })).toBeTruthy();
     // Selesai is pinned in the footer; "Hapus baris ini" stays in the content.
     expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Selesai" })).toBeTruthy();
     expect(within(screen.getByTestId("sheet-body")).getByRole("button", { name: "Hapus baris ini" })).toBeTruthy();
@@ -597,7 +597,7 @@ describe("import row editor", () => {
     await waitFor(() => expect(screen.queryByTestId("import-row-sheet")).toBeNull());
     expect(screen.getByText("Bu Ani")).toBeTruthy();
     // Opening it again edits the same row; removing it takes it off the list and returns.
-    fireEvent.press(screen.getByRole("button", { name: "Ubah Bu Ani" }));
+    fireEvent.press(screen.getByRole("button", { name: /^Ubah Bu Ani/ }));
     fireEvent.press(within(await screen.findByTestId("import-row-sheet")).getByRole("button", { name: "Hapus baris ini" }));
     await waitFor(() => expect(screen.queryByTestId("import-row-sheet")).toBeNull());
     expect(screen.queryByText("Bu Ani")).toBeNull();

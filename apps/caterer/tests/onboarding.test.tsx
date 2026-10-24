@@ -169,9 +169,23 @@ describe("Aktifkan on the Dapur scale", () => {
     expect(flatStyle(screen.getByText(/^Setelah aktif, pelanggan/))).toMatchObject({ fontSize: 15, lineHeight: 22 });
   });
 
-  it("keeps its loading state in the same 24 gap while the steps load", async () => {
+  it("lays its loading cards 24 apart, as the loaded step cards sit, so nothing shifts when the data lands", async () => {
     renderAktifkan(ready({ sellerOperations: jest.fn(() => new Promise(() => {})) }));
     await screen.findByLabelText("Memuat pembayaran");
+    // The cards' lowest common ancestor is the skeleton's own column: its gap is the space between the cards.
+    type N = { props: { style?: unknown }; parent: N | null };
+    const rows = [0, 1, 2].map((i) => screen.getByTestId(`list-skeleton-row-${i}`) as unknown as N);
+    const ancestors = (n: N) => {
+      const out: N[] = [];
+      for (let p = n.parent; p; p = p.parent) out.push(p);
+      return out;
+    };
+    for (const pair of [[0, 1], [1, 2]]) {
+      const up = new Set(ancestors(rows[pair[0]]));
+      const column = ancestors(rows[pair[1]]).find((p) => up.has(p))!;
+      expect(flatStyle(column)).toMatchObject({ gap: 24 });
+    }
+    // And the loaded steps keep the same 24 column.
     expect(flatStyle(screen.getByTestId("aktifkan-steps"))).toMatchObject({ gap: 24 });
   });
 

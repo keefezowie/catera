@@ -224,7 +224,7 @@ export function MenuWeekSkeleton() {
  * its price line, at the row's 56dp). `shape="customer"` is Pelanggan's list as it is laid out: the filter chips (34,
  * in a frame as tall as the touch target, 48 in Dapur, running to the screen edge) over one `ListCard` of two-line
  * rows at the loaded row's 64 (a name line, a meta line, the 48 button's place at the right). Every other caller keeps
- * the card-per-row shape.
+ * the card-per-row shape. `gap` is the space between the default shape's cards (16; Aktifkan's steps sit 24 apart).
  */
 export function ListSkeleton({
   rows,
@@ -232,6 +232,7 @@ export function ListSkeleton({
   bare = false,
   chips = 0,
   shape = "default",
+  gap = 16,
 }: {
   rows: number;
   label: string;
@@ -239,6 +240,7 @@ export function ListSkeleton({
   /** A row of filter chips over the rows (Pelanggan's Aktif, Segera berakhir, Selesai). */
   chips?: number;
   shape?: "default" | "customer";
+  gap?: number;
 }) {
   const shapes = Array.from({ length: rows }, (_, i) => i);
   const frame = useTouchTarget();
@@ -285,7 +287,7 @@ export function ListSkeleton({
   }
   return (
     <SkeletonGroup label={label}>
-      <View style={{ gap: bare ? 0 : 16 }}>
+      <View style={{ gap: bare ? 0 : gap }}>
         {chips ? (
           <View testID="list-skeleton-chips" style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {Array.from({ length: chips }, (_, i) => (

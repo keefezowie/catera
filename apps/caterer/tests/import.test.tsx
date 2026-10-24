@@ -277,12 +277,14 @@ it("a review row dims on press and still opens its editor", async () => {
   setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [unset], needsReview: 1 } }) });
   await read();
   const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
-  const edit = async () => screen.findByRole("button", { name: "Ubah Pelanggan 1" });
+  const edit = async () => screen.findByRole("button", { name: "Ubah Pelanggan 1, perlu dicek: Alamat belum lengkap" });
   fireEvent(await edit(), "responderGrant", touch);
   expect(StyleSheet.flatten((await edit()).props.style).opacity).toBe(0.7);
   // What the row still needs is a to-do: its one line on the list, bold charcoal in its sheet, never a bare danger caption.
   const bold = { color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" };
-  expect(screen.getByText("Alamat belum lengkap")).toBeTruthy();
+  const reason = screen.getByText("Alamat belum lengkap");
+  expect(flatStyle(reason)).toMatchObject({ fontSize: 13, lineHeight: 18, color: nativeThemes.light.muted });
+  expect(reason.props.numberOfLines).toBe(1);
   fireEvent.press(await edit());
   expect(await screen.findByRole("button", { name: "Selesai" })).toBeTruthy();
   expect(StyleSheet.flatten(screen.getByTestId("import-row-reason").props.style)).toMatchObject(bold);
@@ -290,7 +292,9 @@ it("a review row dims on press and still opens its editor", async () => {
 
 describe("deleting an import row", () => {
   const three = { ok: true, json: async () => ({ data: { rows: [row(1), row(2), row(3)], needsReview: 0 } }) };
-  const names = () => screen.getAllByTestId("import-row").map((card) => within(card).getByRole("button").props.accessibilityLabel);
+  // A row that still needs something adds it after a comma ("Ubah Budi, perlu dicek: ..."); the name is what these follow.
+  const names = () =>
+    screen.getAllByTestId("import-row").map((card) => (within(card).getByRole("button").props.accessibilityLabel as string).split(",")[0]);
   /** Opens row 2, renames it, and takes it off with Hapus baris ini. */
   async function deleteSecond() {
     setup(jest.fn(), three);
@@ -410,7 +414,7 @@ describe("deleting an import row", () => {
       await deleteSecond();
       fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
       await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Budi", "Ubah Pelanggan 3"]));
-      const card = (name: string) => screen.getAllByTestId("import-row").find((c) => within(c).queryByRole("button", { name }))!;
+      const card = (name: string) => screen.getAllByTestId("import-row").find((c) => within(c).queryByRole("button", { name: new RegExp(`^${name}`) }))!;
       // Fade only (no rise), starting once the rows' own move (content) has run; the rows below still move with layout.
       expect(card("Ubah Budi").props.entering).toBe(reanimated.FadeIn);
       expect(delay).toHaveBeenCalledWith(nativeMotion.content);
@@ -517,7 +521,9 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
     const line = screen.getByTestId("import-row-2");
     expect(within(line).getByText("Alamat belum lengkap").props.numberOfLines).toBe(1);
     expect(flatStyle(line)).toMatchObject({ minHeight: 64 });
-    expect(screen.getByRole("button", { name: "Ubah Pelanggan 2" })).toBe(line);
+    // The label carries the state and the reason, so a screen reader hears what the row still needs.
+    expect(line.props.accessibilityLabel).toBe("Ubah Pelanggan 2, perlu dicek: Alamat belum lengkap");
+    expect(screen.getByRole("button", { name: "Ubah Pelanggan 2, perlu dicek: Alamat belum lengkap" })).toBe(line);
   });
 
   it("names a row with no name by its place in the list, and says what a missing package needs", async () => {
@@ -525,13 +531,35 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
     setup(jest.fn(), response([unset]));
     await read();
     expect(await screen.findByText("Tanpa nama")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Ubah baris 1" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ubah baris 1, perlu dicek: Paket belum dipilih" })).toBeTruthy();
     expect(screen.getByText("Paket belum dipilih")).toBeTruthy();
     expect(screen.queryByText(/—/)).toBeNull();
     expect(screen.queryByText(/\?/)).toBeNull();
   });
 
-  it("the buttons under the card are Tambah baris and Mulai lagi", async () => {
+  it("tells portions other than 1 on the row's line, with the phone and area", async () => {
+  setup(jest.fn(), response([row(1), row(2, { portions: 2 }), row(3, { portions: 1 })]));
+  await read();
+  expect(await screen.findByText("+6281234567802 · Setiabudi · 2 porsi")).toBeTruthy();
+  expect(screen.getByText("+6281234567801 · Setiabudi")).toBeTruthy();
+  expect(screen.getByText("+6281234567803 · Setiabudi")).toBeTruthy();
+  expect(screen.getByTestId("import-row-2")).toBeTruthy();
+});
+
+it("the row editor tells a portion count other than 1 under the fields, and says nothing for 1", async () => {
+  setup(jest.fn(), response([row(1, { portions: 3 }), row(2)]));
+  await read();
+  fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 1" }));
+  const told = await screen.findByTestId("import-row-portions");
+  expect(told.props.children).toBe("3 porsi per hari");
+  expect(flatStyle(told)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
+  await screen.findByLabelText("Nama");
+  expect(screen.queryByTestId("import-row-portions")).toBeNull();
+});
+
+it("the buttons under the card are Tambah baris and Mulai lagi", async () => {
     setup(jest.fn(), response([row(1)]));
     await read();
     fireEvent.press(await screen.findByRole("button", { name: "Tambah baris" }));

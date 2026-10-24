@@ -335,8 +335,14 @@ export function ImportAssistant() {
                       testID={`import-row-${r.n}`}
                       title={r.name || t("Tanpa nama", "No name")}
                       // A row that still needs something says what in its one line; a clean row gives its phone and area.
-                      meta={r.needsReview ? r.reason : [r.phone, r.area].filter(Boolean).join(" · ")}
-                      accessibilityLabel={`${t("Ubah", "Edit")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}`}
+                      meta={
+                        r.needsReview
+                          ? r.reason
+                          : // Portions are saved with the row and shown nowhere else before the save, so a count other than 1 rides on the line.
+                            [r.phone, r.area, r.portions !== 1 ? t(`${r.portions} porsi`, plural(r.portions, "portion")) : ""].filter(Boolean).join(" · ")
+                      }
+                      // The label names the row, and a problem row's state and reason, so a screen reader hears what it needs.
+                      accessibilityLabel={`${t("Ubah", "Edit")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}${r.needsReview ? `, ${t("perlu dicek", "to check")}: ${r.reason}` : ""}`}
                       onPress={() => edit(r.n)}
                       trailing={
                         <>

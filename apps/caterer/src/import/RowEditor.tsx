@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { NavigationContext } from "expo-router/react-navigation";
 import { nativeLayout } from "@catera/design-tokens";
 import { earliestImportStart, normalizeCustomerPhone } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { plural, useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Chip,
@@ -188,6 +188,12 @@ export function ImportRowEditor({ n }: { n: number }) {
             />
           </View>
         </View>
+        {/* Portions come from what the assistant read and are saved with the row; there is no field for them, so the count is told. */}
+        {row.portions !== 1 ? (
+          <Text testID="import-row-portions" variant="meta">
+            {t(`${row.portions} porsi per hari`, `${plural(row.portions, "portion")} per day`)}
+          </Text>
+        ) : null}
         <Button
           variant="text"
           label={t("Hapus baris ini", "Remove this row")}

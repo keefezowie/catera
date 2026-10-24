@@ -57,7 +57,7 @@ export function AktifkanScreen() {
             {state.error ? (
               <ReadError art message={state.error} onRetry={() => void state.reload()} />
             ) : (
-              <ListSkeleton rows={3} label={t("Memuat pembayaran", "Loading payments")} />
+              <ListSkeleton rows={3} gap={nativeLayout.dense.sectionGap} label={t("Memuat pembayaran", "Loading payments")} />
             )}
           </View>
         </FadeSwap>
