@@ -223,7 +223,8 @@ export function MoodHeader({
   const hasTrailing = trailing != null && trailing !== false;
   const hasRow = !v2 || hasMeta || (toggle && !arc) || hasTrailing;
   // The v2 top row is the icon button size, or the root's touch target when that is larger (Dapur's 48), so a control in it
-  // keeps its whole target inside the row. The band's 36 row holds only the compact toggle, whose slop reaches the target.
+  // keeps its whole target inside the row. The band's 36 row holds only the compact toggle: its 34 track fits, and the
+  // toggle's slop (hitSlop 7) is clipped to the row, so the tabs' touchable height there is the row's 36, not 48.
   const rowHeight = band ? BAND_ROW_HEIGHT : v2 ? Math.max(nativeLayout.control.icon, touchTarget) : ROW_HEIGHT;
   const [height, setHeight] = useState<number>();
   const above = topOwned ? insets.top + DEMO_STRIP_HEIGHT : insets.top - topInset;

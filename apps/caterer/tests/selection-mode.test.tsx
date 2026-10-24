@@ -693,6 +693,14 @@ describe("residual layout: targets inside their parents, one-line status and met
     expect(sheetFlat(header).minHeight).toBeGreaterThanOrEqual(48);
   });
 
+  it("Urutan antar keeps its 48 header before anything can be picked, so Pilih arriving shifts nothing", async () => {
+    renderToday(runtimeFor(() => dayWith([waiting])));
+    await screen.findByText("Urutan antar");
+    expect(screen.queryByRole("button", { name: "Pilih" })).toBeNull();
+    const header = within(screen.getByTestId("delivery-order")).getByTestId("section-header");
+    expect(sheetFlat(header).minHeight).toBe(48);
+  });
+
   it("Selesai and Pilih semua are inside their parents too, and the picking heading holds 48", async () => {
     renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
     await pilih();

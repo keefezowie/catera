@@ -18,20 +18,24 @@ const NODE_ACTION_HEIGHT = nativeLayout.space.xxxl;
  * at the right, before the trailing slot ("9 menu", "14 alamat"). `action` is the link, or any node for the trailing
  * slot (Dapur's 48 icon buttons, "Pilih"). A header with a node action is at least 48 tall, the title centred in it: the
  * row has to hold the whole 48 target, because Android delivers a touch only inside every ancestor's bounds and a
- * button that overhangs a 26 row loses the part outside it. A header without one stays one heading line.
+ * button that overhangs a 26 row loses the part outside it. A header without one stays one heading line, unless
+ * `reserveAction` holds the 48 for an action that may arrive later.
  */
 export function SectionHeader({
   title,
   count,
   action,
+  reserveAction = false,
 }: {
   title: string;
   count?: string;
   action?: SectionLink | ReactNode;
+  /** Keeps the 48 row of a node action even while there is none, for a header whose action comes and goes (nothing shifts when it does). */
+  reserveAction?: boolean;
 }) {
   const c = useColors();
   const styles = useStyles();
-  const node = !!action && !isLink(action);
+  const node = (!!action && !isLink(action)) || reserveAction;
   return (
     <View testID="section-header" style={[styles.row, node && styles.rowWithAction]}>
       <Text variant="section" accessibilityRole="header" style={styles.title}>

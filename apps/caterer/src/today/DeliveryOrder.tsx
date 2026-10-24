@@ -190,6 +190,8 @@ export function DeliveryOrder({
       ) : (
         <View testID="order-live" accessibilityLiveRegion="none">
           <SectionHeader
+            // Pilih can arrive any time today (when cooking starts), so today's header keeps its 48 either way.
+            reserveAction={!!selection && report === "today"}
             title={t("Urutan antar", "Delivery order")}
             count={stops.length ? count : undefined}
             action={

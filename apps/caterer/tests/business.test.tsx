@@ -542,6 +542,23 @@ const usahaWith = (offers: import("@catera/domain").SellerOffer[], payments: boo
 describe("Usaha on the Dapur scale", () => {
   afterEach(() => jest.restoreAllMocks());
 
+  it("holds the Paket header at 48 while the packages load and after, so nothing shifts when + Paket baru arrives", async () => {
+    const first = scaled(
+      runtimeWith({ sellerOperations: jest.fn(() => new Promise(() => undefined)), request: jest.fn(async () => ({ active: null })) }),
+      <UsahaScreen />,
+    );
+    await screen.findByLabelText("Memuat paket");
+    const loading = screen.getAllByTestId("section-header")[0];
+    expect(within(loading).getByText("Paket")).toBeTruthy();
+    expect(within(loading).queryByRole("button", { name: "+ Paket baru" })).toBeNull();
+    expect(bag(loading).minHeight).toBe(48);
+    first.unmount();
+    scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
+    const loaded = (await screen.findAllByTestId("section-header"))[0];
+    expect(await within(loaded).findByRole("button", { name: "+ Paket baru" })).toBeTruthy();
+    expect(bag(loaded).minHeight).toBe(48);
+  });
+
   it.each([0, 1, 4])("Paket is a section header with + Paket baru trailing, over %i media rows", async (count) => {
     const offers = Array.from({ length: count }, (_, i) => packageNamed(i + 1));
     scaled(usahaWith(offers, true), <UsahaScreen />);

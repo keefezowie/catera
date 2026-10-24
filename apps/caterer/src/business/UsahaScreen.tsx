@@ -145,6 +145,8 @@ export function UsahaScreen() {
         ) : null}
         <View testID="usaha-packages">
           <SectionHeader
+            // The add button arrives with the read; the header holds its 48 from the first frame so the list does not shift.
+            reserveAction
             title={t("Paket", "Packages")}
             action={
               ops.data ? (

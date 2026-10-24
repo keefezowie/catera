@@ -1086,6 +1086,16 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(screen.queryByText("Belum diisi")).toBeNull();
       expect(screen.queryByText("Lewat")).toBeNull();
       expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
+      // An owner's day header keeps its 48 either way, so it matches the skeleton and nothing shifts when a day closes.
+      const header = screen.getAllByTestId("section-header").find((h) => within(h).queryByText("Kamis 8 Okt"))!;
+      expect(StyleSheet.flatten(header.props.style).minHeight).toBe(48);
+    });
+
+    it("a helper's day header stays one heading line, as its skeleton is", async () => {
+      mount({ dates: [filled("2026-10-08")], role: "staff" });
+      await screen.findByText("Nasi putih");
+      const header = screen.getAllByTestId("section-header").find((h) => within(h).queryByText("Kamis 8 Okt"))!;
+      expect(StyleSheet.flatten(header.props.style).minHeight).toBeUndefined();
     });
 
     it("Ubah menu opens the day editor", async () => {

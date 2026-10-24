@@ -604,6 +604,8 @@ export function MenuWeek() {
         {selected ? (
           <View testID="menu-day">
             <SectionHeader
+              // An owner's day header is 48 whether or not the day can still be edited (a closed day has no "Ubah menu").
+              reserveAction={canEdit}
               title={shortDate(selected.date, locale)}
               action={
                 canEdit && selected.editable ? (
