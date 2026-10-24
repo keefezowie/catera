@@ -74,6 +74,35 @@ describe("Daftar retry and recovery", () => {
     await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
     expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(1);
     expect(command.mock.calls[1][1].slug).toBe(command.mock.calls[0][1].slug);
+    expect(command.mock.calls[1][2]).toBe(command.mock.calls[0][2]);
+  });
+
+  it("once verified, the retry needs no code and the resend action is gone", async () => {
+    const { runtime, command } = setup();
+    await reachCodeStep(runtime);
+    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "123456");
+    fireEvent.press(screen.getByRole("button", { name: "Buat dapur saya" }));
+    await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
+    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Buat dapur saya" })).toBeEnabled());
+    expect(screen.queryByRole("button", { name: "Kirim ulang kode" })).toBeNull();
+  });
+
+  it("Ganti nomor after verifying signs the old number out, and the next create verifies again", async () => {
+    const { runtime, command } = setup();
+    runtime.signOut = jest.fn(async () => undefined) as never;
+    await reachCodeStep(runtime);
+    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "123456");
+    fireEvent.press(screen.getByRole("button", { name: "Buat dapur saya" }));
+    await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ganti nomor" })).toBeEnabled());
+    fireEvent.press(screen.getByRole("button", { name: "Ganti nomor" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByLabelText("Kode dari SMS")).toBeNull());
+    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "654321");
+    fireEvent.press(screen.getByRole("button", { name: "Buat dapur saya" }));
+    await waitFor(() => expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(2));
   });
 
   it("Ganti nomor goes back to the editable fields and clears the code", async () => {
@@ -137,6 +166,31 @@ describe("Data akun hints, tags and failed reads", () => {
     expect(screen.getByLabelText("Email baru").props).toMatchObject({ autoComplete: "email" });
     expect((await screen.findByLabelText("Kata sandi saat ini")).props).toMatchObject({ autoComplete: "current-password" });
     expect(screen.getByLabelText("Kata sandi baru").props).toMatchObject({ autoComplete: "new-password", textContentType: "newPassword" });
+  });
+
+  it("a failed account read shows a ReadError, and retrying brings the password section", async () => {
+    const getUser = jest
+      .fn()
+      .mockResolvedValueOnce({ data: { user: null }, error: new Error("NETWORK") })
+      .mockResolvedValue({ data: { user: { email: "rina@example.test" } }, error: null });
+    const runtime = makeRuntime({ actor: owner });
+    const channel = { on: () => channel, subscribe: () => channel, unsubscribe: jest.fn() };
+    (runtime as { supabase: unknown }).supabase = {
+      auth: { getUser, onAuthStateChange: () => ({ data: { subscription: { unsubscribe: jest.fn() } } }) },
+      channel: () => channel,
+      removeChannel: jest.fn(),
+    };
+    renderWith(runtime, <DataAkun />);
+    await screen.findByText("Belum bisa membaca akunmu.");
+    fireEvent.press(screen.getByText("Coba lagi"));
+    await screen.findByLabelText("Kata sandi saat ini");
+    expect(getUser).toHaveBeenCalledTimes(2);
+  });
+
+  it("the disabled button carries the reason as an accessibility hint", async () => {
+    renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
+    await screen.findByLabelText("Nomor HP baru");
+    expect(screen.getByRole("button", { name: "Kirim kode" }).props.accessibilityHint).toMatch(/9 angka/);
   });
 
   it("a failed request-status read shows a ReadError that retries", async () => {

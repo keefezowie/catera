@@ -184,6 +184,9 @@ export function DataAkun() {
     }
   });
 
+  const phoneReason = t("Isi nomor HP baru, minimal 9 angka.", "Enter the new phone number, at least 9 digits.");
+  const requestReason = t("Tulis minimal 5 karakter.", "Write at least 5 characters.");
+
   const status = (r: NonNullable<typeof latest>) =>
     r.status === "open"
       ? t("Terkirim, menunggu Tim Catera.", "Sent, waiting for the Catera team.")
@@ -216,12 +219,20 @@ export function DataAkun() {
             <Button label={t("Ganti nomor", "Change number")} busy={verifying} disabled={code.trim().length < 6} onPress={() => void verifyCode()} />
           ) : (
             <>
-              <Button label={t("Kirim kode", "Send code")} busy={sendingCode} disabled={phone.replace(/\D/g, "").length < 9} onPress={() => void sendCode()} />
-              {phone.replace(/\D/g, "").length < 9 ? (
-                <Text testID="phone-reason" variant="meta">
-                  {t("Isi nomor HP baru, minimal 9 angka.", "Enter the new phone number, at least 9 digits.")}
-                </Text>
-              ) : null}
+              <Button
+                label={t("Kirim kode", "Send code")}
+                busy={sendingCode}
+                disabled={phone.replace(/\D/g, "").length < 9}
+                accessibilityHint={phone.replace(/\D/g, "").length < 9 ? phoneReason : undefined}
+                onPress={() => void sendCode()}
+              />
+              <View style={{ minHeight: 18 }}>
+                {phone.replace(/\D/g, "").length < 9 ? (
+                  <Text testID="phone-reason" variant="meta">
+                    {phoneReason}
+                  </Text>
+                ) : null}
+              </View>
             </>
           )}
         </Section>
@@ -267,12 +278,20 @@ export function DataAkun() {
             ) : null}
             <Field label={t("Apa yang diubah?", "What should change?")} value={wanted} onChangeText={setWanted} multiline style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }} />
             {requestFailure ? <FormError message={requestFailure.message} failureKey={requestFailure.key} /> : null}
-            <Button label={t("Kirim permintaan", "Send request")} busy={sending} disabled={wanted.trim().length < 5} onPress={() => void send()} />
-            {wanted.trim().length < 5 ? (
-              <Text testID="request-reason" variant="meta">
-                {t("Tulis minimal 5 karakter.", "Write at least 5 characters.")}
-              </Text>
-            ) : null}
+            <Button
+              label={t("Kirim permintaan", "Send request")}
+              busy={sending}
+              disabled={wanted.trim().length < 5}
+              accessibilityHint={wanted.trim().length < 5 ? requestReason : undefined}
+              onPress={() => void send()}
+            />
+            <View style={{ minHeight: 18 }}>
+              {wanted.trim().length < 5 ? (
+                <Text testID="request-reason" variant="meta">
+                  {requestReason}
+                </Text>
+              ) : null}
+            </View>
           </Section>
         ) : null}
         <SettingsSection>

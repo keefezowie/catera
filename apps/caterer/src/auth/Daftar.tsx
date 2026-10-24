@@ -26,6 +26,7 @@ export function Daftar() {
   const verified = useRef<Awaited<ReturnType<typeof runtime.verifyPhoneOtp>> | null>(null);
   const verifyId = useRef(Crypto.randomUUID());
   const slugSuffix = useRef(Crypto.randomUUID().replace(/-/g, "").slice(0, 4));
+  const [kept, setKept] = useState(false);
   const ready = name.trim().length >= 3 && phone.replace(/\D/g, "").length >= 9 && !!area;
 
   const sendCode = () =>
@@ -34,13 +35,17 @@ export function Daftar() {
       setSent(true);
     });
 
-  const changeNumber = () => {
-    setSent(false);
-    setCode("");
-    verified.current = null;
-    verifyId.current = Crypto.randomUUID();
-    slugSuffix.current = Crypto.randomUUID().replace(/-/g, "").slice(0, 4);
-  };
+  // The old number's session is dropped first, or a refresh could sign into its half-registered profile.
+  const changeNumber = () =>
+    run(async () => {
+      if (verified.current) await runtime.signOut();
+      setSent(false);
+      setCode("");
+      setKept(false);
+      verified.current = null;
+      verifyId.current = Crypto.randomUUID();
+      slugSuffix.current = Crypto.randomUUID().replace(/-/g, "").slice(0, 4);
+    });
 
   const missing = [
     name.trim().length < 3 ? t("nama usaha (minimal 3 huruf)", "business name (at least 3 letters)") : "",
@@ -48,10 +53,13 @@ export function Daftar() {
     !area ? t("lokasi dapur", "kitchen area") : "",
   ].filter(Boolean);
 
+  const reason = t(`Lengkapi ${missing.join(", ")} dulu.`, `Fill in the ${missing.join(", ")} first.`);
+
   const create = () =>
     run(async () => {
       verified.current ??= await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), name.trim(), verifyId.current);
       const actor = verified.current;
+      setKept(true);
       await command("seller.create", {
         name: name.trim(),
         slug: catererSlug(name, slugSuffix.current),
@@ -70,17 +78,25 @@ export function Daftar() {
           <Button
             label={t("Buat dapur saya", "Create my kitchen")}
             busy={busy}
-            disabled={code.trim().length < 6}
+            disabled={!kept && code.trim().length < 6}
             onPress={create}
           />
         ) : (
           <>
-            <Button label={t("Kirim kode", "Send code")} busy={busy} disabled={!ready} onPress={sendCode} />
-            {!ready ? (
-              <Text testID="daftar-reason" variant="meta">
-                {t(`Lengkapi ${missing.join(", ")} dulu.`, `Fill in the ${missing.join(", ")} first.`)}
-              </Text>
-            ) : null}
+            <Button
+              label={t("Kirim kode", "Send code")}
+              busy={busy}
+              disabled={!ready}
+              accessibilityHint={ready ? undefined : reason}
+              onPress={sendCode}
+            />
+            <View style={{ minHeight: 18 }}>
+              {!ready ? (
+                <Text testID="daftar-reason" variant="meta">
+                  {reason}
+                </Text>
+              ) : null}
+            </View>
           </>
         )
       }
@@ -138,7 +154,7 @@ export function Daftar() {
       {sent ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: nativeLayout.groupGap }}>
           <Button variant="text" label={t("Ganti nomor", "Change number")} disabled={busy} onPress={changeNumber} />
-          <Button variant="text" label={t("Kirim ulang kode", "Resend code")} busy={busy} onPress={sendCode} />
+          {kept ? null : <Button variant="text" label={t("Kirim ulang kode", "Resend code")} busy={busy} onPress={sendCode} />}
         </View>
       ) : null}
       {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
