@@ -23,6 +23,7 @@ import {
   useColors,
   useListMotion,
   useToast,
+  useUnsavedGuard,
 } from "@catera/mobile-ui";
 import { Attachments } from "./Attachments";
 import { commitImport } from "./commits";
@@ -63,6 +64,8 @@ export function ImportAssistant() {
   // Each save plays the beat again: it is keyed by the number of saves made on this screen.
   const [saves, setSaves] = useState(0);
   const [off, setOff] = useState(false);
+  // Pasted text, attachments or read rows are lost when Impor closes; once every row is saved the list is an empty one.
+  useUnsavedGuard(rows ? rows.length > 0 : text.trim() !== "" || files.length > 0, t("daftar", "list"), { t, nounEn: "list", voice: "kamu" });
   // The row sheet checks a row against the same packages this screen read.
   useEffect(() => {
     if (options.data) setPackages(options.data.packages);
@@ -113,6 +116,8 @@ export function ImportAssistant() {
         images.push({ kind: "image", name: a.fileName || `Foto ${files.length + i + 1}`, ...(await shrinkPhoto(a)) });
       // Never past six, whatever else landed in the meantime.
       setFiles((f) => [...f, ...images.slice(0, Math.max(0, MAX_IMAGES - f.filter((g) => g.kind === "image").length))]);
+    } catch {
+      setError(t("Foto belum bisa dibuka. Coba lagi.", "Couldn't open the photo. Try again."));
     } finally {
       picking.current = false;
       setBusy((b) => (b === "photo" ? "" : b));
@@ -120,17 +125,38 @@ export function ImportAssistant() {
   }
 
   async function addFile() {
-    const picked = await DocumentPicker.getDocumentAsync({
-      type: ["application/pdf", "text/csv", "text/comma-separated-values", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-      copyToCacheDirectory: true,
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "text/csv", "text/comma-separated-values", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+        copyToCacheDirectory: true,
+      });
+      if (picked.canceled || !picked.assets?.[0]) return;
+      const a = picked.assets[0];
+      const name = a.name.toLowerCase();
+      const kind = name.endsWith(".pdf") ? "pdf" : name.endsWith(".xlsx") ? "xlsx" : name.endsWith(".csv") ? "csv" : null;
+      if (!kind) return setError(t("Pilih PDF, CSV atau Excel (.xlsx).", "Choose a PDF, CSV or Excel (.xlsx) file."));
+      const data = await new File(a.uri).base64();
+      setFiles((f) => [...f, { kind, name: a.name, data } as Attachment]);
+    } catch {
+      setError(t("File belum bisa dibaca. Coba lagi.", "Couldn't read the file. Try again."));
+    }
+  }
+
+  /** Back to the paste step; Urungkan puts the rows (and the text and attachments) back as they were. */
+  function startOver() {
+    const before = { text, files, rows };
+    setRows(null);
+    toast.show({
+      message: t("Daftar dikosongkan", "List cleared"),
+      action: {
+        label: t("Urungkan", "Undo"),
+        onPress: () => {
+          setText(before.text);
+          setFiles(before.files);
+          setRows(before.rows);
+        },
+      },
     });
-    if (picked.canceled || !picked.assets?.[0]) return;
-    const a = picked.assets[0];
-    const name = a.name.toLowerCase();
-    const kind = name.endsWith(".pdf") ? "pdf" : name.endsWith(".xlsx") ? "xlsx" : name.endsWith(".csv") ? "csv" : null;
-    if (!kind) return setError(t("Pilih PDF, CSV atau Excel (.xlsx).", "Choose a PDF, CSV or Excel (.xlsx) file."));
-    const data = await new File(a.uri).base64();
-    setFiles((f) => [...f, { kind, name: a.name, data } as Attachment]);
   }
 
   async function read() {
@@ -234,7 +260,10 @@ export function ImportAssistant() {
     <Screen
       footer={
         rows ? (
-          <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} busy={busy === "save"} disabled={!clean || (!!busy && busy !== "save")} onPress={() => void save()} />
+          <>
+            {error ? <FormError message={error} failureKey={errorState.key} /> : null}
+            <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} busy={busy === "save"} disabled={!clean || (!!busy && busy !== "save")} onPress={() => void save()} />
+          </>
         ) : reading ? (
           // In place of the button while the assistant reads: the reading mascot names the wait and what is read.
           <View style={{ alignItems: "center", gap: nativeLayout.space.xs }}>
@@ -249,7 +278,10 @@ export function ImportAssistant() {
             ) : null}
           </View>
         ) : (
-          <Button label={t("Susun daftar", "Build the list")} disabled={(!text.trim() && !files.length) || !!busy} onPress={() => void read()} />
+          <>
+            {error ? <FormError message={error} failureKey={errorState.key} /> : null}
+            <Button label={t("Susun daftar", "Build the list")} disabled={(!text.trim() && !files.length) || !!busy} onPress={() => void read()} />
+          </>
         )
       }
     >
@@ -322,7 +354,7 @@ export function ImportAssistant() {
         <>
           {/* The summary, 12 above the one card that holds every row (a card per row used to take 134 to 164 each). */}
           <View style={{ gap: nativeLayout.headingGap }}>
-            <Text variant="bodyStrong">
+            <Text variant="bodyStrong" style={{ fontVariant: ["tabular-nums"] }}>
               {rows.length - clean
                 ? t(`${clean} siap disimpan · ${rows.length - clean} perlu dicek`, `${clean} ready · ${rows.length - clean} to check`)
                 : t(`${clean} siap disimpan`, `${clean} ready to save`)}
@@ -333,6 +365,8 @@ export function ImportAssistant() {
                   <Animated.View key={r.n} testID="import-row" {...rowMotion(String(r.n))}>
                     <TwoLineRow
                       testID={`import-row-${r.n}`}
+                      // The reason is the point of a row that needs checking, so it wraps instead of being cut.
+                      wrap={r.needsReview ? "meta" : false}
                       title={r.name || t("Tanpa nama", "No name")}
                       // A row that still needs something says what in its one line; a clean row gives its phone and area.
                       meta={
@@ -366,10 +400,9 @@ export function ImportAssistant() {
             ) : null}
           </View>
           <Button variant="secondary" label={t("Tambah baris", "Add a row")} onPress={addRow} />
-          <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={() => setRows(null)} />
+          <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={startOver} />
         </>
       )}
-      {error ? <FormError message={error} failureKey={errorState.key} /> : null}
     </Screen>
   );
 }

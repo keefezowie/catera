@@ -284,7 +284,7 @@ it("a review row dims on press and still opens its editor", async () => {
   const bold = { color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" };
   const reason = screen.getByText("Alamat belum lengkap");
   expect(flatStyle(reason)).toMatchObject({ fontSize: 13, lineHeight: 18, color: nativeThemes.light.muted });
-  expect(reason.props.numberOfLines).toBe(1);
+  expect(reason.props.numberOfLines).toBeUndefined();
   fireEvent.press(await edit());
   expect(await screen.findByRole("button", { name: "Selesai" })).toBeTruthy();
   expect(StyleSheet.flatten(screen.getByTestId("import-row-reason").props.style)).toMatchObject(bold);
@@ -519,7 +519,7 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
     expect(flatStyle(label)).toMatchObject({ color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" });
     // What the row still needs is the row's one line (bold ink in its sheet), and the row is still one 64 line.
     const line = screen.getByTestId("import-row-2");
-    expect(within(line).getByText("Alamat belum lengkap").props.numberOfLines).toBe(1);
+    expect(within(line).getByText("Alamat belum lengkap").props.numberOfLines).toBeUndefined();
     expect(flatStyle(line)).toMatchObject({ minHeight: 64 });
     // The label carries the state and the reason, so a screen reader hears what the row still needs.
     expect(line.props.accessibilityLabel).toBe("Ubah Pelanggan 2, perlu dicek: Alamat belum lengkap");

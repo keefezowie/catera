@@ -176,6 +176,7 @@ export function ImportRowEditor({ n }: { n: number }) {
             <Field
               label={t("Antar berikutnya (TTTT-BB-HH)", "Next delivery (YYYY-MM-DD)")}
               value={row.startDate ?? ""}
+              keyboardType="numbers-and-punctuation"
               onChangeText={(v) => update({ startDate: v || null })}
             />
           </View>
