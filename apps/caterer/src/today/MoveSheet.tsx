@@ -19,8 +19,8 @@ import { ReadError } from "../ReadError";
 
 /**
  * The calendar's own measures, so its skeleton is as tall as the loaded sheet: the month pager's 48 buttons, the 16 weekday
- * line, six 48 weeks (a month is always drawn as six), the caption's 20 minimum, the 18 note, and the reason field (a 13
- * label line, 6, the 50 input, 6 and the hint's line). The sheet's body spaces its blocks 16 apart, as the skeleton does.
+ * line, six 48 weeks (a month is always drawn as six), the caption's 20 minimum, the 18 note, and the reason field (a 16 line for the 13 label,
+ * 6, the 50 input, 6 and a 14 line for the 12 hint). The sheet's body spaces its blocks 16 apart, as the skeleton does.
  */
 const PAGER = 48;
 const WEEKDAYS = 16;
@@ -28,8 +28,8 @@ const WEEK = 48;
 const WEEKS = 6;
 const CAPTION = 20;
 const NOTE = 18;
-const FIELD_LABEL = 18;
-const FIELD_HINT = 18;
+const FIELD_LABEL = 16;
+const FIELD_HINT = 14;
 
 /** The days the caterer can pick from: today and the sixty after it, the most the availability read answers for. */
 const WINDOW_DAYS = 60;

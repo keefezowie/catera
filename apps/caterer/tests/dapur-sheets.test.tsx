@@ -7,7 +7,7 @@ import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { type SellerOperationsState } from "@catera/domain";
-import { SheetHeader, ThemeProvider, ToastProvider } from "@catera/mobile-ui";
+import { ListCard, SheetHeader, Text, ThemeProvider, ToastProvider, TwoLineRow } from "@catera/mobile-ui";
 import TabStack from "../app/(tabs)/(index,pelanggan,menu,usaha)/_layout";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
@@ -674,10 +674,11 @@ describe("appearance", () => {
   it("the stop sheet reads the dark palette", async () => {
     show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[0].id} meal="lunch" date={TODAY} />, { dark: true });
     const sheet = await stopSheet();
-    // The options sit in one card on the dark surface, the same one the sheet's other cards use.
+    // The sheet is the surface and dark draws no card edge, so the options sit in one sage card, with the glyph circles on the surface.
     const card = within(sheet).getByTestId("list-card");
     expect(within(card).getByTestId("failed-option")).toBeTruthy();
-    expect(flat(card)).toMatchObject({ backgroundColor: nativeThemes.dark.surface });
+    expect(flat(card)).toMatchObject({ backgroundColor: nativeThemes.dark.sage });
+    expect(flat(within(card).getByTestId("failed-option-glyph")).backgroundColor).toBe(nativeThemes.dark.surface);
     expect(flat(within(sheet).getByRole("header", { name: "Bu Sari Wulandari" })).color).toBe(nativeThemes.dark.charcoal);
   });
 
@@ -767,6 +768,10 @@ describe("every awaiting command button is busy while it waits", () => {
 });
 
 describe("the action sheets on the Dapur scale", () => {
+  // The colour assertions below are the light palette's, whatever an earlier test left the scheme at.
+  beforeEach(() => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+  });
   const stopId = () => dayOf(TODAY).deliveries[0].id;
   const pending = () => new Promise<never>(() => undefined);
   const bodyOf = () => within(screen.getByTestId("sheet-body"));
@@ -842,6 +847,40 @@ describe("the action sheets on the Dapur scale", () => {
     });
   });
 
+  describe("the shared blocks the sheets use", () => {
+    it("ListCard keeps its surface tone and rounded clip by default, and takes sage and no clip when asked", () => {
+      render(
+        withDapurScale(
+          <ThemeProvider storageKey="blocks.theme">
+            <ListCard>{[<Text key="a">a</Text>, <Text key="b">b</Text>]}</ListCard>
+            <ListCard tone="sage" clip={false}>
+              <Text>c</Text>
+            </ListCard>
+          </ThemeProvider>,
+        ),
+      );
+      const [plain, sage] = screen.getAllByTestId("list-card");
+      expect(flat(plain)).toMatchObject({ backgroundColor: nativeThemes.light.surface, overflow: "hidden" });
+      expect(flat(sage)).toMatchObject({ backgroundColor: nativeThemes.light.sage });
+      expect(flat(sage).overflow).not.toBe("hidden");
+    });
+
+    it("TwoLineRow keeps one line of meta by default, and with wrap=\"meta\" lets it grow with the glyph at the top", () => {
+      render(
+        withDapurScale(
+          <ThemeProvider storageKey="blocks.theme">
+            <TwoLineRow testID="one" title="Judul" meta="Satu baris" />
+            <TwoLineRow testID="two" wrap="meta" title="Judul" meta="Beberapa baris" leading={<Text>g</Text>} />
+          </ThemeProvider>,
+        ),
+      );
+      expect(screen.getByText("Satu baris").props.numberOfLines).toBe(1);
+      expect(flat(screen.getByTestId("one")).alignItems).toBe("center");
+      expect(screen.getByText("Beberapa baris").props.numberOfLines).toBeUndefined();
+      expect(flat(screen.getByTestId("two"))).toMatchObject({ alignItems: "flex-start", paddingVertical: 12, minHeight: 64 });
+    });
+  });
+
   describe("Pindah tanggal", () => {
     const tomorrow = () => dayOf(TOMORROW).deliveries[0].id;
 
@@ -896,6 +935,9 @@ describe("the action sheets on the Dapur scale", () => {
       const cards = bodyOf().getAllByTestId("list-card");
       expect(cards).toHaveLength(1);
       const card = within(cards[0]);
+      // In the sheet the cards are sage, with the status pill on the surface (the sheet itself is the surface).
+      expect(flat(cards[0]).backgroundColor).toBe(nativeThemes.light.sage);
+      expect(flat(card.getByTestId("report-status")).backgroundColor).toBe(nativeThemes.light.surface);
       expect(card.getByText("Belum sampai")).toBeTruthy();
       expect(card.getByText("Terkirim")).toBeTruthy();
       expect(card.getByText("Sudah jam satu, makanan belum datang.")).toBeTruthy();
@@ -966,7 +1008,7 @@ describe("the action sheets on the Dapur scale", () => {
       expect(await screen.findByTestId("reply-skeleton")).toBeTruthy();
       expect(flat(screen.getByTestId("reply-skeleton-card")).height).toBe(128);
       expect(flat(screen.getByTestId("reply-skeleton-hint")).height).toBe(18);
-      expect(flat(screen.getByTestId("reply-skeleton-field")).height).toBe(112);
+      expect(flat(screen.getByTestId("reply-skeleton-field")).height).toBe(110);
       expect(flat((await footerOf()).getByTestId("reply-skeleton-footer")).height).toBe(50);
     });
   });

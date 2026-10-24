@@ -4,6 +4,7 @@ import { StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import NetInfo from "@react-native-community/netinfo";
 import { router } from "expo-router";
+import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { kitchenSession, type SellerOperationsState } from "@catera/domain";
 import { ToastProvider } from "@catera/mobile-ui";
@@ -535,13 +536,18 @@ describe("narrow width and large text (360dp, font scale 1.3)", () => {
   it.each([1, 4] as const)("the proof sheet draws %i stop(s) as 72 rows with a 56 thumb, radius 8, in one card", async (count) => {
     phone(411, 1);
     const day = await openProofOf(count);
-    const list = screen.getByTestId("proof-list");
+    const list = within(screen.getByTestId("exception-sheet")).getByTestId("list-card");
     const tiles = within(list).getAllByTestId(/^proof-tile-/);
+    // One sage card with no clip: the photo is never inside an overflow-hidden rounded ancestor.
+    expect(flat(list).backgroundColor).toBe(nativeThemes.light.sage);
+    expect(flat(list).overflow).not.toBe("hidden");
     expect(tiles).toHaveLength(count);
     for (const d of day.deliveries.slice(0, count)) {
       expect(flat(screen.getByTestId(`proof-tile-${d.id}`)).minHeight).toBe(72);
-      expect(flat(screen.getByTestId(`proof-thumb-${d.id}`))).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
-      // No photo yet: the camera glyph is in the thumb, and the words say so.
+      // No photo yet: the dashed not-set tile, and the words say so.
+      expect(flat(screen.getByTestId(`proof-thumb-${d.id}-not-set`))).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+      // The camera action is a text button with a 48 target.
+      expect(flat(screen.getByLabelText(new RegExp(`^Ambil foto: ${d.customer.name}`)))).toMatchObject({ minHeight: 48 });
       expect(screen.queryByTestId(`proof-photo-${d.id}`)).toBeNull();
       expect(screen.getByTestId(`proof-state-${d.id}`).props.children).toBe("Belum ada foto");
     }
@@ -556,18 +562,19 @@ describe("narrow width and large text (360dp, font scale 1.3)", () => {
     await act(async () => undefined);
     const photo = await screen.findByTestId(`proof-photo-${id}`);
     expect(flat(photo)).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
+    expect(screen.queryByTestId(`proof-thumb-${id}-not-set`)).toBeNull();
     expect(screen.getByTestId(`proof-state-${id}`).props.children).toBe("Foto siap");
     expect(screen.getByLabelText(/^Ganti foto: Bu Sari/)).toBeTruthy();
     // Up to the list, nothing around the photo clips it (expo-image can stay blank inside an overflow-hidden rounded view).
-    for (let node = photo.parent; node && node.props?.testID !== "proof-list"; node = node.parent) {
+    for (let node = photo.parent; node && node.props?.testID !== "list-card"; node = node.parent) {
       expect(flat(node).overflow).not.toBe("hidden");
     }
-    expect(flat(screen.getByTestId("proof-list")).overflow).not.toBe("hidden");
+    expect(flat(within(screen.getByTestId("exception-sheet")).getByTestId("list-card")).overflow).not.toBe("hidden");
   });
 
   it("pins Sampai (n) and the reason to the sheet's foot, and the reason's line keeps its room once the photos are in", async () => {
     phone(411, 1);
-    const day = await openProofOf(1);
+    await openProofOf(1);
     const footer = () => within(screen.getByTestId("sheet-footer"));
     const body = () => within(screen.getByTestId("sheet-body"));
     expect(footer().getByRole("button", { name: "Sampai (1)" }).props.accessibilityState.disabled).toBe(true);
@@ -581,7 +588,8 @@ describe("narrow width and large text (360dp, font scale 1.3)", () => {
     await act(async () => undefined);
     await waitFor(() => expect(footer().getByRole("button", { name: "Sampai (1)" }).props.accessibilityState.disabled).toBe(false));
     expect(footer().queryByTestId("proof-reason")).toBeNull();
-    expect(day.deliveries.length).toBeGreaterThan(0);
+    // The line's slot is still there, still 18 tall, so the footer does not shrink under the thumb.
+    expect(flat(footer().getByTestId("proof-reason-slot")).minHeight).toBe(18);
   });
 
   it("the Berangkat and Sampai buttons stack so Berangkat (n) stays on one line", async () => {

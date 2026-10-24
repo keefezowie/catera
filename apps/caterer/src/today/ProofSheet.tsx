@@ -1,4 +1,4 @@
-import { Children, Fragment, isValidElement, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -8,16 +8,14 @@ import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile, plural } from "@catera/mobile-core";
 import {
   Button,
-  cardEdge,
-  cardEdgeWidth,
-  DecorativeIcon,
   FormError,
   fontFor,
-  MEDIA_INSET,
+  ListCard,
   SheetFooter,
   Skeleton,
   SkeletonGroup,
   Text,
+  Thumb,
   useBusy,
   useColors,
   useStackedLayout,
@@ -37,68 +35,30 @@ type Photo = { uri: string; path: string | null };
 
 /** The photo tile: the dish thumb's 56, like a `MediaRow`'s. */
 const THUMB = nativeLayout.thumb.sm;
+/** The camera action: a text button with a 48 target. */
+const ACTION = 48;
 
-/**
- * The stops' list: the look of `ListCard` (surface, radius 16, 16 side padding, a hairline from the text column between
- * rows) but without its `overflow: hidden`. The proof photo loads the moment the camera returns, and on Android a photo
- * that finishes loading inside an overflow-hidden rounded view can stay blank; the rows never touch the corners, so
- * nothing here needs clipping, and the photo rounds its own corners.
- */
-function ProofList({ children }: { children: ReactNode }) {
-  const c = useColors();
-  const rows = Children.toArray(children);
-  return (
-    <View
-      testID="proof-list"
-      style={{
-        backgroundColor: c.surface,
-        borderRadius: nativeLayout.radius.card,
-        borderCurve: "continuous",
-        paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
-        ...cardEdge(c),
-      }}
-    >
-      {rows.map((child, i) => (
-        <Fragment key={isValidElement(child) && child.key != null ? child.key : i}>
-          {i > 0 ? <View style={{ height: 1, marginLeft: MEDIA_INSET, backgroundColor: c.line }} /> : null}
-          {child}
-        </Fragment>
-      ))}
-    </View>
-  );
-}
-
-/** The loading rows: 72 each, in the list's own look, with the thumb, the two text lines and the camera button's room. */
+/** The loading rows: 72 each, in the list's own card, with the thumb, the two text lines and the camera action's room. */
 function ProofSkeleton() {
-  const c = useColors();
   return (
-    <View
-      testID="proof-skeleton"
-      style={{
-        backgroundColor: c.surface,
-        borderRadius: nativeLayout.radius.card,
-        borderCurve: "continuous",
-        paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
-        ...cardEdge(c),
-      }}
-    >
-      {[0, 1].map((i) => (
-        <View key={i}>
-          {i > 0 ? <View style={{ height: 1, marginLeft: MEDIA_INSET, backgroundColor: c.line }} /> : null}
+    <View testID="proof-skeleton">
+      <ListCard tone="sage" clip={false}>
+        {[0, 1].map((i) => (
           <View
+            key={i}
             testID={`proof-skeleton-row-${i}`}
             style={{ height: nativeLayout.row.media, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
           >
-            <Skeleton width={THUMB} height={THUMB} radius={nativeLayout.radius.thumb} />
+            <Skeleton width={THUMB} height={THUMB} radius={nativeLayout.radius.thumb} onMood />
             <View style={{ flex: 1 }}>
               {/* rowTitle's 22 line and meta's 18 line, centred in the 72 row as the loaded text is. */}
-              <SkeletonLine width={i ? "50%" : "60%"} block={12} line={22} />
-              <SkeletonLine width={i ? "70%" : "80%"} block={10} line={18} />
+              <SkeletonLine width={i ? "50%" : "60%"} block={12} line={22} onMood />
+              <SkeletonLine width={i ? "70%" : "80%"} block={10} line={18} onMood />
             </View>
-            <Skeleton width={88} height={nativeLayout.control.button} radius={nativeLayout.radius.control} />
+            <Skeleton width={88} height={ACTION} radius={nativeLayout.radius.control} onMood />
           </View>
-        </View>
-      ))}
+        ))}
+      </ListCard>
     </View>
   );
 }
@@ -137,20 +97,12 @@ function Tile({
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md, flexShrink: 1, flex: stacked ? undefined : 1 }}>
-        {/* The photo rounds its own corners and no ancestor clips it (see `ProofList`). */}
-        <View
-          testID={`proof-thumb-${stop.deliveryId}`}
-          style={{
-            width: THUMB,
-            height: THUMB,
-            borderRadius: nativeLayout.radius.thumb,
-            borderCurve: "continuous",
-            backgroundColor: c.sage,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {photo ? (
+        {photo ? (
+          // The photo rounds its own corners and no ancestor clips it (the list is `clip={false}`); the tile behind it is the surface.
+          <View
+            testID={`proof-thumb-${stop.deliveryId}`}
+            style={{ width: THUMB, height: THUMB, borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", backgroundColor: c.surface }}
+          >
             <Image
               testID={`proof-photo-${stop.deliveryId}`}
               source={{ uri: photo.uri }}
@@ -158,10 +110,11 @@ function Tile({
               style={{ width: THUMB, height: THUMB, borderRadius: nativeLayout.radius.thumb }}
               accessibilityLabel={`${t("Foto bukti", "Proof photo")}: ${stop.name}`}
             />
-          ) : (
-            <DecorativeIcon name="camera-outline" size={22} color={c.muted} />
-          )}
-        </View>
+          </View>
+        ) : (
+          // No photo yet: the dashed not-set tile. It holds no image, so its own clip is harmless.
+          <Thumb notSet size={THUMB} testID={`proof-thumb-${stop.deliveryId}`} />
+        )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text variant="rowTitle">{stop.name}</Text>
           <Text variant="meta">
@@ -178,7 +131,8 @@ function Tile({
         </View>
       </View>
       <Button
-        variant="secondary"
+        variant="text"
+        style={{ minHeight: ACTION }}
         label={photo ? t("Ganti foto", "Retake") : t("Ambil foto", "Take photo")}
         accessibilityLabel={`${photo ? t("Ganti foto", "Retake the photo") : t("Ambil foto", "Take a photo")}: ${stop.name}`}
         busy={taking}
@@ -340,7 +294,7 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
         "A photo per address, in any order. Customers see it when asked to confirm.",
       )}
     >
-      <ProofList>
+      <ListCard tone="sage" clip={false}>
         {stops.map((stop) => (
           <Tile
             key={stop.deliveryId}
@@ -351,7 +305,7 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
             onTake={() => void take(stop)}
           />
         ))}
-      </ProofList>
+      </ListCard>
       {/* The primary and the reason it waits are pinned to the sheet's foot; the reason's line keeps its room once it goes. */}
       <SheetFooter>
         {failure ? <FormError message={failure.message} failureKey={failure.key} retry={ready ? () => void send() : undefined} /> : null}

@@ -15,15 +15,14 @@ import {
   DecorativeIcon,
   FormError,
   GLYPH_INSET,
-  GlyphCircle,
   ListCard,
-  PressableRow,
   SheetBody,
   SheetFooter,
   SheetHeader,
   Skeleton,
   SkeletonGroup,
   Text,
+  TwoLineRow,
   useBusy,
   useColors,
   useHaptic,
@@ -100,19 +99,20 @@ export function FooterSkeleton({ testID }: { testID: string }) {
   );
 }
 
-/** One text line as a block: the line's own height with the block centred in it, like the glyphs it stands for. */
-export function SkeletonLine({ width, block, line }: { width: DimensionValue; block: number; line: number }) {
+/** One text line as a block: the line's own height with the block centred in it, like the glyphs it stands for. `onMood` draws it in the darker track tone, for a block on a sage card, where the plain fill is the card's own colour. */
+export function SkeletonLine({ width, block, line, onMood }: { width: DimensionValue; block: number; line: number; onMood?: boolean }) {
   return (
     <View style={{ height: line, justifyContent: "center" }}>
-      <Skeleton width={width} height={block} radius={block / 2} />
+      <Skeleton width={width} height={block} radius={block / 2} onMood={onMood} />
     </View>
   );
 }
 
 /**
- * One option of the stop's sheet: a 40 glyph circle, a `rowTitle` and the consequence in `meta`, 64 tall and growing with
- * the text (the copy is two sentences, so it wraps instead of ending in an ellipsis). A `onPress` makes it a button
- * with a chevron; without one it is the report's own description, which the footer's button sends.
+ * One option of the stop's sheet: a `TwoLineRow` (64 min, growing with the text, since the copy is two sentences and
+ * wraps instead of ending in an ellipsis) whose leading glyph is a 40 circle on the surface, because the card it sits
+ * in is the sage one. `onPress` makes it a button with a chevron; without one it is the report's own description,
+ * which the footer's button sends.
  */
 function OptionRow({
   testID,
@@ -131,39 +131,31 @@ function OptionRow({
 }) {
   const c = useColors();
   const haptic = useHaptic();
-  const style = {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: nativeLayout.space.md,
-    minHeight: nativeLayout.row.compact,
-    paddingVertical: nativeLayout.space.sm,
-  } as const;
-  const content = (
-    <>
-      <GlyphCircle testID={`${testID}-glyph`}>
-        <DecorativeIcon name={glyph} size={20} color={c.forest} />
-      </GlyphCircle>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text variant="rowTitle">{title}</Text>
-        <Text variant="meta">{body}</Text>
-      </View>
-      {onPress ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : null}
-    </>
-  );
-  return onPress ? (
-    <PressableRow testID={testID} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? title}
-      onPress={() => {
-        haptic.select();
-        onPress();
-      }}
-      style={style}
-    >
-      {content}
-    </PressableRow>
-  ) : (
-    <View testID={testID} style={style}>
-      {content}
-    </View>
+  return (
+    <TwoLineRow
+      testID={testID}
+      wrap
+      leading={
+        <View
+          testID={`${testID}-glyph`}
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" }}
+        >
+          <DecorativeIcon name={glyph} size={20} color={c.forest} />
+        </View>
+      }
+      title={title}
+      meta={body}
+      trailing={onPress ? <DecorativeIcon name="chevron-forward" size={20} color={c.muted} /> : undefined}
+      accessibilityLabel={accessibilityLabel ?? title}
+      onPress={
+        onPress
+          ? () => {
+              haptic.select();
+              onPress();
+            }
+          : undefined
+      }
+    />
   );
 }
 
@@ -243,18 +235,18 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
           <>
             <SkeletonGroup label={t("Memuat pengantaran", "Loading the delivery")}>
               <View testID="exception-skeleton">
-                <ListCard inset={GLYPH_INSET}>
+                <ListCard inset={GLYPH_INSET} tone="sage">
                   {[0, 1].map((i) => (
                     <View
                       key={i}
                       testID={`exception-skeleton-row-${i}`}
                       style={{ height: nativeLayout.row.compact, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
                     >
-                      <Skeleton width={40} height={40} radius={20} />
+                      <Skeleton width={40} height={40} radius={20} onMood />
                       <View style={{ flex: 1 }}>
                         {/* rowTitle's 22 line and meta's 18 line, centred in the 64 row as the loaded text is. */}
-                        <SkeletonLine width={i ? "45%" : "55%"} block={12} line={22} />
-                        <SkeletonLine width={i ? "75%" : "85%"} block={10} line={18} />
+                        <SkeletonLine width={i ? "45%" : "55%"} block={12} line={22} onMood />
+                        <SkeletonLine width={i ? "75%" : "85%"} block={10} line={18} onMood />
                       </View>
                     </View>
                   ))}
@@ -282,7 +274,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
       context={stop ? t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`) : undefined}
     >
       {canFail || canMove ? (
-        <ListCard inset={GLYPH_INSET}>
+        <ListCard inset={GLYPH_INSET} tone="sage">
           {canFail ? (
             <OptionRow
               testID="failed-option"

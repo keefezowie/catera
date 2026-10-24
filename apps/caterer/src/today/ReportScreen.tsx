@@ -17,7 +17,6 @@ import {
   DecorativeIcon,
   FadeSwap,
   Field,
-  fontFor,
   FormError,
   GlyphRow,
   KeyValueRow,
@@ -43,10 +42,10 @@ import { ReadError } from "../ReadError";
 /**
  * The sheet's loading shapes: the report card at a typical one-line description (the 12 padding, the 22 subject line, 8, the
  * 22 description, 12, the hairline and the 40 "Dikirim" row, rounded), the 18 line of the reply-by hint, and the reply field
- * (its 18 label, 6 and the 88 input).
+ * (its 16 label line, 6 and the 88 input).
  */
 const REPORT_CARD = 128;
-const FIELD_LABEL = 18;
+const FIELD_LABEL = 16;
 const FIELD_MIN = 88;
 
 /** The server needs at least this much text for a reply or a resolution note. */
@@ -277,6 +276,9 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
   const open = !i.case_id && (i.status === "open" || i.status === "responded");
   const replies = (i.events ?? []).filter((e) => eventLabels[e.action]);
   const reply = text.trim();
+  // In a sheet the cards are the sage tone (the sheet is the card colour, and dark has no card edge), with the pill on the surface.
+  const inSheet = draftKey !== undefined;
+  const cardTone = inSheet ? "sage" : "surface";
 
   // The customer may ask Catera to review an unanswered report from 12.00 Jakarta the day after it was sent.
   const sentDay = jakartaDay(new Date(i.created_at));
@@ -329,13 +331,13 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
           <Text variant="meta">{i.package_name}</Text>
         </View>
       )}
-      <ListCard inset={0}>
+      <ListCard inset={0} tone={cardTone}>
         <View style={{ paddingVertical: nativeLayout.space.md, gap: nativeLayout.space.sm }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}>
             <Text variant="rowTitle" style={{ flex: 1 }}>
               {i.subject}
             </Text>
-            <View style={{ minHeight: 22, paddingHorizontal: 12, borderRadius: 11, backgroundColor: c.sage, justifyContent: "center" }}>
+            <View testID="report-status" style={{ minHeight: 22, paddingHorizontal: 12, borderRadius: 11, backgroundColor: inSheet ? c.surface : c.sage, justifyContent: "center" }}>
               <Text variant="label" style={{ color: c.charcoal }}>
                 {reportStatus(i.status, t)}
               </Text>
@@ -350,7 +352,7 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
         <KeyValueRow label={t("Dikirim", "Sent")} value={sentAt(i.created_at, locale)} />
       </ListCard>
       {replies.length ? (
-        <ListCard inset={0}>
+        <ListCard inset={0} tone={cardTone}>
           {replies.map((e) => (
             <View key={e.id} style={{ paddingVertical: nativeLayout.space.md, gap: 2 }}>
               <Text variant="label">{t(...eventLabels[e.action])}</Text>
