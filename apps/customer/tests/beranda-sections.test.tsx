@@ -1306,3 +1306,32 @@ describe("the lower blocks in dark and at Malam", () => {
   });
 });
 
+
+describe("the +n lagi row", () => {
+  it("reaches 48dp on Android without its slop reaching past half the 8dp gap to its neighbours", async () => {
+    const { DayBlocks } = require("../src/today/DayBlocks") as typeof import("../src/today/DayBlocks");
+    const meal = (i: number) => ({
+      deliveryId: `d-${i}`,
+      subscriptionId: "s-1",
+      pickable: false,
+      meal: (i % 2 ? "dinner" : "lunch") as "lunch" | "dinner",
+      packageName: `Paket ${i}`,
+      catererName: "Dapur Contoh",
+      lead: `Menu ${i}`,
+      image: "",
+      menuSet: true,
+      window: "",
+      changeUntil: null,
+    });
+    const day = { date: "2026-10-28", label: "Rabu", meals: [meal(1), meal(2), meal(3)] };
+    mount(runtimeWith(async () => customerState({})).runtime, {
+      v2: true,
+      node: <DayBlocks days={[day as never]} apiBase="" onOpen={() => undefined} onMore={() => undefined} onPick={() => undefined} />,
+    });
+    const more = await screen.findByRole("button", { name: "+1 lagi" });
+    const style = StyleSheet.flatten(more.props.style);
+    const slop = more.props.hitSlop as { top: number; bottom: number };
+    expect(style.minHeight + slop.top + slop.bottom).toBeGreaterThanOrEqual(48);
+    expect(Math.max(slop.top, slop.bottom)).toBeLessThanOrEqual(4);
+  });
+});

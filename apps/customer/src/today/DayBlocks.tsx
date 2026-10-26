@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { Image } from "expo-image";
 import type { UpcomingDay, UpcomingMeal } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
@@ -234,7 +234,10 @@ function UnsetRow({ testID, text, onPick }: { testID: string; text: string; onPi
   );
 }
 
-/** "+n lagi": a 36 tall link row (44 to reach, through its hit slop). */
+/**
+ * "+n lagi": a link row that reaches 44pt on iOS and 48dp on Android through its hit slop. The slop stays at 4, half the
+ * 8 gap to the tiles and rows beside it, so Android takes the extra 4 in the row itself.
+ */
 function MoreRow({ label, onPress }: { label: string; onPress: () => void }) {
   const c = useColors();
   const styles = useStyles();
@@ -276,7 +279,7 @@ const useStyles = themedStyles((c) => ({
   none: { backgroundColor: c.line, padding: nativeLayout.space.md },
   // Ink, not muted: muted on the `line` fill is 4.4:1, under the 4.5 text needs.
   noneText: { textAlign: "center", color: c.charcoal },
-  more: { minHeight: 36, justifyContent: "center" },
+  more: { minHeight: Platform.OS === "ios" ? 36 : 40, justifyContent: "center" },
   unpicked: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md, minHeight: 48 },
   unpickedTile: {
     width: 44,
