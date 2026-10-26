@@ -263,7 +263,9 @@ function ToastView({
       exiting={motion.exiting}
       style={[styles.lane, lane]}
     >
-      <View testID="toast-surface" style={[styles.surface, shape, { backgroundColor: palette.toast }]}>
+      {/* role "status" marks the toast for assistive tech; the spoken text comes from the one announce in `show`, so
+          there is no live region here to read it twice. */}
+      <View testID="toast-surface" role="status" style={[styles.surface, shape, { backgroundColor: palette.toast }]}>
         {toast.tone === "error" ? (
           <View testID="toast-error" accessible={false} importantForAccessibility="no-hide-descendants">
             <Ionicons name="alert-circle" size={20} color={palette.onToast} />

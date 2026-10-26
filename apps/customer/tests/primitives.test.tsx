@@ -68,7 +68,24 @@ function fakeNavigation({ types = ["stack"], goBack = jest.fn() }: { types?: str
 }
 
 describe("Skeleton", () => {
+  it("a fast load shows no skeleton: the blocks hold their space at opacity 0 for the first 300ms", () => {
+    jest.useFakeTimers();
+    const repeat = jest.spyOn(Reanimated, "withRepeat");
+    render(
+      <SkeletonGroup label="Memuat paket">
+        <Skeleton testID="block" height={20} />
+      </SkeletonGroup>,
+    );
+    expect(flat(screen.getByTestId("block", { includeHiddenElements: true }))).toMatchObject({ height: 20, opacity: 0 });
+    act(() => jest.advanceTimersByTime(299));
+    expect(repeat).not.toHaveBeenCalled();
+    act(() => jest.advanceTimersByTime(1));
+    expect(repeat).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+  });
+
   it("skeleton blocks share one pulse and the group reads as a progress bar with its label", () => {
+    jest.useFakeTimers();
     const repeat = jest.spyOn(Reanimated, "withRepeat");
     const timing = jest.spyOn(Reanimated, "withTiming");
     render(
@@ -78,6 +95,8 @@ describe("Skeleton", () => {
         <Skeleton testID="block" height={120} radius={20} />
       </SkeletonGroup>,
     );
+    act(() => jest.advanceTimersByTime(300));
+    jest.useRealTimers();
     const group = screen.getByRole("progressbar");
     expect(group.props.accessibilityLabel).toBe("Memuat paket");
     // Three blocks, one loop: they all read the group's single shared value.
@@ -94,14 +113,20 @@ describe("Skeleton", () => {
   });
 
   it("skeleton is static under reduced motion", () => {
+    jest.useFakeTimers();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const repeat = jest.spyOn(Reanimated, "withRepeat");
-    render(
+    const tree = (
       <SkeletonGroup label="Memuat jadwal">
         <Skeleton testID="block" height={20} />
         <Skeleton testID="block" height={20} />
-      </SkeletonGroup>,
+      </SkeletonGroup>
     );
+    const view = render(tree);
+    act(() => jest.advanceTimersByTime(300));
+    // The jest mock reads an animated style at render, so render again to see the value the delay set.
+    view.rerender(tree);
+    jest.useRealTimers();
     expect(repeat).not.toHaveBeenCalled();
     for (const block of screen.getAllByTestId("block", { includeHiddenElements: true }))
       expect(flat(block)).toMatchObject({ opacity: 0.75 });
@@ -373,6 +398,7 @@ describe("Toast", () => {
     const iosLane = flat(screen.getByTestId("toast"));
     expect(iosLane).toMatchObject({ position: "absolute", top: 52, start: 16, end: 16, alignItems: "center" });
     expect(iosLane.bottom).toBeUndefined();
+    expect(screen.getByTestId("toast-surface").props.role).toBe("status");
     const pill = flat(screen.getByTestId("toast-surface"));
     expect(pill).toMatchObject({ borderRadius: 22, minHeight: 44, backgroundColor: nativeThemes.light.toast });
     expect(pill.width).toBeUndefined();

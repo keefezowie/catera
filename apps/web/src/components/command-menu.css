@@ -1,0 +1,65 @@
+.command-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding-inline: 10px;
+}
+.ops-topbar > .command-trigger + .locale-switch {
+  margin-left: 0;
+}
+.command-key,
+.command-help kbd {
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: var(--canvas);
+}
+@media (max-width: 760px) {
+  .command-key {
+    display: none;
+  }
+}
+.command-input {
+  width: 100%;
+  min-height: 48px;
+  font: inherit;
+  font-size: 17px;
+  padding: 0 14px;
+  border: 1px solid var(--field-border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.command-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+}
+.command-list [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.command-list [aria-selected="true"] {
+  background: var(--soft);
+  color: var(--forest);
+}
+.command-empty,
+.command-help {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}

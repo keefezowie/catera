@@ -4,12 +4,14 @@ import {
   useContext,
   useCallback,
   useEffect,
+  useOptimistic,
   useRef,
   useState,
+  startTransition,
   type ReactNode,
 } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bookmark, LoaderCircle } from "lucide-react";
+import { Bookmark } from "lucide-react";
 import {
   errorLabel,
   type SavedPackage,
@@ -80,6 +82,14 @@ export function SavedProvider({ children }: { children: ReactNode }) {
   const attempted = useRef(new Set<string>());
   const current = state.owner === actor?.id ? state : empty;
   const busy = busyState.owner === actor?.id ? busyState.ids : [];
+  // The heart flips before the request; React drops this when the request settles, so a failure rolls it back.
+  const [ids, flip] = useOptimistic(
+    current.packageIds,
+    (previous, change: { packageId: string; saved: boolean }) =>
+      change.saved
+        ? [...new Set([...previous, change.packageId])]
+        : previous.filter((id) => id !== change.packageId),
+  );
   const refresh = useCallback(async () => {
     if (!actor) return;
     const owner = actor.id,
@@ -149,9 +159,10 @@ export function SavedProvider({ children }: { children: ReactNode }) {
         return false;
       }
       const owner = actor.id,
-        hash = owner + ":" + packageId + ":" + saved;
-      if (locks.current.has(hash)) return false;
-      locks.current.add(hash);
+        hash = owner + ":" + packageId + ":" + saved,
+        lock = owner + ":" + packageId; // One write per package at a time, so a double tap can't race itself.
+      if (locks.current.has(lock)) return false;
+      locks.current.add(lock);
       setBusy((previous) => ({
         owner,
         ids: [...(previous.owner === owner ? previous.ids : []), packageId],
@@ -159,59 +170,72 @@ export function SavedProvider({ children }: { children: ReactNode }) {
       const requestId =
         requests.current.get(hash) || nonce || crypto.randomUUID();
       requests.current.set(hash, requestId);
-      try {
-        const result = await api.command<SavedPackageResult>(
-          "savedPackage.set",
-          { packageId, saved },
-          requestId,
-        );
-        if (ownerRef.current !== owner) return false;
-        ++generation.current; // Discard reads that began before this confirmed write.
-        requests.current.delete(hash);
-        setState((previous) =>
-          previous.owner !== owner
-            ? previous
-            : {
-                ...previous,
-                error: "",
-                packageIds: result.saved
-                  ? [...new Set([...previous.packageIds, packageId])]
-                  : previous.packageIds.filter((id) => id !== packageId),
-                items: result.saved
-                  ? previous.items
-                  : previous.items.filter(
-                      (item) => item.packageId !== packageId,
-                    ),
-              },
-        );
-        notify(
-          result.saved
-            ? t("Paket disimpan.", "Package saved.")
-            : t("Paket dihapus dari tersimpan.", "Package removed from Saved."),
-        );
-        void refresh();
-        return true;
-      } catch (error) {
-        if (ownerRef.current === owner)
-          notify(
-            errorLabel(
-              error instanceof Error ? error.message : "REQUEST_FAILED",
-              locale,
-            ) ||
-              t(
-                "Paket belum berhasil diperbarui. Coba lagi.",
-                "Saved could not be updated. Try again.",
-              ),
-          );
-        return false;
-      } finally {
-        locks.current.delete(hash);
-        if (ownerRef.current === owner)
-          setBusy((previous) => ({
-            owner,
-            ids: previous.ids.filter((id) => id !== packageId),
-          }));
-      }
+      return new Promise<boolean>((resolve) =>
+        startTransition(async () => {
+          flip({ packageId, saved });
+          try {
+            const result = await api.command<SavedPackageResult>(
+              "savedPackage.set",
+              { packageId, saved },
+              requestId,
+            );
+            if (ownerRef.current !== owner) return resolve(false);
+            ++generation.current; // Discard reads that began before this confirmed write.
+            requests.current.delete(hash);
+            setState((previous) =>
+              previous.owner !== owner
+                ? previous
+                : {
+                    ...previous,
+                    error: "",
+                    packageIds: result.saved
+                      ? [...new Set([...previous.packageIds, packageId])]
+                      : previous.packageIds.filter((id) => id !== packageId),
+                    items: result.saved
+                      ? previous.items
+                      : previous.items.filter(
+                          (item) => item.packageId !== packageId,
+                        ),
+                  },
+            );
+            // A removal is undone by saving again, so it needs no confirm step.
+            if (result.saved) notify(t("Paket disimpan.", "Package saved."));
+            else
+              notify(
+                t(
+                  "Paket dihapus dari tersimpan.",
+                  "Package removed from Saved.",
+                ),
+                {
+                  label: t("Urungkan", "Undo"),
+                  run: () => void set(packageId, true),
+                },
+              );
+            void refresh();
+            resolve(true);
+          } catch (error) {
+            if (ownerRef.current === owner)
+              notify(
+                errorLabel(
+                  error instanceof Error ? error.message : "REQUEST_FAILED",
+                  locale,
+                ) ||
+                  t(
+                    "Paket belum berhasil diperbarui. Coba lagi.",
+                    "Saved could not be updated. Try again.",
+                  ),
+              );
+            resolve(false);
+          } finally {
+            locks.current.delete(lock);
+            if (ownerRef.current === owner)
+              setBusy((previous) => ({
+                owner,
+                ids: previous.ids.filter((id) => id !== packageId),
+              }));
+          }
+        }),
+      );
     },
     [actor?.id, locale, notify, refresh],
   );
@@ -272,7 +296,7 @@ export function SavedProvider({ children }: { children: ReactNode }) {
   return (
     <SavedContext.Provider
       value={{
-        ids: current.packageIds,
+        ids,
         items: current.items,
         ready: current.ready,
         error: current.error,
@@ -327,8 +351,9 @@ export function SaveButton({
       type="button"
       variant="secondary"
       className={"save-package " + className}
-      disabled={disabled || pending || (!!actor && !ready && !error)}
+      disabled={disabled || (!!actor && !ready && !error)}
       aria-pressed={saved}
+      aria-busy={pending || undefined}
       aria-label={
         (saved
           ? t("Hapus dari tersimpan: ", "Remove from Saved: ")
@@ -339,23 +364,17 @@ export function SaveButton({
         else void set(packageId, !saved);
       }}
     >
-      {pending ? (
-        <LoaderCircle className="saved-spinner" size={17} aria-hidden="true" />
-      ) : (
-        <Bookmark
-          size={17}
-          fill={saved ? "currentColor" : "none"}
-          aria-hidden="true"
-        />
-      )}
+      <Bookmark
+        size={17}
+        fill={saved ? "currentColor" : "none"}
+        aria-hidden="true"
+      />
       <span>
-        {pending
-          ? t("Menyimpan…", "Saving…")
-          : actor && !ready && error
-            ? t("Coba lagi", "Retry")
-            : saved
-              ? t("Tersimpan", "Saved")
-              : t("Simpan", "Save")}
+        {actor && !ready && error
+          ? t("Coba lagi", "Retry")
+          : saved
+            ? t("Tersimpan", "Saved")
+            : t("Simpan", "Save")}
       </span>
     </Button>
   );

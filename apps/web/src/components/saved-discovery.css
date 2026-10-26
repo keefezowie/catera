@@ -29,14 +29,6 @@
   box-shadow: var(--shadow);
   padding: 9px 12px;
 }
-.saved-spinner {
-  animation: saved-spin 1s linear infinite;
-}
-@keyframes saved-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 .saved-page .package-grid {
   margin-block: 24px;
 }
@@ -434,10 +426,5 @@
   }
   body:has(.catalog-feed) .toast {
     bottom: calc(12px + var(--mobile-bottom-clearance));
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .saved-spinner {
-    animation: none;
   }
 }

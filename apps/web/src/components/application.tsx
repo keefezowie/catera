@@ -27,6 +27,7 @@ import {
   Image as ImageIcon,
   Download,
   Bookmark,
+  Globe,
 } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -39,6 +40,7 @@ import { Provider, CatalogProvider, useApp, api, useResource } from "./context";
 import { Button } from "./form-controls";
 import { Brand, ErrorNotice, Dialog } from "./ui";
 import { LocaleSwitch } from "./locale-switch";
+import { CommandMenu } from "./command-menu";
 import { SavedPackagesPage } from "./saved-packages";
 import { SavedProvider } from "./saved-context";
 import { catalogHref, howItWorksHref } from "@/lib/navigation";
@@ -182,7 +184,7 @@ function Shell({
   children: ReactNode;
   operational: boolean;
 }) {
-  const { actor, demo, t, compare, clearCompare } = useApp();
+  const { actor, demo, t, locale, setLocale, compare, clearCompare } = useApp();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentWorkspacePath =
@@ -403,6 +405,42 @@ function Shell({
             >
               <Menu />
             </Button>
+            <CommandMenu
+              commands={[
+                ...links.map(([href, label, Icon]) => ({
+                  label,
+                  href: workspaceHref(href),
+                  Icon,
+                })),
+                {
+                  label: t("Notifikasi", "Notifications"),
+                  href: isAdmin ? "/notifications" : "/seller/notifications",
+                  Icon: Bell,
+                },
+                ...(isAdmin
+                  ? []
+                  : [
+                      {
+                        label: t("Profil usaha", "Business profile"),
+                        href: "/seller/profile",
+                        Icon: ChefHat,
+                      },
+                    ]),
+                {
+                  label: t("Lihat marketplace", "View marketplace"),
+                  href: "/",
+                  Icon: Compass,
+                },
+                {
+                  label:
+                    locale === "id"
+                      ? "Switch to English"
+                      : "Ganti ke Bahasa Indonesia",
+                  run: () => setLocale(locale === "id" ? "en" : "id"),
+                  Icon: Globe,
+                },
+              ]}
+            />
             <LocaleSwitch />
             <Link
               href={
