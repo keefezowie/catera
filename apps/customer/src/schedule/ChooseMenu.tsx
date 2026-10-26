@@ -566,10 +566,10 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
 const useStyles = themedStyles((c) => ({
   monthRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   dateRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8 },
-  dateOn: { backgroundColor: c.sage, borderRadius: 10 },
+  dateOn: { backgroundColor: c.sage, borderRadius: 10, borderCurve: "continuous" },
   divider: { borderTopWidth: 1, borderTopColor: c.line },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  photo: { height: 120, borderRadius: 12, backgroundColor: c.sage },
+  photo: { height: 120, borderRadius: 12, borderCurve: "continuous", backgroundColor: c.sage },
   // Dish cards: two columns 12 apart, 16 between rows (the cards carry their own 2dp ring and 4 inset).
   grid: { flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 16 },
   deadlineRow: { flexDirection: "row", alignItems: "center", gap: 8 },

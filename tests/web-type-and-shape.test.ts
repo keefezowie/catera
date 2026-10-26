@@ -27,3 +27,13 @@ it("headings balance their lines and paragraphs avoid a lone last word", () => {
   for (const heading of ["h1", "h2", "h3", "h4"]) expect(declarations(heading), heading).toMatch(/text-wrap:\s*balance/);
   for (const prose of ["p", "li", "figcaption"]) expect(declarations(prose), prose).toMatch(/text-wrap:\s*pretty/);
 });
+
+it("rounded rectangles take the squircle corner where the browser draws one, never pills or circles", () => {
+  const block = css.match(/@supports \(corner-shape: squircle\) \{([\s\S]*?\})\s*\}/)?.[1] ?? "";
+  const selectors = [...block.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter((m) => /corner-shape:\s*squircle/.test(m[2]))
+    .flatMap((m) => m[1].split(",").map((s) => s.trim()));
+  for (const selector of [".button", ".dialog", ".panel", ".package-card", ".toast", "select", "textarea"])
+    expect(selectors, selector).toContain(selector);
+  expect(selectors).not.toContain(".icon-button");
+});

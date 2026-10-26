@@ -23,7 +23,7 @@ export function themeChoiceLabels(
 /** A small screen in one theme: the canvas, a Siang header strip and the cards on it, from the real tokens. */
 function Miniature({ scheme, cards }: { scheme: ThemeName; cards: 1 | 2 }) {
   const theme = nativeThemes[scheme];
-  const card = { height: 26, borderRadius: 6, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.line };
+  const card = { height: 26, borderRadius: 6, borderCurve: "continuous" as const, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.line };
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas, paddingHorizontal: 7, paddingVertical: 9, gap: 5 }}>
       <View style={{ height: 8, borderRadius: 4, backgroundColor: siangHeaderFill(scheme) }} />

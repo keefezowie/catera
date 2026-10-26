@@ -137,7 +137,7 @@ function MediaPlaceholder({ glyph = false, testID = "beranda-skeleton-row" }: { 
       {glyph ? (
         <Skeleton width={40} height={40} radius={20} />
       ) : (
-        <View testID="beranda-skeleton-thumb" style={{ width: 56, height: 56, borderRadius: nativeLayout.radius.thumb, overflow: "hidden" }}>
+        <View testID="beranda-skeleton-thumb" style={{ width: 56, height: 56, borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", overflow: "hidden" }}>
           <Skeleton width={56} height={56} radius={nativeLayout.radius.thumb} />
         </View>
       )}
@@ -320,7 +320,7 @@ export function PlanSkeleton() {
                 testID="plan-skeleton-row"
                 style={{ minHeight: nativeLayout.row.media, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}
               >
-                <View testID="plan-skeleton-thumb" style={{ width: nativeLayout.thumb.sm, height: nativeLayout.thumb.sm, borderRadius: nativeLayout.radius.thumb, overflow: "hidden" }}>
+                <View testID="plan-skeleton-thumb" style={{ width: nativeLayout.thumb.sm, height: nativeLayout.thumb.sm, borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", overflow: "hidden" }}>
                   <Skeleton width={nativeLayout.thumb.sm} height={nativeLayout.thumb.sm} radius={nativeLayout.radius.thumb} />
                 </View>
                 <View style={{ flex: 1, gap: nativeLayout.space.sm }}>

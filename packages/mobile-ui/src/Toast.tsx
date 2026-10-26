@@ -243,6 +243,7 @@ function ToastView({
       }
     : {
         borderRadius: 4,
+        borderCurve: "continuous" as const,
         minHeight: 48,
         width: "100%" as const,
         maxWidth: 600,

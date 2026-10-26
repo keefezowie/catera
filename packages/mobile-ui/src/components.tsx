@@ -797,6 +797,7 @@ const useStyles = themedStyles((c) => ({
   button: {
     minHeight: 48,
     borderRadius: 10,
+    borderCurve: "continuous",
     paddingHorizontal: 18,
     alignItems: "center",
     justifyContent: "center",
@@ -808,7 +809,7 @@ const useStyles = themedStyles((c) => ({
   disabledQuiet: { opacity: 0.45 },
   // Tabular figures: an amount in a label ("Bayar Rp…") keeps its width while the quote changes.
   buttonLabel: { fontFamily: fontFor("700"), fontSize: 15, fontVariant: ["tabular-nums"] },
-  chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 9, justifyContent: "center" },
+  chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 9, borderCurve: "continuous", justifyContent: "center" },
   chipOn: { backgroundColor: c.forest },
   chipOff: { borderWidth: 1, borderColor: c.secondaryBorder },
   chipLabel: { fontFamily: fontFor("700"), fontSize: 13 },
@@ -817,9 +818,10 @@ const useStyles = themedStyles((c) => ({
     gap: 4,
     padding: 4,
     borderRadius: 10,
+    borderCurve: "continuous",
     backgroundColor: c.fill,
   },
-  segment: { flex: 1, minHeight: 48, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  segment: { flex: 1, minHeight: 48, borderRadius: 8, borderCurve: "continuous", alignItems: "center", justifyContent: "center" },
   segmentOn: { backgroundColor: c.forest },
   card: { borderWidth: 1, borderRadius: 16, borderCurve: "continuous", padding: 16, gap: 10 },
   fieldLabel: { fontFamily: fontFor("700"), fontSize: 13, color: c.charcoal },

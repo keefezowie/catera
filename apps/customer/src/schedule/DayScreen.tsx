@@ -257,7 +257,7 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
 }
 
 const useStyles = themedStyles((c) => ({
-  photo: { width: "100%", aspectRatio: DAY_PHOTO_RATIO, borderRadius: DAY_PHOTO_RADIUS, backgroundColor: c.sage },
+  photo: { width: "100%", aspectRatio: DAY_PHOTO_RATIO, borderRadius: DAY_PHOTO_RADIUS, borderCurve: "continuous", backgroundColor: c.sage },
   state: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   stateText: { flex: 1 },
   dot: { width: DAY_DOT, height: DAY_DOT, borderRadius: DAY_DOT / 2, marginTop: 5 },
@@ -269,6 +269,7 @@ const useStyles = themedStyles((c) => ({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: DAY_WELL_RADIUS,
+    borderCurve: "continuous",
     backgroundColor: c.well,
   },
 }));

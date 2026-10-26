@@ -4739,3 +4739,20 @@ body .field :is(.catera-input, .catera-textarea, button)[aria-invalid="true"] { 
 .payment-steps li { margin-block: .7rem; }
 .payment-qr { display: grid; justify-items: center; gap: .75rem; }
 .payment-qr img { max-width: 100%; height: auto; background: white; }
+/* Continuous (squircle) corners on the rounded rectangles, next to each rule's own border-radius. Only Chromium draws
+   corner-shape; other browsers keep the plain curve. Pills and circles (.icon-button) are left out on purpose. */
+@supports (corner-shape: squircle) {
+  .button,
+  .dialog,
+  .panel,
+  .package-card,
+  .toast,
+  .toast-action,
+  .catera-input,
+  .catera-textarea,
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    corner-shape: squircle;
+  }
+}

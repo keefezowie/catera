@@ -105,7 +105,7 @@ export function CalendarPhotoCell({
             testID="cell-photo"
             uri={photo}
             // Photo's neutral ground shows while the photo loads or if it never does.
-            style={{ ...fill, borderRadius: RADIUS, opacity: past ? 0.5 : 1 }}
+            style={{ ...fill, borderRadius: RADIUS, borderCurve: "continuous", opacity: past ? 0.5 : 1 }}
           />
           <View
             testID="cell-number-pill"

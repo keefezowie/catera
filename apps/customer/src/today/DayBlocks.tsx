@@ -271,6 +271,7 @@ const useStyles = themedStyles((c) => ({
   photo: {
     aspectRatio: nativeLayout.ratio.card,
     borderRadius: nativeLayout.radius.control,
+    borderCurve: "continuous",
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
@@ -285,6 +286,7 @@ const useStyles = themedStyles((c) => ({
     width: 44,
     height: 44,
     borderRadius: nativeLayout.radius.control,
+    borderCurve: "continuous",
     backgroundColor: c.line,
     alignItems: "center",
     justifyContent: "center",
