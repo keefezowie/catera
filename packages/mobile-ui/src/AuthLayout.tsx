@@ -42,16 +42,18 @@ function Collapsible({ hidden, children, testID }: { hidden: boolean; children: 
 }
 
 /**
- * The head of a sign-in or sign-up screen, left-aligned: a small mark that gives its room back while the keyboard is
- * up (the waving mascot at 56dp, or `brand` as a wordmark where there is no mascot), then the large title, the screen's
- * one heading, and under it one line that says what this method needs.
+ * The head of a sign-in or sign-up screen, left-aligned: a small mark (the waving mascot at 56dp, or `brand` as a
+ * wordmark where there is no mascot), then the large title, the screen's one heading, and under it one line that says
+ * what this method needs. On iOS the mark gives its room back while the keyboard is up, in step with the keyboard. On
+ * Android it stays: `AuthScreen` scrolls the page up in one motion and the mark leaves with it, where collapsing it
+ * first made two motions in a row.
  */
 export function AuthHeading({ title, subtitle, brand }: { title: string; subtitle?: string; brand?: string }) {
   const c = useColors();
   const { up } = useKeyboard();
   return (
     <View style={{ gap: 8, paddingTop: 8 }}>
-      <Collapsible hidden={up} testID="auth-mark">
+      <Collapsible hidden={up && process.env.EXPO_OS === "ios"} testID="auth-mark">
         {brand ? (
           <Text style={{ color: c.charcoal, fontFamily: fontFor("800"), fontSize: 17, lineHeight: 24 }}>{brand}</Text>
         ) : (
@@ -180,20 +182,11 @@ export function AuthScreen({ children, revealKey, footer }: { children: ReactNod
   }, [android, revealKey, reduced]);
   useEffect(() => {
     if (!android || !up) return;
-    // The keyboard padding is in place with this render; the mascot is still collapsing, so wait for it to finish
-    // (at once under reduced motion) and then bring the end of the page, the primary button, above the keyboard.
-    // The fields come before the button, so the end of the page keeps the focused field on screen.
-    let frame = 0;
-    const timer = setTimeout(
-      () => {
-        frame = requestAnimationFrame(() => ref.current?.scrollToEnd({ animated: !reduced }));
-      },
-      reduced ? 0 : nativeMotion.control + 40,
-    );
-    return () => {
-      clearTimeout(timer);
-      cancelAnimationFrame(frame);
-    };
+    // The keyboard padding is in place with this render; on the next frame bring the end of the page, the primary
+    // button, above the keyboard in one scroll (the mascot stays and leaves with the page). The fields come before the
+    // button, so the end of the page keeps the focused field on screen.
+    const frame = requestAnimationFrame(() => ref.current?.scrollToEnd({ animated: !reduced }));
+    return () => cancelAnimationFrame(frame);
   }, [android, up, height, reduced]);
   const room = height + (scaled ? 0 : insets.bottom);
   return (

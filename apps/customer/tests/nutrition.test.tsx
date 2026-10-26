@@ -93,90 +93,80 @@ describe("StatStrip", () => {
   const cells = () => within(screen.getByTestId("stat-strip")).getAllByTestId("stat-cell");
   const labels = () => cells().map((c) => c.props.accessibilityLabel);
   const flat = (n: { props: { style?: unknown } }) => StyleSheet.flatten(n.props.style as never) as Record<string, unknown>;
+  const bar = () => screen.getByTestId("energy-bar", { includeHiddenElements: true }).children.map((n) => flat(n as never).flex);
 
-  it("one card of up to three cells: kkal, protein and meals a day, the numbers section 800 over a meta label", async () => {
+  it("one card: calories with kkal and per porsi, the energy bar, the three macros as columns and the caveat inside", async () => {
     strip(full);
     expect(await screen.findByTestId("stat-strip")).toBeTruthy();
-    expect(labels()).toEqual(["620 kkal", "32 g protein", "1× makan sehari"]);
-    // One card (radius 16, padding 16, three columns), not a grid of tiles.
-    expect(flat(screen.getByTestId("stat-strip"))).toMatchObject({ flexDirection: "row", borderRadius: 16, padding: 15, borderWidth: 1 });
-    expect(screen.queryByTestId("gizi-row")).toBeNull();
-    expect(screen.queryByTestId("gizi-tile")).toBeNull();
-    // The number: section (20/26) at 800, tabular. The label: meta (13/18).
-    expect(flat(screen.getByText("620"))).toMatchObject({ fontSize: 20, lineHeight: 26, fontFamily: fonts.extrabold, fontVariant: ["tabular-nums"] });
-    expect(flat(screen.getByText("kkal"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
-    expect(screen.getByText("32 g")).toBeTruthy();
-    expect(screen.getByText("protein")).toBeTruthy();
-    expect(screen.getByText("1×")).toBeTruthy();
-    expect(screen.getByText("makan sehari")).toBeTruthy();
+    expect(flat(screen.getByTestId("nutrition"))).toMatchObject({ borderRadius: 16, padding: 15, borderWidth: 1 });
+    expect(screen.getByTestId("stat-kcal").props.accessibilityLabel).toBe("620 kkal per porsi");
+    expect(flat(screen.getByText(/^620/))).toMatchObject({ fontSize: 20, lineHeight: 26, fontFamily: fonts.extrabold, fontVariant: ["tabular-nums"] });
+    expect(labels()).toEqual(["Protein 32 g, 21% energi", "Karbohidrat 78 g, 50% energi", "Lemak 20 g, 29% energi"]);
+    expect(flat(screen.getByTestId("stat-strip")).flexDirection).toBe("row");
+    expect(screen.getByText("Karbo 50%")).toBeTruthy();
+    // Protein and carbs 4 kkal a gram, fat 9: 128, 312 and 180 of 620.
+    expect(bar()).toEqual([21, 50, 29]);
+    const caveat = screen.getByText("Perkiraan dari katering. Bisa berbeda tiap menu.");
+    expect(within(screen.getByTestId("nutrition")).getByText("Perkiraan dari katering. Bisa berbeda tiap menu.")).toBe(caveat);
+    expect(screen.queryByText(/makan sehari/)).toBeNull();
   });
 
-  it("carbs and fat are one meta line under the strip, with the caterer's caveat", async () => {
-    strip(full);
-    const line = await screen.findByText("Karbo 78 g · Lemak 20 g per porsi");
-    expect(flat(line)).toMatchObject({ fontSize: 13, lineHeight: 18 });
-    expect(screen.getByText("Perkiraan dari katering. Bisa berbeda tiap menu.")).toBeTruthy();
-    expect(screen.queryByText("Gizi per porsi")).toBeNull();
-  });
-
-  it("a combined day reads 2× makan sehari", async () => {
-    strip(offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", nutrition: { caloriesKcal: 600, proteinG: 30 } }));
-    await screen.findByTestId("stat-strip");
-    expect(labels()).toEqual(["600 kkal", "30 g protein", "2× makan sehari"]);
-  });
-
-  it("ranges read 610–640 and carbs and fat keep theirs", async () => {
+  it("ranges read 610–640 and the shares come from the middle of each range", async () => {
     strip(range);
     await screen.findByTestId("stat-strip");
-    expect(labels()).toEqual(["610–640 kkal", "29–30 g protein", "1× makan sehari"]);
-    expect(screen.getByText("Karbo 76–82 g · Lemak 19–21 g per porsi")).toBeTruthy();
+    expect(screen.getByTestId("stat-kcal").props.accessibilityLabel).toBe("610–640 kkal per porsi");
+    expect(labels()).toEqual(["Protein 29–30 g, 19% energi", "Karbohidrat 76–82 g, 51% energi", "Lemak 19–21 g, 30% energi"]);
   });
 
-  it("an empty metric is left out", async () => {
+  it("an empty metric is left out, and without all three macros there is no bar and no share", async () => {
     strip(noCarbs);
-    expect(await screen.findByText("Lemak 22 g per porsi")).toBeTruthy();
+    await screen.findByTestId("stat-strip");
+    expect(labels()).toEqual(["Protein 34 g", "Lemak 22 g"]);
+    expect(screen.queryByTestId("energy-bar", { includeHiddenElements: true })).toBeNull();
     expect(screen.queryByText(/Karbo/)).toBeNull();
     expect(screen.queryByText("—")).toBeNull();
   });
 
   it("zero fat is a value", async () => {
     strip(zeroFat);
-    expect(await screen.findByText("Lemak 0 g per porsi")).toBeTruthy();
-  });
-
-  it("only calories gives two cells (kkal and meals a day) and no carbs line", async () => {
-    strip(caloriesOnly);
     await screen.findByTestId("stat-strip");
-    expect(labels()).toEqual(["540 kkal", "1× makan sehari"]);
-    expect(screen.queryByText(/per porsi/)).toBeNull();
+    expect(labels()).toContain("Lemak 0 g");
   });
 
-  it("only carbs and fat leave the strip out but keep their line", async () => {
+  it("only calories gives the calorie line and the caveat, no columns", async () => {
+    strip(caloriesOnly);
+    expect(await screen.findByTestId("stat-kcal")).toBeTruthy();
+    expect(screen.queryByTestId("stat-strip")).toBeNull();
+    expect(screen.getByText(/Perkiraan dari katering/)).toBeTruthy();
+  });
+
+  it("only carbs and fat keep their columns without a calorie line", async () => {
     strip(offer({ id: "p-karbo", name: "Karbo", nutrition: { carbsG: 50, fatG: 10 } }));
-    expect(await screen.findByText("Karbo 50 g · Lemak 10 g per porsi")).toBeTruthy();
-    expect(screen.queryByTestId("stat-strip")).toBeNull();
+    await screen.findByTestId("stat-strip");
+    expect(labels()).toEqual(["Karbohidrat 50 g", "Lemak 10 g"]);
+    expect(screen.queryByTestId("stat-kcal")).toBeNull();
   });
 
-  it("no metrics, no strip, no line and no caveat", async () => {
+  it("no metrics, no card and no caveat", async () => {
     const view = strip(none);
-    expect(screen.queryByTestId("stat-strip")).toBeNull();
+    expect(screen.queryByTestId("nutrition")).toBeNull();
     expect(screen.queryByText(/Perkiraan dari katering/)).toBeNull();
     view.unmount();
     mockParams = { id: "p-sambal" };
     wrap(<PackageDetail />);
     expect(await screen.findByText("Ayam Sambal Rumahan")).toBeTruthy();
-    expect(screen.queryByTestId("stat-strip")).toBeNull();
+    expect(screen.queryByTestId("nutrition")).toBeNull();
     expect(screen.queryByText(/per porsi/)).toBeNull();
   });
 
-  it("at large text on a 360dp phone the cells stack under each other and nothing is cut", async () => {
+  it("at large text on a 360dp phone the columns become lines and nothing is cut", async () => {
     const dims = jest.spyOn(require("react-native"), "useWindowDimensions");
     dims.mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
     const view = strip(range);
     await screen.findByTestId("stat-strip");
-    expect(flat(screen.getByTestId("stat-strip")).flexDirection).toBe("column");
-    expect(cells()).toHaveLength(3);
-    for (const text of screen.getByTestId("stat-strip").findAll((n) => n.type === require("react-native").Text))
+    expect(flat(screen.getByTestId("stat-strip")).flexDirection).toBeUndefined();
+    expect(flat(cells()[0]).flexDirection).toBe("row-reverse");
+    for (const text of screen.getByTestId("nutrition").findAll((n) => n.type === require("react-native").Text))
       expect(text.props.numberOfLines).toBeUndefined();
     view.unmount();
     dims.mockReturnValue({ width: 412, height: 860, scale: 3, fontScale: 1 });
@@ -187,18 +177,18 @@ describe("StatStrip", () => {
 });
 
 describe("Paket", () => {
-  it("shows the strip and the carbs line, and no 'kkal · protein per porsi' line under the name", async () => {
+  it("shows the card, and no 'kkal · protein per porsi' line under the name", async () => {
     mockParams = { id: "p-ayam" };
     wrap(<PackageDetail />);
     expect(await screen.findByTestId("stat-strip")).toBeTruthy();
-    expect(screen.getByText("Karbo 78 g · Lemak 20 g per porsi")).toBeTruthy();
+    expect(screen.getByTestId("energy-bar", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByText("620 kkal · 32 g protein per porsi")).toBeNull();
   });
 
-  it("a calorie-only package still shows its strip", async () => {
+  it("a calorie-only package still shows its card", async () => {
     mockParams = { id: "p-kalori" };
     wrap(<PackageDetail />);
-    expect(await screen.findByTestId("stat-strip")).toBeTruthy();
+    expect(await screen.findByTestId("stat-kcal")).toBeTruthy();
   });
 });
 

@@ -170,7 +170,7 @@ function HomeHeader({ loaded }: { loaded?: HomeHeading }) {
         )
       }
     >
-      {/* 12 under the statement (the band's own gap is 4): the two-stop status line, a 40 row. */}
+      {/* 12 under the statement (the band's own gap is 4): the Siang/Malam pill, 60 tall. */}
       <View style={{ marginTop: 8 }}>
         {loaded ? (
           <StatusStops lunch={loaded.stops.lunch} dinner={loaded.stops.dinner} />

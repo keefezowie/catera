@@ -11,6 +11,7 @@ import { spyFades } from "./fade";
 import { Beranda } from "../src/today/Beranda";
 import { HERO_BAND_OVERLAP } from "../src/today/Beranda";
 import { HERO_BAND_RISE } from "../src/today/heroBand";
+import { STATUS_PILL } from "../src/today/StatusStops";
 import { Jadwal } from "../src/schedule/Jadwal";
 import { DAY_CIRCLE, MONTH_CELL, WEEKDAY_ROW } from "../src/schedule/MonthGrid";
 import { PaymentScreen } from "../src/buy/PaymentScreen";
@@ -503,7 +504,7 @@ function headerHeight(header: ReturnType<typeof screen.getByTestId>) {
     // The opening line and the placeholder sit side by side, so the row is as tall as the taller of the two.
     title = Math.max(num(flat(first).lineHeight), num(flat(within(loading).getByTestId("home-title-placeholder")).height));
   }
-  // The status line sits 12 under the statement (the band's 4 gap and an 8 margin): a 40 row, or its placeholder.
+  // The status line sits 12 under the statement (the band's 4 gap and an 8 margin): the 60 pill, or its placeholder.
   const status = within(header).queryByTestId("status-stops");
   const statusRow = status ? num(flat(status).minHeight) : num(flat(within(header).getByTestId("status-stops-placeholder")).height);
   const parts = [num(row.minHeight), title, 8 + statusRow];
@@ -529,7 +530,7 @@ describe("finding 1: Beranda's band keeps its height when the page lands", () =>
       await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
       const before = headerHeight(screen.getByTestId("mood-header"));
       expect(screen.getByTestId("home-meta")).toBeTruthy();
-      // The band holds the status line's placeholder while it loads: the same 40 row the loaded line takes.
+      // The band holds the status line's placeholder while it loads: the same 60 pill the loaded line takes.
       expect(screen.queryByTestId("status-stops")).toBeNull();
       expect(within(screen.getByTestId("mood-header")).getByTestId("status-stops-placeholder")).toBeTruthy();
 
@@ -538,9 +539,10 @@ describe("finding 1: Beranda's band keeps its height when the page lands", () =>
       const after = headerHeight(screen.getByTestId("mood-header"));
       expect(after.parts).toEqual(before.parts);
       expect(after.height).toBe(before.height);
-      // One statement line at the `section` 26, then 12 and the 40 status row, in both.
+      // One statement line at the `section` 26, then 12 and the 60 status pill, in both.
       expect(before.parts[1]).toBe(26);
-      expect(before.parts[2]).toBe(8 + 40);
+      expect(STATUS_PILL).toBe(60);
+      expect(before.parts[2]).toBe(8 + STATUS_PILL);
     });
 
   it("the skeleton hero is the loaded hero's frame: the same radius, photo ratio and body padding and gap", async () => {
@@ -559,10 +561,9 @@ describe("finding 1: Beranda's band keeps its height when the page lands", () =>
     expect(flat(screen.getByTestId("plate-body"))).toMatchObject({ padding: body.padding, gap: body.gap });
     const loadedGroup = screen.getByTestId("plate-body").children[0] as unknown as { props: { style: unknown } };
     expect(flat(loadedGroup).gap).toBe(2);
-    // A stop is 40 tall and its hit area makes it a 44 target.
-    const stop = screen.getByTestId("status-stop-lunch");
-    const slop = stop.props.hitSlop as { top: number; bottom: number };
-    expect((flat(stop).minHeight as number) + slop.top + slop.bottom).toBeGreaterThanOrEqual(44);
+    // A stop is half of the 60 pill, stretched to its full height: well past a 44 target.
+    expect(flat(screen.getByTestId("status-stops")).minHeight).toBeGreaterThanOrEqual(44);
+    expect(flat(screen.getByTestId("status-stop-lunch"))).toMatchObject({ flex: 1, alignSelf: "stretch" });
   });
 });
 

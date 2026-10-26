@@ -724,8 +724,9 @@ describe("Beranda mood", () => {
     expect(screen.getByTestId("plate-dishes").props.children).toBe("Ayam bakar madu · Sayur asem");
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan siang · /)).toBeTruthy();
     const stop = within(screen.getByTestId("status-stop-dinner"));
-    expect(stop.getByText("Malam 17.00–19.00")).toBeTruthy();
+    expect(stop.getByText("Malam")).toBeTruthy();
     expect(stop.getByText("Sate ayam madura")).toBeTruthy();
+    expect(screen.getByTestId("status-stop-dinner").props.accessibilityLabel).toMatch(/^Makan malam, 17.00–19.00, /);
     expect(screen.queryByTestId("other-meal-row")).toBeNull();
     expect(screen.getAllByTestId("plate-hero")).toHaveLength(1);
   });
@@ -745,7 +746,8 @@ describe("Beranda mood", () => {
     expect(title()).toBe("Makan malam terjadwal.");
     expect(screen.getByTestId("plate-dishes").props.children).toBe("Sate ayam madura · Tumis kangkung");
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan malam · /)).toBeTruthy();
-    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Siang 11.00–13.00")).toBeTruthy();
+    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Siang")).toBeTruthy();
+    expect(screen.getByTestId("status-stop-lunch").props.accessibilityLabel).toMatch(/^Makan siang, 11.00–13.00, /);
   });
 
   it("switches mood when the other meal's stop is pressed", async () => {
@@ -775,8 +777,9 @@ describe("Beranda mood", () => {
       mount(runtimeWith(async () => earlyLunch({ status: "scheduled" })), { now: MALAM_NOW });
       await screen.findByTestId("plate-hero");
       const stop = within(screen.getByTestId("status-stop-lunch"));
-      expect(stop.getByText("Siang 00.01–00.30")).toBeTruthy();
+      expect(stop.getByText("Siang")).toBeTruthy();
       expect(stop.getByText("Belum sampai")).toBeTruthy();
+      expect(screen.getByTestId("status-stop-lunch").props.accessibilityLabel).toBe("Makan siang, 00.01–00.30, Belum sampai");
       // The actions stay on the hero: pressing the row switches the mood and reveals them.
       expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
       fireEvent.press(screen.getByTestId("status-stop-lunch"));
@@ -805,12 +808,13 @@ describe("Beranda mood", () => {
     });
 
     it("keeps the stop quiet for a plate still to come", async () => {
-      // Dinner, not yet due, behind the Siang mood: only its label, window and dish.
+      // Dinner, not yet due, behind the Siang mood: only its label and dish, its window in the tab's spoken name.
       mount(runtimeWith(async () => windowsOf(bothMeals(), { lunch: "11.00–13.00", dinner: "23.59–23.59" })));
       await screen.findByTestId("plate-hero");
       const stop = within(screen.getByTestId("status-stop-dinner"));
-      expect(stop.getByText("Malam 23.59–23.59")).toBeTruthy();
+      expect(stop.getByText("Malam")).toBeTruthy();
       expect(stop.getByText("Sate ayam madura")).toBeTruthy();
+      expect(screen.getByTestId("status-stop-dinner").props.accessibilityLabel).toBe("Makan malam, 23.59–23.59, Sate ayam madura");
     });
   });
 
@@ -832,8 +836,9 @@ describe("Beranda mood", () => {
     expect(screen.queryByTestId("plate-hero")).toBeNull();
     // Today's lunch is still one tap away.
     const stop = screen.getByTestId("status-stop-lunch");
-    expect(within(stop).getByText("Siang 11.00–13.00")).toBeTruthy();
+    expect(within(stop).getByText("Siang")).toBeTruthy();
     expect(within(stop).getByText("Ayam bakar madu")).toBeTruthy();
+    expect(screen.getByTestId("status-stop-lunch").props.accessibilityLabel).toMatch(/^Makan siang, 11.00–13.00, /);
     fireEvent.press(stop);
     expect(title()).toBe("Makan siang sudah sampai.");
     expect(screen.getByTestId("plate-hero")).toBeTruthy();
@@ -854,7 +859,8 @@ describe("Beranda mood", () => {
     const header = within(screen.getByTestId("mood-header"));
     expect(header.queryByText(/^Berikutnya/)).toBeNull();
     expect(header.getByText(/^(Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu) \d+ \w+$/)).toBeTruthy();
-    expect(within(screen.getByTestId("status-stop-dinner")).getByText("Malam 17.00–19.00")).toBeTruthy();
+    expect(within(screen.getByTestId("status-stop-dinner")).getByText("Malam")).toBeTruthy();
+    expect(screen.getByTestId("status-stop-dinner").props.accessibilityLabel).toMatch(/^Makan malam, 17.00–19.00, /);
   });
 
   it.each(["failed", "reported"] as const)("names the next day once the other meal is %s", async (kind) => {
@@ -908,7 +914,8 @@ describe("Beranda mood", () => {
     await screen.findByTestId("home-title");
     expect(title()).toBe("Dinner tonight, no delivery.");
     expect(within(screen.getByTestId("mood-header")).getByText(/^Next /)).toBeTruthy();
-    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Lunch 11.00–13.00")).toBeTruthy();
+    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Lunch")).toBeTruthy();
+    expect(screen.getByTestId("status-stop-lunch").props.accessibilityLabel).toMatch(/^Lunch, 11.00–13.00, /);
   });
 
   it("lets a long dish name wrap in the hero's title, and keeps it out of the band", async () => {

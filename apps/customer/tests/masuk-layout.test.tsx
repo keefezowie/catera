@@ -157,7 +157,7 @@ describe("Masuk, the OKX layout", () => {
     expect(StyleSheet.flatten(title.props.style).textAlign).not.toBe("center");
   });
 
-  it("shows the 56dp mascot mark, hides it while the keyboard is up and brings it back", async () => {
+  it("shows the 56dp mascot mark and keeps it while the Android keyboard is up, so the page moves once", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const kb = keyboard();
     renderWith(<Masuk />);
@@ -170,10 +170,10 @@ describe("Masuk, the OKX layout", () => {
     fireEvent(host().children[0] as never, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 56, height: 56 } } });
     expect(slot().height).toBe(56);
     kb.show();
-    // Reduced motion: the room is gone at once, not eased out.
-    await waitFor(() => expect(slot()).toMatchObject({ height: 0, opacity: 0 }));
-    kb.hide();
+    // Jest builds Android: the scroll carries the mark off, it does not collapse first.
     await waitFor(() => expect(slot()).toMatchObject({ height: 56, opacity: 1 }));
+    kb.hide();
+    expect(slot()).toMatchObject({ height: 56, opacity: 1 });
   });
 
   it("adds the Android keyboard's height under the page and scrolls to the error and the button when a sign-in fails", async () => {

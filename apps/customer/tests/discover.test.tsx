@@ -1314,12 +1314,19 @@ describe("Paket on the layout scale (v2)", () => {
     expect(flat(screen.getByText(/^Dapur Senja, Jakarta Selatan\./))).toMatchObject({ fontSize: 13, lineHeight: 18 });
   });
 
-  it("the stat strip comes before the description, carbs and fat as one meta line", async () => {
+  it("the nutrition card comes before the description, carbs and fat as columns of their own beside protein", async () => {
     await open();
-    expect(screen.getByTestId("stat-strip")).toBeTruthy();
-    expect(screen.getByText("Karbo 76–82 g · Lemak 19–21 g per porsi")).toBeTruthy();
+    expect(screen.getByTestId("nutrition")).toBeTruthy();
+    const cells = within(screen.getByTestId("stat-strip")).getAllByTestId("stat-cell");
+    expect(cells.map((c) => c.props.accessibilityLabel)).toEqual([
+      expect.stringMatching(/^Protein /),
+      expect.stringMatching(/^Karbohidrat 76–82 g/),
+      expect.stringMatching(/^Lemak 19–21 g/),
+    ]);
+    // No loose carbs-and-fat line any more: the columns say it.
+    expect(screen.queryByText(/Karbo .* · Lemak .* per porsi/)).toBeNull();
     const tree = JSON.stringify(screen.toJSON());
-    expect(tree.indexOf("stat-strip")).toBeLessThan(tree.indexOf("Paket siang dan malam selama 10 hari kerja."));
+    expect(tree.indexOf('"nutrition"')).toBeLessThan(tree.indexOf("Paket siang dan malam selama 10 hari kerja."));
     expect(flat(screen.getByText("Paket siang dan malam selama 10 hari kerja."))).toMatchObject({ fontSize: 15, lineHeight: 22 });
   });
 
@@ -1451,7 +1458,7 @@ describe("Paket on the layout scale (v2)", () => {
         </LayoutScaleProvider>,
       );
       await screen.findByTestId("paket-name");
-      expect(flat(screen.getByTestId("stat-strip")).backgroundColor).toBe(nativeThemes.dark.surface);
+      expect(flat(screen.getByTestId("nutrition")).backgroundColor).toBe(nativeThemes.dark.surface);
       expect(flat(screen.getByTestId("paket-meal-lunch-glyph", { includeHiddenElements: true })).backgroundColor).toBe(nativeMood.dark.siang.header);
       expect(flat(screen.getByTestId("paket-meal-dinner-glyph", { includeHiddenElements: true })).backgroundColor).toBe(nativeMood.dark.malam.header);
       expect(flat(screen.getByText("Rantang Nusantara")).color).toBe(nativeThemes.dark.charcoal);

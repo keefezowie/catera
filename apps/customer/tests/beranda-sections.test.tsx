@@ -311,34 +311,35 @@ describe("the other meal's stop", () => {
     // A tap switches to Siang, where both lunches are the pager and the dinner is the other stop.
     fireEvent.press(screen.getByTestId("status-stop-lunch"));
     expect(await screen.findByTestId("hero-pager")).toBeTruthy();
-    expect(within(screen.getByTestId("status-stop-dinner")).getByText("Malam 17.00–19.00")).toBeTruthy();
+    expect(within(screen.getByTestId("status-stop-dinner")).getByText("Malam")).toBeTruthy();
     expect(within(screen.getByTestId("status-stop-dinner")).getByText("Sate ayam madura")).toBeTruthy();
+    expect(screen.getByTestId("status-stop-dinner").props.accessibilityLabel).toMatch(/^Makan malam, 17.00–19.00, /);
     // One status line serves the pager, on the band.
     expect(within(screen.getByTestId("mood-header")).getByTestId("status-stops")).toBeTruthy();
     expect(screen.getAllByTestId("status-stops")).toHaveLength(1);
     expect(within(screen.getByTestId("hero-pager")).queryByTestId("status-stops")).toBeNull();
   });
 
-  it("keeps each stop as wide as its words, with the track taking the rest, on a phone with room", async () => {
+  it("splits the pill evenly between the two meals, with no track between them, on a phone with room", async () => {
     const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style);
     pin(morningOf(DEMO_TODAY));
     mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
     await screen.findByTestId("plate-hero");
-    expect(flatOf("status-stop-lunch")).toMatchObject({ flexShrink: 1 });
-    expect(flatOf("status-stop-lunch").flex).toBeUndefined();
-    expect(flatOf("status-stops-track")).toMatchObject({ flex: 1 });
+    expect(flatOf("status-stop-lunch")).toMatchObject({ flex: 1 });
+    expect(flatOf("status-stop-dinner")).toMatchObject({ flex: 1 });
+    expect(screen.queryByTestId("status-stops-track", { includeHiddenElements: true })).toBeNull();
   });
 
-  it("stacks the two stops at full width, with no track, when the text is large on a narrow phone, so no word breaks", async () => {
-    // 360dp at font scale 1.3 (277 effective): side by side, "pengantaran" and "17.00–19.00" broke mid-word.
+  it("keeps the two meals side by side in the pill when the text is large on a narrow phone: no window on the switch to break mid-word", async () => {
+    // 360dp at font scale 1.3 (277 effective): the old stops broke "17.00–19.00" mid-word; the pill shows only the meal and its state.
     mockWindow = { width: 360, height: 780, scale: 3, fontScale: 1.3 };
     try {
       pin(morningOf(DEMO_TODAY));
       mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
       await screen.findByTestId("plate-hero");
-      expect(StyleSheet.flatten(screen.getByTestId("status-stops").props.style)).toMatchObject({ alignItems: "flex-start", gap: 8 });
-      expect(StyleSheet.flatten(screen.getByTestId("status-stops").props.style).flexDirection).toBeUndefined();
-      expect(screen.queryByTestId("status-stops-track")).toBeNull();
+      expect(StyleSheet.flatten(screen.getByTestId("status-stops").props.style)).toMatchObject({ flexDirection: "row" });
+      expect(screen.queryByTestId("status-stops-track", { includeHiddenElements: true })).toBeNull();
+      expect(within(screen.getByTestId("status-stops")).queryByText(/d{2}.d{2}–d{2}.d{2}/)).toBeNull();
       // Still one tablist of two tabs.
       expect(screen.getAllByRole("tab", { name: /^Makan (siang|malam), / })).toHaveLength(2);
     } finally {

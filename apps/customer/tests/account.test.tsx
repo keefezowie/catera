@@ -1083,7 +1083,7 @@ describe("Beranda: Pilih menu", () => {
     const runtime = runtimeWith({}, { actions: [due] });
     renderWith(runtime, <Beranda />);
     // One due day reads with its date ("Pilih menu Senin 12 Okt"); the action word opens it.
-    fireEvent.press(await screen.findByText(/^Pilih menu Senin \d+ Okt$/));
+    fireEvent.press(await screen.findByText(/^Pilih menu Senin \d+ \w+$/));
     expect(router.push).toHaveBeenCalledWith(`/pilih-menu/s-1?date=${monday}&meal=lunch`);
   });
 
@@ -1101,11 +1101,11 @@ describe("Beranda: Pilih menu", () => {
   it("keeps the menu row, with no error line, when a later read of the action feed fails", async () => {
     const runtime = runtimeWith({}, { actions: [due] });
     renderWith(runtime, <Beranda />);
-    expect(await screen.findByText(/^Pilih menu Senin \d+ Okt$/)).toBeTruthy();
+    expect(await screen.findByText(/^Pilih menu Senin \d+ \w+$/)).toBeTruthy();
     (runtime.api.customerActions as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
     await act(async () => void screen.UNSAFE_getByType(ReactNative.RefreshControl).props.onRefresh());
     await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalledTimes(2));
-    expect(screen.getByText(/^Pilih menu Senin \d+ Okt$/)).toBeTruthy();
+    expect(screen.getByText(/^Pilih menu Senin \d+ \w+$/)).toBeTruthy();
     expect(screen.queryByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeNull();
   });
 
