@@ -169,3 +169,32 @@ describe("useData on resume", () => {
     expect(loader).toHaveBeenCalledTimes(calls);
   });
 });
+
+describe("an error screen on resume", () => {
+  it("a screen that failed with nothing to show reads again when the app returns", async () => {
+    let fail = true;
+    const loader = jest.fn(async () => {
+      if (fail) throw new Error("NETWORK");
+      return "back";
+    });
+    mount(loader);
+    await waitFor(() => expect(rt.api.me).toHaveBeenCalled());
+    await waitFor(() => expect(last()).toMatchObject({ data: null, loading: false }));
+    expect(last().error).not.toBe("");
+    fail = false;
+    await resume();
+    await waitFor(() => expect(last()).toMatchObject({ data: "back", error: "" }));
+  });
+});
+
+describe("a return while offline", () => {
+  it("leaves the 30s slot to the network coming back", async () => {
+    await ready(jest.fn(async () => "first"));
+    await act(async () => net.__emit({ isConnected: false, isInternetReachable: false }));
+    await resume();
+    expect(last().resumed).toBe(0);
+    now += 3_000;
+    await act(async () => net.__emit({ isConnected: true, isInternetReachable: true }));
+    expect(last().resumed).toBe(1);
+  });
+});

@@ -159,14 +159,20 @@ export function Provider({
       text: "",
       action: null as ToastAction | null,
     });
-  const setToast = (text: string, action?: ToastAction) =>
+  // While the pointer or keyboard focus is on the toast it stays; leaving starts its time again. A new toast (or
+  // clearing one, as Undo does while focused) releases the hold: an unmounted button sends no blur.
+  const [toastHeld, setToastHeld] = useState(false);
+  const setToast = (text: string, action?: ToastAction) => {
+    setToastHeld(false);
     setToastText({ text, action: action ?? null });
+  };
   const keys = useRef(new Map<string, string>());
   // A tab that comes back (focus, visible again) or a network that returns reloads what is on screen, quietly.
   useEffect(() => {
     let last = 0;
     const resume = () => {
-      if (document.visibilityState === "hidden") return;
+      // Hidden, or back while still offline: the slot is left for the `online` event.
+      if (document.visibilityState === "hidden" || !navigator.onLine) return;
       const now = Date.now();
       if (now - last < RESUME_THROTTLE) return;
       last = now;
@@ -235,10 +241,10 @@ export function Provider({
     } catch {}
   }, []);
   useEffect(() => {
-    if (!toast.text) return;
+    if (!toast.text || toastHeld) return;
     const id = setTimeout(() => setToast(""), toast.action ? 8000 : 4500);
     return () => clearTimeout(id);
-  }, [toast]);
+  }, [toast, toastHeld]);
   function setArea(value: string) {
     setAreaState(value);
     localStorage.setItem("catera-area", value);
@@ -327,6 +333,10 @@ export function Provider({
         className={"toast " + (toast.text ? "visible" : "")}
         role="status"
         aria-live="polite"
+        onMouseEnter={() => setToastHeld(true)}
+        onMouseLeave={() => setToastHeld(false)}
+        onFocus={() => setToastHeld(true)}
+        onBlur={() => setToastHeld(false)}
       >
         {toast.text}
         {toast.action && (

@@ -71,6 +71,14 @@ export function CommandMenu({ commands }: { commands: Command[] }) {
     setActive(0);
   }, [open]);
 
+  // The arrow keys can move past the list's visible height; keep the active option in view.
+  useEffect(() => {
+    if (open)
+      document
+        .getElementById(listId + "-" + current)
+        ?.scrollIntoView({ block: "nearest" });
+  }, [open, current, listId]);
+
   function choose(command: Command | undefined) {
     if (!command) return;
     setOpen(false);

@@ -16,6 +16,23 @@ import { DatePicker } from "./date-picker";
 
 type AttentionScope = "selected" | "future" | "all";
 
+/**
+ * The list after page one is read again: the fresh page one, then the pages loaded after it minus anything that moved
+ * up. `firstCount` is how many items the previous page one held.
+ */
+export function withPageOne(
+  current: SellerAttentionItem[],
+  firstCount: number,
+  first: SellerAttentionItem[],
+) {
+  return [
+    ...first,
+    ...current
+      .slice(firstCount)
+      .filter((later) => !first.some((item) => item.id === later.id)),
+  ];
+}
+
 export function NeedsAttention({
   catererId,
   date,
@@ -41,6 +58,9 @@ export function NeedsAttention({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pageError, setPageError] = useState("");
+  // Page one's size, and whether later pages were loaded: a refresh of page one keeps them and their cursor.
+  const firstCount = useRef(0);
+  const loadedMore = useRef(false);
   const params = {
     scope,
     ...(scope !== "all" ? { date: scopeDate } : {}),
@@ -55,13 +75,18 @@ export function NeedsAttention({
   useEffect(() => {
     setItems([]);
     setNextCursor(null);
+    firstCount.current = 0;
+    loadedMore.current = false;
     setPageError("");
     setExpanded(false);
   }, [catererId, scope, scopeDate, mealScope]);
   useEffect(() => {
     if (!state.data) return;
-    setItems(state.data.items);
-    setNextCursor(state.data.nextCursor);
+    const first = state.data.items;
+    const previous = firstCount.current;
+    firstCount.current = first.length;
+    setItems((current) => withPageOne(current, previous, first));
+    if (!loadedMore.current) setNextCursor(state.data.nextCursor);
   }, [state.data]);
 
   const labels: Record<SellerAttentionItem["kind"], [string, string]> = {
@@ -117,6 +142,7 @@ export function NeedsAttention({
         ),
       ]);
       setNextCursor(page.nextCursor);
+      loadedMore.current = true;
     } catch {
       setPageError(
         t(

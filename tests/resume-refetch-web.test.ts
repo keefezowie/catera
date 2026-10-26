@@ -201,3 +201,14 @@ it("a quiet reload overtaken by a newer reload is dropped", async () => {
   expect(last().data).toBe("newer");
   expect(loader).toHaveBeenCalledTimes(3);
 });
+
+it("a tab that comes back while offline leaves the 30s slot to the online event", async () => {
+  await show(async () => "first");
+  const online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+  await fire(window, "focus");
+  expect(last().resumed).toBe(0);
+  online.mockReturnValue(true);
+  now += 3_000;
+  await fire(window, "online");
+  expect(last().resumed).toBe(1);
+});

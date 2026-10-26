@@ -135,7 +135,10 @@ export function MobileProvider({
     [revision, setRevision] = useState(0),
     [resumed, setResumed] = useState(0);
   const lastResume = useRef(0);
+  // The last network report (null before the first). A return while offline leaves the slot to the reconnect.
+  const connected = useRef<boolean | null>(null);
   const resume = useCallback(() => {
+    if (connected.current === false) return;
     const now = Date.now();
     if (now - lastResume.current < RESUME_THROTTLE) return;
     lastResume.current = now;
@@ -313,11 +316,10 @@ export function MobileProvider({
     const response = Notifications?.addNotificationResponseReceivedListener(handleResponse);
     void Notifications?.getLastNotificationResponseAsync().then(handleResponse);
     // A network that comes back (offline to online, not the first report) reloads what is on screen, quietly.
-    let connected: boolean | null = null;
     const network = NetInfo.addEventListener((state) => {
-      const now = state.isConnected === true;
-      if (connected === false && now) resume();
-      connected = now;
+      const was = connected.current;
+      connected.current = state.isConnected === true;
+      if (was === false && connected.current) resume();
     });
     return () => {
       live = false;

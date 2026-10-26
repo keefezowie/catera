@@ -95,9 +95,16 @@ export function useData<T>(key: string, loader: () => Promise<T>, options?: Data
   // without `loading`, so nothing on it flashes. A failure keeps what is shown; the next resume tries again.
   // Not while a read is running: that read answers with the newer data anyway.
   const shownData = state.key === identity && state.data !== null && !state.loading;
+  // A screen that failed with nothing to show reads again in full: there is nothing on it to keep.
+  const failedEmpty = state.key === identity && state.data === null && !!state.error && !state.loading;
   const firstResume = useRef(resumed);
   useEffect(() => {
-    if (resumed === firstResume.current || !shownData) return;
+    if (resumed === firstResume.current) return;
+    if (failedEmpty) {
+      void reload();
+      return;
+    }
+    if (!shownData) return;
     const request = ++generation.current;
     void load.current().then(
       (data) => {
