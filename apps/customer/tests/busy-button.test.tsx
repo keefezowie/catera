@@ -135,3 +135,10 @@ describe("useBusy", () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Button labels", () => {
+  it("set figures in tabular width, so an amount in a label (Bayar Rp…) keeps its width as it changes", () => {
+    render(<Button label="Bayar Rp 120.000" onPress={() => {}} />);
+    expect(StyleSheet.flatten(screen.getByText("Bayar Rp 120.000").props.style).fontVariant).toEqual(["tabular-nums"]);
+  });
+});

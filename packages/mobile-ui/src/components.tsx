@@ -806,7 +806,8 @@ const useStyles = themedStyles((c) => ({
   textButton: { minHeight: 48, paddingHorizontal: 4, backgroundColor: "transparent" },
   disabled: { backgroundColor: c.disabledFill },
   disabledQuiet: { opacity: 0.45 },
-  buttonLabel: { fontFamily: fontFor("700"), fontSize: 15 },
+  // Tabular figures: an amount in a label ("Bayar Rp…") keeps its width while the quote changes.
+  buttonLabel: { fontFamily: fontFor("700"), fontSize: 15, fontVariant: ["tabular-nums"] },
   chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 9, justifyContent: "center" },
   chipOn: { backgroundColor: c.forest },
   chipOff: { borderWidth: 1, borderColor: c.secondaryBorder },

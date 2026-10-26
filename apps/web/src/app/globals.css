@@ -260,6 +260,15 @@ table {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
+/* Prices and totals stack in lists and change with the quote: figures keep one width. */
+.card-price,
+.package-price-summary,
+.package-unit-price,
+.purchase-summary-price,
+.settlement-chart-totals,
+.settlement-detail-amount {
+  font-variant-numeric: tabular-nums;
+}
 th {
   text-align: left;
   font-weight: 650;
@@ -491,6 +500,33 @@ td strong {
 .toast.visible {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+.toast:has(.toast-action) {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-block: 4px;
+  padding-right: 6px;
+}
+.toast.visible .toast-action {
+  pointer-events: auto;
+}
+.toast-action {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cream);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.toast-action:focus-visible {
+  outline: 2px solid var(--cream);
+  outline-offset: 2px;
 }
 .demo-ribbon {
   background: #e9eedf;
