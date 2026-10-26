@@ -106,6 +106,15 @@ h3 {
 p {
   color: var(--muted);
 }
+h4 {
+  text-wrap: balance;
+}
+/* No single word stranded on a paragraph's last line. */
+p,
+li,
+figcaption {
+  text-wrap: pretty;
+}
 p + p {
   margin-top: 12px;
 }

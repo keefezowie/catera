@@ -22,3 +22,8 @@ it("prices, totals and amounts use tabular figures", () => {
   ])
     expect(declarations(selector), selector).toMatch(/font-variant-numeric:\s*tabular-nums/);
 });
+
+it("headings balance their lines and paragraphs avoid a lone last word", () => {
+  for (const heading of ["h1", "h2", "h3", "h4"]) expect(declarations(heading), heading).toMatch(/text-wrap:\s*balance/);
+  for (const prose of ["p", "li", "figcaption"]) expect(declarations(prose), prose).toMatch(/text-wrap:\s*pretty/);
+});
