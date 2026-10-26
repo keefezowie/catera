@@ -392,7 +392,9 @@ export function PackageDetail() {
               nameEnd.current = nameBlockY.current + nameLineEnd.current;
             }}
           >
-            <Text variant="heroTitle">{o.name}</Text>
+            <Text variant="heroTitle" accessibilityRole="header">
+              {o.name}
+            </Text>
           </View>
           <Text variant="meta">
             {`${[o.caterer, o.areas[0]].filter(Boolean).join(", ")}. ${ratingText(o, locale, t)}`}

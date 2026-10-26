@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, memo, use, useEffect, useState } from "react";
 import { Linking, StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
@@ -25,7 +25,7 @@ import {
   Text,
   themedStyles,
   useColors,
-  useMoodColors,
+  useMoodInks,
   useToast,
   withAlpha,
   cardEdge,
@@ -46,10 +46,29 @@ const fixedInk = nativeThemes.light;
 const OVERLAY = (alpha: number) => withAlpha(fixedInk.overlayInk, alpha);
 
 /**
- * journey_viewed is counted once per delivery, meal and stage for the life of the app process (ruling C12). The hero is
- * remounted when the mood swaps meals, so the memory has to live outside the component.
+ * journey_viewed is counted once per delivery, meal and stage for the life of the app process (ruling C12). A hero can
+ * mount again (a new read, a new day), so the memory has to live outside the component.
  */
 const viewedJourneys = new Set<string>();
+
+/**
+ * Whether the hero around a plate is the one on screen. Beranda keeps both meals' heroes mounted and hides the other one,
+ * so it says so here rather than through a prop: a switch then re-renders only the journey count below, never the plate.
+ */
+export const HeroShown = createContext(true);
+
+/** Counts the journey as seen once its hero is on screen (see `viewedJourneys`). Draws nothing. */
+function JourneySeen({ eligible, id }: { eligible: boolean; id: string }) {
+  const shown = use(HeroShown);
+  const track = useTrack();
+  const watched = eligible && shown;
+  useEffect(() => {
+    if (!watched || viewedJourneys.has(id)) return;
+    viewedJourneys.add(id);
+    track("journey_viewed");
+  }, [watched, id, track]);
+  return null;
+}
 
 /** HH.MM in Asia/Jakarta, or "" for an unreadable timestamp. */
 export function jakartaClock(iso: string | null | undefined): string {
@@ -260,7 +279,7 @@ export const HERO_RADIUS = nativeLayout.radius.card;
  * stays mounted when the mood switches, so the fills cross-fade; only its content is keyed to the plate. A `card`
  * plate has no mood of its own and reads the theme.
  */
-export function Plate({
+export const Plate = memo(function Plate({
   plate,
   apiBase,
   offline,
@@ -303,7 +322,7 @@ export function Plate({
       {content}
     </View>
   );
-}
+});
 
 function PlateContent({
   plate,
@@ -323,7 +342,7 @@ function PlateContent({
   const { command, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
-  const moodColors = useMoodColors();
+  const moodColors = useMoodInks();
   const hero = variant === "hero";
   // The hero's "…": a fresh read with something the day still allows.
   const more = hero && !offline && dayHasActions(delivery, new Date(), plate.meal);
@@ -338,7 +357,6 @@ function PlateContent({
   const [waiting, setWaiting] = useState<"" | "confirm" | "react">("");
   const busy = waiting !== "";
   const toast = useToast();
-  const track = useTrack();
   // The journey caption (with its times) belongs to a meal on its normal way; a failed or reported plate gets none and
   // keeps its own message.
   const caption =
@@ -351,14 +369,12 @@ function PlateContent({
   const { deliveryId, meal: mealKey, journey } = plate;
   // A meal nobody tapped has no journey to look at yet, and stale offline data is not a view of today.
   // In the pager only the card in view counts; the peeking one counts once it is swiped to.
-  const watched = counted && !!caption && !offline && journey.stage !== "scheduled";
-  useEffect(() => {
-    if (!watched) return;
-    const key = `${deliveryId}:${mealKey}:${journey.stage}`;
-    if (viewedJourneys.has(key)) return;
-    viewedJourneys.add(key);
-    track("journey_viewed");
-  }, [watched, deliveryId, mealKey, journey.stage, track]);
+  const seen = (
+    <JourneySeen
+      eligible={counted && !!caption && !offline && journey.stage !== "scheduled"}
+      id={`${deliveryId}:${mealKey}:${journey.stage}`}
+    />
+  );
   const meal = plate.meal === "dinner" ? t("Makan malam", "Dinner") : t("Makan siang", "Lunch");
   // "Sudah sampai" and "Belum": the same two answers whether the kitchen marked the meal or nobody has yet.
   const answers = (
@@ -415,6 +431,7 @@ function PlateContent({
 
   return (
     <>
+      {seen}
       {hero ? (
         <HeroPhotoFrame ratio={nativeLayout.ratio.card} testID="plate-photo" style={styles.photo}>
           {photoContent}
@@ -561,7 +578,7 @@ const PROOF_SIZE = 96;
  */
 function ProofPhoto({ plate, apiBase, hero }: { plate: PlateData; apiBase: string; hero: boolean }) {
   const { runtime, t } = useMobile();
-  const moodColors = useMoodColors();
+  const moodColors = useMoodInks();
   const styles = useStyles();
   const [token, setToken] = useState<string | null | undefined>(undefined);
   const [failed, setFailed] = useState(false);

@@ -18,7 +18,7 @@ import { customerLink } from "../src/links";
 import { goToTab, leaveFor } from "../src/nav";
 import { BuyScreen } from "../src/buy/BuyScreen";
 import { QrisCode } from "../src/buy/QrisCode";
-import { PaymentScreen } from "../src/buy/PaymentScreen";
+import { announceNotice, PaymentScreen } from "../src/buy/PaymentScreen";
 import { ChoiceRoute } from "../src/choice";
 import { offer, subscription } from "./fixtures";
 
@@ -83,6 +83,12 @@ jest.mock("expo-secure-store", () => {
 jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), goToTab: jest.fn(), leaveFor: jest.fn() }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
 jest.mock("expo-clipboard", () => ({ setStringAsync: jest.fn(async () => true) }));
+jest.mock("expo-sharing", () => ({ isAvailableAsync: jest.fn(async () => false), shareAsync: jest.fn(async () => undefined) }));
+const mockToast = jest.fn();
+jest.mock("@catera/mobile-ui", () => ({
+  ...jest.requireActual("@catera/mobile-ui"),
+  useToast: () => ({ show: mockToast, hide: jest.fn() }),
+}));
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn(async () => ({ type: "dismiss" })) }));
 
 /**
@@ -927,6 +933,49 @@ describe("Bayar", () => {
     expect(screen.getByLabelText(QR_LABEL)).toBeTruthy();
   });
 
+  it("the nothing-came-in answer is a polite live region, and iOS speaks it when it appears", async () => {
+    const runtime = server({ checkout: pendingCheckout() });
+    (runtime.api.command as jest.Mock).mockImplementation(async () => ({}));
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    await screen.findByTestId("payment-notice");
+    const regions = screen.UNSAFE_getAllByProps({ accessibilityLiveRegion: "polite" });
+    expect(regions.some((r) => within(r).queryByTestId("payment-notice"))).toBe(true);
+    // `process.env.EXPO_OS` is compiled in as Android here, so the iOS announcement is checked through its helper.
+    const announce = jest.spyOn(ReactNative.AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    announceNotice("x", "android");
+    expect(announce).not.toHaveBeenCalled();
+    announceNotice("Belum ada pembayaran masuk.", "ios");
+    expect(announce).toHaveBeenCalledWith("Belum ada pembayaran masuk.");
+    announce.mockRestore();
+  });
+
+  it("a failed QR save says the image failed, not that the status check did", async () => {
+    const runtime = server({ checkout: pendingCheckout() });
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Simpan gambar QR" }));
+    expect(await screen.findByText("Belum bisa menyimpan gambar QR. Coba lagi.")).toBeTruthy();
+    expect(screen.queryByText("Belum bisa mengecek pembayaran. Coba lagi.")).toBeNull();
+  });
+
+  it("a double press of Tampilkan QRIS starts the payment once", async () => {
+    const runtime = server({ checkout: pendingCheckout({}, { status: "choose_method", selectedMethod: null, instructions: null }) });
+    let release: () => void = () => undefined;
+    (runtime.api.command as jest.Mock).mockImplementation(() => new Promise<void>((resolve) => (release = resolve)));
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    const start = await screen.findByRole("button", { name: "Tampilkan QRIS" });
+    // Two presses in the same tick, before the first has re-rendered the screen.
+    await act(async () => {
+      fireEvent.press(start);
+      fireEvent.press(start);
+    });
+    expect(commands(runtime).filter((c) => c[0] === "checkout.payment.start")).toHaveLength(1);
+    release();
+    await act(async () => {});
+  });
+
   for (const [name, found] of [
     ["paid", (c: Checkout): Checkout => ({ ...c, state: "paid", subscription_id: "s-2", payment: { ...c.payment!, status: "paid" } })],
     ["being checked", (c: Checkout): Checkout => ({ ...c, payment: { ...c.payment!, status: "checking", instructions: null } })],
@@ -1049,6 +1098,20 @@ describe("Bayar", () => {
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.demo_pay", { id: "ck-1" }, expect.any(String));
   });
 
+  it("Bayar (demo) reads the checkout again right after paying, so the success beat does not wait for a later read", async () => {
+    const hosted = { ...pendingCheckout(), payment: undefined };
+    const runtime = server({ demo: true, checkout: hosted });
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    fireEvent.press(await screen.findByRole("button", { name: "Bayar (demo)" }));
+    await waitFor(() => expect(runtime.api.command).toHaveBeenCalledWith("checkout.demo_pay", { id: "ck-1" }, expect.any(String)));
+    const reads = (runtime.api.checkout as jest.Mock).mock.calls.length;
+    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    // The read that follows the command is this button's own, not one the screen happened to make later.
+    expect((runtime.api.checkout as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(reads);
+    const order = (runtime.api.command as jest.Mock).mock.invocationCallOrder[0];
+    expect((runtime.api.checkout as jest.Mock).mock.invocationCallOrder.some((n) => n > order)).toBe(true);
+  });
+
   it("hosted payment opens the provider page", async () => {
     const hosted = { ...pendingCheckout({ payment_url: "https://pay.example.test/ck-1" }), payment: undefined };
     const runtime = server({ checkout: hosted });
@@ -1107,6 +1170,27 @@ describe("Bayar", () => {
     expect(await screen.findByText("8808123456789012")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Salin nomor" }));
     await waitFor(() => expect(Clipboard.setStringAsync).toHaveBeenCalledWith("8808123456789012"));
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ message: "Nomor disalin", tone: "success" }));
+  });
+
+  it("a copy that fails says so in an error toast instead of rejecting unhandled", async () => {
+    (Clipboard.setStringAsync as jest.Mock).mockRejectedValueOnce(new Error("DENIED"));
+    const runtime = server({
+      checkout: pendingCheckout(
+        {},
+        {
+          selectedMethod: "VIRTUAL_ACCOUNT_BRI",
+          instructions: { kind: "virtual_account", accountNumber: "8808123456789012", accountName: "CATERA SINTETIS", bank: "BRI" },
+        },
+      ),
+    });
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByText("8808123456789012")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Salin nomor" }));
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith({ message: "Belum bisa menyalin nomor. Coba lagi.", tone: "error" }),
+    );
+    expect(mockToast).not.toHaveBeenCalledWith(expect.objectContaining({ message: "Nomor disalin" }));
   });
 
   it("a provider-expired payment before the deadline keeps checking instead of selling again", async () => {
@@ -1570,7 +1654,8 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(row.getByText(/^20 hari antar, Senin–Jumat, sampai /))).toMatchObject({ fontSize: 13 });
     // The visible word is Ubah; a screen reader still hears what it changes.
     expect(row.getByText("Ubah")).toBeTruthy();
-    expect(row.getByRole("button", { name: "Ganti tanggal mulai" })).toBeTruthy();
+    expect(row.getByRole("button", { name: "Ubah tanggal mulai" })).toBeTruthy();
+    expect(row.queryByRole("button", { name: "Ganti tanggal mulai" })).toBeNull();
   });
 
   it("Lama paket keeps the length options when the package offers several lengths", async () => {
@@ -1706,6 +1791,8 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(amount)).toMatchObject({ fontSize: 20, lineHeight: 26, fontFamily: fonts.extrabold });
     // A price is read as text, never as a heading.
     expect(amount.props.accessibilityRole).toBe("text");
+    // The label is the amount itself, set every time: Android keeps a label that goes back to undefined (gate F02).
+    expect(amount.props.accessibilityLabel).toBe(totalOf());
     const pay = footer.getByRole("button", { name: PAY });
     expect(flat(pay)).toMatchObject({ minHeight: 50, borderRadius: 25, backgroundColor: nativeThemes.light.forest });
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("row");
@@ -1884,6 +1971,36 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     expect(pay).toBeDisabled();
     // A screen reader hears the same reason after the label.
     expect(pay.props.accessibilityHint).toBe("Tambahkan alamat dulu.");
+    // The empty total is a dash on screen and "Belum ada harga" to a screen reader.
+    expect(within(screen.getByTestId("buy-footer-row")).getByText("-").props.accessibilityLabel).toBe("Belum ada harga");
+  });
+
+  it("a disabled pay button says why: no payment method is available", async () => {
+    const runtime = server();
+    (runtime.api.request as jest.Mock).mockImplementation(async () => ({ mode: "direct", availableMethods: [] }));
+    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await waitFor(() => expect(reason().props.children).toBe("Pembayaran belum tersedia. Coba lagi nanti."));
+    const pay = screen.getByRole("button", { name: PAY });
+    expect(pay).toBeDisabled();
+    expect(pay.props.accessibilityHint).toBe("Pembayaran belum tersedia. Coba lagi nanti.");
+  });
+
+  it("a double tap on Bayar creates the checkout once", async () => {
+    const runtime = server();
+    let release: (v: unknown) => void = () => undefined;
+    const base = (runtime.api.command as jest.Mock).getMockImplementation()!;
+    (runtime.api.command as jest.Mock).mockImplementation((action: string, payload: Record<string, unknown>) =>
+      action === "checkout.create" ? new Promise((resolve) => (release = resolve)) : base(action, payload),
+    );
+    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    const pay = await screen.findByRole("button", { name: `Bayar ${totalOf()}` });
+    await act(async () => {
+      fireEvent.press(pay);
+      fireEvent.press(pay);
+    });
+    expect(commands(runtime).filter((c) => c[0] === "checkout.create")).toHaveLength(1);
+    release(pendingCheckout());
+    await act(async () => {});
   });
 
   it("says nothing about the address while the customer's addresses are still loading", async () => {

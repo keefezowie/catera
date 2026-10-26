@@ -205,7 +205,7 @@ function NameEditor({ current, onDone }: { current: string; onDone: () => void }
     });
   return (
     <Editor>
-      <Field inputRef={first} label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={80} autoFocus />
+      <Field inputRef={first} label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" autoCapitalize="words" maxLength={80} autoFocus />
       {action.error ? <FormError message={action.error} failureKey={action.failures} testID="name-error" /> : null}
       <Button
         label={t("Simpan nama", "Save name")}

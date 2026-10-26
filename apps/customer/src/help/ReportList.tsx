@@ -77,7 +77,7 @@ function List({ flow }: { flow: boolean }) {
   const issues = useData("help:issues", () => runtime.api.request<DeliveryIssue[]>("delivery-issues"));
   const customer = useData("help:customer", () => runtime.api.customer());
   // Payment help is a bonus: if the feed fails the list still shows.
-  const feed = useData("help:actions", () => runtime.api.customerActions(50));
+  const feed = useData("help:actions", () => runtime.api.customerActions(20));
 
   if ((!issues.data || !customer.data) && (issues.error || customer.error))
     return (

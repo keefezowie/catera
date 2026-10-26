@@ -175,6 +175,11 @@ describe("the Paket selesai recap", () => {
     expect(tree.indexOf("Paket selesai")).toBeLessThan(tree.indexOf("Paket kamu"));
   });
 
+  it("has the 16 card radius of the cards around it", async () => {
+    await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
+    expect(StyleSheet.flatten(screen.getByTestId("recap-card").props.style).borderRadius).toBe(16);
+  });
+
   it("writes the seen mark on its first render and stays for the rest of the visit; the next visit has no card", async () => {
     const runtime = runtimeWith(async () => stateWith([livePlan(), endedPlan()]));
     const first = await home(runtime);

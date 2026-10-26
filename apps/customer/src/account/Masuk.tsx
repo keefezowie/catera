@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { TextInput, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, type Actor } from "@catera/domain";
@@ -36,6 +36,7 @@ export function Masuk() {
   // Held from the press to the answer, so a code that fills twice in one frame is still checked once.
   const lock = useRef(false);
   const resend = useResendTimer(60);
+  const passwordRef = useRef<TextInput>(null);
 
   useEffect(() => setError(""), [method]);
 
@@ -83,6 +84,8 @@ export function Masuk() {
         throw e;
       }
     });
+  const emailReady = !!email && !!password;
+  const signInEmail = () => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID(), "Pelanggan")));
   const primary = phoneStep ? (
     <Button
       label={sent ? t("Masuk", "Sign in") : t("Kirim kode", "Send code")}
@@ -102,8 +105,8 @@ export function Masuk() {
     <Button
       label={t("Masuk", "Sign in")}
       busy={waiting === "step"}
-      disabled={!email || !password}
-      onPress={() => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID(), "Pelanggan")))}
+      disabled={!emailReady}
+      onPress={() => signInEmail()}
     />
   );
 
@@ -179,9 +182,17 @@ export function Masuk() {
             autoComplete="email"
             maxLength={254}
             invalid={!!error}
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => passwordRef.current?.focus()}
           />
           <PasswordField
             label={t("Kata sandi", "Password")}
+            inputRef={passwordRef}
+            returnKeyType="go"
+            onSubmitEditing={() => {
+              if (emailReady) void signInEmail();
+            }}
             value={password}
             onChangeText={setPassword}
             autoCapitalize="none"

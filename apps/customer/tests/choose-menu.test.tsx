@@ -456,3 +456,35 @@ describe("Pilih menu as photo cards (R4)", () => {
     }
   });
 });
+
+describe("polish: month arrows and the reason a button waits", () => {
+  it("the month arrows are 44dp icon buttons named in words, and still move the month", async () => {
+    renderMenu();
+    const next = await screen.findByRole("button", { name: "Bulan berikutnya" });
+    const prev = screen.getByRole("button", { name: "Bulan sebelumnya" });
+    for (const arrow of [prev, next]) {
+      const style = StyleSheet.flatten(arrow.props.style);
+      expect(style.width).toBeGreaterThanOrEqual(44);
+      expect(style.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(screen.queryByText("‹")).toBeNull();
+    expect(screen.queryByText("›")).toBeNull();
+    fireEvent.press(next);
+    await waitFor(() => expect(runtime.api.customerMenuMonth).toHaveBeenCalledWith("subscription", "2026-12-01", "lunch"));
+    fireEvent.press(await screen.findByRole("button", { name: "Bulan sebelumnya" }));
+    await waitFor(() => expect(runtime.api.customerMenuMonth).toHaveBeenLastCalledWith("subscription", "2026-11-01", "lunch"));
+  });
+
+  it("Tinjau pilihan says why it is off, and the line goes once every dish is chosen", async () => {
+    renderMenu();
+    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    const review = () => screen.getByRole("button", { name: "Tinjau pilihan" });
+    expect(review()).toBeDisabled();
+    expect(review().props.accessibilityHint).toBe("Lengkapi semua hidangan dulu.");
+    expect(screen.getByTestId("menu-review-hint")).toHaveTextContent("Lengkapi semua hidangan dulu.");
+    fireEvent.press(screen.getByRole("button", { name: "Ayam panggang · 1 potong" }));
+    expect(review()).toBeEnabled();
+    expect(review().props.accessibilityHint).toBeUndefined();
+    expect(screen.queryByTestId("menu-review-hint")).toBeNull();
+  });
+});

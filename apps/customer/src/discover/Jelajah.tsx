@@ -190,6 +190,8 @@ function Browse({
       list={({ scrollProps, header }) => (
         <FlatList
           {...scrollProps}
+          // Scrolling the results puts the keyboard away.
+          keyboardDismissMode="on-drag"
           // The column count can change with the text size, and a list cannot change it in place.
           key={columns}
           numColumns={columns}
@@ -505,6 +507,7 @@ function Browse({
               )}
               placeholderTextColor={c.muted}
               returnKeyType="search"
+              autoCorrect={false}
               style={{
                 flex: 1,
                 minHeight: nativeLayout.control.search,

@@ -266,7 +266,7 @@ export function SettingsRow({
     <Pressable
       testID="settings-row"
       accessibilityRole="button"
-      accessibilityLabel={value ? `${label}, ${value}` : label}
+      accessibilityLabel={[label, value, supporting].filter(Boolean).join(", ")}
       accessibilityState={
         busy || expanded !== undefined ? { ...(busy ? { busy: true, disabled: true } : null), ...(expanded !== undefined ? { expanded } : null) } : undefined
       }

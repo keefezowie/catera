@@ -110,6 +110,8 @@ export function Text({
   accessibilityRole?: AccessibilityRole;
   accessibilityLabel?: string;
   accessible?: boolean;
+  /** Announces a change to the text; set it on a line that appears after a failed action. */
+  accessibilityLiveRegion?: "none" | "polite" | "assertive";
   /** Lets the user copy the text; set it on data and error messages. */
   selectable?: boolean;
 }) {
@@ -373,7 +375,8 @@ export function Field({
   const { fontScale } = useWindowDimensions();
   return (
     <View style={{ gap: 6 }}>
-      <RNText style={[styles.fieldLabel]}>{label}</RNText>
+      {/* The input carries the label for a screen reader, so the visible one is hidden from it (it would be read twice). */}
+      <RNText accessibilityElementsHidden importantForAccessibility="no" style={[styles.fieldLabel]}>{label}</RNText>
       {/* The caller's style extends the base input style; spreading it after would replace the fill, border and ink. */}
       <View>
         <TextInput
@@ -386,7 +389,7 @@ export function Field({
         {trailing ? <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, justifyContent: "center" }}>{trailing}</View> : null}
       </View>
       {error ? (
-        <RNText selectable style={[styles.caption, { color: c.danger }]}>
+        <RNText selectable accessibilityLiveRegion="polite" style={[styles.caption, { color: c.danger }]}>
           {error}
         </RNText>
       ) : hint ? (
@@ -430,6 +433,7 @@ export function Stepper({
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={decreaseLabel}
+        accessibilityValue={{ text: String(value) }}
         accessibilityState={{ disabled: value <= min }}
         disabled={value <= min}
         haptic="select"
@@ -439,12 +443,13 @@ export function Stepper({
       >
         <RNText style={[styles.stepGlyph, scaled && v2.stepGlyph]}>−</RNText>
       </PressableScale>
-      <RNText style={[styles.body, { width: 24, textAlign: "center", fontFamily: fontFor("800") }, scaled && v2.stepValue]}>
+      <RNText style={[styles.body, { minWidth: 24, textAlign: "center", fontFamily: fontFor("800"), fontVariant: ["tabular-nums"] }, scaled && v2.stepValue]}>
         {value}
       </RNText>
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={increaseLabel}
+        accessibilityValue={{ text: String(value) }}
         accessibilityState={{ disabled: value >= max }}
         disabled={value >= max}
         haptic="select"
@@ -778,7 +783,7 @@ const useV2Styles = themedStyles((c) => ({
   stepper: { minHeight: nativeLayout.row.single, paddingLeft: 0, paddingRight: 0, paddingVertical: 6, gap: nativeLayout.space.md },
   stepLabel: { fontSize: 15, lineHeight: 22, minWidth: 0 },
   stepButton: { width: nativeLayout.control.icon, height: nativeLayout.control.icon, borderRadius: nativeLayout.control.icon / 2, backgroundColor: c.sage },
-  stepValue: { fontSize: 17, lineHeight: 22, width: 28 },
+  stepValue: { fontSize: 17, lineHeight: 22, minWidth: 28 },
   // Forest fills only the one primary control and marks selection (palette K): a stepper glyph is ink under v2.
   stepGlyph: { color: c.charcoal },
 }));

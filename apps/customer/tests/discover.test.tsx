@@ -510,6 +510,22 @@ describe("Jelajah list root", () => {
     expect(node?.props.entering).toBeDefined();
   });
 
+  it("scrolling the results puts the keyboard away, and the search does not autocorrect a dish name", async () => {
+    const view = wrap(runtimeWith(), <Jelajah />);
+    await screen.findByText("Menu Sehat Premium");
+    expect(view.UNSAFE_getAllByType(FlatList)[0].props.keyboardDismissMode).toBe("on-drag");
+    expect(screen.getByLabelText("Cari paket").props.autoCorrect).toBe(false);
+  });
+
+  it("a tile reads its name, caterer, price per meal and meta line as one button", async () => {
+    wrap(runtimeWith(), <Jelajah />);
+    await screen.findByText("Menu Sehat Premium");
+    const trial = screen.getByRole("button", { name: /^Nasi Ayam Bakar, / });
+    expect(trial.props.accessibilityLabel).toMatch(/^Nasi Ayam Bakar, .+, Rp\s?[\d.]+ \/ makan, .*coba 1 hari$/);
+    const none = screen.getByRole("button", { name: /^Menu Sehat Premium, / });
+    expect(none.props.accessibilityLabel).toMatch(/^Menu Sehat Premium, Dapur Sehat, Rp\s?[\d.]+ \/ makan, Belum bisa dicoba$/);
+  });
+
   it("the chip row answers the first tap while the search keyboard is up", async () => {
     const view = wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
@@ -751,14 +767,17 @@ describe("Jelajah mood header", () => {
     expect(flat(screen.getByTestId("status-band-canvas", { includeHiddenElements: true })).backgroundColor).toBe(colors.canvas);
   });
 
-  it("draws the selected meal with a 1.5 forest ring, a 700 forest label and its glyph, and the idle one with a 500 label and no ring", async () => {
+  it("draws the selected meal with a 1.5 forest ring on a surface pill, a 700 forest label and its glyph, and the idle one with a 500 label and no ring", async () => {
     mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
     const selected = screen.getByTestId("meal-pill-malam");
     const idle = screen.getByTestId("meal-pill-siang");
-    expect(flat(selected)).toMatchObject({ borderWidth: 1.5, borderColor: nativeThemes.light.forest });
+    // The ring is its own layer over the pill (it fades rather than snapping); the pill keeps a transparent border.
+    expect(flat(selected)).toMatchObject({ borderWidth: 1.5, borderColor: "transparent" });
+    const ring = (meal: string) => flat(screen.getByTestId(`meal-ring-${meal}`, { includeHiddenElements: true }));
+    expect(ring("malam")).toMatchObject({ borderWidth: 1.5, borderColor: nativeThemes.light.forest, backgroundColor: nativeThemes.light.surface, opacity: 1 });
+    expect(ring("siang").opacity).toBe(0);
     expect(flat(within(selected).getByText("Malam"))).toMatchObject({ color: nativeThemes.light.forest, fontFamily: "Jakarta-Bold" });
-    expect(flat(idle).borderColor).toBe("transparent");
     expect(flat(within(idle).getByText("Siang")).color).not.toBe(nativeThemes.light.forest);
     expect(flat(within(idle).getByText("Siang")).fontFamily).toBe("Jakarta-Medium");
     // A sun before Siang and a moon before Malam.
@@ -1290,6 +1309,7 @@ describe("Paket on the layout scale (v2)", () => {
 
   it("the name is heroTitle and the caterer line is meta", async () => {
     await open();
+    expect(screen.getByText("Rantang Nusantara").props.accessibilityRole).toBe("header");
     expect(flat(screen.getByText("Rantang Nusantara"))).toMatchObject({ fontSize: 24, lineHeight: 30, fontFamily: fonts.bold });
     expect(flat(screen.getByText(/^Dapur Senja, Jakarta Selatan\./))).toMatchObject({ fontSize: 13, lineHeight: 18 });
   });

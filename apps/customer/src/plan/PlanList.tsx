@@ -3,11 +3,12 @@ import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { planLabel, shortDate, type CustomerState, type Subscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { FadeSwap, ReadError, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, ReadError, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { DecorativeIcon, ListCard, MediaRow } from "../layout";
 import { remainingLabel } from "../remaining";
 import { planHref } from "../hrefs";
+import { goToTab } from "../nav";
 import { usePullToRefresh } from "../refresh";
 import { PlanListSkeleton } from "../skeletons";
 import { photoUri } from "../today/photoUri";
@@ -86,9 +87,12 @@ function PlanSections({
             </ListCard>
           </View>
         ) : (
-          <Text variant="bodyL" style={{ color: c.muted }}>
-            {t("Belum ada paket aktif.", "No active plans.")}
-          </Text>
+          <View style={{ gap: nativeLayout.space.md }}>
+            <Text variant="bodyL" style={{ color: c.muted }}>
+              {t("Belum ada paket aktif.", "No active plans.")}
+            </Text>
+            <Button variant="secondary" label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
+          </View>
         )}
       </View>
       {finished.length ? (
@@ -113,7 +117,7 @@ function SectionHeading({ title, count }: { title: string; count?: string }) {
       <Text variant="section" style={styles.title}>
         {title}
       </Text>
-      {count ? <Text variant="meta">{count}</Text> : null}
+      {count ? <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>{count}</Text> : null}
     </View>
   );
 }

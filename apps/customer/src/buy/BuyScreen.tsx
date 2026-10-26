@@ -20,7 +20,7 @@ import {
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, FadeSwap, fontFor, FormError, Screen, Stepper, Text, themedStyles, useScreenMargin, useStackedLayout } from "@catera/mobile-ui";
+import { Button, FadeSwap, fontFor, FormError, Screen, Stepper, Text, themedStyles, useBusy, useScreenMargin, useStackedLayout } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { BuySummary, FieldGlyph, FieldRow, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { FOOTER_STACK_BELOW, footerFits, PAY_MIN_WIDTH } from "./metrics";
@@ -202,7 +202,9 @@ export function BuyScreen({
     if (picked) setStart(picked);
   }
 
-  async function submit() {
+  // The ref inside `useBusy` drops a second tap that lands before `busy` has re-rendered; `busy` itself stays set once
+  // the checkout exists, so the button stays busy while the screen is replaced.
+  const [, submit] = useBusy(async () => {
     if (!payload || !quote.ready || busy) return;
     setBusy(true);
     setError("");
@@ -223,7 +225,7 @@ export function BuyScreen({
       quote.retry();
       setBusy(false);
     }
-  }
+  });
 
   // The flow sits in a full-screen modal under the native header, with Close at its leading edge; the screen names
   // itself through its native title in every state.
@@ -280,7 +282,10 @@ export function BuyScreen({
             ? t("Pilih tanggal mulai dulu.", "Choose a start date first.")
             : pendingCheckout
               ? t("Ada pembayaran yang belum selesai.", "A payment is still open.")
-              : quote.error || blocked;
+              : quote.error ||
+                blocked ||
+                // Every other reason holds; a direct payment with no method left to pay by is the one that remains.
+                (!payable ? t("Pembayaran belum tersedia. Coba lagi nanti.", "Payment isn't available yet. Try again later.") : "");
   const amountText = shown ? currency(shown.total, locale) : quote.pending ? t("Menghitung…", "Working out…") : "-";
   const payLabel = quote.ready
     ? t(`Bayar ${currency(quote.ready.total, locale)}`, `Pay ${currency(quote.ready.total, locale)}`)
@@ -299,7 +304,9 @@ export function BuyScreen({
       <View testID="buy-footer-row" style={[styles.footer, stacked && styles.footerStacked]}>
         <View style={stacked ? undefined : styles.total}>
           <Text variant="meta">{t("Total", "Total")}</Text>
-          <Text variant="section" selectable accessibilityRole="text" style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
+          {/* With no price the dash would be read as "dash". The label is always set: Android keeps a label that goes back
+              to undefined, so the price that arrives later would still be read as "Belum ada harga". */}
+          <Text variant="section" selectable accessibilityRole="text" accessibilityLabel={shown || quote.pending ? amountText : t("Belum ada harga", "No price yet")} style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
             {amountText}
           </Text>
         </View>

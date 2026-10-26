@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { Button, MoodHeader, Screen, Text, useColors, useMoodColors } from "@catera/mobile-ui";
+import { Button, MoodHeader, Screen, Text, useColors, useMoodInks } from "@catera/mobile-ui";
 
 /** The one line every signed-out stand-in says; ReportProblem's sheet reads it from here too. */
 export const signInSentence = (t: (id: string, en: string) => string) =>
@@ -26,7 +26,7 @@ export function SignInFirst({
 }) {
   const { t } = useMobile();
   const c = useColors();
-  const mood = useMoodColors();
+  const mood = useMoodInks();
   const sentence = signInSentence(t);
   return (
     <Screen

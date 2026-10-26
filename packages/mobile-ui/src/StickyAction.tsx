@@ -16,6 +16,7 @@ export function StickyAction({
   onPress,
   busy = false,
   disabled = false,
+  hint,
   testID = "sticky-action",
 }: {
   label: string;
@@ -23,12 +24,27 @@ export function StickyAction({
   onPress: () => void;
   busy?: boolean;
   disabled?: boolean;
+  /** Why the button is off: shown as a meta line over it and announced as its hint, only while it is disabled. */
+  hint?: string;
   testID?: string;
 }) {
+  const why = disabled ? hint : undefined;
   return (
     <View testID={testID} style={{ gap: 8 }}>
       {caption ? <Text variant="caption">{caption}</Text> : null}
-      <Button label={label} busy={busy} disabled={disabled} onPress={onPress} spinnerTestID={`${testID}-spinner`} />
+      {why ? (
+        <Text testID={`${testID}-hint`} variant="meta">
+          {why}
+        </Text>
+      ) : null}
+      <Button
+        label={label}
+        busy={busy}
+        disabled={disabled}
+        accessibilityHint={why}
+        onPress={onPress}
+        spinnerTestID={`${testID}-spinner`}
+      />
     </View>
   );
 }

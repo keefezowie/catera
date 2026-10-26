@@ -15,7 +15,7 @@ export function ReadError({ message, onRetry, art = false }: { message: string; 
   return (
     <View style={{ gap: 4, alignItems: art ? "center" : "flex-start" }}>
       {art ? <StateArt pose="bingung" style={{ marginBottom: 12 }} /> : null}
-      <Text selectable style={{ color: c.danger, textAlign: art ? "center" : undefined }}>
+      <Text selectable accessibilityLiveRegion="polite" style={{ color: c.danger, textAlign: art ? "center" : undefined }}>
         {message}
       </Text>
       <Button variant="text" label={t("Coba lagi", "Try again")} onPress={onRetry} />

@@ -12,14 +12,30 @@ const quiet = (run: () => Promise<void>) => () => {
   }
 };
 
-export function useHaptic(): Record<HapticKind, () => void> {
-  return useMemo(
-    () => ({
-      tap: quiet(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)),
-      select: quiet(() => Haptics.selectionAsync()),
-      success: quiet(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
-      warning: quiet(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),
-    }),
-    [],
+/**
+ * Android's own feedback for a choice and a press, played by the view (`performHapticFeedback`): the system's crisp
+ * tick and click, at the strength the person set for touch feedback, and nothing when they turned it off. expo-haptics'
+ * `selectionAsync` and `impactAsync` drive the vibrator directly instead, a 50ms buzz at 12% that is hard to feel and
+ * ignores that setting. The segment tick exists from Android 14; older versions take the clock tick, which every
+ * version has.
+ */
+const androidSelect = () =>
+  Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Segment_Tick).catch(() =>
+    Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Clock_Tick),
   );
+const androidTap = () => Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Virtual_Key);
+
+/** `os` is the running platform (a parameter for tests). */
+export function hapticsFor(os = process.env.EXPO_OS): Record<HapticKind, () => void> {
+  const android = os === "android";
+  return {
+    tap: quiet(android ? androidTap : () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)),
+    select: quiet(android ? androidSelect : () => Haptics.selectionAsync()),
+    success: quiet(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
+    warning: quiet(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),
+  };
+}
+
+export function useHaptic(): Record<HapticKind, () => void> {
+  return useMemo(() => hapticsFor(), []);
 }

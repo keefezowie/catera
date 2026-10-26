@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View } from "react-native";
 import { addDays, jakartaDay, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
@@ -61,14 +61,22 @@ function Updates() {
   const unreadNotes = notes.filter(unread);
   const markRead = (id: string) => setReadHere((now) => new Set(now).add(id));
 
+  // A second tap while the first is marking the update read would push its screen twice.
+  const opening = useRef(false);
   async function open(n: Notice) {
-    // Marking read is a courtesy; the update itself still opens if it fails.
-    if (unread(n)) {
-      await command("notification.read", { id: n.id })
-        .then(() => markRead(n.id))
-        .catch(() => undefined);
+    if (opening.current) return;
+    opening.current = true;
+    try {
+      // Marking read is a courtesy; the update itself still opens if it fails.
+      if (unread(n)) {
+        await command("notification.read", { id: n.id })
+          .then(() => markRead(n.id))
+          .catch(() => undefined);
+      }
+      openLink(customerLink(n.href));
+    } finally {
+      opening.current = false;
     }
-    openLink(customerLink(n.href));
   }
 
   // One pass at a time: a second tap while the reads run sends nothing. There is no bulk read, so each unread update is
@@ -124,11 +132,14 @@ function Updates() {
                 {group.notes.map((n, i) => {
                   const fresh = unread(n);
                   const day = jakartaDay(new Date(n.created_at));
+                  const when =
+                    group.key === "earlier" ? `${longDay(day, locale)} · ${jakartaClock(n.created_at)}` : jakartaClock(n.created_at);
                   return (
                     <PressableRow
                       key={n.id}
                       testID="notification-row"
                       accessibilityRole="button"
+                      accessibilityLabel={`${fresh ? `${t("Belum dibaca", "Unread")}, ` : ""}${n.body}, ${when}`}
                       onPress={() => void open(n)}
                       style={[styles.row, i > 0 && styles.divider]}
                     >
@@ -139,9 +150,7 @@ function Updates() {
                       <View style={{ flex: 1, gap: 2 }}>
                         <Text style={fresh ? { fontFamily: fontFor("700") } : undefined}>{n.body}</Text>
                         <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-                          {group.key === "earlier"
-                            ? `${longDay(day, locale)} · ${jakartaClock(n.created_at)}`
-                            : jakartaClock(n.created_at)}
+                          {when}
                         </Text>
                       </View>
                     </PressableRow>

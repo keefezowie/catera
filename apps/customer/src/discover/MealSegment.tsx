@@ -3,6 +3,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { nativeLayout } from "@catera/design-tokens";
 import { fontFor, PressableScale, Text, useColors, useMood } from "@catera/mobile-ui";
 import { useMobile } from "@catera/mobile-core";
+import { SelectionRing } from "../selectionRing";
 
 /** The visible track is a 34 chip; its two tabs are 44 tall touch targets, so the hit area is real (a hitSlop never
  * reaches past its parent, and the parent here is the 44 row). */
@@ -49,6 +50,7 @@ export function MealSegment() {
             accessibilityState={{ selected }}
             // The meal that is already chosen has nothing to confirm.
             haptic={selected ? "none" : "select"}
+            pressFeedback={!selected}
             onPress={() => setMood(option.value)}
             style={{ minHeight: TARGET, paddingHorizontal: INSET, alignItems: "center", justifyContent: "center" }}
           >
@@ -62,10 +64,19 @@ export function MealSegment() {
                 paddingHorizontal: 14,
                 borderRadius: PILL / 2,
                 borderCurve: "continuous",
+                // The ring is drawn by SelectionRing over the pill, so it fades instead of snapping; the transparent
+                // border keeps the pill the same size whichever meal is chosen.
                 borderWidth: RING,
-                borderColor: selected ? c.forest : "transparent",
+                borderColor: "transparent",
               }}
             >
+              <SelectionRing
+                testID={`meal-ring-${option.value}`}
+                selected={selected}
+                radius={PILL / 2}
+                fill={c.surface}
+                inset={{ x: RING, y: RING }}
+              />
               <Ionicons name={option.icon} size={14} color={ink} accessible={false} importantForAccessibility="no" />
               <Text variant="label" style={{ fontSize: 13, fontFamily: fontFor(selected ? "700" : "500"), color: ink }}>
                 {option.label}

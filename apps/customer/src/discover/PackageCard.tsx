@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { currency, perMealPrice } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { fontFor, Photo, PressableRow, SaveHeart, Text, themedStyles } from "@catera/mobile-ui";
+import { fontFor, Photo, PressableRow, rowLabel, SaveHeart, Text, themedStyles } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { type CatalogOffer } from "./format";
 import { calorieHint } from "./NutritionCard";
@@ -46,7 +46,7 @@ export function PackageCard({
     : (kcal ?? t("Belum bisa dicoba", "No trial yet"));
   return (
     <View testID="package-tile">
-      <PressableRow accessibilityRole="button" accessibilityLabel={`${offer.name}, ${offer.caterer}`} onPress={onOpen}>
+      <PressableRow accessibilityRole="button" accessibilityLabel={rowLabel(offer.name, offer.caterer, `${currency(perMealPrice(offer), locale)} ${t("/ makan", "/ meal")}`, meta)} onPress={onOpen}>
         {offer.image ? (
           <Photo testID="package-photo" uri={photoUri(offer.image, runtime.apiBase)} style={styles.photo} />
         ) : (

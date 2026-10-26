@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { View } from "react-native";
+import { useRef, useState } from "react";
+import { TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
 import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, PasswordField } from "@catera/mobile-ui";
@@ -19,6 +19,9 @@ export function Register() {
   const [sent, setSent] = useState(false);
   const [resent, setResent] = useState(false);
   const action = useAction();
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const ready = !!name.trim() && validEmail(email) && password.length >= 8;
 
   const signUp = () =>
     action.run(async () => {
@@ -80,9 +83,23 @@ export function Register() {
             subtitle={t("Kami kirim tautan verifikasi ke emailmu.", "We'll send a verification link to your email.")}
           />
           <View style={{ gap: 14 }}>
-            <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={100} />
+            <Field
+              label={t("Nama", "Name")}
+              value={name}
+              onChangeText={setName}
+              autoComplete="name"
+              autoCapitalize="words"
+              maxLength={100}
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => emailRef.current?.focus()}
+            />
             <Field
               label="Email"
+              inputRef={emailRef}
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => passwordRef.current?.focus()}
               value={email}
               onChangeText={setEmail}
               autoComplete="email"
@@ -94,6 +111,11 @@ export function Register() {
             />
             <PasswordField
               label={t("Kata sandi", "Password")}
+              inputRef={passwordRef}
+              returnKeyType="go"
+              onSubmitEditing={() => {
+                if (ready) void signUp();
+              }}
               showA11y={t("Tampilkan kata sandi", "Show password")}
               hideA11y={t("Sembunyikan kata sandi", "Hide password")}
               value={password}
@@ -112,7 +134,7 @@ export function Register() {
             <Button
               label={t("Daftar & verifikasi email", "Sign up & verify email")}
               busy={action.busy}
-              disabled={!name.trim() || !validEmail(email) || password.length < 8}
+              disabled={!ready}
               onPress={() => void signUp()}
             />
           </View>

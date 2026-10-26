@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router, useIsFocused } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { nativeLayout } from "@catera/design-tokens";
 import { shortDate, type Subscription } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
 import { Button, fontFor, Photo, Text, themedStyles, useColors, cardEdge } from "@catera/mobile-ui";
@@ -114,7 +115,7 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.line,
-    borderRadius: 20,
+    borderRadius: nativeLayout.radius.card,
     borderCurve: "continuous",
     padding: 16,
     gap: 12,

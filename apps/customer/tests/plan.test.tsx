@@ -194,6 +194,23 @@ describe("Plan detail states", () => {
     expect(nativeTitle()).toBe("Paket Makan Siang Rumahan Sehat Sekeluarga Lima Hari Kerja…");
   });
 
+  it("pulling down reads the plan again, and a page with no plan yet has no pull", async () => {
+    const runtime = runtimeWith(async () => planState());
+    renderPlan(runtime);
+    await screen.findByTestId("plan-hero");
+    const control = () => screen.getByTestId("screen-scroll").props.refreshControl;
+    expect(control()).toBeTruthy();
+    const before = (runtime.api.customer as jest.Mock).mock.calls.length;
+    await act(async () => void control().props.onRefresh());
+    await waitFor(() => expect((runtime.api.customer as jest.Mock).mock.calls.length).toBeGreaterThan(before));
+  });
+
+  it("a failed first read has no pull to refresh, only Coba lagi", async () => {
+    renderPlan(runtimeWith(async () => { throw new Error("offline"); }));
+    await screen.findByRole("button", { name: "Coba lagi" });
+    expect(screen.getByTestId("screen-scroll").props.refreshControl).toBeUndefined();
+  });
+
   it("an active plan that is not due: native title, hero with days left, no footer action", async () => {
     renderPlan(runtimeWith(async () => planState()));
     // The package name is the screen's native title (Android's first content line; iOS's large title) and there is no

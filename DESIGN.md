@@ -1795,3 +1795,50 @@ These need a schema, an API or owner input (spec §4):
 - In dark, Beli's icon tiles and the Porsi stepper circles barely show against the card; the glyphs stay clear.
 - The Bantuan Paket list can show the same package name twice (two subscriptions of one package); add a date or the caterer to tell them apart.
 - iOS was not checked on a device (no Mac), including the stacked Hari rows' chevron and the v2 settings pressed tint.
+
+## Customer polish pass (October 26, 2026)
+
+A UX and visual-polish pass on the customer app, prompted by the Beranda Siang/Malam switch: it was hard to notice, slow, and gave little feedback. The evidence (screen recordings, timing logs, vibrator logs, the route walk) is under ignored `output/polish-2026-10-26/`. This section supersedes the status-line bullet of "Customer layout scale (October 2026), Beranda" where they differ.
+
+### The Siang/Malam status line (owner direction, October 26)
+
+- **Markers, not dots.** Each stop leads with the day arc's sun or moon, as a 36 marker beside the stop's two lines, so the stop stays one 40 row (`apps/customer/src/today/StatusStops.tsx`). Both wear the `markerIdle` ring (1.5) and glyph (18); the chosen meal is covered by the filled `markerActive` disc with its glyph in `onToggleActive`. The chosen label stays forest 700 and the tab says selected. The owner asked for this over a ring around the chosen stop: "retain the original design but instead of a plain circle we bring back the icons from the earlier version, ... align horizontally and show the correct state which one is active."
+- **Why the dot went.** The dot showed where a meal was in its day (now, next, done, none). The filled, haloed "now" dot often sat on the meal that was *not* chosen, so it read as the selected radio button while the real selection was only forest against charcoal (#163D2E against #2E2E2E). Where the meal is now lives in the state line's words ("Sedang diantar", "Sudah sampai"). `stopStatus.ts` is gone.
+- **Motion.** The disc fades in and out over `control` (200ms) on the Catera ease when the choice changes, never on mount, and changes at once under reduced motion (`useChoiceFade`, `apps/customer/src/selectionRing.tsx`). The track's margins are back to 8.
+- **Narrow widths.** Below an effective width of 300 (`STOPS_STACK_BELOW`; 360dp at font scale 1.3 is 277) the stops stack, one under the other, 8 apart, with no track. Side by side they broke words ("2 pengant-aran", "17.0-0–19.00"). At 412dp and 1.3 (317) each label wraps between the meal and its window.
+- **Jelajah's meal segment.** The chosen pill is a `surface` fill inside the 1.5 forest ring (it was the ring alone on `inputFill`), drawn by `SelectionRing` over the pill, so it fades on the same curve instead of snapping. The pill's own transparent border keeps its size. The chosen pill gives no press feedback.
+
+### Why the switch was slow, and what changed
+
+Measured on the Pixel 8 API 36 emulator, Expo Go, dev JS, the 8-plan demo customer, 10 switches each, from the tap to Beranda's commit and to its next frame:
+
+| | commit | next frame |
+| --- | --- | --- |
+| before | 554–751ms | 825–1406ms (median about 1050) |
+| after | 189–549ms (median about 240) | 278–903ms (median about 345) |
+
+The causes, in the order they cost:
+1. **The hero was rebuilt on every switch.** Beranda rendered only the chosen meal's hero, keyed by meal, so a switch unmounted one hero (or pager) and mounted the other: photo, tracker (about 30 Reanimated styles each) and pager measurement. Now both meals' heroes stay mounted (`MealHero` in `Beranda.tsx`) and the other one sits offstage: absolute, opacity 0, `pointerEvents="none"`, hidden from screen readers. Not `display: "none"`, which Fabric does not mount, so showing it would build every view at the tap. The other meal's hero mounts just after the first paint in a transition, so its photo is already loaded by the first switch. Whether a hero is shown reaches its plates through `HeroShown` context, so a switch renders only the journey-seen count; `Plate` is memoised. journey_viewed still counts only a hero on screen.
+2. **Readers of mood-invariant colours re-rendered.** Under palette K every mood key except `header` is the same in Siang and Malam. `useMoodInks()` (`packages/mobile-ui/src/mood.tsx`) reads those keys without subscribing to the mood; Plate, RantangTrack, Jadwal, MonthGrid, Akun and SignInFirst use it. The hidden tabs no longer re-render for a switch: Jadwal cost 118ms, Akun 32ms per switch (dev). `tests/native-mood-invariant.test.ts` fails if a palette ever tints one of those keys by mood.
+3. **Sections that do not depend on the meal rendered again.** The day's derived reads (plates, upcoming days, plans, recaps, tomorrow's story) are memoised on the read and the minute, and the live slot, Berikutnya, Paket kamu and the recap card are memoised.
+
+The switch stays synchronous: the band and the page change in one render, as GC-F18 ruled. No deferred mood was reintroduced.
+
+### Haptics on Android
+
+`useHaptic` (`packages/mobile-ui/src/motion/useHaptic.ts`, both apps) plays Android's own view feedback: `select` is the segment tick (Android 14+), falling back to the clock tick; `tap` is the virtual-key click. expo-haptics' `selectionAsync` and `impactAsync` drove the vibrator directly instead, a 50ms buzz at 12% amplitude that is hard to feel and ignores the system's touch-feedback setting (the emulator's vibrator log showed `amplitude=0.12`; after, `performHapticFeedback(constant=26)`, a prebaked tick with `usage: TOUCH`). iOS keeps its feedback generators; `success` and `warning` are unchanged.
+
+### Smaller fixes from the audit
+
+- Disabled actions now say why, as a `meta` line and the button's hint: Pilih menu ("Lengkapi semua hidangan dulu."), Ada masalah ("Pilih apa yang terjadi dulu."), the Bantuan forms, Beli when no payment method is available ("Pembayaran belum tersedia. Coba lagi nanti."), and Ubah hari when no other address is in the delivery area. `StickyAction` takes an optional `hint`.
+- Bayar: the "cek status" notice is a polite live region (announced on iOS), "Salin nomor" toasts "Nomor disalin", and each failed action names what failed. Beli, Bayar and Klaim guard against a double tap with `useBusy`.
+- Screen readers: the `Field` label is no longer read twice and its error is announced; `ReadError` is announced; package tiles read price and meta; unread notifications say "Belum dibaca"; settings rows read their supporting line; the Stepper reads its count; the package name is a header; the Jadwal month title is a live region.
+- Forms: Masuk and Daftar chain the return key to the next field and submit; name fields capitalise words; the address street and instructions fields are multi-line from the top.
+- From the device gate: list cards (`ListCard`) are a new native view per theme, because on Android a clipped card that lost its light edge and shadow on a live theme flip stopped drawing its rows (Akun and Beli went blank in dark). Beli's total is always labelled, because Android keeps a label that goes back to undefined (the price was read as "Belum ada harga"). Bantuan asked the action feed for 50 items against the server's 20 and failed on every visit; it asks for 20 and `tests/customer-actions-limit.test.ts` holds every native client to the bound. Ubah hari opens on the month of the first free day when the delivery's own month has none left. Bayar (demo) stays busy until the paid read lands, so the success beat follows at once.
+- Smaller: Pilih menu's month arrows are 44 chevrons like Jadwal's; plan detail pulls to refresh; Paket saya's empty state offers "Jelajah paket"; the recap card uses the card radius 16; dates and counts use tabular figures; Jelajah hides the keyboard on scroll and does not autocorrect a search; the Bantuan report toast shows after its sheet closes; Riwayat no longer shows "Belum ada pembayaran." under a read error.
+
+### Not verified
+
+- Production-JS timing: Expo Go keeps a production bundle per project across Metro ports and `--clear`, so a before/after pair could not be isolated without wiping Expo Go's data. The numbers above are dev JS on one emulator; the release figure from gate g-c-14 (0.22–0.35s for the old swap) is the last production measurement.
+- A live TalkBack pass: adb-injected taps, swipes and key chords do not drive TalkBack on this emulator. Labels, roles and selected states are checked in Jest and in uiautomator dumps.
+- iOS (no Mac).

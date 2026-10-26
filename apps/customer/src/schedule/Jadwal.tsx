@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { addDays, calendarDays, jakartaDay, type CustomerState } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { FadeSwap, MoodHeader, PressableScale, ReadError, Screen, StateArt, Text, useMoodColors } from "@catera/mobile-ui";
+import { FadeSwap, MoodHeader, PressableScale, ReadError, Screen, StateArt, Text, useMoodInks } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { usePullToRefresh } from "../refresh";
 import { JadwalCellsSkeleton } from "../skeletons";
@@ -41,12 +41,12 @@ function MonthBar({
   children: ReactNode;
 }) {
   const { locale } = useMobile();
-  const mood = useMoodColors();
+  const mood = useMoodInks();
   return (
     <MoodHeader
       testID={testID}
       meta={
-        <Text variant="heroTitle" style={{ color: mood.headerText }}>
+        <Text variant="heroTitle" accessibilityLiveRegion="polite" style={{ color: mood.headerText }}>
           {monthTitle(month, locale)}
         </Text>
       }
@@ -83,7 +83,7 @@ export function Jadwal() {
 
 function SignedInJadwal() {
   const { runtime, t, locale } = useMobile();
-  const mood = useMoodColors();
+  const mood = useMoodInks();
   const now = new Date();
   const today = jakartaDay(now);
   const [month, setMonth] = useState(monthOf(today));

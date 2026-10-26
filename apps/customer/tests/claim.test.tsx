@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { ActivityIndicator, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -150,6 +150,27 @@ it("a refused claim ends in the plain message and never on Beranda", async () =>
   expect(await screen.findByText("Tautan ini tidak bisa dipakai. Minta tautan baru ke kateringmu.")).toBeTruthy();
   expect(screen.queryByText(/Dapur Contoh/)).toBeNull();
   expect(router.replace).not.toHaveBeenCalled();
+});
+
+it("a double tap on Sambungkan langganan verifies the code once", async () => {
+  const { runtime, verifyPhoneOtp } = runtimeWith();
+  let release: (v: unknown) => void = () => undefined;
+  verifyPhoneOtp.mockImplementation(() => new Promise((resolve) => (release = resolve)) as never);
+  renderRoute(runtime);
+  fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" }));
+  fireEvent.changeText(screen.getByLabelText("Nomor HP"), "081234500001");
+  fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+  fireEvent.changeText(await screen.findByLabelText("Kode"), "123456");
+  fireEvent.changeText(screen.getByLabelText("Namamu"), "Andre");
+  const connect = screen.getByRole("button", { name: "Sambungkan langganan" });
+  // Two presses before the first has re-rendered the screen.
+  await act(async () => {
+    fireEvent.press(connect);
+    fireEvent.press(connect);
+  });
+  expect(verifyPhoneOtp).toHaveBeenCalledTimes(1);
+  release(customer);
+  await act(async () => {});
 });
 
 it("a wrong SMS code keeps the customer on the code step", async () => {

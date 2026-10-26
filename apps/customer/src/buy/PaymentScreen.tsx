@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AppState, BackHandler, Text as RNText, View } from "react-native";
+import { AccessibilityInfo, AppState, BackHandler, Text as RNText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useNavigation } from "expo-router/react-navigation";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, paidSummary, type Checkout, type CustomerState, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, fontFor, FormError, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, FormError, Screen, Text, themedStyles, useBusy, useColors, useToast } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FLOW_HREF, goToTab } from "../nav";
 import { firstPaidPlan, PaidActions, PaidBeat } from "./PaidOutcome";
@@ -26,6 +26,11 @@ function isUserBack(action: { type: string; source?: string }) {
   return action.type === "GO_BACK" || (action.type === "POP" && !!action.source);
 }
 const tabular = { fontVariant: ["tabular-nums" as const] };
+
+/** iOS has no live regions: the "nothing came in yet" answer is spoken when it appears (Android reads the live region). */
+export function announceNotice(text: string, os = process.env.EXPO_OS) {
+  if (os === "ios") AccessibilityInfo.announceForAccessibility(text);
+}
 
 const clock = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -75,6 +80,10 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   const [failures, setFailures] = useState(0);
   // What the customer's own "cek status" found while the payment is still open.
   const [notice, setNotice] = useState("");
+  useEffect(() => {
+    if (notice) announceNotice(notice);
+  }, [notice]);
+  const toast = useToast();
   const [method, setMethod] = useState<DirectPaymentMethod | null>(null);
   const qris = useQris();
   const summary = c ? paidSummary(c) : null;
@@ -177,20 +186,29 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       );
   }
 
-  async function run(work: () => Promise<unknown>, which = "work") {
-    if (waiting) return;
+  /** What a failed action says when the server gave no reason of its own: the line names the action that failed. */
+  const failed: Record<string, string> = {
+    check: t("Belum bisa mengecek pembayaran. Coba lagi.", "Couldn't check the payment. Try again."),
+    qr: t("Belum bisa menyimpan gambar QR. Coba lagi.", "Couldn't save the QR image. Try again."),
+    start: t("Belum bisa menampilkan cara bayar. Coba lagi.", "Couldn't show how to pay. Try again."),
+    demo: t("Belum bisa menyelesaikan pembayaran uji. Coba lagi.", "Couldn't finish the test payment. Try again."),
+    page: t("Belum bisa membuka halaman pembayaran. Coba lagi.", "Couldn't open the payment page. Try again."),
+  };
+  // The ref inside `useBusy` drops a second press that lands before `waiting` has re-rendered; `waiting` still says
+  // which button shows the spinner.
+  const [, run] = useBusy(async (work: () => Promise<unknown>, which: string = "check") => {
     setWaiting(which);
     setError("");
     try {
       await work();
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
-      setError(errorLabel(code, locale) || t("Belum bisa mengecek pembayaran. Coba lagi.", "Couldn't check the payment. Try again."));
+      setError(errorLabel(code, locale) || failed[which] || failed.check);
       setFailures((n) => n + 1);
     } finally {
       setWaiting("");
     }
-  }
+  });
 
   // One native title over every state, paid included: the success beat is the one heading that names the payment.
   const title = t("Bayar", "Pay");
@@ -323,7 +341,16 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
               {instructions.accountNumber}
             </RNText>
             <Text variant="caption">{instructions.accountName}</Text>
-            <Button variant="secondary" label={t("Salin nomor", "Copy number")} onPress={() => void Clipboard.setStringAsync(instructions.accountNumber)} />
+            <Button
+              variant="secondary"
+              label={t("Salin nomor", "Copy number")}
+              onPress={() =>
+                void Clipboard.setStringAsync(instructions.accountNumber).then(
+                  () => toast.show({ message: t("Nomor disalin", "Number copied"), tone: "success" }),
+                  () => toast.show({ message: t("Belum bisa menyalin nomor. Coba lagi.", "Couldn't copy the number. Try again."), tone: "error" }),
+                )
+              }
+            />
           </Card>
         ) : null}
         {instructions ? (
@@ -353,7 +380,14 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
           <Button
             label={t("Bayar (demo)", "Pay (demo)")}
             busy={waiting === "demo"}
-            onPress={() => void run(() => command("checkout.demo_pay", { id: c.id }), "demo")}
+            // Busy until the paid read lands, so the button spins and the success beat follows at once instead of seconds
+            // later on the next read (gate F06).
+            onPress={() =>
+              void run(async () => {
+                await command("checkout.demo_pay", { id: c.id });
+                await reload();
+              }, "demo")
+            }
           />
         ) : null}
         {!direct && !demo && c.payment_url ? (
@@ -370,9 +404,12 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         ) : null}
         {error ? <FormError message={error} failureKey={failures} /> : null}
         {notice && !error ? (
-          <Text style={{ fontFamily: fontFor("700") }} testID="payment-notice">
-            {notice}
-          </Text>
+          // A polite live region, so the answer to "cek status" is read out and not only drawn below the fold.
+          <View accessibilityLiveRegion="polite">
+            <Text style={{ fontFamily: fontFor("700") }} testID="payment-notice">
+              {notice}
+            </Text>
+          </View>
         ) : null}
 
         <Card tone="sage">

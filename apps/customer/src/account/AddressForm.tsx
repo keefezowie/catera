@@ -306,6 +306,8 @@ function Form({
         onChangeText={(line) => set({ line })}
         multiline
         maxLength={300}
+        autoComplete="street-address"
+        style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
       />
       <Text variant="label">{t("Area", "Area")}</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -321,6 +323,7 @@ function Form({
         onChangeText={(instructions) => set({ instructions })}
         multiline
         maxLength={300}
+        style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
       />
       <Text variant="caption">
         {t(

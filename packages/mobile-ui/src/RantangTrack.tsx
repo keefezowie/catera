@@ -13,7 +13,7 @@ import { useMobile } from "@catera/mobile-core";
 import { Rantang } from "./brand/Rantang";
 import { StopGlyph, type StopGlyphName } from "./brand/StopGlyphs";
 import { Text } from "./components";
-import { useMoodColors } from "./mood";
+import { useMoodInks } from "./mood";
 import { useReduced } from "./motion";
 
 export type TrackStage = "scheduled" | "preparing" | "out_for_delivery" | "arrived_unconfirmed" | "delivered" | "issue";
@@ -155,7 +155,7 @@ export function RantangTrack({
 }) {
   const dims: Dims = SIZES[size];
   const compact = size === "compact";
-  const ink = useMoodColors();
+  const ink = useMoodInks();
   const reduced = useReduced();
   const mobile = useMobile();
   const t = mobile?.t ?? fallbackT;
@@ -430,7 +430,7 @@ function TrackStop({
   dims: Dims;
   testID: string;
 }) {
-  const ink = useMoodColors();
+  const ink = useMoodInks();
   const { disc: DISC, ring: RING, glyph: GLYPH } = dims;
   const layer = layerOf(DISC);
   const last = index === LAST;

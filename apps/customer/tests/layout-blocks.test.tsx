@@ -122,6 +122,27 @@ describe("layout blocks", () => {
     expect(flat(screen.getAllByTestId("list-card-separator")[0]).height).toBe(1);
   });
 
+  it("ListCard is a new native view when the theme flips, so Android draws its rows again (gate F01)", async () => {
+    const ReactNative = require("react-native");
+    const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    const { ThemeProvider } = require("@catera/mobile-ui");
+    const ui = () => (
+      <ThemeProvider storageKey="list-card-flip-test">
+        <ListCard>
+          <Text>a</Text>
+        </ListCard>
+      </ThemeProvider>
+    );
+    const view = render(ui());
+    const light = await screen.findByTestId("list-card");
+    scheme.mockReturnValue("dark");
+    view.rerender(ui());
+    const dark = await screen.findByTestId("list-card");
+    expect(dark).not.toBe(light);
+    expect(flat(dark).backgroundColor).toBe(nativeThemes.dark.surface);
+    scheme.mockRestore();
+  });
+
   it("ListCard with one child has no separator", () => {
     render(
       <ListCard>

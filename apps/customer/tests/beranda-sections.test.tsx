@@ -319,6 +319,33 @@ describe("the other meal's stop", () => {
     expect(within(screen.getByTestId("hero-pager")).queryByTestId("status-stops")).toBeNull();
   });
 
+  it("keeps each stop as wide as its words, with the track taking the rest, on a phone with room", async () => {
+    const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style);
+    pin(morningOf(DEMO_TODAY));
+    mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
+    await screen.findByTestId("plate-hero");
+    expect(flatOf("status-stop-lunch")).toMatchObject({ flexShrink: 1 });
+    expect(flatOf("status-stop-lunch").flex).toBeUndefined();
+    expect(flatOf("status-stops-track")).toMatchObject({ flex: 1 });
+  });
+
+  it("stacks the two stops at full width, with no track, when the text is large on a narrow phone, so no word breaks", async () => {
+    // 360dp at font scale 1.3 (277 effective): side by side, "pengantaran" and "17.00–19.00" broke mid-word.
+    mockWindow = { width: 360, height: 780, scale: 3, fontScale: 1.3 };
+    try {
+      pin(morningOf(DEMO_TODAY));
+      mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
+      await screen.findByTestId("plate-hero");
+      expect(StyleSheet.flatten(screen.getByTestId("status-stops").props.style)).toMatchObject({ alignItems: "flex-start", gap: 8 });
+      expect(StyleSheet.flatten(screen.getByTestId("status-stops").props.style).flexDirection).toBeUndefined();
+      expect(screen.queryByTestId("status-stops-track")).toBeNull();
+      // Still one tablist of two tabs.
+      expect(screen.getAllByRole("tab", { name: /^Makan (siang|malam), / })).toHaveLength(2);
+    } finally {
+      mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+    }
+  });
+
   it("says the lunches should have arrived once their window is past, in place of the count", async () => {
     pin(eveningOf(DEMO_TODAY));
     mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });

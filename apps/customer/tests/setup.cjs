@@ -27,13 +27,25 @@ jest.mock("expo-image", () => {
   Image.loadAsync = jest.fn((source) => Promise.resolve({ __ref: source }));
   return { Image };
 });
-jest.mock("expo-haptics", () => ({
-  impactAsync: jest.fn(() => Promise.resolve()),
-  selectionAsync: jest.fn(() => Promise.resolve()),
-  notificationAsync: jest.fn(() => Promise.resolve()),
-  ImpactFeedbackStyle: { Light: "light" },
-  NotificationFeedbackType: { Success: "success", Warning: "warning" },
-}));
+// On Android `useHaptic` plays the view's own feedback (`performAndroidHapticsAsync`). The stand-in hands a choice tick
+// to `selectionAsync` and a key click to `impactAsync`, so a test asserts which kind of feedback fired, whatever the
+// platform; `packages/mobile-ui` tests the platform mapping itself (apps/customer/tests/haptics.test.ts).
+jest.mock("expo-haptics", () => {
+  const impactAsync = jest.fn(() => Promise.resolve());
+  const selectionAsync = jest.fn(() => Promise.resolve());
+  const AndroidHaptics = { Segment_Tick: "segment-tick", Clock_Tick: "clock-tick", Virtual_Key: "virtual-key" };
+  return {
+    impactAsync,
+    selectionAsync,
+    notificationAsync: jest.fn(() => Promise.resolve()),
+    performAndroidHapticsAsync: jest.fn((type) =>
+      type === AndroidHaptics.Virtual_Key ? impactAsync("light") : selectionAsync(),
+    ),
+    AndroidHaptics,
+    ImpactFeedbackStyle: { Light: "light" },
+    NotificationFeedbackType: { Success: "success", Warning: "warning" },
+  };
+});
 // lottie-react-native draws through a native view. The stand-in is a host View that keeps every prop, so a test reads
 // the `source`, `loop` and `autoPlay` it was given.
 jest.mock("lottie-react-native", () => {

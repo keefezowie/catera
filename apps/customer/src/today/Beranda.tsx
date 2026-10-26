@@ -1,4 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { AccessibilityInfo, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
@@ -31,8 +40,7 @@ import {
 import type { Mood } from "@catera/design-tokens";
 import { EmptyHome, EmptyHomeBody, EmptyHomeHeader, type HomeCatalog } from "./EmptyHome";
 import { HERO_BAND_OVERLAP, HERO_BAND_RISE } from "./heroBand";
-import { Plate, stateLabel, statementFor } from "./Plate";
-import { stopStatuses } from "./stopStatus";
+import { HeroShown, Plate, stateLabel, statementFor } from "./Plate";
 import { StatusStops, StatusStopsPlaceholder, type StopInfo } from "./StatusStops";
 import { RecapCard } from "./RecapCard";
 import { StaleCopy } from "../staleCopy";
@@ -197,7 +205,7 @@ const NEEDS_YOU: PlateData["state"][] = ["due", "on_the_way", "failed"];
  * way, or failed), that plate's state, so "needs you now" stays visible behind the mood. The actions are one tap away,
  * on the hero.
  */
-function stopFor(plates: PlateData[], chosen: boolean, t: Translate): Omit<StopInfo, "status"> {
+function stopFor(plates: PlateData[], chosen: boolean, t: Translate): StopInfo {
   if (!plates.length) return { window: null, state: t("Tidak ada", "None") };
   const first = plates[0];
   const waiting = plates.find((p) => NEEDS_YOU.includes(p.state));
@@ -209,6 +217,11 @@ function stopFor(plates: PlateData[], chosen: boolean, t: Translate): Omit<StopI
   return { window: plates.length === 1 ? first.window || null : null, state };
 }
 
+/** Tomorrow's deliveries in the story's order: its block in Berikutnya opens the story at the part it shows. */
+function tomorrowOf(story: ReturnType<typeof tomorrowStory>) {
+  return story ? { date: story.date, parts: story.parts } : null;
+}
+
 function SignedInHome({ actorId }: { actorId: string }) {
   const { runtime, t, locale } = useMobile();
   const { mood } = useMood();
@@ -217,15 +230,36 @@ function SignedInHome({ actorId }: { actorId: string }) {
   // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
   const actions = useData("home:actions", () => runtime.api.customerActions(20));
   // The pager's card in view, per meal, so a mood switch never counts the other meal's card as seen.
-  const [page, setPage] = useState<{ meal: string; index: number }>({ meal: "", index: 0 });
+  const [pages, setPages] = useState<Record<Meal, number>>({ lunch: 0, dinner: 0 });
   // Whether the "Paket selesai" recap is on the page (undefined while it reads its seen marks). Its food photo is never
   // next to a mascot: the waving one on an empty Beranda and the resting one on a quiet day stay out while it shows.
   const [recapShown, setRecapShown] = useState<boolean | undefined>(undefined);
   const state = home.data?.data;
-  const now = new Date();
-  const plates = state ? todayPlates(state, now) : [];
-  const days = state ? upcomingDays(state, now, 3, locale) : [];
-  const plans = state ? activePlans(state) : null;
+  // Everything read from the day is the same for both meals: it is worked out when the read changes or the minute turns,
+  // never again for a switch.
+  const minute = Math.floor(Date.now() / 60_000);
+  const day = useMemo(() => {
+    const now = new Date();
+    const plates = state ? todayPlates(state, now) : [];
+    return {
+      now,
+      plates,
+      byMeal: mealPlates(plates),
+      days: state ? upcomingDays(state, now, 3, locale) : [],
+      plans: state ? activePlans(state) : null,
+      recaps: state ? recapCandidates(state, now) : [],
+      tomorrow: tomorrowOf(state ? tomorrowStory(state, now, locale) : null),
+    };
+    // `minute` re-reads the clock once a minute; the read itself is `state`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, minute, locale]);
+  // The other meal's hero mounts just after the first paint, as an interruptible transition, so its first switch is as
+  // quick as the next ones (its photo is already on the phone, too).
+  const [warm, setWarm] = useState(false);
+  useEffect(() => {
+    if (state && !warm) startTransition(() => setWarm(true));
+  }, [state, warm]);
+  const { now, plates, days, plans } = day;
   // Nothing today, nothing coming and no running plan: Beranda invites the customer to pick a package instead.
   const empty = !!state && !plates.length && !days.length && !plans?.count;
   // The suggested packages are read together with the first home read, so a customer with nothing running waits on one
@@ -284,8 +318,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
   }
 
   // Plans that ended lately and were not renewed; the card itself checks whether its recap was already seen.
-  const recaps = recapCandidates(state, now);
-  const recap = recaps.length ? <RecapCard candidates={recaps} onShownChange={setRecapShown} /> : null;
+  const recap = day.recaps.length ? <RecapCardM candidates={day.recaps} onShownChange={setRecapShown} /> : null;
   painted.current = true;
   if (empty)
     return (
@@ -300,20 +333,17 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const savedAt = home.data?.savedAt;
 
   const today = jakartaDay(now);
-  const meal = mood === "siang" ? "lunch" : "dinner";
-  const byMeal = mealPlates(plates);
+  const { byMeal } = day;
+  // The mood switches the page in the same render as the band (a deferred page swap was slower on the release build,
+  // gate g-c-14); what makes it quick is that nothing under the band is built again for a switch.
+  const meal: Meal = mood === "siang" ? "lunch" : "dinner";
   const heroPlates = byMeal[meal];
   const otherPlates = byMeal[meal === "lunch" ? "dinner" : "lunch"];
   const statement = statementLine(heroPlates, mood, t);
-  // At most one stop is "now": the earlier meal while it is under way (see stopStatuses).
-  const dots = stopStatuses(byMeal.lunch, byMeal.dinner);
   const stops = {
-    lunch: { ...stopFor(byMeal.lunch, meal === "lunch", t), status: dots.lunch },
-    dinner: { ...stopFor(byMeal.dinner, meal === "dinner", t), status: dots.dinner },
+    lunch: stopFor(byMeal.lunch, meal === "lunch", t),
+    dinner: stopFor(byMeal.dinner, meal === "dinner", t),
   };
-  // Tomorrow's deliveries in the story's order: its block in Berikutnya opens the story at the part it shows.
-  const story = tomorrowStory(state, now, locale);
-  const tomorrow = story ? { date: story.date, parts: story.parts } : null;
   const next = days[0];
   const nextLabel = next?.label ?? "";
   // "Berikutnya" names a later day, so it is only true when nothing else is left today.
@@ -322,8 +352,6 @@ function SignedInHome({ actorId }: { actorId: string }) {
     !heroPlates.length && !laterToday && next
       ? t(`Berikutnya ${nextLabel}`, `Next ${nextLabel}`)
       : dayLabel(today, today, locale);
-  const mealName = meal === "lunch" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
-  const inView = page.meal === meal ? page.index : 0;
 
   return (
     <Screen
@@ -350,46 +378,24 @@ function SignedInHome({ actorId }: { actorId: string }) {
         {!plates.length && !days.length && (!recap || recapShown !== true) ? (
           <StateArt pose="tidur" held={!!recap && recapShown === undefined} />
         ) : null}
-        {heroPlates.length > 1 ? (
-          // Several deliveries of the chosen meal: equal heroes, one at a time, the next one peeking.
-          <HeroPager
-            key={`pager:${meal}`}
-            count={heroPlates.length}
-            // TalkBack reads "Makan siang, 1 dari 2, Dapur Senja": the meal names the control, and the position with the
-            // card's kitchen is its value, which the platform speaks again after each move.
-            accessibilityLabelFor={() => mealName}
-            accessibilityValueFor={(i) =>
-              t(
-                `${i + 1} dari ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
-                `${i + 1} of ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
-              )
-            }
-            counterLabel={(i) => t(`${i + 1} dari ${heroPlates.length}`, `${i + 1} of ${heroPlates.length}`)}
-            onIndexChange={(index) => setPage({ meal, index })}
-          >
-            {heroPlates.map((p, i) => (
-              <Plate
-                key={`${p.deliveryId}:${p.meal}`}
-                variant="hero"
-                counted={i === inView}
-                plate={p}
-                apiBase={runtime.apiBase}
-                offline={!!savedAt}
-                delivery={savedAt ? undefined : state.deliveries.find((d) => d.id === p.deliveryId)}
-              />
-            ))}
-          </HeroPager>
-        ) : heroPlates.length ? (
-          // One frame for the hero whichever meal it shows, so its fill cross-fades when the mood switches.
-          <Plate
-            key="hero"
-            variant="hero"
-            plate={heroPlates[0]}
-            apiBase={runtime.apiBase}
-            offline={!!savedAt}
-            delivery={savedAt ? undefined : state.deliveries.find((d) => d.id === heroPlates[0].deliveryId)}
-          />
-        ) : null}
+        {/* Both meals' heroes stay mounted and a switch only shows the other one, so it lands at once, photo included:
+            nothing is built, measured or downloaded at the tap. The hidden one is out of the layout and out of the
+            screen reader's reach, and its journey is never counted as seen. */}
+        {MEALS.map((m) =>
+          m === meal || warm ? (
+            <MealHero
+              key={m}
+              meal={m}
+              plates={byMeal[m]}
+              visible={m === meal}
+              inView={pages[m]}
+              onPage={setPages}
+              state={state}
+              savedAt={savedAt}
+              apiBase={runtime.apiBase}
+            />
+          ) : null,
+        )}
         {/* Mounted whatever the page shows: the banner reads the phone's connection itself and appears only offline,
             with the time of the copy on screen; when the phone is back it reads again. It follows the hero, which rides
             up over the header. */}
@@ -406,10 +412,104 @@ function SignedInHome({ actorId }: { actorId: string }) {
             "Couldn't load the menus waiting for a choice. Check your connection and try again.",
           )} onRetry={() => void actions.reload()} />
         ) : null}
-        <LiveSlot state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
-        <UpcomingDays days={days} apiBase={runtime.apiBase} tomorrow={tomorrow} />
-        <PlansRow subscriptions={state.subscriptions} today={today} apiBase={runtime.apiBase} />
+        <LiveSlotM state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
+        <UpcomingDaysM days={days} apiBase={runtime.apiBase} tomorrow={day.tomorrow} />
+        <PlansRowM subscriptions={state.subscriptions} today={today} apiBase={runtime.apiBase} />
       </FadeSwap>
     </Screen>
   );
 }
+
+type Meal = "lunch" | "dinner";
+const MEALS = ["lunch", "dinner"] as const satisfies readonly Meal[];
+
+// The sections under the hero do not depend on the meal, so a switch does not render them again.
+const LiveSlotM = memo(LiveSlot);
+const UpcomingDaysM = memo(UpcomingDays);
+const PlansRowM = memo(PlansRow);
+const RecapCardM = memo(RecapCard);
+
+/**
+ * The other meal's hero: laid over the shown one at no opacity, out of the flow (no gap, no height), untouchable and out
+ * of the screen reader's tree. Not `display: "none"`: Fabric does not mount a hidden subtree, so showing it would create
+ * every photo and tracker view at the tap; this way a switch only changes two styles.
+ */
+const OFFSTAGE = { position: "absolute", top: 0, left: 0, right: 0, opacity: 0 } as const;
+
+/**
+ * One meal's hero: a pager when the meal has several deliveries today, else one hero card, else nothing. Hidden, it stays
+ * mounted offstage (see `OFFSTAGE`), out of the layout and out of the screen reader's tree. Whether it is
+ * shown reaches the plates through `HeroShown`, so a switch re-renders only their journey count; `Plate` is memoised.
+ */
+const MealHero = memo(function MealHero({
+  meal,
+  plates,
+  visible,
+  inView,
+  onPage,
+  state,
+  savedAt,
+  apiBase,
+}: {
+  meal: Meal;
+  plates: PlateData[];
+  visible: boolean;
+  inView: number;
+  onPage: Dispatch<SetStateAction<Record<Meal, number>>>;
+  state: CustomerState;
+  savedAt: string | null | undefined;
+  apiBase: string;
+}) {
+  const { t } = useMobile();
+  if (!plates.length) return null;
+  const mealName = meal === "lunch" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
+  const frame = {
+    testID: `hero-${meal}`,
+    style: visible ? null : OFFSTAGE,
+    pointerEvents: visible ? ("auto" as const) : ("none" as const),
+    accessibilityElementsHidden: !visible,
+    importantForAccessibility: visible ? ("auto" as const) : ("no-hide-descendants" as const),
+  };
+  const deliveryOf = (p: PlateData) => (savedAt ? undefined : state.deliveries.find((d) => d.id === p.deliveryId));
+  if (plates.length === 1)
+    return (
+      <View {...frame}>
+        <HeroShown value={visible}>
+          <Plate variant="hero" plate={plates[0]} apiBase={apiBase} offline={!!savedAt} delivery={deliveryOf(plates[0])} />
+        </HeroShown>
+      </View>
+    );
+  // Several deliveries of the meal: equal heroes, one at a time, the next one peeking.
+  return (
+    <View {...frame}>
+      <HeroShown value={visible}>
+        <HeroPager
+          count={plates.length}
+          // TalkBack reads "Makan siang, 1 dari 2, Dapur Senja": the meal names the control, and the position with the
+          // card's kitchen is its value, which the platform speaks again after each move.
+          accessibilityLabelFor={() => mealName}
+          accessibilityValueFor={(i) =>
+            t(
+              `${i + 1} dari ${plates.length}, ${plates[i]?.catererName ?? ""}`,
+              `${i + 1} of ${plates.length}, ${plates[i]?.catererName ?? ""}`,
+            )
+          }
+          counterLabel={(i) => t(`${i + 1} dari ${plates.length}`, `${i + 1} of ${plates.length}`)}
+          onIndexChange={(index) => onPage((pages) => ({ ...pages, [meal]: index }))}
+        >
+          {plates.map((p, i) => (
+            <Plate
+              key={`${p.deliveryId}:${p.meal}`}
+              variant="hero"
+              counted={i === inView}
+              plate={p}
+              apiBase={apiBase}
+              offline={!!savedAt}
+              delivery={deliveryOf(p)}
+            />
+          ))}
+        </HeroPager>
+      </HeroShown>
+    </View>
+  );
+});

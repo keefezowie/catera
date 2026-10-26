@@ -1091,6 +1091,26 @@ describe("Ubah hari sheet", () => {
     expect(screen.getByRole("button", { name: "Pindah ke Senin 12 Okt" }).props.accessibilityState.disabled).toBe(false);
   });
 
+  it("opens on the month of the first free day when the delivery's own month has none left (gate F04)", async () => {
+    const dates: Availability = [
+      { date: "2026-10-30", available: false, reason: "CAPACITY", remaining: 0 },
+      { date: "2026-11-04", available: true, reason: null, remaining: 4 },
+    ];
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), dates));
+    expect(await screen.findByTestId("calendar-day-2026-11-04")).toBeTruthy();
+    expect(screen.getByTestId("calendar-month").props.children).toMatch(/November/);
+  });
+
+  it("stays on the delivery's own month while it still has a free day", async () => {
+    const dates: Availability = [
+      { date: "2026-10-12", available: true, reason: null, remaining: 4 },
+      { date: "2026-11-04", available: true, reason: null, remaining: 4 },
+    ];
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), dates));
+    expect(await screen.findByTestId("calendar-day-2026-10-12")).toBeTruthy();
+    expect(screen.getByTestId("calendar-month").props.children).toMatch(/Oktober/);
+  });
+
   it("a day that is full cannot be chosen: its tap reads Penuh and the button stays off", async () => {
     const dates: Availability = [
       { date: "2026-10-12", available: true, reason: null, remaining: 4 },
@@ -1174,6 +1194,17 @@ describe("Ubah hari sheet", () => {
     );
     const button = await screen.findByRole("button", { name: "Pilih alamat" });
     expect(button.props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByTestId("address-none")).toHaveTextContent("Belum ada alamat lain di area antar. Tambah di Akun, Alamat.");
+  });
+
+  it("explains an empty address choice only when no saved address can be chosen", async () => {
+    const view = renderWith(runtimeWith(stateOf([flexible]), available), <ChangeDaySheet delivery={flexible} addresses={[home, rumah, jauh]} mode="address" onClose={jest.fn()} />);
+    await screen.findByRole("button", { name: /Rumah/ });
+    expect(screen.queryByTestId("address-none")).toBeNull();
+    view.unmount();
+    renderWith(runtimeWith(stateOf([flexible]), available), <ChangeDaySheet delivery={flexible} addresses={[home]} mode="address" onClose={jest.fn()} />);
+    expect(await screen.findByTestId("address-none")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pilih alamat" }).props.accessibilityState.disabled).toBe(true);
   });
 
   it("scrolls the address list with the native sheet's own body, never a scroller inside it", async () => {

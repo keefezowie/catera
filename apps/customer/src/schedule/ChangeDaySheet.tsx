@@ -222,7 +222,14 @@ export function ChangeDaySheet({
     if (r.date === delivery.service_date) continue;
     days[r.date] = r.available ? { state: "available" } : { state: "unavailable", reason: calendarReason(r.reason) };
   }
+  // The calendar opens on the delivery's own month while that month still has a free day, and otherwise on the month of
+  // the first free one: late in a month every date there was struck and the free days hid behind the arrow (gate F04).
+  const ownMonth = delivery.service_date.slice(0, 7);
+  const free = Object.keys(days).filter((d) => days[d].state === "available").sort();
+  const openMonth = !free.length || free.some((d) => d.startsWith(ownMonth)) ? ownMonth : free[0].slice(0, 7);
   const chosen = addresses.find((a) => a.id === addressId);
+  // Every saved address is either this day's own or outside the delivery area: nothing to choose, and the sheet says why.
+  const noneToChoose = !addresses.some((a) => a.id !== delivery.address.id && delivery.offer.areas.includes(a.area));
   const label = chosen?.label || chosen?.line || "";
 
   /**
@@ -322,7 +329,7 @@ export function ChangeDaySheet({
               // The sheet's day-by-day calendar: a new day is chosen in the grid, and the button under it stays off
               // until one is.
               <CalendarPanel
-                month={delivery.service_date.slice(0, 7)}
+                month={openMonth}
                 days={days}
                 current={delivery.service_date}
                 onPick={() => setError("")}
@@ -355,6 +362,14 @@ export function ChangeDaySheet({
           {mode === "address" ? (
             <SheetFooter>
               {error ? <FormError message={error} failureKey={failures} /> : null}
+              {noneToChoose ? (
+                <Text testID="address-none" variant="meta">
+                  {t(
+                    "Belum ada alamat lain di area antar. Tambah di Akun, Alamat.",
+                    "No other address in the delivery area yet. Add one in Account, Addresses.",
+                  )}
+                </Text>
+              ) : null}
               <Button
                 label={chosen ? t(`Antar ke ${label}`, `Deliver to ${label}`) : t("Pilih alamat", "Choose an address")}
                 busy={sending}

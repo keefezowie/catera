@@ -84,6 +84,18 @@ export function useMoodColors(mood?: Mood): MoodPalette {
 }
 
 /**
+ * The mood palette's keys that palette K keeps the same in Siang and Malam: everything but `header` (the inks on the band,
+ * the selection marks, the hero card and the tracker). Unlike `useMoodColors` it does not subscribe to the mood, so a
+ * Siang/Malam switch does not render a hero, a tracker, a month grid or a hidden tab again for colours that cannot change.
+ * `tests/native-mood-invariant.test.ts` fails if a palette ever makes these keys differ by mood; the readers must then go
+ * back to `useMoodColors`.
+ */
+export function useMoodInks(): Omit<MoodPalette, "header"> {
+  const { scheme } = useThemePreference();
+  return nativeMood[scheme].siang;
+}
+
+/**
  * A theme's Siang header fill whatever theme is active, for a small drawing of the app in that theme (the Tampilan
  * thumbnails in Pengaturan). Screens read `useMoodColors` instead.
  */

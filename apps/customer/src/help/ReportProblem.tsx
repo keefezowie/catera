@@ -170,6 +170,7 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
   useEffect(() => {
     if (!sent || closed.current) return;
     closed.current = true;
+    router.back();
     toast.show({
       message: t("Laporan terkirim", "Report sent"),
       // The toast outlives the sheet, and a day sheet may be on top by the time it is tapped: Bantuan is a page of the tab,
@@ -177,7 +178,6 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
       action: { label: t("Lihat", "View"), onPress: toBantuan },
       tone: "success",
     });
-    router.back();
   }, [sent, toast, t]);
 
   const writeNote = (text: string) => {
@@ -252,7 +252,18 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
         current.issue ? undefined : (
           <>
             {error ? <FormError message={error} failureKey={failures} /> : null}
-            <Button label={t("Kirim laporan", "Send report")} busy={busy} disabled={!kind} onPress={() => void send()} />
+            {kind ? null : (
+              <Text testID="report-hint" variant="meta">
+                {t("Pilih apa yang terjadi dulu.", "Choose what happened first.")}
+              </Text>
+            )}
+            <Button
+              label={t("Kirim laporan", "Send report")}
+              busy={busy}
+              disabled={!kind}
+              accessibilityHint={kind ? undefined : t("Pilih apa yang terjadi dulu.", "Choose what happened first.")}
+              onPress={() => void send()}
+            />
           </>
         )
       }

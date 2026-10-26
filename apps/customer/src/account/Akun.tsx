@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
-import { fonts, MoodHeader, ReadError, Screen, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useMoodColors } from "@catera/mobile-ui";
+import { fonts, MoodHeader, ReadError, Screen, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useMoodInks } from "@catera/mobile-ui";
 import { localPhone } from "./localPhone";
 import { AkunTiles } from "./AkunTiles";
 import { SignInFirst } from "./SignInFirst";
@@ -132,7 +132,7 @@ function useContact() {
 
 function Account() {
   const { actor, runtime, t } = useMobile();
-  const mood = useMoodColors();
+  const mood = useMoodInks();
   const c = useColors();
   const styles = useStyles();
   const customer = useData("akun:customer", () => runtime.api.customer());

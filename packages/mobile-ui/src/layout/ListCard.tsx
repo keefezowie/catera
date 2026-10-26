@@ -1,7 +1,7 @@
 import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
-import { cardEdge, cardEdgeWidth, themedStyles, useColors } from "../theme";
+import { cardEdge, cardEdgeWidth, themedStyles, useColors, useThemePreference } from "../theme";
 import { GLYPH_BARE, GLYPH_CIRCLE } from "./metrics";
 
 /** Where a `MediaRow` text column starts: its 56 thumb and the 12 gap. */
@@ -36,6 +36,7 @@ export function ListCard({
 }) {
   const styles = useStyles();
   const c = useColors();
+  const { scheme } = useThemePreference();
   const sage =
     c.cardBorder === ""
       ? { backgroundColor: c.sage, borderWidth: 1, borderColor: c.line, paddingHorizontal: nativeLayout.cardPadding - 1 }
@@ -44,6 +45,9 @@ export function ListCard({
   const rows = Children.toArray(children);
   return (
     <View
+      // A new native view per theme: on Android a clipped card that loses its light edge and shadow when the theme flips
+      // while it is on screen stops drawing its rows (gate F01, Akun and Beli went blank in dark until a reload).
+      key={scheme}
       testID="list-card"
       style={[styles.card, tone === "sage" && sage, !clip && styles.open]}
     >

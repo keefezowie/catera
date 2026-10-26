@@ -19,6 +19,7 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
 }));
 jest.mock("../src/nav", () => ({
   ...jest.requireActual("../src/nav"),
+  goToTab: jest.fn(),
   openLink: (path: string) => require("expo-router").router.push(path),
 }));
 jest.mock("expo-router", () => ({
@@ -184,6 +185,20 @@ describe("Paket saya", () => {
     expect(await screen.findByText("Belum ada paket aktif.")).toBeTruthy();
     expect(screen.getByText("Rantang Nusantara")).toBeTruthy();
     expect(screen.queryByTestId("plan-row-list")).toBeNull();
+  });
+
+  it("an empty Aktif offers Jelajah paket, which opens the Jelajah tab", async () => {
+    const { goToTab } = require("../src/nav") as { goToTab: jest.Mock };
+    mount(runtimeWith(async () => ({ ...eightPlans(), subscriptions: [], deliveries: [] })));
+    await screen.findByText("Belum ada paket aktif.");
+    fireEvent.press(screen.getByRole("button", { name: "Jelajah paket" }));
+    expect(goToTab).toHaveBeenCalledWith("jelajah");
+  });
+
+  it("a list with running plans has no Jelajah paket button", async () => {
+    mount(runtimeWith(async () => withFinished(eightPlans())));
+    await screen.findByText("Rantang Nusantara");
+    expect(screen.queryByRole("button", { name: "Jelajah paket" })).toBeNull();
   });
 
   it("draws the cards on the dark theme's surface", async () => {

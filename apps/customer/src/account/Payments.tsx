@@ -108,7 +108,7 @@ function History() {
         {inProgress.length ? (
           <View>
             <SectionLabel>{t("Sedang diproses", "In progress")}</SectionLabel>
-            <Text variant="caption">
+            <Text variant="meta">
               {t(
                 "Jangan bayar lagi. Statusnya muncul di sini setelah selesai.",
                 "Don’t pay again. We’ll let you know when it’s done.",
@@ -184,7 +184,7 @@ function History() {
             ))}
           </View>
         ) : null}
-        {!payments.length && !paid.length && !feed.loading ? (
+        {!payments.length && !paid.length && !feed.loading && !feed.error ? (
           <View style={{ gap: 6 }}>
             <Text variant="heading">{t("Belum ada pembayaran.", "No payments yet.")}</Text>
             <Text style={{ color: c.muted }}>

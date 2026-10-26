@@ -16,6 +16,7 @@ import {
   StateArt,
   Text,
   themedStyles,
+  useBusy,
   useColors,
 } from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
@@ -45,7 +46,6 @@ export function ClaimScreen() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [failures, setFailures] = useState(0);
   const [review, setReview] = useState(false);
@@ -69,9 +69,8 @@ export function ClaimScreen() {
     };
   }, [runtime, token, attempt]);
 
-  async function run(work: () => Promise<void>) {
-    if (busy) return;
-    setBusy(true);
+  // `useBusy` drops a second press that lands while one is running, before `busy` has re-rendered.
+  const [busy, run] = useBusy(async (work: () => Promise<void>) => {
     setError("");
     try {
       await work();
@@ -83,10 +82,8 @@ export function ClaimScreen() {
           : errorLabel(c, locale) || t("Belum bisa menyambungkan langganan. Coba lagi.", "Couldn't connect the subscription. Try again."),
       );
       setFailures((n) => n + 1);
-    } finally {
-      setBusy(false);
     }
-  }
+  });
 
   async function connect() {
     const number = e164Indonesia(phone);

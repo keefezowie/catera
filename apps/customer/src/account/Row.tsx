@@ -67,7 +67,7 @@ export function Row({
         )}
       </View>
       {value ? (
-        <Text variant="caption" selectable={!onPress} style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
+        <Text variant="meta" selectable={!onPress} style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
           {value}
         </Text>
       ) : null}

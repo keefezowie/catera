@@ -963,17 +963,25 @@ describe("Beranda mood", () => {
     expect(flat("plate-hero-fill-siang").boxShadow).toBe(nativeMood[scheme].siang.heroShadow);
   });
 
-  it("cross-fades the hero fill when the mood switches, in one frame that stays mounted", async () => {
+  it("keeps each meal's hero mounted, so a switch shows the other one without building it again", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     mount(runtimeWith(async () => bothMeals()));
-    const frame = await screen.findByTestId("plate-hero");
-    expect(flat("plate-hero-fill-malam").opacity).toBe(0);
+    const lunch = await screen.findByTestId("plate-hero");
+    expect(within(lunch).getByText(/^Makan siang · /)).toBeTruthy();
+    // The other meal's hero is already there, out of the layout and of the screen reader's tree.
+    const hidden = () => screen.getByTestId("hero-dinner", { includeHiddenElements: true });
+    await waitFor(() => expect(hidden()).toBeTruthy());
+    // Offstage, not display: none, so its native views stay built: out of the flow, invisible, untouchable, unread.
+    expect(StyleSheet.flatten(hidden().props.style)).toMatchObject({ position: "absolute", opacity: 0 });
+    expect(hidden().props).toMatchObject({ pointerEvents: "none", importantForAccessibility: "no-hide-descendants", accessibilityElementsHidden: true });
+    expect(screen.queryByTestId("hero-dinner")).toBeNull();
     fireEvent.press(screen.getByRole("tab", { name: /^Makan malam, / }));
-    expect(flat("plate-hero-fill-malam").opacity).toBe(1);
-    // The same frame, not a new one: a remount would swap the fill instead of fading it.
-    expect(screen.getByTestId("plate-hero") === frame).toBe(true);
+    const dinner = screen.getByTestId("plate-hero");
+    expect(within(dinner).getByText(/^Makan malam · /)).toBeTruthy();
+    expect(screen.queryByTestId("hero-lunch")).toBeNull();
     fireEvent.press(screen.getByRole("tab", { name: /^Makan siang, / }));
-    expect(flat("plate-hero-fill-malam").opacity).toBe(0);
+    // The very node from before the round trip: nothing was mounted again.
+    expect(screen.getByTestId("plate-hero")).toBe(lunch);
   });
 
   it("starts a plate's busy state afresh when the hero swaps meals", async () => {

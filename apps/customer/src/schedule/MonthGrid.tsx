@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text as RNText, View } from "react-native";
 import type { CalendarDay, Locale } from "@catera/domain";
-import { fontFor, PressableScale, Text, useMoodColors } from "@catera/mobile-ui";
+import { fontFor, PressableScale, Text, useMoodInks } from "@catera/mobile-ui";
 import { longDay, monthWeeks, WEEK_HEADER } from "./dates";
 
 type Props = {
@@ -107,7 +107,7 @@ function DayCell({
   onPress: () => void;
   accessibilityLabel: string;
 }) {
-  const mood = useMoodColors();
+  const mood = useMoodInks();
   const ink = selected ? mood.onToggleActive : mood.headerText;
   // The dot sits below the circle, on the header, so it is ink (muted once past) selected or not.
   const dot = past ? mood.markerIdle : mood.headerText;
@@ -220,7 +220,7 @@ function Frame({
   children: ReactNode;
   minRowsHeight?: number;
 }) {
-  const mood = useMoodColors();
+  const mood = useMoodInks();
   return (
     <View testID={testID}>
       <View testID="month-weekdays" style={{ minHeight: WEEKDAY_ROW, flexDirection: "row", alignItems: "center" }}>
@@ -244,7 +244,7 @@ function Frame({
  * so the swatches read the same mood tokens as the cells they explain.
  */
 export function CalendarLegend({ labels }: { labels: { delivery: string; unset: string } }) {
-  const mood = useMoodColors();
+  const mood = useMoodInks();
   const item = { flexDirection: "row", alignItems: "center", gap: 8 } as const;
   const label = { color: mood.headerMeta } as const;
   return (

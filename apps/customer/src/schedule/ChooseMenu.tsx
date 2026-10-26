@@ -305,6 +305,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
       reviewing ? (
         <StickyAction
           testID="menu-save"
+          hint={!valid ? t("Lengkapi semua hidangan dulu.", "Choose every dish first.") : undefined}
           caption={t(
             "Pilihan yang sudah tersimpan di tanggal-tanggal ini akan diganti. Semua porsi dapat menu yang sama.",
             "Choices already saved on these dates will be replaced. Every portion gets the same menu.",
@@ -317,6 +318,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
       ) : (
         <StickyAction
           testID="menu-review"
+          hint={!valid ? t("Lengkapi semua hidangan dulu.", "Choose every dish first.") : undefined}
           label={t("Tinjau pilihan", "Review choice")}
           disabled={!valid || !writeable || sending === "reset"}
           onPress={() => setReviewing(true)}
@@ -342,27 +344,31 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
         ) : !draft ? (
           <>
             <View style={styles.monthRow}>
-              <Button
-                variant="text"
-                label="‹"
+              <PressableScale
+                accessibilityRole="button"
                 accessibilityLabel={t("Bulan sebelumnya", "Previous month")}
                 onPress={() => {
                   setMonth(shiftMonth(month, -1));
                   setDate("");
                 }}
-              />
+                style={styles.arrow}
+              >
+                <DecorativeIcon name="chevron-back" size={22} color={palette.charcoal} />
+              </PressableScale>
               <Text variant="heading" style={{ flex: 1, textAlign: "center" }}>
                 {monthTitle(month, locale)}
               </Text>
-              <Button
-                variant="text"
-                label="›"
+              <PressableScale
+                accessibilityRole="button"
                 accessibilityLabel={t("Bulan berikutnya", "Next month")}
                 onPress={() => {
                   setMonth(shiftMonth(month, 1));
                   setDate("");
                 }}
-              />
+                style={styles.arrow}
+              >
+                <DecorativeIcon name="chevron-forward" size={22} color={palette.charcoal} />
+              </PressableScale>
             </View>
             {dates.length ? (
               <Text variant="caption" testID="menu-count" style={{ textAlign: "center", fontVariant: ["tabular-nums"] }}>
@@ -565,6 +571,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
 
 const useStyles = themedStyles((c) => ({
   monthRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  arrow: { width: nativeLayout.control.icon, height: nativeLayout.control.icon, alignItems: "center", justifyContent: "center" },
   dateRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8 },
   dateOn: { backgroundColor: c.sage, borderRadius: 10, borderCurve: "continuous" },
   divider: { borderTopWidth: 1, borderTopColor: c.line },

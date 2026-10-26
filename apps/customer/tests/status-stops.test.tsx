@@ -2,15 +2,15 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react-n
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { type CustomerState, type Delivery, type Offer, type Plate } from "@catera/domain";
 import { nativeLayout, nativeMood, nativeThemes } from "@catera/design-tokens";
-import { HeroPager, LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
+import { HeroPager, LayoutScaleProvider, MoodProvider, ThemeProvider, useMood, withAlpha } from "@catera/mobile-ui";
 import { Beranda, HERO_BAND_OVERLAP } from "../src/today/Beranda";
-import { StatusStops, withAlpha, type StopInfo } from "../src/today/StatusStops";
+import { StatusStops, type StopInfo } from "../src/today/StatusStops";
 import { stateLabel, statementFor } from "../src/today/Plate";
-import { stopStatuses } from "../src/today/stopStatus";
 import { customerLink } from "../src/links";
 import * as offline from "../src/today/offline";
 import { customerState, delivery, offer, TODAY } from "./fixtures";
@@ -47,7 +47,13 @@ jest.mock("../src/today/offline", () => ({
 const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
 const MALAM_NOW = () => new Date("2026-10-09T10:00:00Z"); // 17:00 WIB
 
-const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
+// Both meals' heroes stay mounted, the other one offstage and hidden from screen readers: the node on screen wins over
+// its hidden twin.
+const nodeOf = (id: string) => {
+  const shown = screen.queryAllByTestId(id);
+  return shown.length === 1 ? shown[0] : screen.getByTestId(id, { includeHiddenElements: true });
+};
+const flat = (id: string) => StyleSheet.flatten(nodeOf(id).props.style);
 const flatOf = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
 
 let seen: ReturnType<typeof useMood>;
@@ -76,8 +82,8 @@ beforeEach(() => {
   (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
 });
 
-const LUNCH: StopInfo = { window: "11.00–13.00", state: "Sedang diantar", status: "now" };
-const DINNER: StopInfo = { window: "17.00–19.00", state: "Sate ayam madura", status: "next" };
+const LUNCH: StopInfo = { window: "11.00–13.00", state: "Sedang diantar" };
+const DINNER: StopInfo = { window: "17.00–19.00", state: "Sate ayam madura" };
 
 /** The status line alone, under the app's runtime for its translator (its session read never answers, so nothing updates). */
 const quietRuntime = () => {
@@ -110,6 +116,32 @@ describe("StatusStops", () => {
     expect(screen.getByTestId("status-stop-dinner")).toBe(malam);
   });
 
+  it("marks the chosen meal with the filled sun or moon disc and the other with the idle ring, and moves it on a switch", async () => {
+    jest.spyOn(require("react-native-reanimated"), "useReducedMotion").mockReturnValue(true);
+    await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
+    const palette = nativeMood.light.siang;
+    for (const id of ["lunch", "dinner"]) {
+      expect(flat(`status-stop-${id}-marker`)).toMatchObject({ width: 36, height: 36 });
+      expect(flat(`status-stop-${id}-ring`)).toMatchObject({ borderWidth: 1.5, borderColor: palette.markerIdle, borderRadius: 18 });
+      expect(flat(`status-stop-${id}-disc`)).toMatchObject({ backgroundColor: palette.markerActive, borderRadius: 18 });
+    }
+    // A sun on the Siang stop and a moon on the Malam stop, light on the disc and quiet on the ring.
+    const glyphs = (id: string) =>
+      within(screen.getByTestId(`status-stop-${id}-marker`, { includeHiddenElements: true })).UNSAFE_getAllByType(Ionicons);
+    expect(glyphs("lunch").map((g) => [g.props.name, g.props.color])).toEqual([
+      ["sunny", palette.markerIdle],
+      ["sunny", palette.onToggleActive],
+    ]);
+    expect(glyphs("dinner").map((g) => g.props.name)).toEqual(["moon", "moon"]);
+    expect(flat("status-stop-lunch-disc").opacity).toBe(1);
+    expect(flat("status-stop-dinner-disc").opacity).toBe(0);
+    // The marker is drawing only: screen readers hear the tab's selected state.
+    expect(screen.queryByTestId("status-stop-lunch-marker")).toBeNull();
+    fireEvent.press(screen.getByTestId("status-stop-dinner"));
+    expect(flat("status-stop-dinner-disc").opacity).toBe(1);
+    expect(flat("status-stop-lunch-disc").opacity).toBe(0);
+  });
+
   it("pressing the Malam stop sets the app-wide mood and fires the select haptic once; the chosen stop confirms nothing", async () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
     fireEvent.press(screen.getByTestId("status-stop-lunch"));
@@ -128,7 +160,7 @@ describe("StatusStops", () => {
     expect(screen.getByTestId("status-stop-dinner").props.accessibilityState).toMatchObject({ selected: true });
   });
 
-  it("is one 40 tall row: each stop a dot beside a two-line block 8 apart, label in bodyStrong over the state in meta, a 44 target", async () => {
+  it("is one 40 tall row: each stop a 36 marker beside a two-line block 8 apart, label in bodyStrong over the state in meta, a 44 target", async () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
     expect(flat("status-stops")).toMatchObject({ flexDirection: "row", minHeight: 40 });
     for (const id of ["status-stop-lunch", "status-stop-dinner"]) {
@@ -147,50 +179,25 @@ describe("StatusStops", () => {
   });
 
   it("draws a 2dp heroEdge track between the stops, flexing to fill, and labels a stop with no window by its name alone", async () => {
-    await settled(<Stops lunch={{ window: null, state: "2 pengantaran", status: "next" }} dinner={DINNER} />);
+    await settled(<Stops lunch={{ window: null, state: "2 pengantaran" }} dinner={DINNER} />);
     expect(flat("status-stops-track")).toMatchObject({ height: 2, flex: 1, backgroundColor: nativeMood.light.siang.heroEdge });
     expect(screen.getByText("Siang")).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Makan siang, 2 pengantaran" })).toBeTruthy();
   });
 
-  it.each([
-    ["light", "siang"],
-    ["dark", "malam"],
-  ] as const)("paints the dots from the tokens in the %s theme: now a filled ink dot with a 4dp halo at 16%% ink, none a controlRing ring 2 (%s)", async (scheme, mood) => {
-    await settled(
-      <Stops
-        lunch={{ window: null, state: "Sedang diantar", status: "now" }}
-        dinner={{ window: null, state: "Tidak ada", status: "none" }}
-      />,
-      { scheme, now: mood === "siang" ? SIANG_NOW : MALAM_NOW },
-    );
-    const palette = nativeMood[scheme][mood];
-    const ink = palette.headerText;
-    const dot = flat("status-stop-lunch-dot");
-    expect(dot.backgroundColor).toBe(ink);
-    // stopActive belongs to the tracker's current stop alone.
-    expect(dot.backgroundColor).not.toBe(palette.stopActive);
-    const halo = flat("status-stop-lunch-halo");
-    expect(((halo.width as number) - (dot.width as number)) / 2).toBe(4);
-    expect(halo.backgroundColor).toBe(withAlpha(ink, 0.16));
-    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderColor: nativeThemes[scheme].controlRing, borderWidth: 2 });
-    expect(screen.queryByTestId("status-stop-dinner-halo")).toBeNull();
+  it.each(["light", "dark"] as const)("paints the markers from the %s theme's arc tokens, in both moods alike", async (scheme) => {
+    await settled(<Stops lunch={LUNCH} dinner={DINNER} />, { scheme, now: MALAM_NOW });
+    const palette = nativeMood[scheme].malam;
+    expect(flat("status-stop-dinner-disc")).toMatchObject({ backgroundColor: palette.markerActive, opacity: 1 });
+    expect(flat("status-stop-lunch-ring").borderColor).toBe(palette.markerIdle);
+    expect(flat("status-stop-lunch-disc").opacity).toBe(0);
+    // Sunrise ink stays the tracker's current stop alone.
+    expect(flat("status-stop-dinner-disc").backgroundColor).not.toBe(palette.stopActive);
   });
 
   it("withAlpha turns a hex colour into the same colour at a fraction of its strength", () => {
     expect(withAlpha("#2E2E2E", 0.16)).toBe("rgba(46,46,46,0.16)");
     expect(withAlpha("#F5F1E8", 1)).toBe("rgba(245,241,232,1)");
-  });
-
-  it("marks a next stop with an ink ring 2 and a done stop with a filled muted dot", async () => {
-    await settled(
-      <Stops
-        lunch={{ window: null, state: "Sudah sampai", status: "done" }}
-        dinner={{ window: null, state: "Sate ayam madura", status: "next" }}
-      />,
-    );
-    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderColor: nativeMood.light.siang.headerText, borderWidth: 2 });
-    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.headerMeta);
   });
 
   it("the shown meal's label is forest and 700, the other's ink and 600, so selection is not colour alone", async () => {
@@ -240,27 +247,6 @@ describe("the words for each Plate state", () => {
   it("names the dinner in the statement of a dinner plate", () => {
     expect(statementFor(plate("on_the_way", "dinner"), id)).toBe("Makan malam sedang diantar.");
     expect(statementFor(plate("on_the_way", "dinner"), en)).toBe("Dinner is on the way.");
-  });
-});
-
-describe("stopStatuses: at most one stop is now", () => {
-  const p = (state: Plate["state"]) => ({ state }) as Plate;
-  it.each([
-    [[], [], "none", "none"],
-    [[p("scheduled")], [], "next", "none"],
-    [[p("on_the_way")], [p("scheduled")], "now", "next"],
-    [[p("arrived")], [p("scheduled")], "done", "next"],
-    [[p("reported")], [], "done", "none"],
-    // Lunch failed and dinner is on the way: the live stop is dinner, lunch is done.
-    [[p("failed")], [p("on_the_way")], "done", "now"],
-    [[p("arrived_unconfirmed")], [p("cooking")], "done", "now"],
-    // Lunch failed and dinner has only been scheduled so far: lunch still needs the customer.
-    [[p("failed")], [p("scheduled")], "now", "next"],
-    // Both genuinely under way: the earlier meal is the live one.
-    [[p("on_the_way")], [p("cooking")], "now", "next"],
-    [[p("due")], [p("due")], "now", "next"],
-  ] as [Plate[], Plate[], string, string][])("%#: lunch %j dinner %j gives %s and %s", (lunch, dinner, first, second) => {
-    expect(stopStatuses(lunch, dinner)).toEqual({ lunch: first, dinner: second });
   });
 });
 
@@ -452,9 +438,10 @@ describe("Beranda hero, band and status line", () => {
     await screen.findByTestId("home-title");
     expect(screen.queryByTestId("plate-hero")).toBeNull();
     expect(within(screen.getByTestId("status-stop-dinner")).getByText("Tidak ada")).toBeTruthy();
-    // Today's lunch is done and one tap away: its dish is the stop's line, its dot the filled "done" one.
+    // Today's lunch is done and one tap away: its dish is the stop's line, and its marker the idle ring (Malam is chosen).
     expect(within(screen.getByTestId("status-stop-lunch")).getByText("Ayam bakar madu")).toBeTruthy();
-    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.headerMeta);
+    expect(flat("status-stop-lunch-disc").opacity).toBe(0);
+    expect(flat("status-stop-dinner-disc").opacity).toBe(1);
     // No hero rides up over the band, and the line reads the canvas inks.
     expect(flatOf(screen.getByTestId("mood-header")).paddingBottom).toBe(16);
     // The shown meal's label is forest, the other's ink.
@@ -608,7 +595,7 @@ describe("Beranda statement and stops", () => {
     return state;
   }
 
-  it("a delivery on its way is a now dot with the halo, and the dinner still to come an ink ring", async () => {
+  it("the chosen meal wears the disc whatever is under way: the lunch on its way says so in words", async () => {
     const state = bothTodayForState();
     state.deliveries[0].offer = offer({
       meal: "both",
@@ -620,11 +607,11 @@ describe("Beranda statement and stops", () => {
     ];
     home(state);
     await screen.findByTestId("plate-hero");
-    // The live stop is a filled ink dot with its halo; stopActive stays the tracker's.
-    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.headerText);
-    expect(flat("status-stop-lunch-dot").backgroundColor).not.toBe(nativeMood.light.siang.stopActive);
-    expect(screen.getByTestId("status-stop-lunch-halo")).toBeTruthy();
-    expect(flat("status-stop-dinner-dot")).toMatchObject({ borderWidth: 2, borderColor: nativeMood.light.siang.headerText });
+    expect(flat("status-stop-lunch-disc").opacity).toBe(1);
+    expect(flat("status-stop-dinner-disc").opacity).toBe(0);
+    expect(within(screen.getByTestId("status-stop-lunch")).getByText("Sedang diantar")).toBeTruthy();
+    // Nothing on the line borrows the tracker's stop colour.
+    expect(flat("status-stop-lunch-disc").backgroundColor).not.toBe(nativeMood.light.siang.stopActive);
   });
 });
 
@@ -669,7 +656,7 @@ describe("every Plate state under the food-led hero", () => {
     return state;
   }
 
-  // Each Plate state: the dot its meal's stop wears, the stop's short label, the band's statement and the detail line.
+  // Each Plate state: the stop's short label, the band's statement and the detail line.
   it.each([
     ["scheduled", { status: "scheduled" }, NOT_YET, "next", "Terjadwal", "Makan siang terjadwal.", "Diantar 23.59–23.59 ke Kantor"],
     [
@@ -712,8 +699,8 @@ describe("every Plate state under the food-led hero", () => {
       "Menunggu balasan katering",
     ],
   ] as [string, Record<string, unknown>, string, "now" | "next" | "done", string, string, string][])(
-    "%s: each fact is said once in its own region and the Siang stop wears its dot",
-    async (_state, meal, window, status, label, statement, detail) => {
+    "%s: each fact is said once in its own region and the Siang stop is the chosen one",
+    async (_state, meal, window, _status, label, statement, detail) => {
       mount(
         <MobileProvider runtime={runtimeFor(lunch(meal, window))} linkMapper={customerLink}>
           <Beranda />
@@ -730,45 +717,11 @@ describe("every Plate state under the food-led hero", () => {
       if (detail) expect(screen.getByTestId("plate-detail").props.children).toMatch(new RegExp(`^${detail.replace(/[.?]/g, "\\$&")}$`, "i"));
       else expect(screen.queryByTestId("plate-detail")).toBeNull();
       expect(screen.getAllByText("Ayam bakar madu · Sayur asem")).toHaveLength(1);
-      const dot = flat("status-stop-lunch-dot");
-      if (status === "now") expect(dot.backgroundColor).toBe(nativeMood.light.siang.headerText);
-      else if (status === "done") expect(dot.backgroundColor).toBe(nativeMood.light.siang.headerMeta);
-      else expect(dot.borderColor).toBe(nativeMood.light.siang.headerText);
+      expect(flat("status-stop-lunch-disc").opacity).toBe(1);
       // The status line is the one in the hero's body, never a second one.
       expect(screen.getAllByTestId("status-stops")).toHaveLength(1);
     },
   );
-
-  it("lunch failed and dinner on the way: one now dot, dinner's, and lunch's reads done", async () => {
-    const state = customerState(null);
-    state.deliveries.unshift(
-      delivery("d-two-meals", TODAY, {}, {
-        offer: offer({
-          meal: "both",
-          windows: { lunch: "00.01–00.30", dinner: "00.01–00.30" },
-          menus: [
-            { meal: "lunch", name: "Ayam", description: "", image: "", items: [{ id: "l", name: "Ayam bakar madu" }] },
-            { meal: "dinner", name: "Sate", description: "", image: "", items: [{ id: "d", name: "Sate ayam madura" }] },
-          ] as unknown as Offer["menus"],
-        }),
-        meals: [
-          { meal: "lunch", status: "issue" },
-          { meal: "dinner", status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` },
-        ],
-      }),
-    );
-    mount(
-      <MobileProvider runtime={runtimeFor(state)} linkMapper={customerLink}>
-        <Beranda />
-      </MobileProvider>,
-    );
-    await screen.findByTestId("plate-hero");
-    const ink = nativeMood.light.siang.headerText;
-    expect(screen.queryByTestId("status-stop-lunch-halo")).toBeNull();
-    expect(screen.getByTestId("status-stop-dinner-halo")).toBeTruthy();
-    expect(flat("status-stop-dinner-dot").backgroundColor).toBe(ink);
-    expect(flat("status-stop-lunch-dot").backgroundColor).toBe(nativeMood.light.siang.headerMeta);
-  });
 
   it("no delivery for the chosen meal: the status line alone under the band, both stops Tidak ada", async () => {
     mount(
@@ -779,7 +732,8 @@ describe("every Plate state under the food-led hero", () => {
     await screen.findByTestId("home-title");
     expect(screen.queryByTestId("plate-hero")).toBeNull();
     expect(screen.getAllByText("Tidak ada")).toHaveLength(2);
-    expect(flat("status-stop-lunch-dot")).toMatchObject({ borderColor: nativeThemes.light.controlRing });
+    // Still a switch: the chosen meal keeps its disc when it has nothing coming.
+    expect(flat("status-stop-lunch-disc").opacity).toBe(1);
   });
 
   it("a kept copy offline still shows the hero and the status line, which still switches the mood, and no day menu", async () => {
@@ -808,7 +762,7 @@ describe("every Plate state under the food-led hero", () => {
   });
 
   it.each(["light", "dark"] as const)(
-    "the Malam band is tinted from the %s Malam tokens and the live stop is a filled ink dot",
+    "the Malam band is tinted from the %s Malam tokens and the Malam stop wears the disc",
     async (scheme) => {
       const state = customerState(null);
       state.deliveries.unshift(
@@ -837,8 +791,7 @@ describe("every Plate state under the food-led hero", () => {
       const malam = nativeMood[scheme].malam;
       expect(flat("mood-fill-malam")).toMatchObject({ backgroundColor: malam.header });
       expect(flat("plate-hero-fill-malam").backgroundColor).toBe(malam.hero);
-      expect(flat("status-stop-dinner-dot").backgroundColor).toBe(malam.headerText);
-      expect(flat("status-stop-dinner-dot").backgroundColor).not.toBe(malam.stopActive);
+      expect(flat("status-stop-dinner-disc")).toMatchObject({ backgroundColor: malam.markerActive, opacity: 1 });
       expect(flatOf(screen.getByTestId("home-title")).color).toBe(malam.headerText);
     },
   );

@@ -269,6 +269,9 @@ function Help({ actorId, title, paket }: { actorId: string; title: string; paket
       </Frame>
     );
 
+  const sendBlocked = !topic || !chosen || text.trim().length < 5;
+  const sendReason = t("Pilih paket dan topik, lalu tulis minimal 5 karakter.", "Choose a package and a topic, then write at least 5 characters.");
+
   async function send() {
     if (busy || !topic || !chosen || text.trim().length < 5) return;
     setBusy(true);
@@ -292,10 +295,12 @@ function Help({ actorId, title, paket }: { actorId: string; title: string; paket
         subscriptions.length ? (
           <>
             {error ? <FormError message={error} failureKey={failures} /> : null}
+            {sendBlocked ? <Text variant="meta">{sendReason}</Text> : null}
             <Button
               label={t("Kirim permintaan", "Send request")}
+              accessibilityHint={sendBlocked ? sendReason : undefined}
               busy={busy}
-              disabled={!topic || !chosen || text.trim().length < 5}
+              disabled={sendBlocked}
               onPress={() => void send()}
             />
           </>
@@ -367,6 +372,9 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
       </Frame>
     );
 
+  const escalateBlocked = text.trim().length < 5;
+  const escalateReason = t("Tulis minimal 5 karakter.", "Write at least 5 characters.");
+
   async function escalate() {
     if (busy || !issue || text.trim().length < 5) return;
     setBusy(true);
@@ -390,10 +398,12 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
       footer={
         <>
           {error ? <FormError message={error} failureKey={failures} /> : null}
+          {escalateBlocked ? <Text variant="meta">{escalateReason}</Text> : null}
           <Button
             label={t("Kirim ke Catera", "Send to Catera")}
+            accessibilityHint={escalateBlocked ? escalateReason : undefined}
             busy={busy}
-            disabled={text.trim().length < 5}
+            disabled={escalateBlocked}
             onPress={() => void escalate()}
           />
         </>

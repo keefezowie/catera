@@ -213,6 +213,24 @@ describe("Ada masalah", () => {
     renderWith(runtimeWith(), <ReportProblem />);
     const send = await screen.findByRole("button", { name: "Kirim laporan" });
     expect(send.props.accessibilityState.disabled).toBe(true);
+    // The button says why it waits, in a line above it and as its hint; both go once a kind is chosen.
+    expect(send.props.accessibilityHint).toBe("Pilih apa yang terjadi dulu.");
+    expect(screen.getByTestId("report-hint")).toHaveTextContent("Pilih apa yang terjadi dulu.");
+    fireEvent.press(screen.getByRole("radio", { name: "Belum sampai" }));
+    expect(screen.getByRole("button", { name: "Kirim laporan" }).props.accessibilityHint).toBeUndefined();
+    expect(screen.queryByTestId("report-hint")).toBeNull();
+  });
+
+  it("closes the sheet before the toast shows", async () => {
+    let toastVisibleOnBack: boolean | null = null;
+    (router.back as jest.Mock).mockImplementationOnce(() => {
+      toastVisibleOnBack = !!screen.queryByText("Laporan terkirim");
+    });
+    renderWith(runtimeWith(), <ReportProblem />, { toast: true });
+    fireEvent.press(await screen.findByRole("button", { name: "Kirim laporan" }));
+    await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
+    expect(toastVisibleOnBack).toBe(false);
+    expect(await screen.findByText("Laporan terkirim")).toBeTruthy();
   });
 
   it("sending closes the sheet and shows Laporan terkirim with Lihat", async () => {
@@ -573,6 +591,19 @@ describe("Bantuan: asking Catera to review an ignored report", () => {
   afterAll(() => jest.useRealTimers());
   beforeEach(() => jest.setSystemTime(new Date("2026-10-07T03:00:00Z")));
 
+  it("says why Kirim ke Catera is off until five characters are written", async () => {
+    jest.setSystemTime(new Date("2026-10-07T05:01:00Z"));
+    renderWith(runtimeWith({ issues: [issue({ status: "open", created_at: "2026-10-06T16:30:00Z" })] }), listWithForms, { toast: true });
+    fireEvent.press(await screen.findByRole("button", { name: "Minta Catera meninjau" }));
+    const reason = "Tulis minimal 5 karakter.";
+    expect(await screen.findByText(reason)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Kirim ke Catera" }).props.accessibilityHint).toBe(reason);
+    fireEvent.changeText(screen.getByLabelText("Apa yang belum beres?"), "Belum beres");
+    expect(screen.queryByText(reason)).toBeNull();
+    expect(screen.getByRole("button", { name: "Kirim ke Catera" }).props.accessibilityHint).toBeUndefined();
+    fireEvent.changeText(screen.getByLabelText("Apa yang belum beres?"), "");
+  });
+
   it("holds an open report until 12.00 the day after it was sent, and says so", async () => {
     // Sent 9.00 on the 7th: ready from 12.00 on the 8th.
     renderWith(runtimeWith({ issues: [issue({ status: "open", created_at: "2026-10-07T02:00:00Z" })] }), <ReportList />);
@@ -628,6 +659,21 @@ describe("Bantuan: asking Catera to review an ignored report", () => {
 });
 
 describe("Bantuan: Minta bantuan", () => {
+  it("says why Kirim permintaan is off, in a caption and a hint, and drops both once it is ready", async () => {
+    renderWith(runtimeWith({ state: customerState(null) }), listWithForms, { toast: true });
+    fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
+    const reason = "Pilih paket dan topik, lalu tulis minimal 5 karakter.";
+    expect(await screen.findByText(reason)).toBeTruthy();
+    expect(flat(screen.getByText(reason)).fontSize).toBe(13);
+    expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityHint).toBe(reason);
+    fireEvent.press(await topic("Pembatalan"));
+    fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota");
+    expect(screen.queryByText(reason)).toBeNull();
+    expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityHint).toBeUndefined();
+    // The form keeps its draft between renders; leave none for the next test.
+    fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "");
+  });
+
   it("sends a cancellation request for the subscription and lists the new case as Terkirim", async () => {
     const state = customerState(null);
     const command = jest.fn(async (action: string, payload: any) => {

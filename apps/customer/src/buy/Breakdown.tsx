@@ -224,7 +224,7 @@ export function StartLine({
       minHeight={nativeLayout.row.media}
       trailing={
         onChange ? (
-          <Button variant="text" label={t("Ubah", "Change")} accessibilityLabel={t("Ganti tanggal mulai", "Change start date")} onPress={onChange} />
+          <Button variant="text" label={t("Ubah", "Change")} accessibilityLabel={t("Ubah tanggal mulai", "Change start date")} onPress={onChange} />
         ) : null
       }
     >

@@ -33,6 +33,7 @@ import {
 import { SignInFirst } from "../account/SignInFirst";
 import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
 import { remainingLabel } from "../remaining";
+import { usePullToRefresh } from "../refresh";
 import { StaleCopy } from "../staleCopy";
 import { loadCachedCustomer } from "../today/offline";
 import { photoUri } from "../today/photoUri";
@@ -90,6 +91,8 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
   const { runtime, t, locale } = useMobile();
   const track = useTrack();
   const read = useData("plan:customer", () => loadPlan(runtime, actorId));
+  // Pulling down reads the plan again; the page stays until the answer lands.
+  const pull = usePullToRefresh(read.reload);
   const state = read.data?.data;
   const savedAt = read.data?.savedAt ?? null;
   // A status the screen has no words for (not active, completed or cancelled) reads as not found, never as a blank plan.
@@ -131,7 +134,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
   if (!plan) {
     const loading = !state && read.loading;
     return (
-      <Screen nativeTitle={loading ? (carried ?? generic) : generic}>
+      <Screen nativeTitle={loading ? (carried ?? generic) : generic} refreshControl={state ? pull : undefined}>
         {/* The plan fades in from its skeleton as one block (the same FadeSwap as the loaded page below). */}
         <FadeSwap swapKey={loading ? "loading" : "missing"} style={{ gap: 16 }}>
           {loading ? (
@@ -177,7 +180,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
   ) : null;
 
   return (
-    <Screen nativeTitle={plan.offer.name} footer={footer}>
+    <Screen nativeTitle={plan.offer.name} footer={footer} refreshControl={state ? pull : undefined}>
       <FadeSwap swapKey="ready" style={{ gap: nativeLayout.space.lg }}>
         <Hero plan={plan} apiBase={runtime.apiBase} />
         {/* Mounted whatever the page shows; it appears only while the phone is offline, naming the time of this copy. */}

@@ -218,7 +218,7 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
                     accessibilityRole={first ? "header" : undefined}
                     accessibilityLabel={first ? [spoken, mealName, d.offer.caterer].filter(Boolean).join(", ") : undefined}
                   >
-                    <Text variant="meta">{meta}</Text>
+                    <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>{meta}</Text>
                   </View>
                   <Text variant="heroTitle">
                     {block.meal ? dishes?.title || t("Menu belum diisi", "Menu not set yet") : d.offer.name}

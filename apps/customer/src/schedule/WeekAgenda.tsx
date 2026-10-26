@@ -186,17 +186,17 @@ export function WeekAgenda({
   return (
     <View testID="week-agenda">
       <View testID="agenda-heading" style={styles.heading}>
-        <Text variant="section" style={{ flexShrink: 1 }}>
+        <Text variant="section" style={{ flexShrink: 1, fontVariant: ["tabular-nums"] }}>
           {thisWeek ? t("Minggu ini", "This week") : t(`Pekan ${range}`, `Week of ${range}`)}
         </Text>
-        {meta ? <Text variant="meta">{meta}</Text> : null}
+        {meta ? <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>{meta}</Text> : null}
       </View>
       <View style={styles.body}>
         {withMeals.length ? (
           <View style={styles.blocks}>
             {withMeals.map(({ date, items }) => (
               <View key={date} testID={`agenda-day-${date}`} style={styles.block}>
-                <Text variant="bodyStrong">
+                <Text variant="bodyStrong" style={{ fontVariant: ["tabular-nums"] }}>
                   {date === today ? `${dayName(date, locale)} · ${t("Hari ini", "Today")}` : dayName(date, locale)}
                 </Text>
                 <ListCard>{items.map((item) => mealRow(item, date))}</ListCard>
