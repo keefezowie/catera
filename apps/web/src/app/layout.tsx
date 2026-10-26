@@ -1,7 +1,7 @@
 import { webVariables } from "@catera/design-tokens";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { webMotionVariables } from "@/lib/motion";
 import "./globals.css";
@@ -12,6 +12,14 @@ import "./pilot.css";
 import "./settlement.css";
 import "./motion.css";
 import "./optimizations.css";
+
+// viewport-fit=cover lets the page draw under the notch and home indicator; without it every
+// env(safe-area-inset-*) in the stylesheets resolves to 0.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale =
