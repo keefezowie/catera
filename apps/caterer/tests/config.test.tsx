@@ -10,4 +10,8 @@ describe("app config", () => {
     expect(picker[1].photosPermission).toMatch(/impor/i);
     expect(picker[1].cameraPermission).toEqual(expect.any(String));
   });
+
+  it("opts into Android predictive back, so the back swipe previews the previous screen", () => {
+    expect(config.android?.predictiveBackGestureEnabled).toBe(true);
+  });
 });

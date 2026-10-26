@@ -25,6 +25,8 @@ const config: ExpoConfig = {
   },
   android: {
     package: "id.catera.customer",
+    // The back swipe previews the previous screen (Android 13+); Expo Router and react-native-screens handle back.
+    predictiveBackGestureEnabled: true,
     adaptiveIcon: {
       foregroundImage: "../../packages/brand/assets/phase-f/adaptive-foreground.png",
       backgroundColor: "#163D2E",
