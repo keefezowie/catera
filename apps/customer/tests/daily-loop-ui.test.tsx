@@ -363,13 +363,13 @@ describe("StoryViewer", () => {
     mount(viewer(0));
     expect(timing).not.toHaveBeenCalled();
     expect(flat("story-viewer-stage").opacity).toBe(1);
-    expect((flat("story-viewer-stage").transform as { scale: number }[])[0].scale).toBeCloseTo(1, 6);
+    expect((flat("story-viewer-stage").transform as { scale?: number }[]).find((t) => "scale" in t)?.scale).toBeCloseTo(1, 6);
   });
 
   it("starts the opening at opacity 0 and scale 0.92", () => {
     mount(viewer(0));
     expect(flat("story-viewer-stage").opacity).toBe(0);
-    expect((flat("story-viewer-stage").transform as { scale: number }[])[0].scale).toBeCloseTo(0.92, 6);
+    expect((flat("story-viewer-stage").transform as { scale?: number }[]).find((t) => "scale" in t)?.scale).toBeCloseTo(0.92, 6);
   });
 
   it("steps through the parts for a screen reader with the header's increment and decrement actions", () => {
@@ -435,6 +435,41 @@ describe("StoryViewer", () => {
       mount(viewer(1, { onClose }));
       swipe(40, 50);
       expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("stays open when the finger is let go while moving back up, though it is past 80dp", () => {
+      const onClose = jest.fn();
+      mount(viewer(1, { onClose }));
+      // Down to 220 over 600ms, then back up to 200 in 50ms: 100dp down, but going up at 0.4dp/ms when let go.
+      const at = (y: number, t: number, prevY: number, prevT: number) => ({
+        nativeEvent: { touches: [], changedTouches: [], identifier: 1, timestamp: t },
+        touchHistory: {
+          indexOfSingleActiveTouch: 0,
+          mostRecentTimeStamp: t,
+          numberActiveTouches: 1,
+          touchBank: [
+            {
+              touchActive: true,
+              startPageX: 50,
+              startPageY: 100,
+              startTimeStamp: 0,
+              currentPageX: 50,
+              currentPageY: y,
+              currentTimeStamp: t,
+              previousPageX: 50,
+              previousPageY: prevY,
+              previousTimeStamp: prevT,
+            },
+          ],
+        },
+      });
+      act(() => {
+        handler("onResponderGrant")(at(100, 0, 100, 0));
+        handler("onResponderMove")(at(220, 600, 100, 0));
+        handler("onResponderMove")(at(200, 650, 220, 600));
+        handler("onResponderRelease")(at(200, 650, 220, 600));
+      });
+      expect(onClose).not.toHaveBeenCalled();
     });
 
     it("does not close on a short, slow drag or an upward drag", () => {

@@ -95,7 +95,7 @@ export function SaveHeart({
       if (!reduced) {
         scale.value = withSequence(
           withTiming(POP, { duration: nativeMotion.control, easing: ease }),
-          withSpring(1, nativeMotion.spring),
+          withSpring(1, nativeMotion.pop),
         );
         burst.value = 0;
         burst.value = withTiming(1, { duration: HEART_BURST_MS, easing: ease });

@@ -48,7 +48,21 @@ export const nativeMotion = {
   content: 440,
   feature: 680,
   ease: [0.33, 1, 0.68, 1] as const,
-  spring: { damping: 22, stiffness: 120 },
+  /**
+   * Springs, all with mass 1 written out: Reanimated 4 defaults mass to 4, which turned the ratio-1.0 spring below into a
+   * ratio-0.5 wobble. In Apple's terms (response in seconds, damping ratio): stiffness = (2π / response)², damping =
+   * 4π · ratio / response.
+   */
+  /** Ratio 1.0, response 0.57s: a calm settle with no overshoot. */
+  spring: { damping: 22, stiffness: 120, mass: 1 },
+  /** Press-in: ratio 1.0, response 0.15s, so even a quick tap shows the compress while the finger is down. */
+  pressIn: { damping: 84, stiffness: 1750, mass: 1 },
+  /** Release: ratio 1.0, response 0.3s, softer than the press so the control eases back. */
+  pressOut: { damping: 42, stiffness: 440, mass: 1 },
+  /** A drag let go short of its commit returns home: ratio 1.0, response 0.35s, starting at the finger's speed. */
+  settle: { damping: 36, stiffness: 320, mass: 1 },
+  /** A celebratory pop after a tap (the save heart): ratio 0.6, response 0.35s, the only spring allowed to bounce. */
+  pop: { damping: 21.5, stiffness: 320, mass: 1 },
 } as const;
 export const focus = { color: "#B65B13", width: 3, offset: 3 } as const;
 export const webVariables = {
@@ -192,8 +206,8 @@ export type MoodPalette = Record<MoodKey, string> & { pattern: string | null };
  * Malam headers are cream and pale sage in light, warm and green-grey charcoal in dark). There is no Malam pattern.
  * The hero is the theme surface in both moods, so it reads the same token and cannot drift from it.
  *
- * The selected Siang / Malam segment is a pill in `onToggleActive` (the card colour) drawn with a `toggleActive` (forest)
- * ring and label. `heroWarn` is Gagal diantar on the hero, `heroEdge` the 1.5dp edge of the hero and the Dapur count
+ * The Siang / Malam switch is a `toggleTrack` pill whose chosen half is covered by a sliding `toggleActive` (forest) door
+ * with its labels in `onToggleActive`. `heroWarn` is Gagal diantar on the hero, `heroEdge` the 1.5dp edge of the hero and the Dapur count
  * card (the hero is 1.03:1 on the header, so the edge carries it), `stopActive` the tracker's current stop: the one
  * place Sunrise is spent on a screen (sunrise ink in light, sunrise in dark).
  */

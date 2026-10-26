@@ -49,12 +49,12 @@ export function PressableScale({
       return;
     }
     if (reduced) opacity.value = withTiming(REDUCED_OPACITY, dim);
-    else scale.value = withSpring(PRESSED_SCALE, nativeMotion.spring);
+    else scale.value = withSpring(PRESSED_SCALE, nativeMotion.pressIn);
     onPressIn?.(e);
   };
   const pressOut = (e: GestureResponderEvent) => {
     if (reduced) opacity.value = withTiming(1, dim);
-    else scale.value = withSpring(1, nativeMotion.spring);
+    else scale.value = withSpring(1, nativeMotion.pressOut);
     onPressOut?.(e);
   };
   const press = (e: GestureResponderEvent) => {

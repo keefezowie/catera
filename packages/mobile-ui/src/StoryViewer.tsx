@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { PanResponder, Pressable, useWindowDimensions, View, type GestureResponderEvent } from "react-native";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { nativeMotion, nativeThemes } from "@catera/design-tokens";
@@ -26,6 +26,17 @@ const SWIPE_DISTANCE = 40;
  * ratio).
  */
 const SWIPE_RATIO = 1.5;
+/** Let go while moving back up faster than this (dp per millisecond) and the story stays, wherever the finger is. */
+const RETURN_VELOCITY = 0.1;
+/** At a full screen's drag the story has shrunk by this much, so the pull reads as lifting it off. */
+const DRAG_SHRINK = 0.1;
+
+/** Pulled past the edge, the story follows less and less (Apple's rubber band, constant 0.55). */
+function rubberband(overshoot: number, dimension: number) {
+  "worklet";
+  const c = 0.55;
+  return (overshoot * dimension * c) / (dimension + c * Math.abs(overshoot));
+}
 
 /**
  * A full-screen story: one bar per part along the top (the first `index + 1` solid), a header line beside a 48dp close
@@ -43,7 +54,10 @@ const SWIPE_RATIO = 1.5;
  * - `children` must not contain a ScrollView: the content press target owns the touch, and on Android it becomes the
  *   responder over a scroll view, which would then never scroll. A part fits the screen: the photo flexes and long
  *   text wraps.
- * - A downward drag of more than 80dp, or a fast flick down, closes it through `PanResponder` (no gesture library).
+ * - A downward drag of more than 80dp, or a fast flick down, closes it through `PanResponder` (no gesture library). While
+ *   the finger is down the story follows it 1:1 and shrinks a little (an upward pull rubber-bands); let go short of a
+ *   close, or while moving back up, and it springs home from the finger's speed (`nativeMotion.settle`). Under reduced
+ *   motion it does not follow; the close rule is the same.
  * - It opens with a fade and a scale from 0.92 to 1 over `nativeMotion.feature`; instantly under reduced motion.
  * - The bars start 8dp below `topInset`, which defaults to the status-bar inset. A caller drawn below something that
  *   already covers the status bar (the demo strip) passes 0, so the inset is not added twice.
@@ -70,18 +84,25 @@ export function StoryViewer({
 }) {
   const insets = useSafeAreaInsets();
   const top = topInset ?? insets.top;
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const reduced = useReduced();
   const enter = useSharedValue(reduced ? 1 : 0);
+  const drag = useSharedValue(0);
 
   useEffect(() => {
     if (!reduced) enter.value = withTiming(1, { duration: nativeMotion.feature, easing: ease });
     // The opening plays once, when the viewer mounts; a later change of the motion setting does not replay it.
   }, []);
-  const stage = useAnimatedStyle(() => ({
-    opacity: enter.value,
-    transform: [{ scale: START_SCALE + (1 - START_SCALE) * enter.value }],
-  }));
+  const stage = useAnimatedStyle(() => {
+    const pulled = Math.min(Math.max(drag.value, 0) / height, 1);
+    return {
+      opacity: enter.value,
+      transform: [
+        { translateY: drag.value },
+        { scale: (START_SCALE + (1 - START_SCALE) * enter.value) * (1 - DRAG_SHRINK * pulled) },
+      ],
+    };
+  }, [height]);
 
   const forward = () => {
     if (index < count - 1) onIndexChange(index + 1);
@@ -114,6 +135,14 @@ export function StoryViewer({
   // The responder is built once and reads the latest close handler through this ref.
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  // The same for the motion setting and the window height, which the drag reads as it moves.
+  const live = useRef({ reduced, height, claimedAt: 0 });
+  live.current.reduced = reduced;
+  live.current.height = height;
+  const home = (velocity: number) => {
+    // Started at the finger's speed (dp per second), so there is no seam between the drag and the return.
+    drag.value = live.current.reduced ? 0 : withSpring(0, { ...nativeMotion.settle, velocity: velocity * 1000 });
+  };
   const pan = useMemo(
     () =>
       PanResponder.create({
@@ -122,10 +151,23 @@ export function StoryViewer({
         // refreshes the gesture state in the capture phase (PanResponder's own capture handler) before this one
         // runs, so dy and dx are current here.
         onMoveShouldSetPanResponder: (_e, g) => g.dy > 10 && g.dy > Math.abs(g.dx) * 1.5,
+        // The pan claims the touch only past its slop; the story moves from that point, so it never jumps the slop.
+        onPanResponderGrant: (_e, g) => {
+          live.current.claimedAt = g.dy;
+        },
+        onPanResponderMove: (_e, g) => {
+          if (live.current.reduced) return;
+          const dy = g.dy - live.current.claimedAt;
+          drag.value = dy >= 0 ? dy : rubberband(dy, live.current.height);
+        },
         onPanResponderRelease: (_e, g) => {
           const flung = g.vy > DISMISS_VELOCITY && g.dy > FLICK_MIN_DISTANCE;
-          if (g.dy > DISMISS_DISTANCE || flung) closeRef.current();
+          // The direction the finger was going decides, not only where it is: pulled back up, the story stays.
+          const goingBack = g.vy < -RETURN_VELOCITY;
+          if (!goingBack && (g.dy > DISMISS_DISTANCE || flung)) closeRef.current();
+          else home(g.vy);
         },
+        onPanResponderTerminate: (_e, g) => home(g.vy),
       }),
     [],
   );
