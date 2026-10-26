@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import type * as NotificationTypes from "expo-notifications";
@@ -63,6 +64,11 @@ export type MobileContextValue = {
   t: (id: string, en: string) => string;
   setLocale: (l: Locale) => void;
   revision: number;
+  /**
+   * Moves when the app returns from the background or the network comes back, at most once per `RESUME_THROTTLE`.
+   * `useData` reloads quietly on it: only a screen that already shows data, and without `loading`.
+   */
+  resumed: number;
   refresh: () => Promise<void>;
   command: <T = Record<string, unknown>>(action: string, payload: unknown) => Promise<T>;
   signedIn: (actor: Actor) => Promise<void>;
@@ -96,6 +102,9 @@ function parseActor(saved: string | null): Actor | null {
   }
 }
 
+/** The shortest gap between two quiet refetches; a burst of app switches or a flapping network reloads once. */
+export const RESUME_THROTTLE = 30_000;
+
 /** Session, commands, live refresh and push routing shared by the Catera apps. */
 export function MobileProvider({
   runtime,
@@ -123,7 +132,15 @@ export function MobileProvider({
     [refreshing, setRefreshing] = useState(false),
     [errorCode, setErrorCode] = useState(""),
     [locale, setLocaleState] = useState<Locale>("id"),
-    [revision, setRevision] = useState(0);
+    [revision, setRevision] = useState(0),
+    [resumed, setResumed] = useState(0);
+  const lastResume = useRef(0);
+  const resume = useCallback(() => {
+    const now = Date.now();
+    if (now - lastResume.current < RESUME_THROTTLE) return;
+    lastResume.current = now;
+    setResumed((n) => n + 1);
+  }, []);
   const requests = useRef(new Map<string, string>());
   const sessionGeneration = useRef(0);
   const refreshGeneration = useRef(0);
@@ -152,7 +169,9 @@ export function MobileProvider({
 
   // The identity of `refresh` depends on the runtime only: the locale is read at render time, so loading a stored
   // English choice never re-runs the mount effect below (which would start a second me() and re-add every listener).
-  const refresh = useCallback(async () => {
+  // `quiet`: a return from the background, where screens reload through `resumed` instead; the revision moves only if
+  // the answer names another account.
+  const refresh = useCallback(async ({ quiet = false }: { quiet?: boolean } = {}) => {
     const session = sessionGeneration.current;
     const request = ++refreshGeneration.current;
     const current = () =>
@@ -176,7 +195,8 @@ export function MobileProvider({
       } else signedOutLocally();
       setErrorCode("");
       // Screens painted from the stored actor already read for this account; only a different answer reloads them.
-      const unchanged = !!painted && !!me.actor && painted.id === me.actor.id && painted.role === me.actor.role;
+      const before = quiet ? actorRef.current : painted;
+      const unchanged = !!before && !!me.actor && before.id === me.actor.id && before.role === me.actor.role;
       if (!unchanged) setRevision((r) => r + 1);
     } catch (e) {
       if (!current()) return;
@@ -266,7 +286,10 @@ export function MobileProvider({
         runtime.supabase?.auth.startAutoRefresh();
         // Only a return from the background reads again; the "active" a launch reports, or one while a read is still
         // running, would only repeat it.
-        if ((was === "background" || was === "inactive") && inFlight.current === 0) void refresh();
+        if (was === "background" || was === "inactive") {
+          if (inFlight.current === 0) void refresh({ quiet: true });
+          resume();
+        }
         // Before the first answer the actor may be only the one painted from the phone; refresh() counts it once confirmed.
         if (answered.current) void countOpen(actorRef.current);
       } else runtime.supabase?.auth.stopAutoRefresh();
@@ -289,13 +312,21 @@ export function MobileProvider({
     };
     const response = Notifications?.addNotificationResponseReceivedListener(handleResponse);
     void Notifications?.getLastNotificationResponseAsync().then(handleResponse);
+    // A network that comes back (offline to online, not the first report) reloads what is on screen, quietly.
+    let connected: boolean | null = null;
+    const network = NetInfo.addEventListener((state) => {
+      const now = state.isConnected === true;
+      if (connected === false && now) resume();
+      connected = now;
+    });
     return () => {
       live = false;
       appState.remove();
       received?.remove();
       response?.remove();
+      network();
     };
-  }, [runtime, refresh, countOpen]);
+  }, [runtime, refresh, countOpen, resume]);
 
   useEffect(() => {
     const client = runtime.supabase;
@@ -403,6 +434,7 @@ export function MobileProvider({
         t: translator(locale),
         setLocale,
         revision,
+        resumed,
         refresh,
         command,
         signedIn,

@@ -19,12 +19,13 @@ type DataState<T> = {
 };
 
 /**
- * Loads data for the signed-in actor and reloads whenever a command or push bumps the revision. With `cached`, a
+ * Loads data for the signed-in actor and reloads whenever a command or push bumps the revision, and quietly (keeping
+ * what is shown, no `loading`) when the app returns or the network comes back. With `cached`, a
  * screen with nothing to show paints the kept copy while the loader runs; `fromCache` stays true until the loader
  * answers, so the screen can hide what must not be acted on from a copy that may be out of date.
  */
 export function useData<T>(key: string, loader: () => Promise<T>, options?: DataOptions<T>) {
-  const { revision, locale, actor } = useMobile();
+  const { revision, resumed, locale, actor } = useMobile();
   const identity = (actor?.id || "guest") + ":" + key;
   const [state, setState] = useState<DataState<T>>({
     key: identity,
@@ -90,6 +91,24 @@ export function useData<T>(key: string, loader: () => Promise<T>, options?: Data
       generation.current += 1;
     };
   }, [reload, revision]);
+  // A return to the app or a network that came back: a screen already showing this identity's data reads it again
+  // without `loading`, so nothing on it flashes. A failure keeps what is shown; the next resume tries again.
+  // Not while a read is running: that read answers with the newer data anyway.
+  const shownData = state.key === identity && state.data !== null && !state.loading;
+  const firstResume = useRef(resumed);
+  useEffect(() => {
+    if (resumed === firstResume.current || !shownData) return;
+    const request = ++generation.current;
+    void load.current().then(
+      (data) => {
+        if (request !== generation.current || currentKey.current !== identity) return;
+        setState((s) => (s.key === identity ? { ...s, data, error: "", fromCache: false } : s));
+      },
+      () => undefined,
+    );
+    // Only `resumed` starts a quiet read; the identity and data are read as they are at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumed]);
   const active =
     state.key === identity ? state : { data: null, error: "", loading: true, fromCache: false };
   return {
