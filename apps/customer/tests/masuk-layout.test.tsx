@@ -208,10 +208,11 @@ describe("Masuk, the OKX layout", () => {
     expect(scrollToEnd).not.toHaveBeenCalled();
   });
 
-  it("follows the Android keyboard frame by frame: the mark's room shrinks with the keyboard's height", () => {
+  it("starts the Android collapse from the keyboard's own state, on one timed curve", () => {
     const src = require("node:fs").readFileSync(require.resolve("../../../packages/mobile-ui/src/AuthLayout.tsx"), "utf8");
     expect(src).toContain("useAnimatedKeyboard()");
-    expect(src).toContain("1 - Math.min(1, keyboard.value / COLLAPSE_TRAVEL)");
+    expect(src).toContain("state === KeyboardState.OPENING || state === KeyboardState.OPEN");
+    expect(src).toContain("keyboard.state}");
   });
 
   it("gives every tab a 48dp target and the password toggle an eye icon with a stateful spoken name", async () => {

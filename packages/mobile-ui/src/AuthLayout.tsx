@@ -2,7 +2,16 @@ import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from
 import { ScrollView, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import { Button, Field, Screen, Text } from "./components";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import Animated, { Easing, useAnimatedKeyboard, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, {
+  Easing,
+  KeyboardState,
+  useAnimatedKeyboard,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
 import { nativeMotion } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
 import { useReduced } from "./motion/useReduced";
@@ -16,15 +25,16 @@ import { themedStyles, useColors } from "./theme";
 /** The brand mark above a sign-in title: the waving mascot at 56dp. Decorative (StateArt hides it from screen readers). */
 export const AUTH_MARK = 56;
 
-/** Keyboard travel, in dp, over which the mark collapses: it is gone before the shortest keyboard is fully up. */
-const COLLAPSE_TRAVEL = 200;
+/** The collapse's length: about an Android keyboard's slide, so the page rises with it. */
+const COLLAPSE_MS = 260;
 
 /**
- * Gives a block's room back while the keyboard is up, so what is under it rises. With `keyboard` (Android, the
- * keyboard's height frame by frame) its height and opacity follow the keyboard as it slides, so the page moves once, in
- * step with the keyboard, and comes back the same way. Without it (iOS, where `hidden` arrives as the keyboard starts)
- * they run to 0 over `nativeMotion.control` and back. Under reduced motion they jump, so the page does not move.
- * Before the block's height is measured it lays out naturally.
+ * Gives a block's room back while the keyboard is up, so what is under it rises: its height and opacity run to 0 on
+ * one eased curve and back. With `keyboard` (Android's keyboard state, on the UI thread) the curve starts the frame the
+ * keyboard starts to open or close, where `hidden` (Android's `keyboardDidShow`) would only arrive once it is up; the
+ * curve is timed, not tied to the keyboard's reported height, which some phones send in a few coarse steps. Without it
+ * (iOS, where `hidden` arrives as the keyboard starts) the same curve runs from `hidden`. Under reduced motion they
+ * jump, so the page does not move. Before the block's height is measured it lays out naturally.
  */
 function Collapsible({
   hidden,
@@ -33,23 +43,30 @@ function Collapsible({
   testID,
 }: {
   hidden: boolean;
-  keyboard?: SharedValue<number>;
+  keyboard?: SharedValue<KeyboardState>;
   children: ReactNode;
   testID: string;
 }) {
   const reduced = useReduced();
   const [full, setFull] = useState<number | null>(null);
   const shown = useSharedValue(hidden ? 0 : 1);
+  const ease = Easing.bezier(...nativeMotion.ease);
   useEffect(() => {
     if (keyboard) return;
     const to = hidden ? 0 : 1;
-    shown.value = reduced ? to : withTiming(to, { duration: nativeMotion.control, easing: Easing.bezier(...nativeMotion.ease) });
+    shown.value = reduced ? to : withTiming(to, { duration: COLLAPSE_MS, easing: ease });
   }, [hidden, reduced, shown, keyboard]);
-  const style = useAnimatedStyle(() => {
-    if (full === null) return {};
-    const k = keyboard ? 1 - Math.min(1, keyboard.value / COLLAPSE_TRAVEL) : shown.value;
-    return { height: full * k, opacity: k, overflow: "hidden" };
-  });
+  useAnimatedReaction(
+    () => (keyboard ? keyboard.value : KeyboardState.UNKNOWN),
+    (state, previous) => {
+      if (!keyboard || reduced || state === previous) return;
+      const up = state === KeyboardState.OPENING || state === KeyboardState.OPEN;
+      const down = state === KeyboardState.CLOSING || state === KeyboardState.CLOSED;
+      if (up || down) shown.value = withTiming(up ? 0 : 1, { duration: COLLAPSE_MS, easing: ease });
+    },
+    [keyboard, reduced],
+  );
+  const style = useAnimatedStyle(() => (full === null ? {} : { height: full * shown.value, opacity: shown.value, overflow: "hidden" }));
   // Reduced motion draws the end state from the props themselves: no timing, nothing to ease.
   const still = full === null ? undefined : { height: hidden ? 0 : full, opacity: hidden ? 0 : 1, overflow: "hidden" as const };
   return (
@@ -65,8 +82,8 @@ function Collapsible({
  * The head of a sign-in or sign-up screen, left-aligned: a small mark (the waving mascot at 56dp, or `brand` as a
  * wordmark where there is no mascot), then the large title, the screen's one heading, and under it one line that says
  * what this method needs. The mark gives its room back while the keyboard is up and the page rises under it; on Android
- * it follows the keyboard frame by frame (Android announces the keyboard only once it is up, too late to start a timed
- * collapse with it).
+ * the collapse starts from the keyboard's own state on the UI thread (Android announces the keyboard to JS only once it
+ * is up, too late to move with it).
  */
 export function AuthHeading({ title, subtitle, brand }: { title: string; subtitle?: string; brand?: string }) {
   const c = useColors();
@@ -74,7 +91,7 @@ export function AuthHeading({ title, subtitle, brand }: { title: string; subtitl
   const keyboard = useAnimatedKeyboard();
   return (
     <View style={{ gap: 8, paddingTop: 8 }}>
-      <Collapsible hidden={up} keyboard={process.env.EXPO_OS === "ios" ? undefined : keyboard.height} testID="auth-mark">
+      <Collapsible hidden={up} keyboard={process.env.EXPO_OS === "ios" ? undefined : keyboard.state} testID="auth-mark">
         {brand ? (
           <Text style={{ color: c.charcoal, fontFamily: fontFor("800"), fontSize: 17, lineHeight: 24 }}>{brand}</Text>
         ) : (
