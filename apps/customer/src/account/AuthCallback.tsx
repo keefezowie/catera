@@ -101,8 +101,6 @@ export function AuthCallback() {
             autoCapitalize="none"
             autoCorrect={false}
             maxLength={256}
-            showWord={t("Tampilkan", "Show")}
-            hideWord={t("Sembunyikan", "Hide")}
             showA11y={t("Tampilkan kata sandi", "Show password")}
             hideA11y={t("Sembunyikan kata sandi", "Hide password")}
           />
@@ -115,8 +113,6 @@ export function AuthCallback() {
             autoCorrect={false}
             maxLength={256}
             hint={t("Minimal 8 karakter, dan keduanya harus sama.", "At least 8 characters, and both must match.")}
-            showWord={t("Tampilkan", "Show")}
-            hideWord={t("Sembunyikan", "Hide")}
             showA11y={t("Tampilkan kata sandi", "Show password")}
             hideA11y={t("Sembunyikan kata sandi", "Hide password")}
           />

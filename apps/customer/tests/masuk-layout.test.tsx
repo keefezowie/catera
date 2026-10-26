@@ -218,7 +218,7 @@ describe("Masuk, the OKX layout", () => {
     await waitFor(() => expect(scrollToEnd).toHaveBeenCalledWith({ animated: false }));
   });
 
-  it("gives every tab a 48dp target and the password toggle its visible word in its spoken name", async () => {
+  it("gives every tab a 48dp target and the password toggle an eye icon with a stateful spoken name", async () => {
     renderWith(<Masuk />);
     for (const name of ["Nomor HP", "Email"]) {
       const tab = await screen.findByRole("tab", { name });
@@ -226,9 +226,8 @@ describe("Masuk, the OKX layout", () => {
     }
     fireEvent.press(screen.getByRole("tab", { name: "Email" }));
     const toggle = screen.getByRole("button", { name: "Tampilkan kata sandi" });
-    expect(screen.getByText("Tampilkan")).toBeTruthy();
+    expect(screen.queryByText("Tampilkan")).toBeNull();
     fireEvent.press(toggle);
-    expect(screen.getByText("Sembunyikan")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
   });
 

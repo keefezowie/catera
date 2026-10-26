@@ -149,14 +149,14 @@ describe("Dapur Masuk heading and labels", () => {
     expect(screen.getByLabelText("Nomor WhatsApp")).toBeTruthy();
   });
 
-  it("toggles the password with its visible word in the spoken name, and outlines both fields on a failure", async () => {
+  it("toggles the password with an eye icon whose spoken name follows its state, and outlines both fields on a failure", async () => {
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
     renderMasuk();
     fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
     fireEvent.press(screen.getByRole("button", { name: "Tampilkan kata sandi" }));
-    expect(screen.getByText("Sembunyikan")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
     const edge = (label: string) => StyleSheet.flatten(screen.getByLabelText(label).props.style).borderColor;
     const [e0, p0] = [edge("Email"), edge("Kata sandi")];
     fireEvent.changeText(screen.getByLabelText("Email"), "dapur@example.test");

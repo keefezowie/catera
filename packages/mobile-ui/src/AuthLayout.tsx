@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { ScrollView, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import { Button, Field, Screen, Text } from "./components";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { nativeMotion } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
@@ -124,18 +125,15 @@ const useStyles = themedStyles((c) => ({
 /** A password field with a show/hide toggle at its end edge. Everything else is `Field`'s. */
 export function PasswordField({
   label,
-  showWord,
-  hideWord,
   showA11y,
   hideA11y,
   ...field
 }: {
   label: string;
-  showWord: string;
-  hideWord: string;
   showA11y: string;
   hideA11y: string;
 } & Omit<ComponentProps<typeof Field>, "label" | "trailing" | "secureTextEntry">) {
+  const c = useColors();
   const [shown, setShown] = useState(false);
   return (
     <Field
@@ -143,12 +141,16 @@ export function PasswordField({
       {...field}
       secureTextEntry={!shown}
       trailing={
-        <Button
-          variant="text"
-          label={shown ? hideWord : showWord}
+        <PressableScale
+          accessibilityRole="button"
           accessibilityLabel={shown ? hideA11y : showA11y}
+          accessibilityState={{ selected: shown }}
+          haptic="select"
           onPress={() => setShown((s) => !s)}
-        />
+          style={{ minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center" }}
+        >
+          <Ionicons name={shown ? "eye-off-outline" : "eye-outline"} size={22} color={c.muted} />
+        </PressableScale>
       }
     />
   );

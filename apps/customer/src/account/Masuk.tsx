@@ -189,8 +189,6 @@ export function Masuk() {
             autoComplete="password"
             maxLength={256}
             invalid={!!error}
-            showWord={t("Tampilkan", "Show")}
-            hideWord={t("Sembunyikan", "Hide")}
             showA11y={t("Tampilkan kata sandi", "Show password")}
             hideA11y={t("Sembunyikan kata sandi", "Hide password")}
           />

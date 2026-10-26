@@ -94,8 +94,6 @@ export function Register() {
             />
             <PasswordField
               label={t("Kata sandi", "Password")}
-              showWord={t("Tampilkan", "Show")}
-              hideWord={t("Sembunyikan", "Hide")}
               showA11y={t("Tampilkan kata sandi", "Show password")}
               hideA11y={t("Sembunyikan kata sandi", "Hide password")}
               value={password}

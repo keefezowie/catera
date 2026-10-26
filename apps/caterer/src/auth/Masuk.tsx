@@ -105,8 +105,6 @@ export function Masuk() {
             autoComplete="current-password"
             textContentType="password"
             invalid={failed}
-            showWord={t("Tampilkan", "Show")}
-            hideWord={t("Sembunyikan", "Hide")}
             showA11y={t("Tampilkan kata sandi", "Show password")}
             hideA11y={t("Sembunyikan kata sandi", "Hide password")}
           />
