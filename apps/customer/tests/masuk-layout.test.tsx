@@ -157,7 +157,7 @@ describe("Masuk, the OKX layout", () => {
     expect(StyleSheet.flatten(title.props.style).textAlign).not.toBe("center");
   });
 
-  it("shows the 56dp mascot mark and keeps it while the Android keyboard is up, so the page moves once", async () => {
+  it("shows the 56dp mascot mark, gives its room back while the keyboard is up and brings it back", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const kb = keyboard();
     renderWith(<Masuk />);
@@ -170,10 +170,10 @@ describe("Masuk, the OKX layout", () => {
     fireEvent(host().children[0] as never, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 56, height: 56 } } });
     expect(slot().height).toBe(56);
     kb.show();
-    // Jest builds Android: the scroll carries the mark off, it does not collapse first.
-    await waitFor(() => expect(slot()).toMatchObject({ height: 56, opacity: 1 }));
+    // Reduced motion: the room is gone at once, not eased or keyboard-led.
+    await waitFor(() => expect(slot()).toMatchObject({ height: 0, opacity: 0 }));
     kb.hide();
-    expect(slot()).toMatchObject({ height: 56, opacity: 1 });
+    await waitFor(() => expect(slot()).toMatchObject({ height: 56, opacity: 1 }));
   });
 
   it("adds the Android keyboard's height under the page and scrolls to the error and the button when a sign-in fails", async () => {
@@ -197,25 +197,21 @@ describe("Masuk, the OKX layout", () => {
     expect(pad()).toBe(down);
   });
 
-  it("scrolls to the end when the keyboard comes up so the primary button sits above it", async () => {
-    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(false);
+  it.each([false, true])("does not scroll the page by itself when the keyboard comes up (reduced motion %s)", async (reducedMotion) => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reducedMotion);
     const kb = keyboard();
     const scrollToEnd = jest.spyOn(ScrollView.prototype as never as { scrollToEnd: (o?: { animated?: boolean }) => void }, "scrollToEnd").mockImplementation(() => undefined);
     renderWith(<Masuk />);
     fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
-    expect(scrollToEnd).not.toHaveBeenCalled();
     kb.show(300);
-    await waitFor(() => expect(scrollToEnd).toHaveBeenCalledWith({ animated: true }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(scrollToEnd).not.toHaveBeenCalled();
   });
 
-  it("does not animate that scroll under reduced motion", async () => {
-    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    const kb = keyboard();
-    const scrollToEnd = jest.spyOn(ScrollView.prototype as never as { scrollToEnd: (o?: { animated?: boolean }) => void }, "scrollToEnd").mockImplementation(() => undefined);
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
-    kb.show(300);
-    await waitFor(() => expect(scrollToEnd).toHaveBeenCalledWith({ animated: false }));
+  it("follows the Android keyboard frame by frame: the mark's room shrinks with the keyboard's height", () => {
+    const src = require("node:fs").readFileSync(require.resolve("../../../packages/mobile-ui/src/AuthLayout.tsx"), "utf8");
+    expect(src).toContain("useAnimatedKeyboard()");
+    expect(src).toContain("1 - Math.min(1, keyboard.value / COLLAPSE_TRAVEL)");
   });
 
   it("gives every tab a 48dp target and the password toggle an eye icon with a stateful spoken name", async () => {
