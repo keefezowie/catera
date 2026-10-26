@@ -11,7 +11,7 @@ describe("app config", () => {
     expect(picker[1].cameraPermission).toEqual(expect.any(String));
   });
 
-  it("opts into Android predictive back, so the back swipe previews the previous screen", () => {
+  it("opts into Android predictive back", () => {
     expect(config.android?.predictiveBackGestureEnabled).toBe(true);
   });
 });

@@ -25,7 +25,8 @@ const config: ExpoConfig = {
   },
   android: {
     package: "id.catera.customer",
-    // The back swipe previews the previous screen (Android 13+); Expo Router and react-native-screens handle back.
+    // Opts in to predictive back. No preview shows yet: ReactActivity keeps a back callback enabled at all times (so
+    // the system never plays back-to-home), and react-native-screens 4.26 animates no in-app back progress.
     predictiveBackGestureEnabled: true,
     adaptiveIcon: {
       foregroundImage: "../../packages/brand/assets/phase-f/adaptive-foreground.png",
