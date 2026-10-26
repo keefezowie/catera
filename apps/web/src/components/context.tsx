@@ -91,6 +91,7 @@ const actionMessages: Record<string, [string, string]> = {
   "address.save": ["Alamat tersimpan.", "Address saved."],
   "customer.claim": ["Langganan tersambung.", "Subscription connected."],
 };
+export type ToastAction = { label: string; run: () => void };
 type Context = {
   actor: Actor | null;
   workspace: Workspace;
@@ -104,11 +105,17 @@ type Context = {
   toggleCompare: (id: string) => void;
   clearCompare: () => void;
   revision: number;
+  /**
+   * Moves when the tab regains focus or comes back into view, or the network returns, at most once per
+   * `RESUME_THROTTLE`. `useResource` reloads quietly on it: only what already shows data, and without `loading`.
+   */
+  resumed: number;
   perform: <T = Record<string, unknown>>(
     action: string,
     payload: unknown,
   ) => Promise<T>;
-  notify: (text: string) => void;
+  /** A toast; with an action (Undo) it stays up for 8s instead of 4.5s. */
+  notify: (text: string, action?: ToastAction) => void;
   setLocale: (l: Locale) => void;
   drafts: Record<string, unknown>;
   setDraft: (key: string, value: unknown) => void;
@@ -126,6 +133,8 @@ export function CatalogProvider({
     <CatalogContext.Provider value={offers}>{children}</CatalogContext.Provider>
   );
 }
+/** The shortest gap between two quiet refetches; a burst of tab switches reloads once. */
+export const RESUME_THROTTLE = 30_000;
 export function Provider({
   actor,
   workspace,
@@ -145,8 +154,33 @@ export function Provider({
     [area, setAreaState] = useState(""),
     [compare, setCompare] = useState<string[]>([]),
     [revision, setRevision] = useState(0),
-    [toast, setToast] = useState("");
+    [resumed, setResumed] = useState(0),
+    [toast, setToastText] = useState({
+      text: "",
+      action: null as ToastAction | null,
+    });
+  const setToast = (text: string, action?: ToastAction) =>
+    setToastText({ text, action: action ?? null });
   const keys = useRef(new Map<string, string>());
+  // A tab that comes back (focus, visible again) or a network that returns reloads what is on screen, quietly.
+  useEffect(() => {
+    let last = 0;
+    const resume = () => {
+      if (document.visibilityState === "hidden") return;
+      const now = Date.now();
+      if (now - last < RESUME_THROTTLE) return;
+      last = now;
+      setResumed((n) => n + 1);
+    };
+    window.addEventListener("focus", resume);
+    window.addEventListener("online", resume);
+    document.addEventListener("visibilitychange", resume);
+    return () => {
+      window.removeEventListener("focus", resume);
+      window.removeEventListener("online", resume);
+      document.removeEventListener("visibilitychange", resume);
+    };
+  }, []);
   const [draftState, setDraftState] = useState<{
     actor: string | undefined;
     values: Record<string, unknown>;
@@ -201,8 +235,8 @@ export function Provider({
     } catch {}
   }, []);
   useEffect(() => {
-    if (!toast) return;
-    const id = setTimeout(() => setToast(""), 4500);
+    if (!toast.text) return;
+    const id = setTimeout(() => setToast(""), toast.action ? 8000 : 4500);
     return () => clearTimeout(id);
   }, [toast]);
   function setArea(value: string) {
@@ -280,6 +314,7 @@ export function Provider({
         toggleCompare,
         clearCompare,
         revision,
+        resumed,
         perform,
         notify: setToast,
         setLocale,
@@ -289,11 +324,24 @@ export function Provider({
     >
       {children}
       <div
-        className={"toast " + (toast ? "visible" : "")}
+        className={"toast " + (toast.text ? "visible" : "")}
         role="status"
         aria-live="polite"
       >
-        {toast}
+        {toast.text}
+        {toast.action && (
+          <button
+            type="button"
+            className="toast-action"
+            onClick={() => {
+              const { run } = toast.action!;
+              setToast("");
+              run();
+            }}
+          >
+            {toast.action.label}
+          </button>
+        )}
       </div>
     </AppContext.Provider>
   );
@@ -324,7 +372,7 @@ export function useResource<T>(
   load: () => Promise<T>,
   { keepPreviousData = false }: { keepPreviousData?: boolean } = {},
 ) {
-  const { revision, locale } = useApp();
+  const { revision, resumed, locale } = useApp();
   const [result, setResult] = useState<{
     key: string;
     data: T | null;
@@ -360,6 +408,34 @@ export function useResource<T>(
       live = false;
     };
   }, [key, revision, tick, keepPreviousData]);
+  // A quiet read on resume: only when this key already shows data and nothing is loading. It never sets `loading`,
+  // and a failure keeps what is shown; the next resume tries again.
+  const quiet = result.key === key && result.data !== null && !result.loading;
+  const handled = useRef(resumed);
+  useEffect(() => {
+    if (resumed === handled.current) return;
+    handled.current = resumed;
+    if (!quiet) return;
+    let live = true;
+    Promise.resolve()
+      .then(loader.current)
+      .then(
+        (value) => {
+          if (live)
+            setResult((previous) =>
+              previous.key === key
+                ? { ...previous, data: value, error: "" }
+                : previous,
+            );
+        },
+        () => undefined,
+      );
+    return () => {
+      live = false;
+    };
+    // Only `resumed` starts a quiet read; a new key, revision or reload cancels it, so it never lands over newer data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumed, key, revision, tick]);
   // Never expose the previous record/filter's data, including the render before
   // its effect starts. Refreshes of the same resource retain editable UI state.
   // A persistent navigation shell can opt in only if it masks prior records.
