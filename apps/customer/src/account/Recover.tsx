@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
 import { RecoverForm } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
-import { REDIRECT_TO } from "./emailAuth";
+import { redirectTo } from "./emailAuth";
 import { canRetry } from "./failure";
 import { emailCheck, useAuthRun, useFormPose } from "./useAuthRun";
 
@@ -16,7 +16,7 @@ export function Recover() {
   return (
     <RecoverForm
       next={next}
-      redirectTo={REDIRECT_TO}
+      redirectTo={redirectTo()}
       action={{ ...run, retryable: canRetry(run.code, locale) }}
       form={form}
       emailCheck={emailCheck(t)}

@@ -3,7 +3,7 @@ import { View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { type Actor } from "@catera/domain";
-import { useMobile } from "@catera/mobile-core";
+import { resendLink as resendEmailLink, useMobile } from "@catera/mobile-core";
 import {
   authFields,
   AuthHeading,
@@ -14,7 +14,6 @@ import {
   CodeInput,
   Field,
   FormError,
-  maskPhone,
   MethodTabs,
   PasswordField,
   ResendButton,
@@ -25,7 +24,7 @@ import {
 } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { leaveFor } from "../nav";
-import { authClient, authError, REDIRECT_TO, savePending } from "./emailAuth";
+import { redirectTo } from "./emailAuth";
 import { authFailure, canRetry } from "./failure";
 import { emailCheck, useFormPose, useRateWait } from "./useAuthRun";
 
@@ -131,6 +130,8 @@ export function Masuk() {
       if (failed === "AUTH_RATE_LIMITED") rate.restart();
       if (failed === "INVALID_CREDENTIALS") {
         setPassword("");
+        // The emptied password is the app's doing, not a skipped field: no "Isi kata sandimu dulu." beside the FormError.
+        emailChecks.reset();
         refocusPassword.current = true;
       }
     } finally {
@@ -190,13 +191,7 @@ export function Masuk() {
     run(async () => {
       const again = mail;
       if (again) setResent(false);
-      await savePending(runtime, "signup", next, email.trim());
-      const { error } = await authClient(runtime).auth.resend({
-        type: "signup",
-        email: email.trim(),
-        options: { emailRedirectTo: REDIRECT_TO },
-      });
-      if (!["user_not_found", "email_exists", "email_not_confirmed"].includes(error?.code || "")) authError(error);
+      await resendEmailLink(runtime, { purpose: "signup", next, email: email.trim() }, redirectTo());
       setMail(true);
       if (again) setResent(true);
     }, "link", "resend");
@@ -300,7 +295,7 @@ export function Masuk() {
               onChangeText={form.edit(setCode)}
               onFilled={(entered) => void verify(entered)}
               editable={!busy}
-              sentTo={maskPhone(e164Indonesia(phone))}
+              sentTo={e164Indonesia(phone)}
               error={codeError}
               errorKey={failures}
               verified={verified}

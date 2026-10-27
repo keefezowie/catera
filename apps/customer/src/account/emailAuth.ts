@@ -1,3 +1,5 @@
+import { redirectFor } from "@catera/mobile-core";
+
 export {
   authClient,
   authError,
@@ -12,4 +14,8 @@ export {
   type Pending,
 } from "@catera/mobile-core";
 
-export const REDIRECT_TO = "catera://auth/callback";
+/**
+ * Where the customer app's email links land. A function, not a constant, so a test that mocks @catera/mobile-core
+ * without `redirectFor` can still import this module.
+ */
+export const redirectTo = () => redirectFor("catera");

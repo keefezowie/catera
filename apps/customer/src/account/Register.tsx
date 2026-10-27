@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMobile } from "@catera/mobile-core";
+import { resendLink, useMobile } from "@catera/mobile-core";
 import {
   authFields,
   AuthHeading,
@@ -16,7 +16,7 @@ import {
   useFieldCheck,
 } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
-import { authClient, authError, REDIRECT_TO, savePending } from "./emailAuth";
+import { authClient, authError, redirectTo, savePending } from "./emailAuth";
 import { canRetry } from "./failure";
 import { emailCheck, useAuthRun, useFormPose } from "./useAuthRun";
 
@@ -54,7 +54,7 @@ export function Register() {
       const { data, error } = await client.auth.signUp({
         email: email.trim(),
         password,
-        options: { data: { name: name.trim() }, emailRedirectTo: REDIRECT_TO },
+        options: { data: { name: name.trim() }, emailRedirectTo: redirectTo() },
       });
       // Email confirmation must be on: a session here means the project skips verification.
       if (data.session) {
@@ -75,13 +75,7 @@ export function Register() {
   const resend = () =>
     action.run(async () => {
       setResent(false);
-      await savePending(runtime, "signup", next, email.trim());
-      const { error } = await authClient(runtime).auth.resend({
-        type: "signup",
-        email: email.trim(),
-        options: { emailRedirectTo: REDIRECT_TO },
-      });
-      if (!["user_not_found", "email_exists", "email_not_confirmed"].includes(error?.code || "")) authError(error);
+      await resendLink(runtime, { purpose: "signup", next, email: email.trim() }, redirectTo());
       setResent(true);
     });
 

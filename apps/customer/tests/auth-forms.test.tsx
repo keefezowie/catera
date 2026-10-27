@@ -121,6 +121,8 @@ describe("Masuk validation and errors", () => {
     // The password is cleared; the email stays.
     expect(screen.getByLabelText("Kata sandi").props.value).toBe("");
     expect(screen.getByLabelText("Email").props.value).toBe("rani@example.test");
+    // The app emptied the field, so it is not also blamed for being empty.
+    expect(screen.queryByText("Isi kata sandimu dulu.")).toBeNull();
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "another-password");
     submit();
     await waitFor(() => expect(runtime.signInPassword).toHaveBeenCalledTimes(2));
@@ -239,6 +241,14 @@ describe("Masuk validation and errors", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it("the code screen names the number it went to, masked once", async () => {
+    runtime.sendPhoneOtp = jest.fn(async () => undefined);
+    renderWith(<Masuk />);
+    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 3456 7890");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    expect(await screen.findByText("Kode dikirim ke 0812 •••• 7890", hidden)).toBeTruthy();
   });
 
   it("a phone press with nothing typed shows the field message and sends nothing", async () => {
