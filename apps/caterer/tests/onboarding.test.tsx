@@ -9,7 +9,7 @@ import { withDapurScale } from "./dapur-scale";
 import { RoleGate } from "../src/RoleGate";
 import { router } from "expo-router";
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
+jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null, useNavigation: () => ({ setOptions: () => undefined }) }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),

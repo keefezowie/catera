@@ -5,7 +5,7 @@ import { MoodProvider } from "@catera/mobile-ui";
 import { Daftar } from "../src/auth/Daftar";
 import { withDapurScale } from "./dapur-scale";
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
+jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null, useNavigation: () => ({ setOptions: () => undefined }) }));
 jest.mock("react-native-safe-area-context", () => ({
   ...jest.requireActual("react-native-safe-area-context/jest/mock").default,
   useSafeAreaInsets: () => ({ top: 0, bottom: 24, left: 0, right: 0 }),

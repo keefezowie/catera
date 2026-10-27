@@ -68,7 +68,7 @@ export const routerModule = {
   },
   Link: () => null,
   useLocalSearchParams: () => ({}),
-  useNavigation: () => ({ addListener: () => () => undefined }),
+  useNavigation: () => ({ addListener: () => () => undefined, setOptions: () => undefined }),
   useRoute: () => ({ key: "sheet" }),
 };
 

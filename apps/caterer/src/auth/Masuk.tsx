@@ -25,7 +25,7 @@ import {
 import { goToTab } from "../nav";
 import { e164Indonesia } from "../onboarding";
 import { useFormRun } from "../useFormRun";
-import { emailCheck, FIELD_CODES, passwordCheck, phoneCheck, rateText, serverFallback, wrongCode } from "./checks";
+import { canRetry, emailCheck, FIELD_CODES, passwordCheck, phoneCheck, rateText, serverFallback, wrongCode } from "./checks";
 
 /** How long the boxes show the forest ring before the screen leaves (spec 4). */
 const VERIFIED_MS = 400;
@@ -123,12 +123,21 @@ export function Masuk() {
       try {
         next = await runtime.verifyPhoneOtp(e164Indonesia(phone), entered.trim(), "", Crypto.randomUUID());
       } catch (e) {
-        setCode("");
+        if (((e as { code?: string }).code || (e as Error).message) === "INVALID_OTP") setCode("");
         throw e;
       }
       setVerified(true);
       await new Promise((r) => setTimeout(r, VERIFIED_MS));
       await finish(next);
+    });
+  };
+  const resendCode = () => {
+    last.current = resendCode;
+    void go("resend", async () => {
+      await runtime.sendPhoneOtp(e164Indonesia(phone));
+      setCode("");
+      setMisses(0);
+      resend.restart();
     });
   };
   const signIn = () => {
@@ -137,8 +146,8 @@ export function Masuk() {
   };
   const submit = phoneStep ? (sent ? () => void verify(code) : sendCode) : signIn;
 
-  const message = limited ? rateText(t, wait) : failure?.message;
-  const retry = failCode === "OFFLINE" && last.current ? () => last.current?.() : undefined;
+  const message = failCode === "AUTH_RATE_LIMITED" ? (limited ? rateText(t, wait) : "") : failure?.message;
+  const retry = canRetry(t, failure) && last.current ? () => last.current?.() : undefined;
   const primaryLabel = limited
     ? t(`Coba lagi dalam ${wait}`, `Try again in ${wait}`)
     : phoneStep && !sent
@@ -198,15 +207,7 @@ export function Masuk() {
                 ready={t("Kirim ulang kode", "Resend code")}
                 waiting={(time) => t(`Kirim ulang dalam ${time}`, `Resend in ${time}`)}
                 busy={waiting === "resend"}
-                onPress={() => {
-                  last.current = null;
-                  void go("resend", async () => {
-                    await runtime.sendPhoneOtp(e164Indonesia(phone));
-                    setCode("");
-                    setMisses(0);
-                    resend.restart();
-                  });
-                }}
+                onPress={resendCode}
               />
               <Button
                 variant="text"
@@ -268,12 +269,14 @@ export function Masuk() {
               disabled={busy && waiting !== role}
               label={role === "owner" ? t("Masuk sebagai pemilik", "Sign in as owner") : t("Masuk sebagai staf dapur", "Sign in as kitchen staff")}
               onPress={() => {
-                last.current = null;
-                void go(role, async () => {
-                  await runtime.demoLogin(role);
-                  await refresh();
-                  goToTab("index");
-                });
+                const demo = () =>
+                  void go(role, async () => {
+                    await runtime.demoLogin(role);
+                    await refresh();
+                    goToTab("index");
+                  });
+                last.current = demo;
+                demo();
               }}
             />
           ))}

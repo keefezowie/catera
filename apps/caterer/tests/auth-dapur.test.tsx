@@ -1,13 +1,15 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { BackHandler, StyleSheet, TextInput } from "react-native";
 import { router } from "expo-router";
+import { usePreventRemove } from "expo-router/react-navigation";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider, ToastProvider } from "@catera/mobile-ui";
 import { Daftar } from "../src/auth/Daftar";
 import { Masuk } from "../src/auth/Masuk";
 import { withDapurScale } from "./dapur-scale";
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
+const mockSetOptions = jest.fn();
+jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null, useNavigation: () => ({ setOptions: mockSetOptions }) }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -221,5 +223,88 @@ describe("Dapur Daftar", () => {
       await waitFor(() => expect(screen.getByLabelText("Kode dari SMS").props.value).toBe(""));
     }
     expect(await screen.findByText(/Belum dapat kodenya\? Kirim ulang\./)).toBeTruthy();
+  });
+});
+
+describe("Dapur Masuk, the other states", () => {
+  it("phone: an empty submit and a bad number say so under the field and send nothing", async () => {
+    const runtime = makeRuntime();
+    renderWith(runtime, <Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Kirim kode" }));
+    expect(screen.getByText("Isi nomor HP-mu dulu.")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812");
+    expect(screen.getByText("Nomor HP belum lengkap. Contoh: 0812 3456 7890")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    expect(runtime.sendPhoneOtp).not.toHaveBeenCalled();
+  });
+
+  it("email: an empty submit and an invalid address say so under their fields", async () => {
+    const signInPassword = jest.fn();
+    renderWith(makeRuntime({ signInPassword }), <Masuk />);
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    expect(screen.getByText("Isi emailmu dulu.")).toBeTruthy();
+    expect(screen.getByText("Isi kata sandimu dulu.")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Email"), "rina@");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "x");
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    expect(screen.getByText("Format email belum benar. Contoh: nama@gmail.com")).toBeTruthy();
+    expect(signInPassword).not.toHaveBeenCalled();
+  });
+
+  it("draws the verified ring after a good code", async () => {
+    await sendMasukCode(makeRuntime());
+    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "123456");
+    expect(await screen.findByTestId("code-verified")).toBeTruthy();
+  });
+
+  it("Coba lagi repeats the step after a server failure, but is absent for a rate limit and a wrong password", async () => {
+    const sendPhoneOtp = jest.fn().mockRejectedValueOnce(new Error("SOMETHING_ODD")).mockResolvedValue(undefined);
+    renderWith(makeRuntime({ sendPhoneOtp }), <Masuk />);
+    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234567890");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Coba lagi" }));
+    await waitFor(() => expect(sendPhoneOtp).toHaveBeenCalledTimes(2));
+    await screen.findByLabelText("Kode dari SMS");
+  });
+
+  it("offers no Coba lagi for wrong credentials", async () => {
+    renderWith(makeRuntime({ signInPassword: jest.fn(async () => Promise.reject(new Error("INVALID_CREDENTIALS"))) }), <Masuk />);
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "salah-salah");
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await screen.findByTestId("form-error");
+    expect(screen.queryByRole("button", { name: "Coba lagi" })).toBeNull();
+  });
+});
+
+describe("Dapur Daftar, retry and leaving the outcome", () => {
+  it("Coba lagi repeats Kirim kode after an offline failure", async () => {
+    const sendPhoneOtp = jest.fn().mockRejectedValueOnce(new Error("OFFLINE")).mockResolvedValue(undefined);
+    renderWith(makeRuntime({ sendPhoneOtp }), <Daftar />);
+    fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Bu Rina");
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "081234567890");
+    fireEvent.press(screen.getByText("Jakarta Selatan"));
+    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Coba lagi" }));
+    await screen.findByLabelText("Kode dari SMS");
+    expect(sendPhoneOtp).toHaveBeenCalledTimes(2);
+  });
+
+  it("once the kitchen outcome shows, the header back and swipe are off and any removal opens Hari ini", async () => {
+    const runtime = makeRuntime();
+    renderWith(runtime, <Daftar />);
+    fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Bu Rina");
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "081234567890");
+    fireEvent.press(screen.getByText("Jakarta Selatan"));
+    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
+    await screen.findByText("Dapurmu siap");
+    expect(mockSetOptions).toHaveBeenCalledWith(expect.objectContaining({ headerBackVisible: false, gestureEnabled: false }));
+    const guard = (usePreventRemove as jest.Mock).mock.calls.pop()!;
+    expect(guard[0]).toBe(true);
+    (guard[1] as () => void)();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
   });
 });

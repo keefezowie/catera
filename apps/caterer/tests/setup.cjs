@@ -101,3 +101,5 @@ jest.mock("@react-native-community/netinfo", () => {
   };
   return { __esModule: true, default: NetInfo, ...NetInfo };
 });
+// usePreventRemove needs a navigator; tests that mount a screen outside one get a no-op (Daftar's outcome guard).
+jest.mock("expo-router/react-navigation", () => ({ ...jest.requireActual("expo-router/react-navigation"), usePreventRemove: jest.fn() }));

@@ -34,3 +34,7 @@ export const wrongCode = (t: T, misses: number) =>
   (misses >= 3 ? ` ${t("Belum dapat kodenya? Kirim ulang.", "Didn't get the code? Resend it.")}` : "");
 
 export const rateText = (t: T, time: string) => t(`Terlalu banyak percobaan. Coba lagi dalam ${time}.`, `Too many tries. Try again in ${time}.`);
+
+/** Spec 7: "Coba lagi" for a connection or server failure (the server fallback included), never for a field or the rate limit. */
+export const canRetry = (t: T, f: { code?: string; message: string } | null) =>
+  !!f && (f.code === "OFFLINE" || f.code === "AUTH_UNAVAILABLE" || f.message === serverFallback(t));

@@ -22,10 +22,12 @@ import {
   useFieldCheck,
   useResendTimer,
 } from "@catera/mobile-ui";
+import { useNavigation } from "expo-router";
+import { usePreventRemove } from "expo-router/react-navigation";
 import { goToTab } from "../nav";
 import { catererSlug, e164Indonesia } from "../onboarding";
 import { useFormRun } from "../useFormRun";
-import { areaCheck, nameCheck, phoneCheck, rateText, serverFallback, wrongCode } from "./checks";
+import { areaCheck, canRetry, nameCheck, phoneCheck, rateText, serverFallback, wrongCode } from "./checks";
 
 /** Sign-up: business name, WhatsApp number (verified by SMS) and kitchen area. */
 export function Daftar() {
@@ -40,6 +42,22 @@ export function Daftar() {
   // The registered kitchen: its name for the outcome, and the session that signs in when "Buka Hari ini" is pressed.
   const [done, setDone] = useState<{ name: string; actor: Awaited<ReturnType<typeof runtime.verifyPhoneOtp>> } | null>(null);
   const { busy, failure, run } = useFormRun(locale, serverFallback(t));
+  // Which button is waiting, so only it spins.
+  const [waiting, setWaiting] = useState<"" | "step" | "resend">("");
+  const go = (which: "step" | "resend", step: () => Promise<unknown>) =>
+    run(async () => {
+      setWaiting(which);
+      try {
+        await step();
+      } finally {
+        setWaiting("");
+      }
+    });
+  // The last step, so "Coba lagi" repeats it.
+  const last = useRef<(() => void) | null>(null);
+  const navigation = useNavigation();
+  const [left, setLeft] = useState(false);
+  const leaving = useRef(false);
   const resend = useResendTimer(60);
   const rate = useResendTimer(60);
   // A retry after a failed seller.create reuses the verified actor, the verify requestId and the slug suffix.
@@ -76,11 +94,25 @@ export function Daftar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per failure
   }, [failure?.key]);
 
+  // The one exit from the outcome: sign in, then Hari ini. Every other way out (header back, swipe, hardware back) goes here.
   const open = async () => {
-    if (done) await signedIn(done.actor);
+    if (leaving.current) return;
+    leaving.current = true;
+    try {
+      if (done) await signedIn(done.actor);
+    } catch {
+      leaving.current = false;
+      return;
+    }
+    setLeft(true);
+    // The prevention lifts on the next render; leave after it, or the router would be stopped by our own guard.
+    await new Promise((r) => setTimeout(r, 0));
     goToTab("index");
   };
-  // Back from the outcome goes where the button goes, never into the form.
+  useEffect(() => {
+    if (done) navigation.setOptions({ headerBackVisible: false, headerLeft: () => null, gestureEnabled: false });
+  }, [done, navigation]);
+  usePreventRemove(!!done && !left, () => void open());
   useEffect(() => {
     if (!done) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -91,24 +123,28 @@ export function Daftar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open reads done, which is what this depends on
   }, [done]);
 
-  const sendCode = () =>
+  const sendCode = () => {
+    last.current = sendCode;
     form.submit(
       () =>
-        void run(async () => {
+        void go("step", async () => {
           await runtime.sendPhoneOtp(e164Indonesia(phone));
           setSent(true);
           setMisses(0);
           resend.restart();
         }),
     );
+  };
 
-  const resendCode = () =>
-    run(async () => {
+  const resendCode = () => {
+    last.current = resendCode;
+    return go("resend", async () => {
       await runtime.sendPhoneOtp(e164Indonesia(phone));
       setCode("");
       setMisses(0);
       resend.restart();
     });
+  };
 
   // The old number's session is dropped first, or a refresh could sign into its half-registered profile.
   const changeNumber = () =>
@@ -123,12 +159,13 @@ export function Daftar() {
       slugSuffix.current = Crypto.randomUUID().replace(/-/g, "").slice(0, 4);
     });
 
-  const create = (entered = code) =>
-    run(async () => {
+  const create = (entered = code) => {
+    last.current = () => void create(entered);
+    return go("step", async () => {
       try {
         verified.current ??= await runtime.verifyPhoneOtp(e164Indonesia(phone), entered.trim(), name.trim(), verifyId.current);
       } catch (e) {
-        setCode("");
+        if (((e as { code?: string }).code || (e as Error).message) === "INVALID_OTP") setCode("");
         throw e;
       }
       const actor = verified.current;
@@ -141,6 +178,7 @@ export function Daftar() {
       });
       setDone({ name: name.trim(), actor });
     });
+  };
 
   if (done)
     return (
@@ -164,12 +202,12 @@ export function Daftar() {
         sent ? (
           <Button
             label={limited ? waitLabel : t("Buat dapur saya", "Create my kitchen")}
-            busy={busy}
+            busy={waiting === "step"}
             disabled={limited || (!kept && code.length < 6)}
             onPress={() => void create()}
           />
         ) : (
-          <Button label={limited ? waitLabel : t("Kirim kode", "Send code")} busy={busy} disabled={limited} onPress={sendCode} />
+          <Button label={limited ? waitLabel : t("Kirim kode", "Send code")} busy={waiting === "step"} disabled={limited} onPress={sendCode} />
         )
       }
     >
@@ -242,14 +280,18 @@ export function Daftar() {
               left={resend.left}
               ready={t("Kirim ulang kode", "Resend code")}
               waiting={(time) => t(`Kirim ulang dalam ${time}`, `Resend in ${time}`)}
-              busy={busy}
+              busy={waiting === "resend"}
               onPress={() => void resendCode()}
             />
           )}
         </View>
       ) : null}
-      {failure && !wrongOtp ? (
-        <FormError message={limited ? rateText(t, wait) : failure.message} failureKey={failure.key} />
+      {failure && !wrongOtp && (failCode !== "AUTH_RATE_LIMITED" || limited) ? (
+        <FormError
+          message={limited ? rateText(t, wait) : failure.message}
+          failureKey={failure.key}
+          retry={canRetry(t, failure) && last.current ? () => last.current?.() : undefined}
+        />
       ) : null}
     </AuthScreen>
   );
