@@ -68,6 +68,17 @@ describe("email-auth core", () => {
     expect(await readPending(r)).toMatchObject({ purpose: "recovery", next: "/akun", email: "a@b.co" });
   });
 
+  it("demo sign-in reports a network failure or timeout as OFFLINE and a server answer as itself", async () => {
+    const r = runtime();
+    const request = jest.spyOn(r.api, "request");
+    request.mockRejectedValueOnce(new TypeError("Network request failed"));
+    expect(await caught(r.demoLogin("customer"))).toBe("OFFLINE");
+    request.mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
+    expect(await caught(r.demoLogin("customer"))).toBe("OFFLINE");
+    request.mockRejectedValueOnce(Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" }));
+    expect(await caught(r.demoLogin("customer"))).toBe("REQUEST_FAILED");
+  });
+
   it("demo sign-out clears the server cookie once, and only when a demo token was held", async () => {
     const r = runtime();
     const request = jest.spyOn(r.api, "request").mockResolvedValue({} as never);

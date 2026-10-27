@@ -117,7 +117,11 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
   }
 
   async function demoLogin(role: "owner" | "staff" | "customer") {
-    const r = await api.request<{ token: string }>("auth/demo", { role });
+    // A fetch that never got a response (TypeError) or timed out is the phone being offline; an ApiError with a
+    // code is the server answering and stays as it is.
+    const r = await api.request<{ token: string }>("auth/demo", { role }).catch((e: unknown) => {
+      throw isOffline(e) || (e as { code?: string } | null)?.code === "REQUEST_TIMEOUT" ? new Error("OFFLINE") : e;
+    });
     await supabase?.auth.signOut({ scope: "local" });
     await SecureStore.setItemAsync(key("demo.token"), r.token);
   }

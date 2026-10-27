@@ -16,7 +16,7 @@ import {
   useFieldCheck,
 } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
-import { authClient, authError, redirectTo, savePending } from "./emailAuth";
+import { authClient, authError, clearPending, redirectTo, savePending } from "./emailAuth";
 import { canRetry } from "./failure";
 import { emailCheck, useAuthRun, useFormPose } from "./useAuthRun";
 
@@ -50,6 +50,16 @@ export function Register() {
   const signUp = () =>
     action.run(async () => {
       await savePending(runtime, "signup", next, email.trim());
+      // No link went out if this fails, so a later expired-link screen must not offer to resend to this address.
+      try {
+        await register();
+      } catch (e) {
+        await clearPending(runtime);
+        throw e;
+      }
+    });
+
+  const register = async () => {
       const client = authClient(runtime);
       const { data, error } = await client.auth.signUp({
         email: email.trim(),
@@ -68,7 +78,7 @@ export function Register() {
       authError(error);
       setPassword("");
       setSent(true);
-    });
+  };
 
   const press = () => form.press(checks, () => void signUp());
 
@@ -156,7 +166,7 @@ export function Register() {
                 value={password}
                 onChangeText={form.edit(setPassword)}
                 editable={!action.busy}
-                invalid={action.code === "PASSWORD_REJECTED"}
+                invalid={action.code === "PASSWORD_REJECTED" || !!checks.messages.password}
                 returnKeyType="go"
                 onSubmitEditing={press}
               />

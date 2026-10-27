@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { View } from "react-native";
-import { authClient, authError, savePending, useMobile } from "@catera/mobile-core";
+import { authClient, authError, clearPending, savePending, useMobile } from "@catera/mobile-core";
 import { AuthHeading, AuthScreen } from "../AuthLayout";
 import { Button, Field } from "../components";
 import { FormError } from "../FormError";
@@ -47,9 +47,15 @@ export function RecoverForm({
       const again = sent;
       if (again) setResent(false);
       await savePending(runtime, "recovery", next, email.trim());
-      const { error } = await authClient(runtime).auth.resetPasswordForEmail(email.trim(), { redirectTo });
-      // Unknown addresses get the same answer, so the form does not reveal who is registered.
-      if (error?.code !== "user_not_found") authError(error);
+      try {
+        const { error } = await authClient(runtime).auth.resetPasswordForEmail(email.trim(), { redirectTo });
+        // Unknown addresses get the same answer, so the form does not reveal who is registered.
+        if (error?.code !== "user_not_found") authError(error);
+      } catch (e) {
+        // A first request that failed sent no link; after one went out, the earlier intent stays.
+        if (!again) await clearPending(runtime);
+        throw e;
+      }
       setSent(true);
       if (again) setResent(true);
     });

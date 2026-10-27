@@ -55,7 +55,7 @@ export function NewPasswordForm({
       <AuthHeading title={t("Kata sandi baru", "New password")} brand={brand} pose={form.pose} />
       <View style={{ gap: 14 }}>
         <View style={{ gap: 6 }}>
-          <PasswordField label={t("Kata sandi baru", "New password")} {...common} {...passwordProps} value={password} onChangeText={form.edit(setPassword)}
+          <PasswordField label={t("Kata sandi baru", "New password")} {...common} {...passwordProps} invalid={common.invalid || !!checks.messages.password} value={password} onChangeText={form.edit(setPassword)}
             returnKeyType="next"
             onSubmitEditing={() => confirmProps.inputRef.current?.focus()}
           />

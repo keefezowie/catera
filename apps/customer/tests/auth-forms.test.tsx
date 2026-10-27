@@ -378,6 +378,38 @@ describe("Daftar validation and errors", () => {
   });
 });
 
+describe("Daftar password outline and pending intent", () => {
+  const pendingKeys = () => [...store.keys()].filter((k) => k.includes("pending"));
+  const signUpWith = async () => {
+    renderWith(<Register />);
+    fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
+    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+  };
+
+  it("a short password gets the danger outline together with its red rule line", async () => {
+    renderWith(<Register />);
+    fireEvent.changeText(await screen.findByLabelText("Kata sandi"), "short");
+    const neutral = borderOf("Kata sandi");
+    fireEvent(screen.getByLabelText("Kata sandi"), "blur");
+    await waitFor(() => expect(borderOf("Kata sandi")).not.toBe(neutral));
+  });
+
+  it("a failed sign-up leaves no pending intent, a sent one keeps it", async () => {
+    supabase.auth.signUp.mockResolvedValueOnce({ data: { session: null, user: { id: "u-old", identities: [] } }, error: null } as never);
+    await signUpWith();
+    await screen.findByTestId("identity-error");
+    expect(pendingKeys()).toEqual([]);
+  });
+
+  it("a sent sign-up keeps its pending intent", async () => {
+    await signUpWith();
+    await waitFor(() => expect(supabase.auth.signUp).toHaveBeenCalled());
+    await waitFor(() => expect(pendingKeys().length).toBe(1));
+  });
+});
+
 describe("Daftar and Pemulihan rate wait", () => {
   it("Daftar counts down a 429 on its button", async () => {
     jest.useFakeTimers();
