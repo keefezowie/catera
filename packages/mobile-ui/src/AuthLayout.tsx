@@ -153,11 +153,6 @@ export function AuthSwitch({ prompt, action, onPress, style }: { prompt: string;
   );
 }
 
-/** A group of children with the sign-in screens' field gap. */
-export function AuthFields({ children }: { children: ReactNode }) {
-  return <View style={{ gap: 14 }}>{children}</View>;
-}
-
 const useStyles = themedStyles((c) => ({
   row: { flexDirection: "row", flexWrap: "wrap", columnGap: 24 },
   tab: { minHeight: 48, minWidth: 48, paddingHorizontal: 4, justifyContent: "center", alignItems: "center", borderBottomWidth: 3 },

@@ -1,4 +1,3 @@
-import type { SettlementState } from "@catera/domain";
 
 type Key = "expected" | "earned" | "held" | "available" | "reserved" | "paid" | "recovery";
 
@@ -12,5 +11,3 @@ export const moneyStates: { key: Key; label: [string, string]; hint: [string, st
   { key: "paid", label: ["Sudah dicairkan", "Paid out"], hint: ["Sudah masuk ke rekeningmu.", "Already in your bank account."] },
   { key: "recovery", label: ["Potongan", "Deductions"], hint: ["Pengembalian dana pelanggan, dipotong dari pencairan berikutnya.", "Customer refunds, taken from the next payout."] },
 ];
-
-export const moneyAmount = (s: SettlementState, key: Key) => s[key];

@@ -181,34 +181,3 @@ export function payoutEvent(data: Record<string, unknown>, eventKey: string) {
     failureCode: data.failure_code ?? null,
   };
 }
-// Optional xenPlatform routing. The approved settlement topology supplies account IDs;
-// a caller cannot substitute bank or sub-account destinations in a checkout command.
-export async function createSplitRule(
-  checkout: Checkout,
-  destinationAccountId: string,
-  amount: number,
-) {
-  if (
-    !Number.isInteger(amount) ||
-    amount <= 0 ||
-    amount >= checkout.quote.total
-  )
-    throw new Error("SPLIT_AMOUNT_INVALID");
-  const data = await xendit(
-    "/split_rules",
-    {
-      name: "Catera " + checkout.id,
-      description: "Immutable purchase allocation",
-      routes: [
-        {
-          flat_amount: amount,
-          currency: "IDR",
-          destination_account_id: destinationAccountId,
-          reference_id: checkout.id,
-        },
-      ],
-    },
-    "split-" + checkout.id,
-  );
-  return data.id as string;
-}

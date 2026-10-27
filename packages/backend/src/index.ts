@@ -7,7 +7,6 @@ export {
 } from "./database";
 export { DEMO_ACTORS } from "./seed";
 export {
-  createSplitRule,
   verifyCallback,
   assertEarnedCollection,
   payoutRequest,

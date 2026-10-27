@@ -45,14 +45,6 @@ const stopIds = z
 /** Proof photos live at {catererId}/{deliveryId}/{meal}/{uuid}.{ext} in the private proof bucket. */
 export const proofPathPattern =
   /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/(lunch|dinner)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$/;
-export const deliveryDepartSchema = z
-  .object({
-    catererId: z.uuid(),
-    date: z.iso.date(),
-    meal: z.enum(["lunch", "dinner"]),
-    fulfillmentIds: stopIds.optional(),
-  })
-  .strict();
 export const deliveryArriveSchema = z
   .object({
     catererId: z.uuid(),

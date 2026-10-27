@@ -17,4 +17,3 @@ export type UsageName = (typeof usageNames)[number];
 export const usageSchema = z
   .object({ name: z.enum(usageNames), app: z.enum(["customer", "dapur"]) })
   .strict();
-export type UsageApp = z.infer<typeof usageSchema>["app"];

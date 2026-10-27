@@ -25,17 +25,6 @@ export function mealWord(meal: string, locale: Locale): string {
   return locale === "en" ? "lunch and dinner" : "siang dan malam";
 }
 
-function km(distance: number, locale: Locale): string {
-  const text = String(Math.round(distance * 10) / 10);
-  return locale === "en" ? text : text.replace(".", ",");
-}
-
-/** "{katering}, {jarak} km. {hari} {siang/malam}" with the distance only when it is known. */
-export function cardLine(offer: CatalogOffer, locale: Locale): string {
-  const distance = typeof offer.distanceKm === "number" ? `, ${km(offer.distanceKm, locale)} km` : "";
-  return `${offer.caterer}${distance}. ${dayRange(offer.weekdays, locale)} ${mealWord(offer.meal, locale)}`;
-}
-
 export function ratingText(offer: Offer, locale: Locale, t: (id: string, en: string) => string): string {
   if (offer.rating == null || !offer.reviewCount) return t("Belum ada ulasan", "No reviews yet");
   const rating = offer.rating.toFixed(1);
