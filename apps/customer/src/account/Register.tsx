@@ -24,7 +24,7 @@ export function Register() {
 
   const signUp = () =>
     action.run(async () => {
-      await savePending(runtime, "signup", next);
+      await savePending(runtime, "signup", next, email.trim());
       const client = authClient(runtime);
       const { data, error } = await client.auth.signUp({
         email: email.trim(),
@@ -45,7 +45,7 @@ export function Register() {
   const resend = () =>
     action.run(async () => {
       setResent(false);
-      await savePending(runtime, "signup", next);
+      await savePending(runtime, "signup", next, email.trim());
       const { error } = await authClient(runtime).auth.resend({
         type: "signup",
         email: email.trim(),

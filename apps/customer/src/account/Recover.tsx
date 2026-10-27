@@ -21,7 +21,7 @@ export function Recover() {
     action.run(async () => {
       const again = sent;
       if (again) setResent(false);
-      await savePending(runtime, "recovery", next);
+      await savePending(runtime, "recovery", next, email.trim());
       const { error } = await authClient(runtime).auth.resetPasswordForEmail(email.trim(), { redirectTo: REDIRECT_TO });
       // Unknown addresses get the same answer, so the form does not reveal who is registered.
       if (error?.code !== "user_not_found") authError(error);

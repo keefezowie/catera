@@ -639,7 +639,9 @@ export const errors: Record<string, string> = {
   UNAUTHORIZED:
     "Masuk lagi untuk melanjutkan.",
   EMAIL_NOT_CONFIRMED:
-    "Verifikasi email dulu. Tautannya bisa dikirim ulang dari halaman Daftar.",
+    "Emailmu belum diverifikasi.",
+  OFFLINE:
+    "Belum ada koneksi. Cek internetmu, lalu coba lagi.",
   PASSWORD_REJECTED:
     "Gunakan kata sandi lain yang lebih kuat, minimal 8 karakter.",
   AUTH_UNAVAILABLE:
@@ -726,7 +728,9 @@ const errorsEn: Record<string, string> = {
   UNAUTHORIZED:
     "Sign in again to continue.",
   EMAIL_NOT_CONFIRMED:
-    "Verify your email first. You can resend the link from Sign up.",
+    "Your email isn't verified yet.",
+  OFFLINE:
+    "No connection. Check your internet and try again.",
   PASSWORD_REJECTED:
     "Use a different, stronger password with at least 8 characters.",
   AUTH_UNAVAILABLE:

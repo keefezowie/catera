@@ -24,3 +24,16 @@ export {
   type AccountRequestResult,
   type AccountRequestRow,
 } from "./account";
+export {
+  authClient,
+  authError,
+  clearPending,
+  isOffline,
+  pendingKey,
+  RATE_WAIT_S,
+  readPending,
+  redirectFor,
+  savePending,
+  validEmail,
+  type Pending,
+} from "./emailAuth";

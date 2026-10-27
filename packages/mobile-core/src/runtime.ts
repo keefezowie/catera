@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createApi } from "@catera/api-client";
 import type { Actor } from "@catera/domain";
+import { isOffline } from "./emailAuth";
 
 export type MobileRuntimeConfig = {
   apiUrl: string;
@@ -66,13 +67,14 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
   async function signInPassword(email: string, password: string, requestId: string, name = "Katering") {
     if (!supabase) throw new Error("NOT_CONFIGURED");
     if (!email.trim() || !password) throw new Error("INVALID_CREDENTIALS");
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    if (error || !data.session)
+    const { data, error } = await supabase.auth
+      .signInWithPassword({ email: email.trim(), password })
+      .catch((e: unknown) => ({ data: null, error: e as { status?: number; code?: string } }));
+    if (error || !data?.session)
       throw new Error(
-        error?.status === 429
+        isOffline(error)
+          ? "OFFLINE"
+          : error?.status === 429
           ? "AUTH_RATE_LIMITED"
           : error?.code === "email_not_confirmed"
             ? "EMAIL_NOT_CONFIRMED"
@@ -92,14 +94,19 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
   /** Phone OTP straight through Supabase; the web's /auth/phone-* routes are cookie-bound. */
   async function sendPhoneOtp(phone: string) {
     if (!supabase) throw new Error("NOT_CONFIGURED");
-    const { error } = await supabase.auth.signInWithOtp({ phone });
-    if (error) throw new Error(error.status === 429 ? "AUTH_RATE_LIMITED" : "INVALID_INPUT");
+    const { error } = await supabase.auth
+      .signInWithOtp({ phone })
+      .catch((e: unknown) => ({ error: e as { status?: number } }));
+    if (error)
+      throw new Error(isOffline(error) ? "OFFLINE" : error.status === 429 ? "AUTH_RATE_LIMITED" : "INVALID_INPUT");
   }
 
   async function verifyPhoneOtp(phone: string, otp: string, name: string, requestId: string) {
     if (!supabase) throw new Error("NOT_CONFIGURED");
-    const { data, error } = await supabase.auth.verifyOtp({ phone, token: otp, type: "sms" });
-    if (error || !data.session) throw new Error("INVALID_OTP");
+    const { data, error } = await supabase.auth
+      .verifyOtp({ phone, token: otp, type: "sms" })
+      .catch((e: unknown) => ({ data: null, error: e as { status?: number } }));
+    if (error || !data?.session) throw new Error(isOffline(error) ? "OFFLINE" : "INVALID_OTP");
     await SecureStore.deleteItemAsync(key("demo.token"));
     return ensureActor(supabase, name || "Katering", requestId);
   }
@@ -111,6 +118,8 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
   }
 
   async function signOut() {
+    // The demo session also lives in an httpOnly web cookie; best effort, clear it while the token is still sent.
+    if (await SecureStore.getItemAsync(key("demo.token"))) await api.request("auth/logout", {}).catch(() => undefined);
     await SecureStore.deleteItemAsync(key("demo.token"));
     const result = await supabase?.auth.signOut({ scope: "local" });
     if (result?.error) throw result.error;
