@@ -158,6 +158,30 @@ describe("new password", () => {
   });
 });
 
+describe("new password: leaving and rejection", () => {
+  it("offers Kembali ke Masuk on the form and on the sent screen", async () => {
+    recoveryLink();
+    renderCallback();
+    fireEvent.press(await screen.findByRole("button", { name: "Kembali ke Masuk" }));
+    expect(router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/checkout/package?cycles=3" } });
+  });
+
+  it("a rejected password shows the error, keeps the form and the intent, and a second save succeeds", async () => {
+    recoveryLink();
+    supabase.auth.updateUser.mockResolvedValueOnce({ error: { code: "same_password", status: 422 } } as never);
+    renderCallback();
+    await savePassword();
+    expect(await screen.findByTestId("identity-error")).toBeTruthy();
+    expect(screen.getByLabelText("Kata sandi baru")).toBeTruthy();
+    expect(screen.queryByText("Coba lagi")).toBeNull();
+    expect(store.has("catera.auth.pending")).toBe(true);
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByRole("button", { name: "Simpan kata sandi" }));
+    expect(await screen.findByRole("header", { name: "Kata sandi diganti" })).toBeTruthy();
+    expect(supabase.auth.updateUser).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("verified", () => {
   it("verified shows Email terverifikasi with the name", async () => {
     mockParams = { code: "one-time-code" };
@@ -212,6 +236,7 @@ describe("expired link", () => {
     fireEvent.press(send);
     fireEvent.press(send);
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Kembali ke Masuk" })).toBeTruthy();
     expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
     expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith("rani@example.test", { redirectTo: "catera://auth/callback" });
   });

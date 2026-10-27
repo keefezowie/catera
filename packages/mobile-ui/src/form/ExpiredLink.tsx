@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { AuthHeading, AuthScreen } from "../AuthLayout";
 import { Button, Text } from "../components";
 import { useColors } from "../theme";
+import type { MascotPose } from "../brand/MascotArt";
 import { useT } from "../useT";
 
 /**
@@ -15,6 +16,7 @@ export function ExpiredLink({
   busy,
   error,
   brand,
+  pose = "bingung",
   onResend,
   onEnterEmail,
   onBack,
@@ -23,6 +25,8 @@ export function ExpiredLink({
   busy?: boolean;
   error?: ReactNode;
   brand?: string;
+  /** `mencari` when a resend failed offline. */
+  pose?: MascotPose;
   onResend(): void;
   onEnterEmail(): void;
   onBack(): void;
@@ -31,7 +35,7 @@ export function ExpiredLink({
   const c = useColors();
   return (
     <AuthScreen>
-      <AuthHeading title={t("Tautannya sudah tidak berlaku", "This link no longer works")} brand={brand} pose="bingung" />
+      <AuthHeading title={t("Tautannya sudah tidak berlaku", "This link no longer works")} brand={brand} pose={pose} />
       <View style={{ gap: 14 }}>
         <Text style={{ color: c.muted }}>
           {email

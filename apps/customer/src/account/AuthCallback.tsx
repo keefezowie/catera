@@ -4,11 +4,11 @@ import { usePreventRemove } from "expo-router/react-navigation";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthOutcome, AuthScreen, CheckEmail, ExpiredLink, FormError, NewPasswordForm } from "@catera/mobile-ui";
+import { AuthHeading, AuthOutcome, AuthScreen, Button, CheckEmail, ExpiredLink, FormError, NewPasswordForm } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, clearPending, readPending, REDIRECT_TO, savePending } from "./emailAuth";
 import { canRetry } from "./failure";
-import { useAuthRun } from "./useAuthRun";
+import { useAuthRun, useFormPose } from "./useAuthRun";
 import { leaveFor } from "../nav";
 
 /** An email link is good for an hour, on the phone that asked for it. */
@@ -39,6 +39,7 @@ export function AuthCallback() {
   const started = useRef(false);
   const leaving = useRef(false);
   const run = useAuthRun();
+  const form = useFormPose(run.code, run.failures);
   const action = { ...run, retryable: canRetry(run.code, locale) };
 
   useEffect(() => {
@@ -117,14 +118,15 @@ export function AuthCallback() {
     if (leaving.current) return;
     leaving.current = true;
     setLeft(true);
-    // The prevention lifts on the next render; leave after it, or the router would be stopped by our own guard.
-    await new Promise((r) => setTimeout(r, 0));
-    leaveFor(next.current);
   };
   useEffect(() => {
     if (outcome) navigation.setOptions({ headerBackVisible: false, headerLeft: () => null, gestureEnabled: false });
   }, [outcome, navigation]);
   usePreventRemove(outcome && !left, () => void proceed());
+  // Declared after the guard, so it has lifted by the time we leave.
+  useEffect(() => {
+    if (left) leaveFor(next.current);
+  }, [left]);
 
   if (phase === "reset")
     return (
@@ -144,14 +146,14 @@ export function AuthCallback() {
         primary={{ label: t("Mulai", "Get started"), onPress: () => void proceed() }}
       />
     );
-  if (phase === "recovery") return <NewPasswordForm action={action} onSave={savePassword} />;
+  if (phase === "recovery") return <NewPasswordForm action={action} form={form} onSave={savePassword} onBack={toSignIn} />;
 
   const failed = run.message ? (
     <FormError message={run.message} failureKey={run.failures} testID="identity-error" retry={action.retryable ? () => void resend() : undefined} />
   ) : null;
   if (phase === "expired")
     return (
-      <ExpiredLink email={intent.email} busy={run.busy} error={failed} onResend={() => void resend()} onEnterEmail={enterEmail} onBack={toSignIn} />
+      <ExpiredLink email={intent.email} busy={run.busy} error={failed} pose={run.code === "OFFLINE" ? "mencari" : "bingung"} onResend={() => void resend()} onEnterEmail={enterEmail} onBack={toSignIn} />
     );
   if (phase === "sent")
     return (
@@ -169,6 +171,7 @@ export function AuthCallback() {
           onResend={() => void resend()}
           onChangeEmail={enterEmail}
         />
+        <Button variant="text" label={t("Kembali ke Masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={toSignIn} />
       </AuthScreen>
     );
   return (
