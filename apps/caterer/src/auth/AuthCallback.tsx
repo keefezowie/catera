@@ -107,7 +107,6 @@ export function AuthCallback() {
         email={email}
         busy={run.busy}
         error={failed}
-        pose={run.code === "OFFLINE" ? "mencari" : "bingung"}
         onResend={() => void resend()}
         onEnterEmail={enterEmail}
         onBack={toSignIn}

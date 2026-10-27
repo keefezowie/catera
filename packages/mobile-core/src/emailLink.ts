@@ -37,7 +37,11 @@ export async function exchangeEmailLink(
   await SecureStore.deleteItemAsync(runtime.storageKey("demo.token"));
   if (pending.purpose === "recovery") {
     const redirectType = (data as typeof data & { redirectType?: string | null }).redirectType;
-    if (redirectType !== "recovery") throw expired();
+    if (redirectType !== "recovery") {
+      // Not a recovery link: do not leave its session behind a screen that says "expired".
+      await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+      throw expired();
+    }
   } else await clearPending(runtime);
   return {
     purpose: pending.purpose,

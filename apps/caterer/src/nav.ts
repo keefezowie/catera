@@ -84,7 +84,8 @@ export function redirectSystemPath({ path: link }: { path: string; initial: bool
     const screen = screenOfPath(app);
     if (screen) return `/(tabs)/(${screen.tab})/${screen.path}${rest}`;
     const first = app.replace(/^\/+/, "").split(/[/?#]/)[0];
-    if (ROOT_STACK.has(first) || OWN_ROUTES.has(first)) return path;
+    // Of the `auth` segment only the email-link callback is a screen.
+    if (first === "auth" ? /^\/?auth\/callback(?:[/?#]|$)/.test(app) : ROOT_STACK.has(first) || OWN_ROUTES.has(first)) return path;
     return groupHref("index");
   } catch {
     return groupHref("index");
