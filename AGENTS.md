@@ -8,7 +8,7 @@ Use Astra's UI/UX capabilities for design work. Preserve the latest approved pal
 
 Keep tenant authorization and entitlement changes in database transactions. Never replace production storage with demo data silently. Demo mode is explicit and synthetic. Do not expose secrets or real customer fixtures.
 
-Run npm run typecheck, npm test, npm run build, relevant browser/native tests and PostgreSQL concurrency checks after material changes. Production release requires separate Supabase, SMS/SMTP, Xendit and mobile credentials, plus the gates in docs/RUNBOOK.md. Preserve the existing hosted pilot.
+Run npm run typecheck, npm test, npm run build, relevant browser/native tests and PostgreSQL concurrency checks after material changes. Production release requires separate Supabase, SMS/SMTP, DOKU and mobile credentials, plus the gates in docs/RUNBOOK.md. Preserve the existing hosted pilot.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

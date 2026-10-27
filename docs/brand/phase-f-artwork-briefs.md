@@ -1,6 +1,6 @@
 # Phase F artwork briefs (2026-10-10)
 
-Paste-ready prompts for the artwork Phase F can use. Every asset has a stand-in in the app, so none blocks the build; each one replaces its stand-in when it arrives. Spec: [docs/superpowers/specs/2026-10-10-native-phase-f-design.md](../superpowers/specs/2026-10-10-native-phase-f-design.md), section 7.
+Paste-ready prompts for the artwork Phase F can use. Every asset has a stand-in in the app, so none blocks the build; each one replaces its stand-in when it arrives. Spec: [docs/superpowers/specs/2026-10-10-native-phase-f-design.md](https://github.com/keefezowie/catera/blob/d12344bb/docs/superpowers/specs/2026-10-10-native-phase-f-design.md), section 7.
 
 **Delivery (2026-10-11):** all P1/P2 stills, the permitted layered mascot-animation alternative, and finished vector confetti are in [the Phase F artwork package](../../packages/brand/assets/phase-f/README.md). The user approved preserving originals plus making clean exports; the package records both forms and their provenance. App integration and native-device acceptance remain separate.
 

@@ -70,7 +70,7 @@ The existing [detector evidence](README.md#local-verification-artifacts ".impecc
 | 23px type | Feed package-total price with 1.25 line height and tabular numbers; pairs a prominent total with explicit smaller per-meal and cycle context. |
 | 7px radius | Inner Swipe/List buttons inset 3px within the 10px segmented wrapper; follows that nested shape without introducing a new reusable radius. |
 
-DESIGN.md is preserved. Its references to `.impeccable/design.json` predate this work, but that sidecar is absent in this checkout. The incumbent file also contains historical implementation/asset statements and section-order drift. This ordinary extension neither reconciles those statements nor creates a replacement sidecar. The feature-specific dimensions above remain here for future maintainers to assess in this surface.
+DESIGN.md is preserved. Its references to [`.impeccable/design.json`](https://github.com/keefezowie/catera/blob/d12344bb/.impeccable/design.json) predate this work, but that sidecar is absent in this checkout. The incumbent file also contains historical implementation/asset statements and section-order drift. This ordinary extension neither reconciles those statements nor creates a replacement sidecar. The feature-specific dimensions above remain here for future maintainers to assess in this surface.
 
 The desktop hero's visible Katerer pilihan / Featured caterer eyebrow was removed in the finish correction; its accessible section label, caterer heading, photograph, navigation, and View package action remain. The removed eyebrow is not a reusable design rule.
 

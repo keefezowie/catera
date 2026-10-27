@@ -37,7 +37,7 @@ Both apps follow the October 8-10 native UI/UX and motion pass: platform-native 
 
 Roles are owner and one helper (staff). A helper sees only Hari ini and Menu, with no customers, packages, money or settings. Tab guards enforce this for taps, links and notifications.
 
-Caterer decisions behind the app, from the [caterer simplification design](docs/superpowers/specs/2026-10-07-caterer-simplification-design.md):
+Caterer decisions behind the app, from the [caterer simplification design](https://github.com/keefezowie/catera/blob/d12344bb/docs/superpowers/specs/2026-10-07-caterer-simplification-design.md):
 
 1. **Delivery counts as done unless the caterer reports a problem.** A daily job auto-confirms past days. Where no arrival time exists, the app says "Tercatat sampai" rather than implying a time.
 2. **Routing and messaging stay on the caterer's own tools.** One-tap sharing to WhatsApp; no WhatsApp API, paid messaging or courier dispatch.

@@ -1,6 +1,6 @@
 # Catera V1 — Good Food on Repeat
 
-Indonesian catering marketplace with responsive customer, seller and admin web, plus an Expo customer app for Android/iOS. One versioned API and transactional PostgreSQL services power both platforms.
+Indonesian catering marketplace with responsive customer, seller and admin web, plus two Expo apps for Android/iOS: the customer app and Catera Dapur for caterers. One versioned API and transactional PostgreSQL services power both platforms.
 
 ## Run locally
 
@@ -33,6 +33,7 @@ npm run test:postgres
 npm run test:e2e
 npm run test -w @catera/customer
 npm run test -w @catera/customer -- --preset jest-expo/android
+npm run test -w @catera/caterer
 npm run build
 npm run native:export
 ```
@@ -45,9 +46,13 @@ Install Chromium with npx playwright install chromium, or set PLAYWRIGHT_CHROMIU
 |---|---|
 | apps/web | Next.js public/customer/seller/admin UI and API |
 | apps/customer | Expo Router customer app |
+| apps/caterer | Expo Router caterer app (Catera Dapur) |
+| apps/store-preview | Remotion store preview video (marketing tooling, not shipped) |
 | packages/domain | Shared types, validation, scheduling and pricing |
 | packages/api-client | Typed web/native API client |
 | packages/backend | SQL service bridge, payment adapter and explicit demo setup |
+| packages/mobile-ui | Shared native components for both Expo apps |
+| packages/mobile-core | Shared native auth, session and account logic |
 | packages/design-tokens | Shared palette, typography, spacing, focus and motion |
 | packages/brand | Individual assets, fonts, prompts and manifests |
 | supabase/migrations/20260909* | V1 schema, services, hardening, storage and realtime |

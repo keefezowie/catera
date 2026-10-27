@@ -49,7 +49,7 @@ The implementation handoff reports nine production-guard checks, 24 regression b
 
 ## Preserved system files, provenance and existing drift
 
-`DESIGN.md` was preserved (SHA-256 `88d095f3aede8e50b0d930ca092734904efa2a73c72c620c81320fb657b8bece`). `.impeccable/design.json` is absent both in the current tree and at `HEAD`, despite existing prose referring to a sidecar. This is pre-existing drift, reported without creating or repairing the file. The incumbent document also contains earlier layout descriptions (three-column desktop discovery, next-meal/agenda pairing and centered 1040px calendar) that predate the local compositions above. Those descriptions are not silently rewritten by this extension.
+`DESIGN.md` was preserved (SHA-256 `88d095f3aede8e50b0d930ca092734904efa2a73c72c620c81320fb657b8bece`). [`.impeccable/design.json`](https://github.com/keefezowie/catera/blob/d12344bb/.impeccable/design.json) is absent both in the current tree and at `HEAD`, despite existing prose referring to a sidecar. This is pre-existing drift, reported without creating or repairing the file. The incumbent document also contains earlier layout descriptions (three-column desktop discovery, next-meal/agenda pairing and centered 1040px calendar) that predate the local compositions above. Those descriptions are not silently rewritten by this extension.
 
 Existing asset documentation has a separate pre-existing mismatch: `DESIGN.md` describes all sixteen brand assets as opaque, while the unchanged current brand manifest records fifteen derived transparent UI assets and retained opaque masters. The manifest remains the asset-specific evidence; this pass does not recertify masters or repair the older prose. Sixteen brand asset hashes and all four font hashes match their manifests. All six food-image file hashes match their nested `file.sha256` entries, and each embedded `impeccable:prompt` matches its exact manifest prompt. The unchanged food manifest names the embedded keyword `generation:prompt`; this is a pre-existing metadata-label mismatch, not missing prompt content. Original food dimensions remain 1448×1086; brand master-size limitations remain recorded. No raster, derivative, prompt or manifest was created, replaced, relabeled or deleted.
 
@@ -65,7 +65,7 @@ Final logs inspected: `v1-active-browser-release.log` reports **35 passed** (11 
 
 `work/finish-review/verdict.md` records **ship for the selected-week wording fix only** after its three calendar recaptures and EN/ID guards. That bounded disposition is not a whole-surface approval or a new numeric score. The latest full independent A review was **30/40 before the final corrections**; the 36/40 target remains unmet and unrescored. No 36/40 claim is made.
 
-The recheck again confirmed the recorded `DESIGN.md` hash, no changes to protected design tokens/assets/manifests, and the continued absence of `.impeccable/design.json`. Existing drift above remains reported without repair. Only this surface record was appended; no source, raster or system file was edited by the documenter.
+The recheck again confirmed the recorded `DESIGN.md` hash, no changes to protected design tokens/assets/manifests, and the continued absence of [`.impeccable/design.json`](https://github.com/keefezowie/catera/blob/d12344bb/.impeccable/design.json). Existing drift above remains reported without repair. Only this surface record was appended; no source, raster or system file was edited by the documenter.
 
 
 ### Final publication-evidence update
