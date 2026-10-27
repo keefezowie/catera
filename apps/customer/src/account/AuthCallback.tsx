@@ -1,130 +1,179 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { usePreventRemove } from "expo-router/react-navigation";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthScreen, Button, FormError, PasswordField, Text } from "@catera/mobile-ui";
+import { AuthHeading, AuthOutcome, AuthScreen, CheckEmail, ExpiredLink, FormError, NewPasswordForm } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
-import { authClient, authError, pendingKey, type Pending } from "./emailAuth";
-import { useAction } from "./useAction";
+import { authClient, authError, clearPending, readPending, REDIRECT_TO, savePending } from "./emailAuth";
+import { canRetry } from "./failure";
+import { useAuthRun } from "./useAuthRun";
 import { leaveFor } from "../nav";
 
 /** An email link is good for an hour, on the phone that asked for it. */
 const LINK_LIFETIME_MS = 60 * 60 * 1000;
 
-/** catera://auth/callback: finishes email verification, or sets a new password after recovery. */
+type Phase = "checking" | "recovery" | "expired" | "sent" | "reset" | "verified";
+/** What this phone remembers about the link it asked for; empty when it asked for none. */
+type Intent = { purpose: "signup" | "recovery" | ""; email: string; next: string };
+
+/**
+ * catera://auth/callback: finishes email verification (then says so), or sets a new password after recovery (the
+ * person stays signed in, then is told so). A link with no code, an error, or no pending request on this phone goes
+ * straight to the expired screen without asking the server (audit C-3).
+ */
 export function AuthCallback() {
-  const { runtime, refresh, t } = useMobile();
+  const { runtime, refresh, t, locale } = useMobile();
+  const navigation = useNavigation();
   const params = useLocalSearchParams<{ code?: string; error?: string }>();
   const code = typeof params.code === "string" ? params.code : "";
   const linkError = typeof params.error === "string" ? params.error : "";
-  const [phase, setPhase] = useState<"checking" | "recovery" | "error">("checking");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [phase, setPhase] = useState<Phase>("checking");
+  const [intent, setIntent] = useState<Intent>({ purpose: "", email: "", next: "/" });
+  const [name, setName] = useState("");
+  const [resent, setResent] = useState(false);
+  const [left, setLeft] = useState(false);
   const next = useRef("/");
   const recoveryUser = useRef("");
   const started = useRef(false);
-  const action = useAction();
+  const leaving = useRef(false);
+  const run = useAuthRun();
+  const action = { ...run, retryable: canRetry(run.code, locale) };
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
     void (async () => {
-      // PKCE binds this one-time code to the device that requested the email.
-      const raw = await SecureStore.getItemAsync(pendingKey(runtime));
-      const intent = raw ? (JSON.parse(raw) as Pending) : null;
-      if (!code || linkError || !intent || Date.now() - intent.at > LINK_LIFETIME_MS) throw new Error("RECOVERY_EXPIRED");
+      const stored = await readPending(runtime);
+      if (stored) {
+        next.current = nativeReturnPath(stored.next);
+        setIntent({ purpose: stored.purpose, email: stored.email, next: next.current });
+      }
+      if (!code || linkError || !stored || Date.now() - stored.at > LINK_LIFETIME_MS) throw new Error("RECOVERY_EXPIRED");
       const client = authClient(runtime);
+      // PKCE binds this one-time code to the device that requested the email.
       const { data, error } = await client.auth.exchangeCodeForSession(code);
       if (error || !data.user || !data.session) throw new Error("RECOVERY_EXPIRED");
-      await SecureStore.deleteItemAsync(pendingKey(runtime));
       await SecureStore.deleteItemAsync(runtime.storageKey("demo.token"));
-      next.current = nativeReturnPath(intent.next);
       const redirectType = (data as typeof data & { redirectType?: string | null }).redirectType;
-      if (intent.purpose === "recovery") {
+      if (stored.purpose === "recovery") {
         // Only a real recovery link may set a password, whatever the local intent says.
         if (redirectType !== "recovery") throw new Error("RECOVERY_EXPIRED");
         recoveryUser.current = data.user.id;
         setPhase("recovery");
         return;
       }
+      await clearPending(runtime);
+      const display = String(data.user.user_metadata?.name || "").slice(0, 100);
       const ensured = await client.rpc("catera_v1_command", {
         action: "profile.ensure",
-        payload: { name: String(data.user.user_metadata?.name || "Pelanggan").slice(0, 100) },
+        payload: { name: display || "Pelanggan" },
         request_id: Crypto.randomUUID(),
       });
       if (ensured.error) throw ensured.error;
       await refresh();
-      leaveFor(next.current);
-    })().catch(() => setPhase("error"));
+      setName(display);
+      setPhase("verified");
+    })().catch(() => setPhase("expired"));
   }, [code, linkError, refresh, runtime]);
 
-  const savePassword = () =>
-    action.run(async () => {
+  const savePassword = async (password: string) => {
+    const client = authClient(runtime);
+    const { data, error } = await client.auth.getUser();
+    if (error || !recoveryUser.current || data.user?.id !== recoveryUser.current) throw new Error("RECOVERY_EXPIRED");
+    authError((await client.auth.updateUser({ password })).error);
+    recoveryUser.current = "";
+    // The session from the link stays: the person is signed in with the new password (owner pick 3A).
+    await clearPending(runtime);
+    await refresh();
+    setPhase("reset");
+  };
+
+  const resend = () =>
+    run.run(async () => {
+      const again = phase === "sent";
+      if (again) setResent(false);
+      await savePending(runtime, intent.purpose as "signup" | "recovery", intent.next, intent.email);
       const client = authClient(runtime);
-      const { data, error } = await client.auth.getUser();
-      if (error || !recoveryUser.current || data.user?.id !== recoveryUser.current) throw new Error("RECOVERY_EXPIRED");
-      authError((await client.auth.updateUser({ password })).error);
-      recoveryUser.current = "";
-      setPassword("");
-      setConfirm("");
-      authError((await client.auth.signOut({ scope: "local" })).error);
-      router.replace({ pathname: "/login", params: { next: next.current } } as never);
+      if (intent.purpose === "signup") {
+        const { error } = await client.auth.resend({ type: "signup", email: intent.email, options: { emailRedirectTo: REDIRECT_TO } });
+        if (!["user_not_found", "email_exists", "email_not_confirmed"].includes(error?.code || "")) authError(error);
+      } else {
+        const { error } = await client.auth.resetPasswordForEmail(intent.email, { redirectTo: REDIRECT_TO });
+        if (error?.code !== "user_not_found") authError(error);
+      }
+      setPhase("sent");
+      if (again) setResent(true);
     });
 
-  return (
-    <AuthScreen revealKey={action.failures}>
-      <AuthHeading
-        title={phase === "recovery" ? t("Kata sandi baru", "New password") : t("Verifikasi akun", "Verify account")}
-        subtitle={phase === "checking" ? t("Memeriksa tautan…", "Checking your link…") : undefined}
+  const toSignIn = () => router.replace({ pathname: "/login", params: { next: intent.next } } as never);
+  const enterEmail = () =>
+    router.replace({ pathname: intent.purpose === "signup" ? "/register" : "/recover", params: { next: intent.next } } as never);
+
+  // Back, swipe and the hardware key from an outcome go where the primary button goes, never back into the form.
+  const outcome = phase === "reset" || phase === "verified";
+  const proceed = async () => {
+    if (leaving.current) return;
+    leaving.current = true;
+    setLeft(true);
+    // The prevention lifts on the next render; leave after it, or the router would be stopped by our own guard.
+    await new Promise((r) => setTimeout(r, 0));
+    leaveFor(next.current);
+  };
+  useEffect(() => {
+    if (outcome) navigation.setOptions({ headerBackVisible: false, headerLeft: () => null, gestureEnabled: false });
+  }, [outcome, navigation]);
+  usePreventRemove(outcome && !left, () => void proceed());
+
+  if (phase === "reset")
+    return (
+      <AuthOutcome
+        play
+        title={t("Kata sandi diganti", "Password changed")}
+        body={t("Kamu sudah masuk dengan kata sandi baru.", "You're signed in with your new password.")}
+        primary={{ label: t("Lanjut", "Continue"), onPress: () => void proceed() }}
       />
-      {phase === "error" ? (
-        <View style={{ gap: 14 }}>
-          <Text>
-            {t(
-              "Tautan tidak berlaku, sudah dipakai, atau dibuka di HP lain. Minta tautan baru dari HP ini.",
-              "The link expired, was used, or was opened on another phone. Request a new link from this phone.",
-            )}
-          </Text>
-          <Button label={t("Pulihkan kata sandi", "Recover password")} onPress={() => router.replace("/recover" as never)} />
-          <Button variant="secondary" label={t("Masuk", "Sign in")} onPress={() => router.replace("/login" as never)} />
-        </View>
-      ) : null}
-      {phase === "recovery" ? (
-        <View style={{ gap: 14 }}>
-          <PasswordField
-            label={t("Kata sandi baru", "New password")}
-            value={password}
-            onChangeText={setPassword}
-            autoComplete="new-password"
-            autoCapitalize="none"
-            autoCorrect={false}
-            maxLength={256}
-            showA11y={t("Tampilkan kata sandi", "Show password")}
-            hideA11y={t("Sembunyikan kata sandi", "Hide password")}
-          />
-          <PasswordField
-            label={t("Ulangi kata sandi", "Confirm password")}
-            value={confirm}
-            onChangeText={setConfirm}
-            autoComplete="new-password"
-            autoCapitalize="none"
-            autoCorrect={false}
-            maxLength={256}
-            hint={t("Minimal 8 karakter, dan keduanya harus sama.", "At least 8 characters, and both must match.")}
-            showA11y={t("Tampilkan kata sandi", "Show password")}
-            hideA11y={t("Sembunyikan kata sandi", "Hide password")}
-          />
-          {action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null}
-          <Button
-            label={t("Simpan kata sandi & masuk", "Save password & sign in")}
-            busy={action.busy}
-            disabled={password.length < 8 || password !== confirm}
-            onPress={() => void savePassword()}
-          />
-        </View>
-      ) : null}
+    );
+  if (phase === "verified")
+    return (
+      <AuthOutcome
+        play
+        title={t("Email terverifikasi", "Email verified")}
+        body={name ? t(`Akunmu sudah siap, ${name}.`, `Your account is ready, ${name}.`) : t("Akunmu sudah siap.", "Your account is ready.")}
+        primary={{ label: t("Mulai", "Get started"), onPress: () => void proceed() }}
+      />
+    );
+  if (phase === "recovery") return <NewPasswordForm action={action} onSave={savePassword} />;
+
+  const failed = run.message ? (
+    <FormError message={run.message} failureKey={run.failures} testID="identity-error" retry={action.retryable ? () => void resend() : undefined} />
+  ) : null;
+  if (phase === "expired")
+    return (
+      <ExpiredLink email={intent.email} busy={run.busy} error={failed} onResend={() => void resend()} onEnterEmail={enterEmail} onBack={toSignIn} />
+    );
+  if (phase === "sent")
+    return (
+      <AuthScreen revealKey={run.failures}>
+        <CheckEmail
+          email={intent.email}
+          intro={
+            intent.purpose === "signup"
+              ? t("Kalau email ini bisa didaftarkan, tautan verifikasi sudah kami kirim ke", "If this email can be registered, we've sent a verification link to")
+              : t("Kalau email ini terdaftar, tautan pemulihan sudah kami kirim ke", "If this email has an account, we've sent a recovery link to")
+          }
+          resent={resent}
+          resendBusy={run.busy}
+          error={failed}
+          onResend={() => void resend()}
+          onChangeEmail={enterEmail}
+        />
+      </AuthScreen>
+    );
+  return (
+    <AuthScreen>
+      <AuthHeading title={t("Verifikasi akun", "Verify account")} subtitle={t("Memeriksa tautan…", "Checking your link…")} pose="membaca" />
     </AuthScreen>
   );
 }

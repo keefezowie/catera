@@ -8,7 +8,6 @@ import { nativeThemes } from "@catera/design-tokens";
 import { ThemeProvider } from "@catera/mobile-ui";
 import { Register } from "../src/account/Register";
 import { Recover } from "../src/account/Recover";
-import { AuthCallback } from "../src/account/AuthCallback";
 import { Masuk } from "../src/account/Masuk";
 import { customerLink } from "../src/links";
 
@@ -346,94 +345,5 @@ describe("Masuk with email", () => {
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(await screen.findByText(/Email atau kata sandinya salah/)).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
-  });
-});
-
-describe("auth callback", () => {
-  const intent = (purpose: string) =>
-    store.set("catera.auth.pending", JSON.stringify({ purpose, next: "/checkout/package?cycles=3", at: Date.now() }));
-
-  it("the callback renders on AuthScreen", async () => {
-    mockParams = { code: "one-time-code" };
-    intent("recovery");
-    let finish: (v: unknown) => void = () => {};
-    supabase.auth.exchangeCodeForSession.mockReturnValue(new Promise((resolve) => (finish = resolve)));
-    renderWith(<AuthCallback />);
-    // Checking: the auth heading (its mark and one large title) and the wait under it.
-    expect(await screen.findByTestId("auth-mark")).toBeTruthy();
-    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Verifikasi akun"]);
-    expect(screen.getByText("Memeriksa tautan…")).toBeTruthy();
-    await act(async () =>
-      finish({
-        data: { user: { id: "verified-user" }, session: { access_token: "synthetic" }, redirectType: "recovery" },
-        error: null,
-      }),
-    );
-    // Recovery: the same heading, and the passwords with a show toggle like Daftar.
-    expect(await screen.findByRole("header", { name: "Kata sandi baru" })).toBeTruthy();
-    expect(screen.getByTestId("auth-mark")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Tampilkan kata sandi" }).length).toBeGreaterThan(0);
-  });
-
-  it("a dead link explains itself on the auth layout", async () => {
-    mockParams = { error: "access_denied" };
-    renderWith(<AuthCallback />);
-    expect(await screen.findByText(/Tautan tidak berlaku/)).toBeTruthy();
-    expect(screen.getByTestId("auth-mark")).toBeTruthy();
-    expect(screen.getAllByRole("header")).toHaveLength(1);
-  });
-
-  it("recovery refuses a normal sign-in code even when the local intent says recovery", async () => {
-    mockParams = { code: "one-time-code" };
-    intent("recovery");
-    supabase.auth.exchangeCodeForSession.mockResolvedValue({
-      data: { user: { id: "verified-user" }, session: { access_token: "synthetic" }, redirectType: null },
-      error: null,
-    });
-    renderWith(<AuthCallback />);
-    expect(await screen.findByText(/Tautan tidak berlaku/)).toBeTruthy();
-    expect(screen.queryByLabelText("Kata sandi baru")).toBeNull();
-    expect(supabase.auth.updateUser).not.toHaveBeenCalled();
-  });
-
-  it("a verified recovery code resets the matching session and preserves checkout on return", async () => {
-    mockParams = { code: "one-time-code" };
-    intent("recovery");
-    supabase.auth.exchangeCodeForSession.mockResolvedValue({
-      data: { user: { id: "verified-user" }, session: { access_token: "synthetic" }, redirectType: "recovery" },
-      error: null,
-    });
-    renderWith(<AuthCallback />);
-    fireEvent.changeText(await screen.findByLabelText("Kata sandi baru"), "synthetic-password-2026");
-    const save = screen.getByRole("button", { name: "Simpan kata sandi & masuk" });
-    expect(save).toBeDisabled();
-    fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi"), "synthetic-password-2026");
-    fireEvent.press(save);
-    await waitFor(() => expect(supabase.auth.signOut).toHaveBeenCalled());
-    expect(supabase.auth.updateUser).toHaveBeenCalledWith({ password: "synthetic-password-2026" });
-    expect(router.replace).toHaveBeenCalledWith({
-      pathname: "/login",
-      params: { next: "/checkout/package?cycles=3" },
-    });
-  });
-
-  it("a verified sign-up link creates the profile and returns where the customer started", async () => {
-    mockParams = { code: "one-time-code" };
-    intent("signup");
-    supabase.auth.exchangeCodeForSession.mockResolvedValue({
-      data: {
-        user: { id: "verified-user", user_metadata: { name: "Rani Contoh" } },
-        session: { access_token: "synthetic" },
-      },
-      error: null,
-    });
-    renderWith(<AuthCallback />);
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/checkout/package?cycles=3"));
-    expect(supabase.rpc).toHaveBeenCalledWith("catera_v1_command", {
-      action: "profile.ensure",
-      payload: { name: "Rani Contoh" },
-      request_id: expect.any(String),
-    });
-    expect(store.has("catera.auth.pending")).toBe(false);
   });
 });

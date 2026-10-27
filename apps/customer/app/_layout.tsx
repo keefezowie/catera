@@ -89,7 +89,7 @@ function Navigation() {
           <Stack.Screen name="recover" options={{ title: t("Pemulihan akun", "Account recovery"), ...flow("modal"), headerTitle: "" }} />
           <Stack.Screen
             name="auth/callback"
-            options={{ title: t("Verifikasi akun", "Verify account"), headerBackVisible: false }}
+            options={{ title: t("Verifikasi akun", "Verify account"), headerTitle: "", headerBackVisible: false }}
           />
           {/* Buying and paying are full-screen modals: a sheet's swipe could drop a purchase or a payment midway.
               Beli replaces itself with Bayar, so the two share one presentation. */}
