@@ -101,7 +101,7 @@ describe("form primitives", () => {
     expect(screen.getByTestId("password-rule").findByType(Ionicons).props.name).toBe("alert-circle");
   });
 
-  it("submit with one failing field announces the singular count in English", () => {
+  it("submit with one failing field announces a count of one", () => {
     const spy = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     spy.mockClear();
     const view = render(<Form />);
