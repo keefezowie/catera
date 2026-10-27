@@ -6,7 +6,7 @@ import {
   timingSafeEqual,
   verify,
 } from "node:crypto";
-import type { Checkout } from "@catera/domain";
+import { DIRECT_PAYMENT_METHODS, type Checkout } from "@catera/domain";
 
 // Deliberately no production URL or configurable API host in this evaluation.
 const base = "https://api-sandbox.doku.com";
@@ -119,7 +119,12 @@ export function dokuInvoice(checkoutId: string) {
     "CT" + createHash("sha256").update(checkoutId).digest("hex").slice(0, 26)
   );
 }
-export function checkoutBody(c: Checkout, profileId: string, now = Date.now()) {
+export function checkoutBody(
+  c: Checkout,
+  profileId: string,
+  now = Date.now(),
+  only?: string,
+) {
   const origin = process.env.CATERA_PUBLIC_URL;
   if (!origin || new URL(origin).protocol !== "https:")
     throw new Error("NOT_CONFIGURED");
@@ -128,12 +133,13 @@ export function checkoutBody(c: Checkout, profileId: string, now = Date.now()) {
   const minutes = Math.floor((Date.parse(c.expires_at) - now - 30000) / 60000);
   if (minutes < 1) throw new Error("PAYMENT_HOLD_TOO_SHORT");
   const methods = (
-    process.env.DOKU_PAYMENT_METHODS || "VIRTUAL_ACCOUNT_BRI,QRIS"
+    only || process.env.DOKU_PAYMENT_METHODS || "VIRTUAL_ACCOUNT_BRI,QRIS"
   )
     .split(",")
     .map((x) => x.trim());
+  // DOKU's own Checkout codes: VA, QRIS, e-wallets, paylater, cards and stores.
   const allowed =
-    /^(VIRTUAL_ACCOUNT_[A-Z_]+|QRIS|EMONEY_(OVO|DANA|SHOPEEPAY|LINKAJA))$/;
+    /^(VIRTUAL_ACCOUNT_[A-Z_]+|QRIS|CREDIT_CARD|EMONEY_(OVO|DANA|SHOPEE_PAY|LINKAJA)|PEER_TO_PEER_(KREDIVO|AKULAKU|INDODANA)|ONLINE_TO_OFFLINE_(ALFA|INDOMARET))$/;
   if (!methods.length || methods.some((x) => !allowed.test(x)))
     throw new Error("DOKU_CHANNEL_NOT_SUPPORTED");
   return {
@@ -191,11 +197,22 @@ export function checkoutResult(data: Record<string, any>, deadline: string) {
 export function dokuPaymentEvent(
   data: Record<string, any>,
   operation: { entity_id: string; reference: string; amount: number },
+  expectedChannel?: string,
 ) {
   if (
     data.order?.invoice_number !== operation.reference ||
     Number(data.order?.amount) !== operation.amount ||
     (data.order?.currency !== undefined && data.order.currency !== "IDR")
+  )
+    throw new Error("DOKU_PAYMENT_MISMATCH");
+  // A direct redirect operation is locked to one method; a notification naming another known method is not ours.
+  // Unknown or absent channel ids are skipped (only DOKU's published codes are compared).
+  const named = data.channel?.id;
+  if (
+    expectedChannel &&
+    typeof named === "string" &&
+    named !== expectedChannel &&
+    (DIRECT_PAYMENT_METHODS as readonly string[]).includes(named)
   )
     throw new Error("DOKU_PAYMENT_MISMATCH");
   const status = data.transaction?.status;

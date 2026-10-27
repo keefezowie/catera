@@ -1934,6 +1934,17 @@ Owner picks of October 27, 2026: 1A (payment row and sheet), 3A (one grouped she
 - **Sheet** (`/pembelian/bayar-pakai`, `PayMethodRoute` in `apps/customer/src/buy/PayMethodSheet.tsx`, `sheetOptions({ detents: "fit" })`, scrolling under its title when long): title "Bayar dengan", rows of 64 with the mark, name, detail and the platform's selection (a checkmark on iOS, a radio on Android). Group titles show only when more than five methods are offered. A group of one is a plain row. Two or more banks fold into one "Transfer bank (VA)" button ("BCA, Mandiri, BRI, BNI dan n lainnya", or the chosen bank) that opens in place, already open when the chosen method is a bank. Choosing answers once the sheet has gone; closing changes nothing.
 - **Marks** (`MethodMark`): a 56×40 tile, radius 12, 1px line, with the mark contained in 48×28 on white in every theme (the marks are dark ink made for a light field, like the QRIS quiet zone); the group glyph on the themed surface when a key has no mark. The 27 PNGs and their sources, licence notes, sizes and alpha are in `packages/brand/assets/payment/manifest.json`: 20 from Wikimedia Commons, 7 from the brands' own sites or id.wikipedia. Akulaku is opaque (white on red). QRIS is the monochrome mark. The marks stay their owners' trademarks.
 
+### Channels (October 28, 2026)
+
+The server can now offer QRIS, seven banks' virtual accounts (BCA, Mandiri, BRI, BNI, BSI, Permata, CIMB Niaga), four e-wallets (ShopeePay, DANA, OVO, LinkAja; GoPay is not on DOKU) and three paylater providers (Kredivo, Akulaku, Indodana). Each is off until its sandbox gates are set (`docs/RUNBOOK.md`, DOKU direct payment channels). Spec `docs/superpowers/specs/2026-10-27-payment-channels-design.md`.
+
+- **Virtual account** (Bayar): start "Tampilkan nomor VA"; the card reads "Nomor virtual account {bank}" with the catalogue's bank name ("Mandiri", "CIMB Niaga"); the first step reads "Buka aplikasi {bank} atau ATM, lalu pilih Transfer / Virtual Account.", then the two existing steps.
+- **E-wallet and paylater** (Bayar): start "Bayar dengan {name}"; then the primary "Lanjut ke {name}" opens DOKU's page for that one method in the in-app browser and reads the checkout again on return; steps "Selesaikan pembayaran di {name}." and "Kembali ke Catera. Status berubah sendiri." "Saya sudah bayar, cek status" stays.
+- **Paylater without a complete profile**: "Lengkapi nama, nomor HP dan email di Akun untuk bayar dengan paylater." The method is not locked, so the customer can pick another.
+- **Web** (`direct-payment.tsx`): the same kinds and strings; a redirect method's radio row shows its catalogue detail; the redirect is a same-tab link.
+
+Not verified on a device or against a real DOKU notification: the `channel.id` values DOKU sends for wallets and paylater, the in-app browser return, paylater with a real Kredivo, Akulaku or Indodana account.
+
 ### Mascot space
 
 - **Beranda without a package** (`EmptyHome`): the title and subtitle are left-aligned in a column beside `StateArt pose="melambai" base={64}` (52 at font scale 1.3 on a 360dp phone), gap 12. This is the one still on a page with food photos (owner pick 2B). The recap rule stands: no art while the recap shows; a held 64 box while its seen marks are read.

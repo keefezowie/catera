@@ -36,6 +36,7 @@ export {
   enrichDirectCheckout,
   filterPaymentAvailability,
   directMethodReady,
+  assertPaylaterCustomer,
   submitDirectPayment,
   reconcileDirectPayment,
   storeDirectEvent,

@@ -4,7 +4,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useNavigation } from "expo-router/react-navigation";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
-import { currency, errorLabel, paidSummary, type Checkout, type CustomerState, type DirectPaymentMethod } from "@catera/domain";
+import { VA_CHANNELS, currency, directChannelKind, errorLabel, paidSummary, paymentMethodInfo, type Checkout, type CustomerState, type DirectPaymentMethod, type VaBank } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, FadeSwap, fontFor, FormError, Screen, Text, themedStyles, useBusy, useColors, useToast } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
@@ -281,14 +281,25 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   const deadline = Date.parse(payment?.expiresAt || c.expires_at) - now;
   const methods = payment?.selectedMethod ? [payment.selectedMethod] : (payment?.availableMethods ?? []);
   const chosen = method && methods.includes(method) ? method : methods.includes("QRIS") ? "QRIS" : (methods[0] ?? null);
+  const nameOf = (code: string) => paymentMethodInfo(code)?.short ?? code;
+  const bankName = (bank: VaBank) => paymentMethodInfo(VA_CHANNELS[bank])?.short ?? bank;
+  const redirectName = instructions?.kind === "redirect" ? nameOf(instructions.channel) : "";
   const steps =
     instructions?.kind === "virtual_account"
       ? [
-          t("Buka aplikasi bank BRI atau ATM, lalu pilih BRIVA.", "Open your BRI banking app or ATM and choose BRIVA."),
+          t(
+            `Buka aplikasi ${bankName(instructions.bank)} atau ATM, lalu pilih Transfer / Virtual Account.`,
+            `Open the ${bankName(instructions.bank)} app or an ATM and choose Transfer / Virtual Account.`,
+          ),
           t("Masukkan nomor virtual account di atas.", "Enter the virtual account number above."),
           t("Periksa nama dan totalnya, lalu bayar.", "Check the name and total, then pay."),
         ]
-      : [
+      : instructions?.kind === "redirect"
+        ? [
+            t(`Selesaikan pembayaran di ${redirectName}.`, `Finish paying in ${redirectName}.`),
+            t("Kembali ke Catera. Status berubah sendiri.", "Come back to Catera. The status updates by itself."),
+          ]
+        : [
           t("Buka aplikasi bank atau e-wallet, lalu pilih bayar dengan QRIS.", "Open a bank or e-wallet app and choose pay with QRIS."),
           t("Pindai kode ini. Dari HP ini, simpan gambar QR lalu pilih dari galeri.", "Scan this code. On this phone, save the QR image and pick it from the gallery."),
           t("Periksa totalnya, lalu bayar. Status berubah sendiri.", "Check the total, then pay. The status updates by itself."),
@@ -336,7 +347,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         ) : null}
         {instructions?.kind === "virtual_account" ? (
           <Card style={{ alignItems: "center" }}>
-            <Text variant="caption">{t("Nomor virtual account BRI", "BRI virtual account number")}</Text>
+            <Text variant="caption">{t(`Nomor virtual account ${bankName(instructions.bank)}`, `${bankName(instructions.bank)} virtual account number`)}</Text>
             <RNText selectable style={styles.va}>
               {instructions.accountNumber}
             </RNText>
@@ -352,6 +363,18 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
               }
             />
           </Card>
+        ) : null}
+        {instructions?.kind === "redirect" ? (
+          <Button
+            label={t(`Lanjut ke ${redirectName}`, `Continue to ${redirectName}`)}
+            busy={waiting === "page"}
+            onPress={() =>
+              void run(async () => {
+                await WebBrowser.openBrowserAsync(instructions.url);
+                await reload();
+              }, "page")
+            }
+          />
         ) : null}
         {instructions ? (
           <View style={{ gap: 8 }}>
@@ -369,7 +392,13 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
             <PayWith availability={{ mode: "direct", availableMethods: methods }} chosen={chosen} onChoose={setMethod} t={t} />
             {chosen ? (
               <Button
-                label={chosen === "QRIS" ? t("Tampilkan QRIS", "Show QRIS") : t("Tampilkan nomor VA", "Show VA number")}
+                label={
+                  directChannelKind(chosen) === "qris"
+                    ? t("Tampilkan QRIS", "Show QRIS")
+                    : directChannelKind(chosen) === "va"
+                      ? t("Tampilkan nomor VA", "Show VA number")
+                      : t(`Bayar dengan ${nameOf(chosen)}`, `Pay with ${nameOf(chosen)}`)
+                }
                 busy={waiting === "start"}
                 onPress={() => void run(() => command("checkout.payment.start", { id: c.id, method: chosen }), "start")}
               />

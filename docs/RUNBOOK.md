@@ -110,6 +110,25 @@ The application aims for 15-minute holds bounded by the first applicable cutoff.
 
 References: [Supabase phone login](https://supabase.com/docs/guides/auth/phone-login), [Xendit payment sessions](https://docs.xendit.co/docs/payment-sessions), [Xendit split payments](https://docs.xendit.co/docs/split-payments).
 
+### DOKU direct payment channels (October 2026)
+
+Catera's own Bayar screen can take QRIS, seven banks' virtual accounts (BCA, Mandiri, BRI, BNI, BSI, Permata, CIMB Niaga), four e-wallets (ShopeePay, DANA, OVO, LinkAja) and three paylater providers (Kredivo, Akulaku, Indodana). Every channel is off until all of its gates are set; an unready channel is never listed to customers. Design: `docs/superpowers/specs/2026-10-27-payment-channels-design.md`.
+
+Shared gates: `DOKU_ENVIRONMENT=sandbox`, `CATERA_CONTROLLED_COLLECTION=true`, `DOKU_COLLECTION_ENABLED=true`, `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_PRIVATE_KEY`, `DOKU_COLLECTION_PROFILE_ID`; redirect channels also need `CATERA_PUBLIC_URL`.
+
+Per channel, with KEY one of `QRIS`, `BCA`, `MANDIRI`, `BRI`, `BNI`, `BSI`, `PERMATA`, `CIMB`, `SHOPEEPAY`, `DANA`, `OVO`, `LINKAJA`, `KREDIVO`, `AKULAKU`, `INDODANA`: `DOKU_DIRECT_<KEY>_ENABLED`, `_CONTRACT_VERIFIED`, `_ROUTING_VERIFIED`, `_CALLBACK_VERIFIED`, each `true` only with recorded sandbox evidence. Banks also need `DOKU_<BANK>_PARTNER_SERVICE_ID` and `DOKU_<BANK>_CUSTOMER_PREFIX` from DOKU (BRI keeps `DOKU_BRI_*`). QRIS keeps `DOKU_QRIS_MERCHANT_ID`, `DOKU_QRIS_TERMINAL_ID`, `DOKU_QRIS_POSTAL_CODE`.
+
+How each kind runs: VA numbers through SNAP create-va (notifications to `/api/webhooks/doku/direct/va`; the old `/direct/bri` URL still works); e-wallets and paylater through a DOKU Checkout session locked to the one method (notifications to `/api/webhooks/doku/payment`). Paylater sends the customer's name, phone (as `62…`) and email; a customer without all three is refused before the method is locked (`PAYMENT_CUSTOMER_INCOMPLETE`), and only `{ id }` of the customer is stored with the operation.
+
+Enable a channel in this order:
+
+1. Ask DOKU to activate the channel on the sandbox account (and, for a bank, issue its partner service ID and customer prefix). Point the channel's notification URL at the route above.
+2. Make one sandbox payment end to end. Record: the request and response, the notification (for wallets and paylater, the `channel.id` DOKU sends; the redirect check assumes it equals the method code and skips other values), the status inquiry, and that the sub-account shows the pending balance.
+3. Set the four flags and any bank config, deploy, then add the code with `provider.direct.configure` (service role; mode `direct`, the full method list, a reason).
+4. Check that Beli lists the method and that a second payment settles once after repeated notifications.
+
+Production hosts are not accepted yet: `checkoutResult` allows only DOKU sandbox and staging URLs.
+
 ## 6. Scheduled jobs and notifications
 
 Configure a protected scheduler to GET `/api/jobs` every minute with a Bearer CRON_SECRET authorization header. Do not expose the secret in a public URL. The handler expires holds, creates reminders, claims outbox work with a lease, retries financial/push jobs and checks Expo push receipts. It returns processed count and health counters. No hosted scheduler was configured during local implementation.

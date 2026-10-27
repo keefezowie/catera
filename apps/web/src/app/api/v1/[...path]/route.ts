@@ -17,6 +17,7 @@ import {
   enrichDirectCheckout,
   filterPaymentAvailability,
   directMethodReady,
+  assertPaylaterCustomer,
   submitDirectPayment,
   reconcileDirectPayment,
   processDokuInbox,
@@ -48,7 +49,9 @@ import {
   dishSaveSchema,
   dishArchiveSchema,
   usageSchema,
+  DIRECT_PAYMENT_METHODS,
   type Checkout,
+  type DirectPaymentMethod,
   type PaymentAvailability,
   type Quote,
 } from "@catera/domain";
@@ -147,6 +150,7 @@ const codes = [
   "INVALID_STATE",
   "PILOT_DATABASE_PROTECTED",
   "PAYMENT_HOLD_TOO_SHORT",
+  "PAYMENT_CUSTOMER_INCOMPLETE",
 ];
 function failure(e: unknown) {
   const msg = e instanceof Error ? e.message : "";
@@ -655,7 +659,14 @@ export async function POST(request: Request, context: Context) {
         const payload = z
           .object({
             id: z.string().uuid(),
-            method: z.enum(["VIRTUAL_ACCOUNT_BRI", "QRIS"]).optional(),
+            method: z
+              .enum(
+                DIRECT_PAYMENT_METHODS as unknown as [
+                  DirectPaymentMethod,
+                  ...DirectPaymentMethod[],
+                ],
+              )
+              .optional(),
           })
           .strict()
           .parse(command.payload);
@@ -672,13 +683,16 @@ export async function POST(request: Request, context: Context) {
               !directMethodReady(payload.method)))
         )
           throw new Error("PAYMENT_UNAVAILABLE");
+        const system = <T = unknown>(action: string, payload: unknown = {}) =>
+          rpc<T>(null, null, "catera_v1_system", { action, payload }, true);
+        // The caller's own read above proved ownership; refuse before the method is locked.
+        if (command.action === "checkout.payment.start" && payload.method)
+          await assertPaylaterCustomer(payload.method, checkout.id, system);
         await rpc(s.id, s.token, "catera_v1_command", {
           action: command.action,
           payload,
           request_id: command.requestId,
         });
-        const system = <T = unknown>(action: string, payload: unknown = {}) =>
-          rpc<T>(null, null, "catera_v1_system", { action, payload }, true);
         if (command.action === "checkout.payment.start")
           await submitDirectPayment(checkout, system);
         else {

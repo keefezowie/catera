@@ -1,23 +1,53 @@
-import type {
-  Checkout,
-  DirectPaymentMethod,
-  PaymentAvailability,
+import {
+  DIRECT_PAYMENT_METHODS,
+  PAYLATER_CHANNELS,
+  directChannelKind,
+  redirectKeyOf,
+  vaBankOf,
+  type Checkout,
+  type DirectPaymentMethod,
+  type PaymentAvailability,
+  type RedirectChannel,
 } from "@catera/domain";
-import { assertDokuIdentity, dokuSnap } from "./doku";
+import {
+  assertDokuIdentity,
+  checkoutBody,
+  checkoutResult,
+  dokuInvoice,
+  dokuPaymentEvent,
+  dokuRequest,
+  dokuSnap,
+} from "./doku";
 import type { ProviderOperation, System } from "./payment-provider";
 
-export const directPaths = {
-  VIRTUAL_ACCOUNT_BRI:
-    "/virtual-accounts/bi-snap-va/v1.1/transfer-va/create-va",
-  QRIS: "/snap-adapter/b2b/v1.0/qr/qr-mpm-generate",
-} as const;
+const VA_CREATE = "/virtual-accounts/bi-snap-va/v1.1/transfer-va/create-va";
+const QRIS_CREATE = "/snap-adapter/b2b/v1.0/qr/qr-mpm-generate";
+const CHECKOUT = "/checkout/v1/payment";
+/** What `provider.payment.customer` returns; any field may be null. */
+export type PaymentCustomer = {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  postcode: string | null;
+  packageName: string | null;
+};
+/** DOKU wants digits only with the 62 country prefix. */
+const dokuPhone = (v: string | null | undefined) => {
+  const d = (v ?? "").replace(/\D/g, "");
+  return d.startsWith("0") ? "62" + d.slice(1) : d || undefined;
+};
+const DIRECT_KEYS = new Set<string>(DIRECT_PAYMENT_METHODS);
 const required = (key: string) => {
   const value = process.env[key];
   if (!value) throw new Error("PAYMENT_UNAVAILABLE");
   return value;
 };
 export function directMethodReady(method: DirectPaymentMethod) {
-  const prefix = method === "QRIS" ? "DOKU_DIRECT_QRIS" : "DOKU_DIRECT_BRI";
+  if (!DIRECT_KEYS.has(method)) return false;
+  const bank = vaBankOf(method);
+  const prefix = `DOKU_DIRECT_${bank ?? redirectKeyOf(method) ?? "QRIS"}`;
   const keys =
     method === "QRIS"
       ? [
@@ -25,7 +55,9 @@ export function directMethodReady(method: DirectPaymentMethod) {
           "DOKU_QRIS_TERMINAL_ID",
           "DOKU_QRIS_POSTAL_CODE",
         ]
-      : ["DOKU_BRI_PARTNER_SERVICE_ID", "DOKU_BRI_CUSTOMER_PREFIX"];
+      : bank
+        ? [`DOKU_${bank}_PARTNER_SERVICE_ID`, `DOKU_${bank}_CUSTOMER_PREFIX`]
+        : [];
   return (
     process.env.DOKU_ENVIRONMENT === "sandbox" &&
     process.env.CATERA_CONTROLLED_COLLECTION === "true" &&
@@ -82,7 +114,11 @@ function expiry(value: unknown, deadline: string) {
     throw new Error("DOKU_EXPIRY_MISMATCH");
   return new Date(value).toISOString();
 }
-export function directRequest(c: Checkout, op: ProviderOperation) {
+export function directRequest(
+  c: Checkout,
+  op: ProviderOperation,
+  customer?: PaymentCustomer | null,
+): Record<string, any> {
   if (Date.parse(c.expires_at) - Date.now() < 60000)
     throw new Error("PAYMENT_HOLD_TOO_SHORT");
   const expiresAt = new Date(
@@ -97,12 +133,44 @@ export function directRequest(c: Checkout, op: ProviderOperation) {
   if (!/^SAC-\d+-\d+$/.test(profileId))
     throw new Error("DOKU_COLLECTION_PROFILE_REQUIRED");
   const account = { id: profileId };
-  if (op.channel === "VIRTUAL_ACCOUNT_BRI") {
-    const partnerServiceId = required("DOKU_BRI_PARTNER_SERVICE_ID").padStart(
-      8,
-      " ",
-    );
-    const customerNo = required("DOKU_BRI_CUSTOMER_PREFIX");
+  const bank = op.channel ? vaBankOf(op.channel) : null;
+  if (op.channel && directChannelKind(op.channel) === "redirect") {
+    // The Checkout invoice is derived from the checkout id; the database must agree.
+    if (op.reference !== dokuInvoice(c.id))
+      throw new Error("PAYMENT_UNAVAILABLE");
+    const body = checkoutBody(c, profileId, Date.now(), op.channel);
+    if (!PAYLATER_CHANNELS.includes(op.channel as RedirectChannel)) return body;
+    // Paylater providers underwrite the buyer, so they need contact and line items.
+    if (!customer?.name || !customer.phone || !customer.email)
+      throw new Error("PAYMENT_CUSTOMER_INCOMPLETE");
+    const text = (v: string | null | undefined) =>
+      v ? v.trim().slice(0, 255) || undefined : undefined;
+    return {
+      ...body,
+      customer: {
+        id: c.id,
+        name: text(customer.name),
+        phone: dokuPhone(customer.phone),
+        email: text(customer.email),
+        ...(text(customer.address) && { address: text(customer.address) }),
+        ...(text(customer.postcode) && { postcode: text(customer.postcode) }),
+        ...(text(customer.city) && { city: text(customer.city) }),
+        country: "ID",
+      },
+      line_items: [
+        {
+          name: text(customer.packageName) ?? "Catera",
+          price: c.quote.total,
+          quantity: 1,
+        },
+      ],
+    };
+  }
+  if (bank) {
+    const partnerServiceId = required(
+      `DOKU_${bank}_PARTNER_SERVICE_ID`,
+    ).padStart(8, " ");
+    const customerNo = required(`DOKU_${bank}_CUSTOMER_PREFIX`);
     if (
       !/^\s*\d{1,8}$/.test(partnerServiceId) ||
       !/^\d{1,20}$/.test(customerNo)
@@ -185,7 +253,23 @@ export function directResult(
   c: Checkout,
   op: ProviderOperation,
 ) {
-  if (op.channel === "VIRTUAL_ACCOUNT_BRI") {
+  const bank = op.channel ? vaBankOf(op.channel) : null;
+  if (op.channel && directChannelKind(op.channel) === "redirect") {
+    const placed = data.response?.order?.invoice_number;
+    if (placed !== undefined && placed !== op.reference)
+      throw new Error("DOKU_INVALID_RESPONSE");
+    const hosted = checkoutResult(data, c.expires_at);
+    return {
+      expiresAt: hosted.expiresAt,
+      providerReference: hosted.providerId,
+      instructions: {
+        kind: "redirect",
+        url: hosted.url,
+        channel: op.channel as RedirectChannel,
+      },
+    };
+  }
+  if (bank) {
     const va = data.virtualAccountData;
     if (
       data.responseCode !== "2002700" ||
@@ -207,7 +291,7 @@ export function directResult(
       expiresAt: expiry(va.expiredDate, c.expires_at),
       instructions: {
         kind: "virtual_account",
-        bank: "BRI",
+        bank,
         accountNumber: va.virtualAccountNo.trim(),
         accountName: va.virtualAccountName,
       },
@@ -236,6 +320,20 @@ export function directResult(
     },
   };
 }
+/** Paylater needs the buyer's contact; check before the method is locked so a checkout is never stuck on it. */
+export async function assertPaylaterCustomer(
+  method: DirectPaymentMethod,
+  checkoutId: string,
+  sys: System,
+) {
+  if (!PAYLATER_CHANNELS.includes(method as RedirectChannel)) return;
+  const customer = await sys<PaymentCustomer | null>(
+    "provider.payment.customer",
+    { id: checkoutId },
+  );
+  if (!customer?.name || !customer.phone || !customer.email)
+    throw new Error("PAYMENT_CUSTOMER_INCOMPLETE");
+}
 export async function submitDirectPayment(c: Checkout, sys: System) {
   let op = await sys<ProviderOperation>("provider.operation", {
     kind: "payment",
@@ -245,19 +343,28 @@ export async function submitDirectPayment(c: Checkout, sys: System) {
   assertDokuIdentity(op);
   if (!op.channel || !directMethodReady(op.channel))
     throw new Error("PAYMENT_UNAVAILABLE");
-  const request = directRequest(c, op);
+  const redirect = directChannelKind(op.channel) === "redirect";
+  const customer = PAYLATER_CHANNELS.includes(op.channel as RedirectChannel)
+    ? await sys<PaymentCustomer | null>("provider.payment.customer", {
+        id: c.id,
+      })
+    : null;
+  const request = directRequest(c, op, customer);
   op = await sys<ProviderOperation>("provider.direct.submit", {
     id: c.id,
-    request,
+    // The stored copy keeps the audit trail but not the buyer's contact details.
+    request: customer && request.customer ? { ...request, customer: { id: c.id } } : request,
   });
   if (!op.submit) return;
   try {
-    const data = await dokuSnap(
-      directPaths[op.channel!],
-      op.request,
-      await sys<string>("provider.externalId"),
-      "H2H",
-    );
+    const data = redirect
+      ? await dokuRequest(CHECKOUT, request, op.id)
+      : await dokuSnap(
+          op.channel === "QRIS" ? QRIS_CREATE : VA_CREATE,
+          op.request,
+          await sys<string>("provider.externalId"),
+          "H2H",
+        );
     await sys("provider.direct.attached", {
       id: c.id,
       result: directResult(data, c, op),
@@ -282,13 +389,24 @@ export function directPaymentEvent(
   data: Record<string, any>,
   op: ProviderOperation,
   source:
-    "bri_notification" | "qris_notification" | "bri_status" | "qris_status",
+    | "va_notification"
+    | "va_status"
+    | "qris_notification"
+    | "qris_status"
+    | "redirect_notification"
+    | "redirect_status",
 ) {
   let transaction: string | undefined;
-  if (source.startsWith("bri")) {
-    if (op.channel !== "VIRTUAL_ACCOUNT_BRI")
+  if (source.startsWith("redirect")) {
+    // E-wallets and paylater report through DOKU Checkout's hosted notification and status.
+    if (!op.channel || directChannelKind(op.channel) !== "redirect")
       throw new Error("DOKU_PAYMENT_MISMATCH");
-    const va = source === "bri_notification" ? data : data.virtualAccountData;
+    return dokuPaymentEvent(data, op, op.channel);
+  }
+  if (source.startsWith("va")) {
+    if (!op.channel || !vaBankOf(op.channel))
+      throw new Error("DOKU_PAYMENT_MISMATCH");
+    const va = source === "va_notification" ? data : data.virtualAccountData;
     const reference = va?.trxId ?? data.additionalInfo?.trxId;
     if (
       reference !== op.reference ||
@@ -303,13 +421,13 @@ export function directPaymentEvent(
     // The documented pending example contains paidAmount; amount alone is not payment proof.
     // DOKU documents paymentRequestId as present when payment happened.
     if (
-      source === "bri_status" &&
+      source === "va_status" &&
       (!va?.paymentRequestId ||
         /pending|unpaid/i.test(va.paymentFlagReason?.english || ""))
     )
       return null;
     if (
-      source === "bri_notification" &&
+      source === "va_notification" &&
       va.additionalInfo?.channel !== op.channel
     )
       throw new Error("DOKU_PAYMENT_MISMATCH");
@@ -383,7 +501,12 @@ export async function reconcileDirectPayment(
 ) {
   assertDokuIdentity(op);
   if (op.state === "preparing") return; // No instrument exists until the customer submits again.
-  if (op.channel === "VIRTUAL_ACCOUNT_BRI") {
+  if (op.channel && directChannelKind(op.channel) === "redirect") {
+    const data = await dokuRequest(
+      "/orders/v1/status/" + encodeURIComponent(op.reference),
+    );
+    await storeDirectEvent(data, op, "redirect_status", sys);
+  } else if (op.channel && vaBankOf(op.channel)) {
     if (!op.result.virtualAccount)
       throw new Error("DOKU_DIRECT_REFERENCE_UNRESOLVED");
     const data = await dokuSnap(
@@ -392,7 +515,7 @@ export async function reconcileDirectPayment(
       await sys<string>("provider.externalId"),
       "H2H",
     );
-    await storeDirectEvent(data, op, "bri_status", sys);
+    await storeDirectEvent(data, op, "va_status", sys);
   } else if (op.channel === "QRIS") {
     if (!op.result.providerReference)
       throw new Error("DOKU_DIRECT_REFERENCE_UNRESOLVED");

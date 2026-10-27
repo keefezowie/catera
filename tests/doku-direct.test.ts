@@ -5,10 +5,19 @@ import {
   PACKAGE_IDS as P,
   ADDRESS_ID as A,
 } from "../packages/backend/src/seed";
-import { addDays, localDay, type Checkout } from "@catera/domain";
+import {
+  addDays,
+  localDay,
+  REDIRECT_CHANNELS,
+  VA_CHANNELS,
+  type Checkout,
+  type DirectPaymentMethod,
+} from "@catera/domain";
 import {
   createPaymentSession,
   processDokuInbox,
+  reconcileDoku,
+  recordDokuPayment,
   type ProviderOperation,
   type System,
 } from "../packages/backend/src/payment-provider";
@@ -17,6 +26,7 @@ import {
   directRequest,
   directResult,
   directPaymentEvent,
+  assertPaylaterCustomer,
   storeDirectEvent,
   submitDirectPayment,
   validateQr,
@@ -318,8 +328,8 @@ it("deduplicates callback-before-response and atomically activates exactly once"
     paidAmount: response.virtualAccountData.totalAmount,
     paymentRequestId: "bri-paid-test",
   };
-  await storeDirectEvent(notification, op, "bri_notification", sys);
-  await storeDirectEvent(notification, op, "bri_notification", sys);
+  await storeDirectEvent(notification, op, "va_notification", sys);
+  await storeDirectEvent(notification, op, "va_notification", sys);
   await processDokuInbox(sys);
   await sys("provider.direct.attached", {
     id: c.id,
@@ -513,7 +523,7 @@ it("does not infer BRI payment from the pending response's amount", () => {
     paymentFlagReason: { english: "Pending" },
   };
   const data = { virtualAccountData: va, additionalInfo: { trxId: "ref" } };
-  expect(directPaymentEvent(data, op, "bri_status")).toBeNull();
+  expect(directPaymentEvent(data, op, "va_status")).toBeNull();
   expect(
     directPaymentEvent(
       {
@@ -525,7 +535,7 @@ it("does not infer BRI payment from the pending response's amount", () => {
         },
       },
       op,
-      "bri_status",
+      "va_status",
     )?.status,
   ).toBe("paid");
 });
@@ -590,11 +600,519 @@ it("routes late direct payment on an unavailable package to review without activ
       paymentRequestId: "late-direct",
     },
     op,
-    "bri_notification",
+    "va_notification",
     sys,
   );
   await processDokuInbox(sys);
   const view = await read(c.id);
   expect(view.state).toBe("payment_exception");
   expect(view.subscription_id).toBeNull();
+});
+
+const FX_ID = "11111111-1111-4111-8111-111111111111";
+const fx = () =>
+  ({
+    id: FX_ID,
+    expires_at: new Date(Date.now() + 900000).toISOString(),
+    quote: { total: 10000 },
+  }) as Checkout;
+const channelOp = (
+  channel: DirectPaymentMethod,
+  patch: Partial<ProviderOperation> = {},
+): ProviderOperation => ({
+  ...operationFixture,
+  payment_mode: "direct",
+  state: "preparing",
+  channel,
+  entity_id: FX_ID,
+  reference: doku.dokuInvoice(FX_ID),
+  ...patch,
+});
+const wib = (ms: number) =>
+  new Date(ms + 7 * 3600000)
+    .toISOString()
+    .slice(0, 19)
+    .replace(/[-:T]/g, "");
+const FLAGS = [
+  "ENABLED",
+  "CONTRACT_VERIFIED",
+  "ROUTING_VERIFIED",
+  "CALLBACK_VERIFIED",
+];
+function envAll() {
+  env();
+  vi.stubEnv("CATERA_PUBLIC_URL", "https://catera.example");
+  for (const bank of Object.keys(VA_CHANNELS)) {
+    vi.stubEnv(`DOKU_${bank}_PARTNER_SERVICE_ID`, "12345");
+    vi.stubEnv(`DOKU_${bank}_CUSTOMER_PREFIX`, "6");
+  }
+  for (const key of [
+    ...Object.keys(VA_CHANNELS),
+    ...Object.keys(REDIRECT_CHANNELS),
+  ])
+    for (const f of FLAGS) vi.stubEnv(`DOKU_DIRECT_${key}_${f}`, "true");
+}
+const checkoutResponse = (
+  c: Checkout,
+  reference: string,
+  host = "sandbox.doku.com",
+) => ({
+  response: {
+    order: { invoice_number: reference },
+    payment: {
+      url: `https://${host}/checkout/link/abc`,
+      token_id: "token-1",
+      expired_date: wib(Date.parse(c.expires_at) - 60000),
+    },
+  },
+});
+
+it("readiness is per channel: four flags, bank config, and BRI keeps its env names", () => {
+  envAll();
+  for (const m of [
+    ...Object.values(VA_CHANNELS),
+    ...Object.values(REDIRECT_CHANNELS),
+  ])
+    expect(directMethodReady(m)).toBe(true);
+  for (const [bank, m] of Object.entries(VA_CHANNELS)) {
+    for (const f of FLAGS) {
+      vi.stubEnv(`DOKU_DIRECT_${bank}_${f}`, "false");
+      expect(directMethodReady(m)).toBe(false);
+      vi.stubEnv(`DOKU_DIRECT_${bank}_${f}`, "true");
+    }
+    for (const k of ["PARTNER_SERVICE_ID", "CUSTOMER_PREFIX"]) {
+      vi.stubEnv(`DOKU_${bank}_${k}`, "");
+      expect(directMethodReady(m)).toBe(false);
+      vi.stubEnv(`DOKU_${bank}_${k}`, "6");
+    }
+  }
+  for (const [key, m] of Object.entries(REDIRECT_CHANNELS)) {
+    vi.stubEnv(`DOKU_DIRECT_${key}_CALLBACK_VERIFIED`, "false");
+    expect(directMethodReady(m)).toBe(false);
+  }
+  vi.stubEnv("DOKU_COLLECTION_ENABLED", "false");
+  expect(directMethodReady("VIRTUAL_ACCOUNT_BCA")).toBe(false);
+});
+it("a channel is off unless its own flags are set", () => {
+  env();
+  expect(directMethodReady("VIRTUAL_ACCOUNT_BCA")).toBe(false);
+  expect(directMethodReady("EMONEY_DANA")).toBe(false);
+});
+
+it("creates the VA for each bank with its own config and echoes its channel and bank", () => {
+  envAll();
+  for (const [bank, channel] of Object.entries(VA_CHANNELS)) {
+    vi.stubEnv(`DOKU_${bank}_PARTNER_SERVICE_ID`, "777");
+    vi.stubEnv(`DOKU_${bank}_CUSTOMER_PREFIX`, "9");
+    const c = fx();
+    const op = channelOp(channel);
+    const request: any = directRequest(c, op);
+    expect(request.additionalInfo.channel).toBe(channel);
+    expect(request.partnerServiceId).toBe("     777");
+    expect(request.customerNo).toBe("9");
+    expect(request.trxId).toBe(op.reference);
+    const res = {
+      responseCode: "2002700",
+      virtualAccountData: {
+        partnerServiceId: request.partnerServiceId,
+        customerNo: "90000001",
+        virtualAccountNo: request.partnerServiceId + "90000001",
+        virtualAccountName: "Catera",
+        trxId: op.reference,
+        totalAmount: { value: "10000.00", currency: "IDR" },
+        expiredDate: request.expiredDate,
+        virtualAccountTrxType: "C",
+        additionalInfo: { channel },
+      },
+    };
+    const full = { ...op, request };
+    const out = directResult(res, c, full) as any;
+    expect(out.instructions).toMatchObject({ kind: "virtual_account", bank });
+    const other =
+      channel === "VIRTUAL_ACCOUNT_BRI"
+        ? "VIRTUAL_ACCOUNT_BCA"
+        : "VIRTUAL_ACCOUNT_BRI";
+    expect(() =>
+      directResult(
+        {
+          ...res,
+          virtualAccountData: {
+            ...res.virtualAccountData,
+            additionalInfo: { channel: other },
+          },
+        },
+        c,
+        full,
+      ),
+    ).toThrow("DOKU_INVALID_RESPONSE");
+  }
+});
+
+it("matches a non-BRI VA notification and status to its own operation only", () => {
+  const op = channelOp("VIRTUAL_ACCOUNT_BCA", {
+    request: { partnerServiceId: "   12345", customerNo: "6" },
+    result: {},
+  });
+  const va = {
+    partnerServiceId: "   12345",
+    customerNo: "600001",
+    virtualAccountNo: "   12345600001",
+    trxId: op.reference,
+    paidAmount: { value: "10000.00", currency: "IDR" },
+    paymentRequestId: "bca-paid",
+    additionalInfo: { channel: "VIRTUAL_ACCOUNT_BCA" },
+  };
+  expect(directPaymentEvent(va, op, "va_notification")?.status).toBe("paid");
+  expect(() =>
+    directPaymentEvent(
+      { ...va, additionalInfo: { channel: "VIRTUAL_ACCOUNT_BRI" } },
+      op,
+      "va_notification",
+    ),
+  ).toThrow("DOKU_PAYMENT_MISMATCH");
+  expect(() =>
+    directPaymentEvent(va, { ...op, channel: "QRIS" }, "va_notification"),
+  ).toThrow("DOKU_PAYMENT_MISMATCH");
+  const status = {
+    virtualAccountData: { ...va, paymentFlagReason: { english: "Success" } },
+  };
+  expect(directPaymentEvent(status, op, "va_status")?.status).toBe("paid");
+  expect(
+    directPaymentEvent(
+      {
+        virtualAccountData: {
+          ...status.virtualAccountData,
+          paymentRequestId: undefined,
+        },
+      },
+      op,
+      "va_status",
+    ),
+  ).toBeNull();
+});
+
+it("builds a single-method Checkout request for a wallet with invoice = reference and no customer", () => {
+  envAll();
+  const c = fx();
+  const op = channelOp("EMONEY_DANA");
+  const body: any = directRequest(c, op);
+  expect(body.payment.payment_method_types).toEqual(["EMONEY_DANA"]);
+  expect(body.order.invoice_number).toBe(op.reference);
+  expect(body.order.invoice_number).toBe(doku.dokuInvoice(c.id));
+  expect(body.order.amount).toBe(10000);
+  expect(body.additional_info.account.id).toBe("SAC-1234-1234567890123");
+  expect(body).not.toHaveProperty("customer");
+  expect(body).not.toHaveProperty("line_items");
+  expect(() =>
+    directRequest(c, { ...op, reference: "x".repeat(34) }),
+  ).toThrow();
+  expect(() =>
+    directRequest(
+      { ...c, expires_at: new Date(Date.now() + 30000).toISOString() },
+      op,
+    ),
+  ).toThrow("PAYMENT_HOLD_TOO_SHORT");
+});
+
+it("adds customer and line items for paylater and refuses an incomplete customer", () => {
+  envAll();
+  const c = fx();
+  const customer = {
+    name: "Sari Dewi",
+    phone: "081234567890",
+    email: "sari@example.com",
+    address: "Jl. Mawar 1",
+    city: "Jakarta",
+    postcode: "12345",
+    packageName: "Paket Sehat",
+  };
+  for (const channel of Object.values(REDIRECT_CHANNELS).filter((m) =>
+    m.startsWith("PEER"),
+  )) {
+    const body: any = directRequest(c, channelOp(channel), customer);
+    expect(body.payment.payment_method_types).toEqual([channel]);
+    expect(body.customer).toEqual({
+      id: c.id,
+      name: "Sari Dewi",
+      phone: "6281234567890",
+      email: "sari@example.com",
+      address: "Jl. Mawar 1",
+      postcode: "12345",
+      city: "Jakarta",
+      country: "ID",
+    });
+    expect(body.line_items).toEqual([
+      { name: "Paket Sehat", price: 10000, quantity: 1 },
+    ]);
+    expect(
+      body.line_items.reduce(
+        (n: number, i: any) => n + i.price * i.quantity,
+        0,
+      ),
+    ).toBe(body.order.amount);
+  }
+  const op = channelOp("PEER_TO_PEER_KREDIVO");
+  for (const missing of ["name", "phone", "email"])
+    expect(() =>
+      directRequest(c, op, { ...customer, [missing]: null }),
+    ).toThrow("PAYMENT_CUSTOMER_INCOMPLETE");
+  expect(() => directRequest(c, op)).toThrow("PAYMENT_CUSTOMER_INCOMPLETE");
+  const partial: any = directRequest(c, op, {
+    ...customer,
+    address: null,
+    postcode: null,
+    city: null,
+    packageName: null,
+  });
+  expect(partial.customer).toMatchObject({ name: "Sari Dewi", country: "ID" });
+  expect(partial.customer).not.toHaveProperty("address");
+  expect(partial.line_items).toHaveLength(1);
+});
+
+it("validates the redirect attach result like the hosted path", () => {
+  envAll();
+  const c = fx();
+  const op = channelOp("EMONEY_SHOPEE_PAY");
+  const out: any = directResult(checkoutResponse(c, op.reference), c, op);
+  expect(out.providerReference).toBe("token-1");
+  expect(out.instructions).toEqual({
+    kind: "redirect",
+    url: "https://sandbox.doku.com/checkout/link/abc",
+    channel: "EMONEY_SHOPEE_PAY",
+  });
+  expect(Date.parse(out.expiresAt)).toBeLessThanOrEqual(
+    Date.parse(c.expires_at),
+  );
+  expect(() =>
+    directResult(checkoutResponse(c, op.reference, "evil.example.com"), c, op),
+  ).toThrow("DOKU_INVALID_CHECKOUT_URL");
+  expect(() => directResult(checkoutResponse(c, "other"), c, op)).toThrow(
+    "DOKU_INVALID_RESPONSE",
+  );
+});
+
+it("submits a redirect payment through Checkout and attaches the URL", async () => {
+  envAll();
+  const c = fx();
+  const op = channelOp("PEER_TO_PEER_AKULAKU");
+  const calls: [string, any][] = [];
+  const s: System = async (action: string, payload: any = {}) => {
+    calls.push([action, payload]);
+    if (action === "provider.operation") return op as any;
+    if (action === "provider.payment.customer")
+      return {
+        name: "Sari Dewi",
+        phone: "081234567890",
+        email: "sari@example.com",
+        address: null,
+        city: null,
+        postcode: null,
+        packageName: "Paket Sehat",
+      } as any;
+    if (action === "provider.direct.submit")
+      return { ...op, request: payload.request, submit: true } as any;
+    return undefined as any;
+  };
+  const req = vi
+    .spyOn(doku, "dokuRequest")
+    .mockResolvedValue(checkoutResponse(c, op.reference));
+  const snap = vi.spyOn(doku, "dokuSnap");
+  await submitDirectPayment(c, s);
+  expect(snap).not.toHaveBeenCalled();
+  expect(req.mock.calls[0][0]).toBe("/checkout/v1/payment");
+  expect((req.mock.calls[0][1] as any).customer.name).toBe("Sari Dewi");
+  expect(calls.find((x) => x[0] === "provider.payment.customer")?.[1]).toEqual({
+    id: c.id,
+  });
+  const attached = calls.find((x) => x[0] === "provider.direct.attached");
+  expect(attached?.[1].result.instructions).toMatchObject({
+    kind: "redirect",
+    channel: "PEER_TO_PEER_AKULAKU",
+  });
+  calls.length = 0;
+  const wallet = channelOp("EMONEY_OVO");
+  const s2: System = async (action: string, payload: any = {}) => {
+    calls.push([action, payload]);
+    if (action === "provider.operation") return wallet as any;
+    if (action === "provider.direct.submit")
+      return { ...wallet, request: payload.request, submit: true } as any;
+    return undefined as any;
+  };
+  req.mockResolvedValue(checkoutResponse(c, wallet.reference));
+  await submitDirectPayment(c, s2);
+  expect(calls.some((x) => x[0] === "provider.payment.customer")).toBe(false);
+});
+
+it("routes a redirect operation's notification through the hosted parser", async () => {
+  envAll();
+  const op = channelOp("EMONEY_DANA", { state: "pending" });
+  const received: any[] = [];
+  const s: System = async (action: string, payload: any = {}) => {
+    if (action === "provider.operation") return op as any;
+    if (action === "provider.inbox.receive") received.push(payload);
+    return undefined as any;
+  };
+  const paid = {
+    order: { invoice_number: op.reference, amount: 10000, currency: "IDR" },
+    transaction: { status: "SUCCESS", original_request_id: "req-1" },
+  };
+  await recordDokuPayment(paid, s);
+  expect(received[0].event).toMatchObject({
+    status: "paid",
+    paymentRequestId: "req-1",
+    checkoutId: FX_ID,
+  });
+  await recordDokuPayment({ ...paid, transaction: { status: "EXPIRED" } }, s);
+  expect(received[1].event.status).toBe("expired");
+  await expect(
+    recordDokuPayment({ ...paid, order: { ...paid.order, amount: 1 } }, s),
+  ).rejects.toThrow("DOKU_PAYMENT_MISMATCH");
+  await recordDokuPayment({ ...paid, transaction: { status: "FAILED" } }, s);
+  expect(received).toHaveLength(2);
+});
+
+it("reconciles a redirect operation through the order status endpoint", async () => {
+  envAll();
+  const op = channelOp("EMONEY_LINKAJA", { state: "pending" });
+  const received: any[] = [];
+  const s: System = async (action: string, payload: any = {}) => {
+    if (action === "provider.inbox.claim") return [] as any;
+    if (action === "provider.pending")
+      return (payload.kind === "payment" ? [op] : []) as any;
+    if (action === "provider.operation") return op as any;
+    if (action === "provider.inbox.receive") received.push(payload);
+    return undefined as any;
+  };
+  const req = vi.spyOn(doku, "dokuRequest").mockResolvedValue({
+    order: { invoice_number: op.reference, amount: 10000 },
+    transaction: { status: "SUCCESS", original_request_id: "req-2" },
+  });
+  const snap = vi.spyOn(doku, "dokuSnap");
+  const out = await reconcileDoku(s);
+  expect(out.failed).toBe(0);
+  expect(req).toHaveBeenCalledWith("/orders/v1/status/" + op.reference);
+  expect(snap).not.toHaveBeenCalled();
+  expect(received[0].event.status).toBe("paid");
+});
+
+it("hosted allow-list accepts DOKU's real codes and rejects junk", () => {
+  envAll();
+  const c = fx();
+  for (const ok of [
+    "EMONEY_SHOPEE_PAY",
+    "PEER_TO_PEER_KREDIVO",
+    "CREDIT_CARD",
+    "ONLINE_TO_OFFLINE_ALFA",
+    "QRIS",
+  ]) {
+    vi.stubEnv("DOKU_PAYMENT_METHODS", ok);
+    expect(
+      doku.checkoutBody(c, "SAC-1234-1234567890123").payment
+        .payment_method_types,
+    ).toEqual([ok]);
+  }
+  for (const bad of [
+    "EMONEY",
+    "emoney_dana",
+    "DROP;TABLE",
+    "VIRTUAL_ACCOUNT_bri",
+    "PEER_TO_PEER_",
+  ]) {
+    vi.stubEnv("DOKU_PAYMENT_METHODS", bad);
+    expect(() => doku.checkoutBody(c, "SAC-1234-1234567890123")).toThrow(
+      "DOKU_CHANNEL_NOT_SUPPORTED",
+    );
+  }
+});
+
+it("normalises the paylater phone to DOKU's 62 format", () => {
+  envAll();
+  const c = fx();
+  const op = channelOp("PEER_TO_PEER_KREDIVO");
+  const base = { name: "S", email: "s@example.com", address: null, city: null, postcode: null, packageName: null };
+  for (const [raw, want] of [
+    ["081234567890", "6281234567890"],
+    ["+6281234567890", "6281234567890"],
+    ["+62 812-3456-7890", "6281234567890"],
+    ["6281234567890", "6281234567890"],
+  ])
+    expect((directRequest(c, op, { ...base, phone: raw }) as any).customer.phone).toBe(want);
+});
+
+it("refuses a paylater method before anything is locked when the customer is incomplete", async () => {
+  const full = { name: "S", phone: "0812", email: "s@example.com" };
+  const seen: string[] = [];
+  const mk = (customer: any): System => async (action: string) => {
+    seen.push(action);
+    return customer as any;
+  };
+  await expect(assertPaylaterCustomer("PEER_TO_PEER_KREDIVO", "id", mk({ ...full, phone: null }))).rejects.toThrow(
+    "PAYMENT_CUSTOMER_INCOMPLETE",
+  );
+  await expect(assertPaylaterCustomer("PEER_TO_PEER_AKULAKU", "id", mk(null))).rejects.toThrow(
+    "PAYMENT_CUSTOMER_INCOMPLETE",
+  );
+  await expect(assertPaylaterCustomer("PEER_TO_PEER_INDODANA", "id", mk({ ...full, email: "" }))).rejects.toThrow(
+    "PAYMENT_CUSTOMER_INCOMPLETE",
+  );
+  seen.length = 0;
+  await assertPaylaterCustomer("PEER_TO_PEER_INDODANA", "id", mk(full));
+  expect(seen).toEqual(["provider.payment.customer"]);
+  seen.length = 0;
+  await assertPaylaterCustomer("EMONEY_DANA", "id", mk(null));
+  await assertPaylaterCustomer("QRIS", "id", mk(null));
+  expect(seen).toEqual([]);
+});
+
+it("posts the full paylater request to DOKU but stores only the customer id", async () => {
+  envAll();
+  const c = fx();
+  const op = channelOp("PEER_TO_PEER_KREDIVO");
+  const stored: any[] = [];
+  const s: System = async (action: string, payload: any = {}) => {
+    if (action === "provider.operation") return op as any;
+    if (action === "provider.payment.customer")
+      return { name: "Sari Dewi", phone: "081234567890", email: "sari@example.com", address: "Jl. Mawar 1", city: "Jakarta", postcode: null, packageName: "Paket" } as any;
+    if (action === "provider.direct.submit") {
+      stored.push(payload.request);
+      return { ...op, request: payload.request, submit: true } as any;
+    }
+    return undefined as any;
+  };
+  const req = vi.spyOn(doku, "dokuRequest").mockResolvedValue(checkoutResponse(c, op.reference));
+  await submitDirectPayment(c, s);
+  expect(stored[0].customer).toEqual({ id: c.id });
+  expect(stored[0].line_items).toHaveLength(1);
+  expect(stored[0].order.amount).toBe(10000);
+  expect(JSON.stringify(stored[0])).not.toContain("Sari");
+  expect((req.mock.calls[0][1] as any).customer).toMatchObject({ name: "Sari Dewi", phone: "6281234567890", email: "sari@example.com" });
+  expect(req.mock.calls[0][2]).toBe(op.id);
+  req.mockClear();
+  const retry: System = async (action: string, payload: any = {}) =>
+    action === "provider.operation"
+      ? (op as any)
+      : action === "provider.direct.submit"
+        ? ({ ...op, request: payload.request, submit: false } as any)
+        : action === "provider.payment.customer"
+          ? ({ name: "Sari Dewi", phone: "0812", email: "a@b.c" } as any)
+          : (undefined as any);
+  await submitDirectPayment(c, retry);
+  expect(req).not.toHaveBeenCalled();
+});
+
+it("rejects a redirect notification that names another method", () => {
+  envAll();
+  const op = channelOp("EMONEY_DANA", { state: "pending" });
+  const body = (channel?: unknown) => ({
+    order: { invoice_number: op.reference, amount: 10000, currency: "IDR" },
+    transaction: { status: "SUCCESS", original_request_id: "r1" },
+    ...(channel === undefined ? {} : { channel }),
+  });
+  expect(directPaymentEvent(body({ id: "EMONEY_DANA" }), op, "redirect_notification")?.status).toBe("paid");
+  expect(directPaymentEvent(body(), op, "redirect_notification")?.status).toBe("paid");
+  expect(directPaymentEvent(body({ id: "SOMETHING_NEW" }), op, "redirect_notification")?.status).toBe("paid");
+  expect(() => directPaymentEvent(body({ id: "EMONEY_OVO" }), op, "redirect_notification")).toThrow("DOKU_PAYMENT_MISMATCH");
+  expect(() => directPaymentEvent(body({ id: "PEER_TO_PEER_KREDIVO" }), op, "redirect_status")).toThrow("DOKU_PAYMENT_MISMATCH");
+  // the hosted path has no expected channel and ignores channel.id
+  expect(doku.dokuPaymentEvent(body({ id: "EMONEY_OVO" }), { entity_id: "x", reference: op.reference, amount: 10000 })?.status).toBe("paid");
 });

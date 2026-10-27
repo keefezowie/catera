@@ -615,6 +615,8 @@ export const errors: Record<string, string> = {
     "Pembayaran sedang tidak tersedia. Coba lagi nanti.",
   PAYMENT_METHOD_LOCKED:
     "Cara bayar untuk pesanan ini sudah dipilih dan tidak bisa diganti.",
+  PAYMENT_CUSTOMER_INCOMPLETE:
+    "Lengkapi nama, nomor HP dan email di Akun untuk bayar dengan paylater.",
   TERMS_REQUIRED: "Setujui Syarat & Ketentuan untuk melanjutkan.",
   DURATION_UNAVAILABLE: "Durasi ini belum tersedia. Pilih durasi lain.",
   BOOKING_HORIZON:
@@ -701,6 +703,8 @@ const errorsEn: Record<string, string> = {
     "Payments aren't available right now. Try again later.",
   PAYMENT_METHOD_LOCKED:
     "This order's payment method is set and can't be changed.",
+  PAYMENT_CUSTOMER_INCOMPLETE:
+    "Add your name, phone number and email in Account to pay with paylater.",
   TERMS_REQUIRED:
     "Accept the Terms & Conditions to continue.",
   DURATION_UNAVAILABLE:

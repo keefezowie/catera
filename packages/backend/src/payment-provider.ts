@@ -1,4 +1,8 @@
-import type { Checkout, DirectPaymentMethod } from "@catera/domain";
+import {
+  directChannelKind,
+  type Checkout,
+  type DirectPaymentMethod,
+} from "@catera/domain";
 import { reconcileDirectPayment, storeDirectEvent } from "./doku-direct";
 import { rpc } from "./database";
 import * as xendit from "./payments";
@@ -109,7 +113,14 @@ export async function recordDokuPayment(
   if (!op || op.kind !== "payment") throw new Error("DOKU_UNKNOWN_PAYMENT");
   assertDokuIdentity(op);
   if (op.payment_mode === "direct") {
-    await storeDirectEvent(data, op, "qris_notification", sys);
+    await storeDirectEvent(
+      data,
+      op,
+      op.channel && directChannelKind(op.channel) === "redirect"
+        ? "redirect_notification"
+        : "qris_notification",
+      sys,
+    );
     return;
   }
   const event = dokuPaymentEvent(data, op);

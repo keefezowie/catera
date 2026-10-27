@@ -1265,6 +1265,53 @@ describe("Bayar", () => {
     await waitFor(() => expect(runtime.api.checkout).toHaveBeenCalledTimes(2));
   });
 
+  it("names the bank on a BCA virtual account", async () => {
+    const va = pendingCheckout(
+      {},
+      {
+        selectedMethod: "VIRTUAL_ACCOUNT_BCA",
+        instructions: { kind: "virtual_account", accountNumber: "1234567890123", accountName: "CATERA SINTETIS", bank: "BCA" },
+      },
+    );
+    wrap(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByText("Nomor virtual account BCA")).toBeTruthy();
+    expect(screen.getByText("Buka aplikasi BCA atau ATM, lalu pilih Transfer / Virtual Account.")).toBeTruthy();
+    expect(screen.getByText("Masukkan nomor virtual account di atas.")).toBeTruthy();
+  });
+
+  it("names Mandiri by its catalogue name, not the raw key", async () => {
+    const va = pendingCheckout(
+      {},
+      {
+        selectedMethod: "VIRTUAL_ACCOUNT_BANK_MANDIRI",
+        instructions: { kind: "virtual_account", accountNumber: "1234567890123", accountName: "CATERA SINTETIS", bank: "MANDIRI" },
+      },
+    );
+    wrap(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByText("Nomor virtual account Mandiri")).toBeTruthy();
+    expect(screen.getByText("Buka aplikasi Mandiri atau ATM, lalu pilih Transfer / Virtual Account.")).toBeTruthy();
+  });
+
+  it("a wallet is started with Bayar dengan", async () => {
+    const runtime = server({
+      checkout: pendingCheckout({}, { status: "choose_method", selectedMethod: null, instructions: null, availableMethods: ["EMONEY_DANA"] }),
+    });
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByRole("button", { name: "Bayar dengan DANA" })).toBeTruthy();
+  });
+
+  it("a wallet is finished on its page", async () => {
+    const opened = pendingCheckout(
+      {},
+      { selectedMethod: "EMONEY_DANA", instructions: { kind: "redirect", url: "https://pay.example.test/dana", channel: "EMONEY_DANA" } },
+    );
+    wrap(server({ checkout: opened }), <PaymentScreen checkoutId="ck-1" />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut ke DANA" }));
+    await waitFor(() => expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith("https://pay.example.test/dana"));
+    expect(screen.getByText("Selesaikan pembayaran di DANA.")).toBeTruthy();
+    expect(screen.getByText("Kembali ke Catera. Status berubah sendiri.")).toBeTruthy();
+  });
+
   it("keeps the QRIS quiet zone pure white under the dark theme", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {

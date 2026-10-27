@@ -5,6 +5,10 @@ import {
   errorLabel,
   type Checkout,
   type DirectPaymentMethod,
+  directChannelKind,
+  paymentMethodInfo,
+  VA_CHANNELS,
+  type VaBank,
 } from "@catera/domain";
 import { api, useApp } from "./context";
 import { Button } from "./form-controls";
@@ -29,6 +33,10 @@ export function DirectPayment({
   const [copied, setCopied] = useState(false),
     [qr, setQr] = useState("");
   const instructions = payment.instructions;
+  const nameOf = (code: string) => paymentMethodInfo(code)?.short ?? code;
+  const bankName = (bank: VaBank) => paymentMethodInfo(VA_CHANNELS[bank])?.short ?? bank;
+  const titleOf = (code: string) =>
+    code === "QRIS" ? "QRIS" : (paymentMethodInfo(code)?.name.id ?? code);
   const content = instructions?.kind === "qris" ? instructions.qrContent : "";
   useEffect(() => {
     let active = true;
@@ -98,19 +106,22 @@ export function DirectPayment({
                   onChange={() => setMethod(value)}
                 />
                 <span>
-                  <strong>
-                    {value === "QRIS" ? "QRIS" : "BRI Virtual Account"}
-                  </strong>
+                  <strong>{titleOf(value)}</strong>
                   <small>
-                    {value === "QRIS"
+                    {directChannelKind(value) === "qris"
                       ? t(
                           "Bayar dengan aplikasi bank atau dompet digital",
                           "Pay with a banking or wallet app",
                         )
-                      : t(
-                          "Transfer ke nomor virtual account BRI",
-                          "Transfer to a BRI virtual account",
-                        )}
+                      : directChannelKind(value) === "va"
+                        ? t(
+                            `Transfer ke nomor virtual account ${nameOf(value)}`,
+                            `Transfer to a ${nameOf(value)} virtual account`,
+                          )
+                        : t(
+                            paymentMethodInfo(value)?.detail.id ?? nameOf(value),
+                            paymentMethodInfo(value)?.detail.en ?? nameOf(value),
+                          )}
                   </small>
                 </span>
               </label>
@@ -153,13 +164,14 @@ export function DirectPayment({
         </>
       ) : (
         <>
-          <h2>
-            {payment.selectedMethod === "QRIS" ? "QRIS" : "BRI Virtual Account"}
-          </h2>
+          <h2>{titleOf(payment.selectedMethod)}</h2>
           {instructions?.kind === "virtual_account" ? (
             <>
               <p className="small muted">
-                {t("Nomor virtual account", "Virtual account number")}
+                {t(
+                  `Nomor virtual account ${bankName(instructions.bank)}`,
+                  `${bankName(instructions.bank)} virtual account number`,
+                )}
               </p>
               <div className="payment-account">
                 <strong>{instructions.accountNumber}</strong>
@@ -193,8 +205,8 @@ export function DirectPayment({
               <ol className="payment-steps">
                 <li>
                   {t(
-                    "Buka aplikasi bank atau ATM dan pilih pembayaran BRIVA / BRI Virtual Account.",
-                    "Open your banking app or ATM and choose BRIVA / BRI Virtual Account payment.",
+                    `Buka aplikasi ${bankName(instructions.bank)} atau ATM, lalu pilih Transfer / Virtual Account.`,
+                    `Open the ${bankName(instructions.bank)} app or an ATM and choose Transfer / Virtual Account.`,
                   )}
                 </li>
                 <li>
@@ -213,6 +225,29 @@ export function DirectPayment({
                   {t(
                     "Kembali ke Catera untuk melihat konfirmasi pembayaran.",
                     "Return to Catera to see your payment confirmation.",
+                  )}
+                </li>
+              </ol>
+            </>
+          ) : instructions?.kind === "redirect" ? (
+            <>
+              <a className="button full" href={instructions.url}>
+                {t(
+                  `Lanjut ke ${nameOf(instructions.channel)}`,
+                  `Continue to ${nameOf(instructions.channel)}`,
+                )}
+              </a>
+              <ol className="payment-steps">
+                <li>
+                  {t(
+                    `Selesaikan pembayaran di ${nameOf(instructions.channel)}.`,
+                    `Finish paying in ${nameOf(instructions.channel)}.`,
+                  )}
+                </li>
+                <li>
+                  {t(
+                    "Kembali ke Catera. Status berubah sendiri.",
+                    "Come back to Catera. The status updates by itself.",
                   )}
                 </li>
               </ol>
