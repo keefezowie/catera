@@ -30,9 +30,10 @@ export function useRateWait() {
 }
 
 /**
- * The mascot and the press of a form. A failure (a server code, or a field that did not pass) makes the mascot
- * bingung, or mencari when offline; the next edit sends it back to melambai. `press` checks the fields and runs `go`
- * only when they pass.
+ * The mascot and the press of a form. The person's own failures (a field that did not pass, wrong credentials or
+ * code, a registered or unconfirmed email, a rejected password) make it bingung; OFFLINE makes it mencari; any other
+ * failure leaves it melambai. The next edit sends it back to melambai. `press` checks the fields and runs `go` only
+ * when they pass.
  */
 export function useFormPose(code: string, failures: number) {
   const [edited, setEdited] = useState(true);

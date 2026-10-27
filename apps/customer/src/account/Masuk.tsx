@@ -161,8 +161,8 @@ export function Masuk() {
         await new Promise((done) => setTimeout(done, VERIFIED_HOLD_MS));
         await finish(actor);
       } catch (e) {
-        // No connection keeps the code, so Coba lagi can check it again.
-        if (((e as { code?: string }).code || (e as Error).message) !== "OFFLINE") setCode("");
+        // Only a wrong code empties the slots; any other failure keeps it, so Coba lagi re-checks what was typed.
+        if (((e as { code?: string }).code || (e as Error).message) === "INVALID_OTP") setCode("");
         throw e;
       }
     }, "verify");

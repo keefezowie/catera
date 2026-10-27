@@ -300,6 +300,27 @@ describe("Masuk validation and errors", () => {
     expect(runtime.signInPassword).toHaveBeenLastCalledWith("rani@example.test", "typed-after-the-failure", expect.any(String), "Pelanggan");
   });
 
+  it("Coba lagi after a server failure on the code check re-sends the typed code and counts no wrong code", async () => {
+    runtime.sendPhoneOtp = jest.fn(async () => undefined);
+    let calls = 0;
+    runtime.verifyPhoneOtp = jest.fn(async (_phone: string, code: string) => {
+      calls += 1;
+      if (calls === 1) throw Object.assign(new Error("AUTH_UNAVAILABLE"), { code: "AUTH_UNAVAILABLE" });
+      if (code !== "123456") throw Object.assign(new Error("INVALID_OTP"), { code: "INVALID_OTP" });
+      return { id: "u-1" };
+    }) as never;
+    renderWith(<Masuk />);
+    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 3456 7890");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
+    const error = await screen.findByTestId("masuk-error");
+    expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("123456");
+    fireEvent.press(within(error).getByText("Coba lagi"));
+    await waitFor(() => expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(2));
+    expect((runtime.verifyPhoneOtp as jest.Mock).mock.calls[1][1]).toBe("123456");
+    expect(screen.queryByText(/Kodenya salah/)).toBeNull();
+  });
+
   it("a registered email offers its Masuk action, never Coba lagi", async () => {
     supabase.auth.signUp.mockResolvedValueOnce({ data: { session: null, user: { id: "u-old", identities: [] } }, error: null } as never);
     renderWith(<Register />);
