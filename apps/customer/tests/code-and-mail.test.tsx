@@ -12,7 +12,7 @@ function Code(props: Partial<React.ComponentProps<typeof CodeInput>> & { onFille
 describe("shared code entry", () => {
   it("maskPhone keeps 4 and 4", () => {
     expect(maskPhone("0812 3456 7890")).toBe("0812 •••• 7890");
-    expect(maskPhone("+62 812 3456 7890")).toBe("6281 •••• 7890");
+    expect(maskPhone("+62 812 3456 7890")).toBe("0812 •••• 7890");
   });
 
   it("writes the masked number above the boxes", () => {
@@ -95,8 +95,14 @@ describe("shared Cek emailmu", () => {
     open.mockRestore();
   });
 
+  it("draws the reading mascot by default", async () => {
+    render(<CheckEmail {...props} resent={false} />);
+    expect(await screen.findByTestId("mascot-membaca", { includeHiddenElements: true })).toBeTruthy();
+  });
+
   it("puts Ubah email under the address and takes no art when art is null", () => {
     render(<CheckEmail {...props} resent={false} art={null} />);
+    expect(screen.queryByTestId("mascot-membaca", { includeHiddenElements: true })).toBeNull();
     expect(screen.getByRole("button", { name: "Ubah email" })).toBeTruthy();
     expect(screen.getByText("Buka tautannya di HP ini. Tidak ada? Cek folder spam atau promosi.")).toBeTruthy();
   });

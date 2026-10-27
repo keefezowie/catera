@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from "react";
-import { Text as RNText, TextInput, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, Text as RNText, TextInput, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { Button } from "../components";
@@ -22,7 +22,8 @@ export function codeSlotWidth(width: number): number {
 
 /** "0812 3456 7890" -> "0812 •••• 7890": the first 4 and last 4 digits, so the person sees which number it went to. */
 export function maskPhone(phone: string): string {
-  const digits = phone.replace(/[^0-9]/g, "");
+  let digits = phone.replace(/[^0-9]/g, "");
+  if (digits.startsWith("62")) digits = `0${digits.slice(2)}`;
   if (digits.length <= 8) return digits;
   return `${digits.slice(0, 4)} •••• ${digits.slice(-4)}`;
 }
@@ -84,10 +85,13 @@ export function CodeInput({
     if (reduced) return;
     const step = SHAKE_MS / 6;
     shake.value = withSequence(
-      ...[1, -1, 1, -1, 1, -1].map((dir) => withTiming(dir * SHAKE_DP, { duration: step, easing: Easing.linear })),
-      withTiming(0, { duration: 0 }),
+      ...[1, -1, 1, -1, 1, 0].map((dir) => withTiming(dir * SHAKE_DP, { duration: step, easing: Easing.linear })),
     );
   }, [failure, haptic, reduced, shake]);
+  // Android reads the live region below; iOS has none, so the message is announced when it appears or repeats.
+  useEffect(() => {
+    if (process.env.EXPO_OS === "ios" && error) AccessibilityInfo.announceForAccessibility(error);
+  }, [error, errorKey]);
   useEffect(() => {
     if (!verified) {
       ringOpacity.value = 0;
@@ -128,7 +132,7 @@ export function CodeInput({
       >
         {label}
       </RNText>
-      <View>
+      <View style={{ alignSelf: "flex-start" }}>
         <Animated.View
           style={[{ flexDirection: "row", gap: GAP }, shakeStyle]}
           accessibilityElementsHidden
@@ -172,13 +176,14 @@ export function CodeInput({
             style={[styles.ring, ringStyle]}
           >
             <View style={styles.badge}>
-              <Ionicons name="checkmark" size={16} color={c.cream} />
+              <Ionicons name="checkmark" size={12} color={c.cream} />
             </View>
           </Animated.View>
         ) : null}
         <TextInput
           ref={inputRef}
           accessibilityLabel={label}
+          accessibilityHint={error}
           value={value}
           onChangeText={change}
           editable={editable && !verified}
@@ -219,11 +224,11 @@ const useStyles = themedStyles((c) => ({
   },
   badge: {
     position: "absolute",
-    top: -12,
-    right: -4,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    top: 3,
+    right: 3,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: c.forest,
     alignItems: "center",
     justifyContent: "center",

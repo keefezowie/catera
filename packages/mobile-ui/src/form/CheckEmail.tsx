@@ -59,6 +59,7 @@ export function CheckEmail({
   resent: boolean;
   resendBusy: boolean;
   error?: ReactNode;
+  /** Undefined draws the reading mascot; `null` draws no art (Dapur). */
   art?: ReactNode;
   /** The platform; defaults to the running one (a test passes it, because `process.env.EXPO_OS` is compiled in). */
   os?: string;
