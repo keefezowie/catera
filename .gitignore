@@ -25,3 +25,10 @@ apps/caterer/ios/
 /output/
 /.impeccable/critique/
 tests/output/
+
+# Local tooling output and stray archives
+/graphify-out/
+/.claude/scheduled_tasks.lock
+/.claude/skills/
+/catera-phase-f-artwork.zip
+/Catera/
