@@ -106,7 +106,12 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
     const { data, error } = await supabase.auth
       .verifyOtp({ phone, token: otp, type: "sms" })
       .catch((e: unknown) => ({ data: null, error: e as { status?: number } }));
-    if (error || !data?.session) throw new Error(isOffline(error) ? "OFFLINE" : "INVALID_OTP");
+    // Only the server's "no" is a wrong code; a rate limit or a server failure says what it is and costs no miss.
+    const status = (error as { status?: number } | null)?.status ?? 0;
+    if (error || !data?.session)
+      throw new Error(
+        isOffline(error) ? "OFFLINE" : status === 429 ? "AUTH_RATE_LIMITED" : status >= 500 ? "AUTH_UNAVAILABLE" : "INVALID_OTP",
+      );
     await SecureStore.deleteItemAsync(key("demo.token"));
     return ensureActor(supabase, name || "Katering", requestId);
   }

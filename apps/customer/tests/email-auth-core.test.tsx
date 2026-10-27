@@ -43,6 +43,20 @@ describe("email-auth core", () => {
     expect(await caught(r.verifyPhoneOtp("+62811", "123456", "N", "req"))).toBe("OFFLINE");
   });
 
+  it("verifyPhoneOtp calls only a refused code wrong: a 429 is the rate limit, a 5xx the server", async () => {
+    const r = runtime();
+    mockAuth.verifyOtp.mockResolvedValueOnce({ data: null, error: { name: "AuthApiError", status: 429 } });
+    expect(await caught(r.verifyPhoneOtp("+62811", "123456", "N", "req"))).toBe("AUTH_RATE_LIMITED");
+    mockAuth.verifyOtp.mockResolvedValueOnce({ data: null, error: { name: "AuthRetryableFetchError", status: 503 } });
+    expect(await caught(r.verifyPhoneOtp("+62811", "123456", "N", "req"))).toBe("AUTH_UNAVAILABLE");
+    mockAuth.verifyOtp.mockResolvedValueOnce({ data: null, error: { name: "AuthApiError", status: 500 } });
+    expect(await caught(r.verifyPhoneOtp("+62811", "123456", "N", "req"))).toBe("AUTH_UNAVAILABLE");
+    mockAuth.verifyOtp.mockRejectedValueOnce(new TypeError("Network request failed"));
+    expect(await caught(r.verifyPhoneOtp("+62811", "123456", "N", "req"))).toBe("OFFLINE");
+    mockAuth.verifyOtp.mockResolvedValueOnce({ data: null, error: { name: "AuthApiError", status: 403, code: "otp_expired" } });
+    expect(await caught(r.verifyPhoneOtp("+62811", "123456", "N", "req"))).toBe("INVALID_OTP");
+  });
+
   it("a 400 from the server is still INVALID_CREDENTIALS", async () => {
     mockAuth.signInWithPassword.mockResolvedValueOnce({ data: { session: null, user: null }, error: { name: "AuthApiError", status: 400, code: "invalid_credentials" } });
     expect(await caught(runtime().signInPassword("a@b.co", "secret123", "req"))).toBe("INVALID_CREDENTIALS");
