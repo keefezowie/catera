@@ -44,6 +44,7 @@ const renderWith = (runtime: MobileRuntime, ui: React.ReactNode) =>
   );
 
 beforeEach(() => jest.clearAllMocks());
+afterEach(() => jest.useRealTimers());
 
 async function reachCodeStep(runtime: MobileRuntime) {
   renderWith(runtime, <Daftar />);
@@ -114,20 +115,21 @@ describe("Daftar retry and recovery", () => {
     expect(screen.queryByLabelText("Kode dari SMS")).toBeNull();
   });
 
-  it("Kirim ulang kode sends the code again", async () => {
+  it("Kirim ulang kode sends the code again once the 60s wait is over", async () => {
+    jest.useFakeTimers();
     const { runtime } = setup();
     await reachCodeStep(runtime);
+    expect(screen.getByRole("button", { name: "Kirim ulang dalam 1:00" })).toBeDisabled();
+    act(() => jest.advanceTimersByTime(60_000));
     fireEvent.press(screen.getByRole("button", { name: "Kirim ulang kode" }));
     await waitFor(() => expect(runtime.sendPhoneOtp).toHaveBeenCalledTimes(2));
   });
 
-  it("says what is missing while Kirim kode is disabled", async () => {
+  it("keeps Kirim kode enabled and shows no reason line", async () => {
     renderWith(makeRuntime(), <Daftar />);
     await screen.findByLabelText("Nama usaha katering");
-    const reason = screen.getByTestId("daftar-reason");
-    expect(reason).toHaveTextContent(/nama usaha/i);
-    expect(reason).toHaveTextContent(/nomor WhatsApp/);
-    expect(reason).toHaveTextContent(/lokasi dapur/);
+    expect(screen.getByRole("button", { name: "Kirim kode" })).toBeEnabled();
+    expect(screen.queryByTestId("daftar-reason")).toBeNull();
   });
 
   it("tags the phone and code fields for autofill", async () => {

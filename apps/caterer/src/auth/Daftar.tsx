@@ -1,13 +1,31 @@
-import { useRef, useState } from "react";
-import { View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, BackHandler, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { nativeLayout } from "@catera/design-tokens";
 import { areaOptions } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { AuthScreen, Button, Chip, Field, fontFor, FormError, Text, useColors } from "@catera/mobile-ui";
+import {
+  authFields,
+  AuthOutcome,
+  AuthScreen,
+  Button,
+  Chip,
+  CodeInput,
+  countdownText,
+  Field,
+  fontFor,
+  FieldMessage,
+  FormError,
+  ResendButton,
+  Text,
+  useColors,
+  useFieldCheck,
+  useResendTimer,
+} from "@catera/mobile-ui";
 import { goToTab } from "../nav";
 import { catererSlug, e164Indonesia } from "../onboarding";
 import { useFormRun } from "../useFormRun";
+import { areaCheck, nameCheck, phoneCheck, rateText, serverFallback, wrongCode } from "./checks";
 
 /** Sign-up: business name, WhatsApp number (verified by SMS) and kitchen area. */
 export function Daftar() {
@@ -18,21 +36,78 @@ export function Daftar() {
   const [area, setArea] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
-  const { busy, failure, run } = useFormRun(
-    locale,
-    t("Belum bisa mendaftar. Periksa datanya, lalu coba lagi.", "Could not register. Check the details and try again."),
-  );
+  const [misses, setMisses] = useState(0);
+  // The registered kitchen: its name for the outcome, and the session that signs in when "Buka Hari ini" is pressed.
+  const [done, setDone] = useState<{ name: string; actor: Awaited<ReturnType<typeof runtime.verifyPhoneOtp>> } | null>(null);
+  const { busy, failure, run } = useFormRun(locale, serverFallback(t));
+  const resend = useResendTimer(60);
+  const rate = useResendTimer(60);
   // A retry after a failed seller.create reuses the verified actor, the verify requestId and the slug suffix.
   const verified = useRef<Awaited<ReturnType<typeof runtime.verifyPhoneOtp>> | null>(null);
   const verifyId = useRef(Crypto.randomUUID());
   const slugSuffix = useRef(Crypto.randomUUID().replace(/-/g, "").slice(0, 4));
   const [kept, setKept] = useState(false);
-  const ready = name.trim().length >= 3 && phone.replace(/\D/g, "").length >= 9 && !!area;
+  const codeRef = useRef<{ focus(): void }>(null);
+  const firstChip = useRef<View>(null);
+
+  const form = useFieldCheck({
+    name: { value: name, check: nameCheck(t) },
+    phone: { value: phone, check: phoneCheck(t) },
+    area: { value: area, check: areaCheck(t) },
+  });
+  const nameField = form.fieldProps("name");
+  const phoneField = form.fieldProps("phone");
+  const areaField = form.fieldProps("area");
+  // The area has no text input: focus for it means the first chip.
+  (areaField.inputRef as { current: unknown }).current = {
+    focus: () => {
+      const node = firstChip.current;
+      if (node) AccessibilityInfo.sendAccessibilityEvent(node, "focus");
+    },
+  };
+
+  const failCode = failure?.code;
+  useEffect(() => {
+    if (failure?.code === "AUTH_RATE_LIMITED") rate.restart();
+    if (failure?.code === "INVALID_OTP") {
+      setMisses((n) => n + 1);
+      codeRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per failure
+  }, [failure?.key]);
+
+  const open = async () => {
+    if (done) await signedIn(done.actor);
+    goToTab("index");
+  };
+  // Back from the outcome goes where the button goes, never into the form.
+  useEffect(() => {
+    if (!done) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      void open();
+      return true;
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open reads done, which is what this depends on
+  }, [done]);
 
   const sendCode = () =>
+    form.submit(
+      () =>
+        void run(async () => {
+          await runtime.sendPhoneOtp(e164Indonesia(phone));
+          setSent(true);
+          setMisses(0);
+          resend.restart();
+        }),
+    );
+
+  const resendCode = () =>
     run(async () => {
       await runtime.sendPhoneOtp(e164Indonesia(phone));
-      setSent(true);
+      setCode("");
+      setMisses(0);
+      resend.restart();
     });
 
   // The old number's session is dropped first, or a refresh could sign into its half-registered profile.
@@ -41,23 +116,21 @@ export function Daftar() {
       if (verified.current) await runtime.signOut();
       setSent(false);
       setCode("");
+      setMisses(0);
       setKept(false);
       verified.current = null;
       verifyId.current = Crypto.randomUUID();
       slugSuffix.current = Crypto.randomUUID().replace(/-/g, "").slice(0, 4);
     });
 
-  const missing = [
-    name.trim().length < 3 ? t("nama usaha (minimal 3 huruf)", "business name (at least 3 letters)") : "",
-    phone.replace(/[^0-9]/g, "").length < 9 ? t("nomor WhatsApp", "WhatsApp number") : "",
-    !area ? t("lokasi dapur", "kitchen area") : "",
-  ].filter(Boolean);
-
-  const reason = t(`Lengkapi ${missing.join(", ")} dulu.`, `Fill in the ${missing.join(", ")} first.`);
-
-  const create = () =>
+  const create = (entered = code) =>
     run(async () => {
-      verified.current ??= await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), name.trim(), verifyId.current);
+      try {
+        verified.current ??= await runtime.verifyPhoneOtp(e164Indonesia(phone), entered.trim(), name.trim(), verifyId.current);
+      } catch (e) {
+        setCode("");
+        throw e;
+      }
       const actor = verified.current;
       setKept(true);
       await command("seller.create", {
@@ -66,9 +139,23 @@ export function Daftar() {
         description: "",
         areas: [area],
       });
-      await signedIn(actor);
-      goToTab("index");
+      setDone({ name: name.trim(), actor });
     });
+
+  if (done)
+    return (
+      <AuthOutcome
+        title={t("Dapurmu siap", "Your kitchen is ready")}
+        body={t(`${done.name} sudah terdaftar. Mulai dengan menambah menu.`, `${done.name} is registered. Start by adding a menu.`)}
+        primary={{ label: t("Buka Hari ini", "Open Today"), onPress: () => void open() }}
+        play
+      />
+    );
+
+  const limited = failCode === "AUTH_RATE_LIMITED" && rate.left > 0;
+  const wait = countdownText(rate.left);
+  const wrongOtp = failCode === "INVALID_OTP";
+  const waitLabel = t(`Coba lagi dalam ${wait}`, `Try again in ${wait}`);
 
   return (
     <AuthScreen
@@ -76,28 +163,13 @@ export function Daftar() {
       footer={
         sent ? (
           <Button
-            label={t("Buat dapur saya", "Create my kitchen")}
+            label={limited ? waitLabel : t("Buat dapur saya", "Create my kitchen")}
             busy={busy}
-            disabled={!kept && code.trim().length < 6}
-            onPress={create}
+            disabled={limited || (!kept && code.length < 6)}
+            onPress={() => void create()}
           />
         ) : (
-          <>
-            <Button
-              label={t("Kirim kode", "Send code")}
-              busy={busy}
-              disabled={!ready}
-              accessibilityHint={ready ? undefined : reason}
-              onPress={sendCode}
-            />
-            <View style={{ minHeight: 18 }}>
-              {!ready ? (
-                <Text testID="daftar-reason" variant="meta">
-                  {reason}
-                </Text>
-              ) : null}
-            </View>
-          </>
+          <Button label={limited ? waitLabel : t("Kirim kode", "Send code")} busy={busy} disabled={limited} onPress={sendCode} />
         )
       }
     >
@@ -111,21 +183,26 @@ export function Daftar() {
         </Text>
       </View>
       <Field
+        {...authFields.name}
+        {...nameField}
         label={t("Nama usaha katering", "Catering business name")}
         value={name}
         onChangeText={setName}
         editable={!sent}
-        autoCapitalize="words"
+        returnKeyType="next"
+        submitBehavior="submit"
+        onSubmitEditing={() => phoneField.inputRef.current?.focus()}
       />
       <Field
+        {...authFields.phone}
+        {...phoneField}
         label={t("Nomor WhatsApp", "WhatsApp number")}
         hint={t("Kami kirim kode lewat SMS ke nomor ini.", "We'll text a code to this number.")}
         value={phone}
         onChangeText={setPhone}
         editable={!sent}
-        keyboardType="phone-pad"
-        autoComplete="tel"
-        textContentType="telephoneNumber"
+        returnKeyType="go"
+        onSubmitEditing={sendCode}
       />
       <View style={{ gap: nativeLayout.groupGap }}>
         {/* The same 13 bold ink as the fields' own labels. */}
@@ -134,30 +211,46 @@ export function Daftar() {
         </Text>
         {/* 34 chips reach their 48 target by 7 of slop above and below, so the wrapped rows sit 14 apart. */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: nativeLayout.groupGap, rowGap: 48 - nativeLayout.control.chip }}>
-          {areaOptions.map((a) => (
-            <Chip key={a} label={a} selected={area === a} onPress={() => !sent && setArea(a)} />
+          {areaOptions.map((a, i) => (
+            <View key={a} ref={i === 0 ? firstChip : undefined} collapsable={false}>
+              <Chip label={a} selected={area === a} onPress={() => !sent && setArea(a)} />
+            </View>
           ))}
         </View>
+        {areaField.error ? <FieldMessage text={areaField.error} testID="area-error" /> : null}
       </View>
       {sent ? (
-        <Field
+        <CodeInput
           label={t("Kode dari SMS", "Code from SMS")}
           value={code}
           onChangeText={setCode}
-          keyboardType="number-pad"
-          autoComplete="sms-otp"
-          textContentType="oneTimeCode"
-          maxLength={6}
-          autoFocus
+          onFilled={(entered) => {
+            if (!kept) void create(entered);
+          }}
+          editable={!busy}
+          inputRef={codeRef as never}
+          sentTo={e164Indonesia(phone)}
+          error={wrongOtp ? wrongCode(t, misses) : undefined}
+          errorKey={failure?.key}
         />
       ) : null}
       {sent ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: nativeLayout.groupGap }}>
           <Button variant="text" label={t("Ganti nomor", "Change number")} disabled={busy} onPress={changeNumber} />
-          {kept ? null : <Button variant="text" label={t("Kirim ulang kode", "Resend code")} busy={busy} onPress={sendCode} />}
+          {kept ? null : (
+            <ResendButton
+              left={resend.left}
+              ready={t("Kirim ulang kode", "Resend code")}
+              waiting={(time) => t(`Kirim ulang dalam ${time}`, `Resend in ${time}`)}
+              busy={busy}
+              onPress={() => void resendCode()}
+            />
+          )}
         </View>
       ) : null}
-      {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
+      {failure && !wrongOtp ? (
+        <FormError message={limited ? rateText(t, wait) : failure.message} failureKey={failure.key} />
+      ) : null}
     </AuthScreen>
   );
 }

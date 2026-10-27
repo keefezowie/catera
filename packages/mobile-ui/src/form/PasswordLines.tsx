@@ -23,6 +23,9 @@ function Line({ look, text, testID }: { look: Look; text: string; testID: string
   );
 }
 
+/** A danger message with its glyph under something that is not a text input (the area chips), set as a Field's own error line. */
+export const FieldMessage = ({ text, testID = "field-message" }: { text: string; testID?: string }) => <Line look="bad" text={text} testID={testID} />;
+
 /** One line under a password field: muted ring, forest check once met (announced once), danger when short after a blur or submit. */
 export function PasswordRule({ value, min = 8, failed }: { value: string; min?: number; failed: boolean }) {
   const t = useT();

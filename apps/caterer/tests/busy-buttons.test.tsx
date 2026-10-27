@@ -65,7 +65,7 @@ describe("Masuk", () => {
     fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234567890");
     fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
     expect(await screen.findByTestId("form-error")).toBeTruthy();
-    expect(screen.getByText("Belum bisa masuk. Periksa nomor atau kodenya, lalu coba lagi.")).toBeTruthy();
+    expect(screen.getByText("Ada gangguan di sisi kami. Coba lagi sebentar lagi.")).toBeTruthy();
     expect(busyOf("Kirim kode")).toBeFalsy();
   });
 });

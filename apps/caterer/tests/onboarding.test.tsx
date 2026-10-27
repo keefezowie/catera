@@ -72,7 +72,6 @@ describe("Daftar", () => {
     fireEvent.press(screen.getByText("Kirim kode"));
     await waitFor(() => expect(runtime.sendPhoneOtp).toHaveBeenCalledWith("+6281234567890"));
     fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
-    fireEvent.press(screen.getByText("Buat dapur saya"));
     await waitFor(() =>
       expect(runtime.verifyPhoneOtp).toHaveBeenCalledWith(
         "+6281234567890",
@@ -93,7 +92,8 @@ describe("Daftar", () => {
         expect.any(String),
       ),
     );
-    expect(router.replace).toHaveBeenCalledWith("/");
+    fireEvent.press(await screen.findByRole("button", { name: "Buka Hari ini" }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
   });
 });
 
