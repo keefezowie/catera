@@ -22,8 +22,7 @@ import { AuthMascot } from "./brand/AuthMascot";
 import { AUTH_MARK } from "./brand/authMark";
 import type { MascotPose } from "./brand/MascotArt";
 import { fontFor } from "./type";
-import { ScreenStatusBar } from "./ScreenStatusBar";
-import { themedStyles, useColors, useThemePreference } from "./theme";
+import { themedStyles, useColors } from "./theme";
 
 export { AUTH_MARK } from "./brand/authMark";
 
@@ -206,27 +205,6 @@ export function PasswordField({
 }
 
 /**
- * The two system-bar strips of a sign-in page, painted in the theme canvas with the glyphs to match. The customer
- * auth routes are modals; on Android a modal draws under the translucent status and navigation bars with the window's
- * own (light) background behind them, so in dark both strips came up white and the status icons vanished (C-1). Dapur
- * pushes these screens full-screen and never showed it. The bands are decorative and take no touches.
- */
-function SystemBars() {
-  const insets = useSafeAreaInsets();
-  const c = useColors();
-  const { scheme } = useThemePreference();
-  const band = { position: "absolute" as const, left: 0, right: 0, backgroundColor: c.canvas };
-  const hidden = { pointerEvents: "none" as const, accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" as const };
-  return (
-    <>
-      <ScreenStatusBar style={scheme === "dark" ? "light" : "dark"} />
-      <View testID="auth-edge-top" {...hidden} style={[band, { top: 0, height: insets.top }]} />
-      <View testID="auth-edge-bottom" {...hidden} style={[band, { bottom: 0, height: insets.bottom }]} />
-    </>
-  );
-}
-
-/**
  * A sign-in or sign-up page that keeps its action in reach of the keyboard. On Android the window is edge-to-edge and
  * the keyboard draws over the page without resizing it, so the page adds the keyboard's height under its content (the
  * scroll view can then bring the error and the primary button above it), and scrolls to the end whenever `revealKey`
@@ -250,17 +228,14 @@ export function AuthScreen({ children, revealKey, footer }: { children: ReactNod
   }, [android, revealKey, reduced]);
   const room = height + (scaled ? 0 : insets.bottom);
   return (
-    <>
-      <Screen
-        scrollRef={ref}
-        footer={footer}
-        // A pinned footer rises with the keyboard (the scroll view above it shrinks); without one the page pads its content.
-        extraBottom={android && up && !footer ? room : 0}
-        footerLift={android && up && footer ? room : 0}
-      >
-        {children}
-      </Screen>
-      <SystemBars />
-    </>
+    <Screen
+      scrollRef={ref}
+      footer={footer}
+      // A pinned footer rises with the keyboard (the scroll view above it shrinks); without one the page pads its content.
+      extraBottom={android && up && !footer ? room : 0}
+      footerLift={android && up && footer ? room : 0}
+    >
+      {children}
+    </Screen>
   );
 }

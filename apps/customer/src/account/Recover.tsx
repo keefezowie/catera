@@ -1,37 +1,24 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
 import { authFields, AuthHeading, AuthScreen, Button, CheckEmail, Field, FormError, useFieldCheck } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
-import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
-import { useAuthRun } from "./useAuthRun";
+import { authClient, authError, REDIRECT_TO, savePending } from "./emailAuth";
+import { canRetry } from "./failure";
+import { emailCheck, useAuthRun, useFormPose } from "./useAuthRun";
 
 /** Lupa kata sandi: a recovery link by email, opened on this phone to choose a new password. */
 export function Recover() {
-  const { runtime, t } = useMobile();
+  const { runtime, t, locale } = useMobile();
   const params = useLocalSearchParams<{ next?: string }>();
   const next = nativeReturnPath(typeof params.next === "string" ? params.next : undefined);
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [resent, setResent] = useState(false);
-  const [edited, setEdited] = useState(true);
-  const [fieldFailed, setFieldFailed] = useState(false);
   const action = useAuthRun();
-  const checks = useFieldCheck({
-    email: {
-      value: email,
-      check: (v) =>
-        !v.trim()
-          ? t("Isi emailmu dulu.", "Enter your email first.")
-          : validEmail(v)
-            ? ""
-            : t("Format email belum benar. Contoh: nama@gmail.com", "That email doesn't look right. Example: name@gmail.com"),
-    },
-  });
-  useEffect(() => {
-    if (action.failures) setEdited(false);
-  }, [action.failures]);
+  const form = useFormPose(action.code, action.failures);
+  const checks = useFieldCheck({ email: { value: email, check: emailCheck(t) } });
 
   const send = () =>
     action.run(async () => {
@@ -45,22 +32,14 @@ export function Recover() {
       if (again) setResent(true);
     });
 
-  const press = () => {
-    let ok = false;
-    checks.submit(() => {
-      ok = true;
-      void send();
-    });
-    setFieldFailed(!ok);
-    if (!ok) setEdited(false);
-  };
+  const press = () => form.press(checks, () => void send());
 
   const failed = action.message ? (
     <FormError
       message={action.message}
       failureKey={action.failures}
       testID="identity-error"
-      retry={action.code === "OFFLINE" ? () => void send() : undefined}
+      retry={canRetry(action.code, locale) ? () => void send() : undefined}
     />
   ) : null;
   const back = (
@@ -71,7 +50,6 @@ export function Recover() {
       onPress={() => router.replace({ pathname: "/login", params: { next } } as never)}
     />
   );
-  const pose = edited ? "melambai" : action.code === "OFFLINE" ? "mencari" : action.code || fieldFailed ? "bingung" : "melambai";
 
   return (
     <AuthScreen revealKey={action.failures}>
@@ -99,7 +77,7 @@ export function Recover() {
               "Kami kirim tautan ke emailmu. Buka tautannya di HP ini untuk membuat kata sandi baru.",
               "We'll email you a link. Open it on this phone to set a new password.",
             )}
-            pose={pose}
+            pose={form.pose}
           />
           <View style={{ gap: 14 }}>
             <Field
@@ -107,10 +85,7 @@ export function Recover() {
               {...authFields.email}
               {...checks.fieldProps("email")}
               value={email}
-              onChangeText={(v) => {
-                setEmail(v);
-                setEdited(true);
-              }}
+              onChangeText={form.edit(setEmail)}
               editable={!action.busy}
               returnKeyType="go"
               onSubmitEditing={press}

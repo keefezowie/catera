@@ -1,11 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { nativeThemes } from "@catera/design-tokens";
-import { ThemeProvider } from "@catera/mobile-ui";
 import { Register } from "../src/account/Register";
 import { Recover } from "../src/account/Recover";
 import { Masuk } from "../src/account/Masuk";
@@ -37,6 +34,8 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   __esModule: true,
   default: () => mockWindow,
 }));
+const mockLeave = jest.fn();
+jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), leaveFor: (...a: unknown[]) => mockLeave(...a) }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
 
 const store = (SecureStore as unknown as { __store: Map<string, string> }).__store;
@@ -198,6 +197,50 @@ describe("Masuk validation and errors", () => {
     }
   });
 
+  it("an unknown failure says so plainly and offers Coba lagi, a field failure does not", async () => {
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("SOMETHING_ELSE");
+    });
+    renderWith(<Masuk />);
+    await emailTab();
+    fill();
+    submit();
+    const error = await screen.findByTestId("masuk-error");
+    expect(within(error).getByText("Ada gangguan di sisi kami. Coba lagi sebentar lagi.")).toBeTruthy();
+    fireEvent.press(within(error).getByText("Coba lagi"));
+    await waitFor(() => expect(runtime.signInPassword).toHaveBeenCalledTimes(2));
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("INVALID_CREDENTIALS");
+    });
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    submit();
+    await waitFor(() => expect(within(screen.getByTestId("masuk-error")).queryByText("Coba lagi")).toBeNull());
+  });
+
+  it("the verified ring shows for 400ms before the screen leaves", async () => {
+    jest.useFakeTimers();
+    try {
+      runtime.sendPhoneOtp = jest.fn(async () => undefined);
+      runtime.verifyPhoneOtp = jest.fn(async () => ({ id: "u-1" })) as never;
+      renderWith(<Masuk />);
+      fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 3456 7890");
+      fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+      fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
+      expect(await screen.findByTestId("code-verified", hidden)).toBeTruthy();
+      expect(router.replace).not.toHaveBeenCalled();
+      await act(async () => {
+        jest.advanceTimersByTime(399);
+      });
+      expect(mockLeave).not.toHaveBeenCalled();
+      await act(async () => {
+        jest.advanceTimersByTime(1);
+      });
+      expect(mockLeave).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("a phone press with nothing typed shows the field message and sends nothing", async () => {
     runtime.sendPhoneOtp = jest.fn();
     renderWith(<Masuk />);
@@ -223,18 +266,6 @@ describe("Masuk validation and errors", () => {
     expect(screen.getByRole("tab", { name: "Email" }).props.accessibilityState.selected).toBe(true);
   });
 
-  it("dark auth screen has no light strip", async () => {
-    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    render(
-      <ThemeProvider storageKey="auth-forms-dark">
-        <MobileProvider runtime={runtime} linkMapper={customerLink}>
-          <Masuk />
-        </MobileProvider>
-      </ThemeProvider>,
-    );
-    for (const id of ["auth-edge-top", "auth-edge-bottom"])
-      expect(StyleSheet.flatten((await screen.findByTestId(id, hidden)).props.style).backgroundColor).toBe(nativeThemes.dark.canvas);
-  });
 });
 
 describe("Daftar validation and errors", () => {
@@ -260,6 +291,29 @@ describe("Daftar validation and errors", () => {
     expect(screen.getByText("Minimal 8 karakter")).toBeTruthy();
     expect(supabase.auth.signUp).not.toHaveBeenCalled();
     expect(screen.getByTestId("auth-mascot-bingung", hidden)).toBeTruthy();
+  });
+});
+
+describe("Daftar and Pemulihan rate wait", () => {
+  it("Daftar counts down a 429 on its button", async () => {
+    jest.useFakeTimers();
+    try {
+      supabase.auth.signUp.mockResolvedValueOnce({ data: { session: null, user: null }, error: { status: 429, code: "over_request_rate_limit" } } as never);
+      renderWith(<Register />);
+      fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
+      fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+      fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+      fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+      expect(await screen.findByRole("button", { name: "Coba lagi dalam 1:00" })).toBeDisabled();
+      expect(screen.getByText("Terlalu banyak percobaan. Coba lagi dalam 1:00.")).toBeTruthy();
+      expect(within(screen.getByTestId("identity-error")).queryByText("Coba lagi")).toBeNull();
+      await act(async () => {
+        jest.advanceTimersByTime(60_000);
+      });
+      expect(screen.getByRole("button", { name: "Daftar & verifikasi email" })).toBeEnabled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

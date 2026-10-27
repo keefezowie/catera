@@ -23,8 +23,11 @@ export function authFailure(e: unknown, locale: Locale, t: Tr): string {
       "Email ini sudah terdaftar. Masuk, atau pilih Lupa kata sandi kalau kamu lupa.",
       "This email is already registered. Sign in, or use Forgot password if you don't remember it.",
     );
-  return failureText(e, locale, t);
+  return errorLabel(code, locale) || t("Ada gangguan di sisi kami. Coba lagi sebentar lagi.", "Something went wrong on our side. Try again in a moment.");
 }
+
+/** Failures worth a Coba lagi: no connection, the service down, or a code with no sentence of its own. Never a field or the rate limit. */
+export const canRetry = (code: string, locale: Locale) => code === "OFFLINE" || code === "AUTH_UNAVAILABLE" || (!!code && !errorLabel(code, locale) && code !== "INVALID_OTP");
 
 /** The rate-limit sentence with the live time ("0:42"). */
 export const rateText = (t: Tr, time: string) =>

@@ -12,7 +12,6 @@ import {
   Button,
   CheckEmail,
   CodeInput,
-  countdownText,
   Field,
   FormError,
   maskPhone,
@@ -21,12 +20,14 @@ import {
   ResendButton,
   Text,
   useFieldCheck,
+  type MascotPose,
   useResendTimer,
 } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { leaveFor } from "../nav";
-import { authClient, authError, RATE_WAIT_S, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
-import { authFailure, rateText } from "./failure";
+import { authClient, authError, REDIRECT_TO, savePending } from "./emailAuth";
+import { authFailure, canRetry } from "./failure";
+import { emailCheck, useFormPose, useRateWait } from "./useAuthRun";
 
 /** Numbers as typed in Indonesia (0812…, 62812…, +62 812…, 812…) to E.164. */
 export function e164Indonesia(input: string): string {
@@ -35,6 +36,8 @@ export function e164Indonesia(input: string): string {
   else if (!digits.startsWith("62")) digits = "62" + digits;
   return "+" + digits;
 }
+
+const VERIFIED_HOLD_MS = 400;
 
 type Step = { step: () => Promise<void>; which: "step" | "resend" | "demo" };
 
@@ -60,9 +63,6 @@ export function Masuk() {
   const [badLogins, setBadLogins] = useState(0);
   const [wrongCodes, setWrongCodes] = useState(0);
   const [verified, setVerified] = useState(false);
-  // The mascot is confused after a failure and waves again on the next edit.
-  const [edited, setEdited] = useState(true);
-  const [fieldFailed, setFieldFailed] = useState(false);
   // "Cek emailmu" in place of the form, after an unverified address asked for a new link.
   const [mail, setMail] = useState(false);
   const [resent, setResent] = useState(false);
@@ -71,7 +71,8 @@ export function Masuk() {
   const lastStep = useRef<Step | null>(null);
   const refocusPassword = useRef(false);
   const resend = useResendTimer(60);
-  const rate = useResendTimer(RATE_WAIT_S);
+  const rate = useRateWait();
+  const form = useFormPose(fail, failures);
 
   const phoneChecks = useFieldCheck({
     phone: {
@@ -86,15 +87,7 @@ export function Masuk() {
     },
   });
   const emailChecks = useFieldCheck({
-    email: {
-      value: email,
-      check: (v) =>
-        !v.trim()
-          ? t("Isi emailmu dulu.", "Enter your email first.")
-          : validEmail(v)
-            ? ""
-            : t("Format email belum benar. Contoh: nama@gmail.com", "That email doesn't look right. Example: name@gmail.com"),
-    },
+    email: { value: email, check: emailCheck(t) },
     // Only empty is wrong: an old 6-character password must still sign in.
     password: { value: password, check: (v) => (v ? "" : t("Isi kata sandimu dulu.", "Enter your password first.")) },
   });
@@ -102,10 +95,11 @@ export function Masuk() {
   const emailProps = emailChecks.fieldProps("email");
   const passwordProps = emailChecks.fieldProps("password");
 
+  // A tab switch clears a failure, but never ends the rate wait early.
   useEffect(() => {
-    setFail("");
-    setFieldFailed(false);
-    setEdited(true);
+    setFail((f) => (f === "AUTH_RATE_LIMITED" ? f : ""));
+    form.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset is a stable setState pair
   }, [method]);
   // After a wrong password the cleared field takes focus once it is editable again.
   useEffect(() => {
@@ -114,11 +108,6 @@ export function Masuk() {
       passwordProps.inputRef.current?.focus();
     }
   }, [busy, passwordProps.inputRef]);
-
-  const edit = (set: (v: string) => void) => (v: string) => {
-    set(v);
-    setEdited(true);
-  };
 
   async function run(step: () => Promise<void>, which: Step["which"] = "step") {
     if (lock.current) return;
@@ -134,7 +123,6 @@ export function Masuk() {
       const failed = (e as { code?: string }).code || (e as Error).message;
       setFail(failed);
       setFailures((n) => n + 1);
-      setEdited(false);
       setBadLogins((n) => (failed === "INVALID_CREDENTIALS" ? n + 1 : 0));
       if (failed === "INVALID_OTP") setWrongCodes((n) => n + 1);
       if (failed === "AUTH_RATE_LIMITED") rate.restart();
@@ -166,6 +154,8 @@ export function Masuk() {
       try {
         const actor = await runtime.verifyPhoneOtp(e164Indonesia(phone), entered, "Pelanggan", Crypto.randomUUID());
         setVerified(true);
+        // The forest ring is the only acknowledgement of a phone sign-in: hold it, also under reduced motion.
+        await new Promise((done) => setTimeout(done, VERIFIED_HOLD_MS));
         await finish(actor);
       } catch (e) {
         setCode("");
@@ -195,24 +185,11 @@ export function Masuk() {
       if (again) setResent(true);
     }, "resend");
 
-  // Every field is checked on a press; a wrong one keeps the request unsent and the mascot confused.
-  const press = (checks: { submit: (go: () => void) => void }, go: () => void) => {
-    let ok = false;
-    checks.submit(() => {
-      ok = true;
-      go();
-    });
-    setFieldFailed(!ok);
-    if (!ok) setEdited(false);
-  };
-
   const limited = fail === "AUTH_RATE_LIMITED";
   const wait = limited ? rate.left : 0;
   // A code that does not match is worded under the boxes; the rest goes in the FormError above the button.
   const message = limited
-    ? wait > 0
-      ? rateText(t, countdownText(wait))
-      : ""
+    ? rate.message(wait)
     : fail && fail !== "INVALID_OTP"
       ? authFailure({ code: fail }, locale, t)
       : "";
@@ -227,7 +204,7 @@ export function Masuk() {
       message={message}
       failureKey={failures}
       testID="masuk-error"
-      retry={fail === "OFFLINE" && retry ? () => void run(retry.step, retry.which) : undefined}
+      retry={canRetry(fail, locale) && retry ? () => void run(retry.step, retry.which) : undefined}
       action={
         fail === "EMAIL_NOT_CONFIRMED"
           ? { label: t("Kirim ulang tautan", "Resend link"), onPress: () => void resendLink() }
@@ -237,32 +214,22 @@ export function Masuk() {
       }
     />
   ) : null;
-  const pose =
-    busy && waiting === "step" && phoneStep && sent
-      ? "membaca"
-      : edited
-        ? "melambai"
-        : fail === "OFFLINE"
-          ? "mencari"
-          : fail || fieldFailed
-            ? "bingung"
-            : "melambai";
-  const label = (normal: string) =>
-    wait > 0 ? t(`Coba lagi dalam ${countdownText(wait)}`, `Try again in ${countdownText(wait)}`) : normal;
+  const pose: MascotPose = busy && waiting === "step" && phoneStep && sent ? "membaca" : form.pose;
+  const label = (normal: string) => rate.label(normal, wait);
 
   const primary = phoneStep ? (
     <Button
       label={label(sent ? t("Masuk", "Sign in") : t("Kirim kode", "Send code"))}
       busy={waiting === "step"}
       disabled={wait > 0 || (sent && code.length < 6)}
-      onPress={() => (sent ? void verify(code) : press(phoneChecks, () => void sendCode()))}
+      onPress={() => (sent ? void verify(code) : form.press(phoneChecks, () => void sendCode()))}
     />
   ) : (
     <Button
       label={label(t("Masuk", "Sign in"))}
       busy={waiting === "step"}
       disabled={wait > 0}
-      onPress={() => press(emailChecks, () => void signInEmail())}
+      onPress={() => form.press(emailChecks, () => void signInEmail())}
     />
   );
 
@@ -303,17 +270,17 @@ export function Masuk() {
             {...authFields.phone}
             {...phoneProps}
             value={phone}
-            onChangeText={edit(setPhone)}
+            onChangeText={form.edit(setPhone)}
             placeholder="0812…"
             editable={!sent && !busy}
             returnKeyType="go"
-            onSubmitEditing={() => press(phoneChecks, () => void sendCode())}
+            onSubmitEditing={() => form.press(phoneChecks, () => void sendCode())}
           />
           {sent ? (
             <CodeInput
               label={t("Kode dari SMS", "Code from SMS")}
               value={code}
-              onChangeText={edit(setCode)}
+              onChangeText={form.edit(setCode)}
               onFilled={(entered) => void verify(entered)}
               editable={!busy}
               sentTo={maskPhone(e164Indonesia(phone))}
@@ -358,7 +325,7 @@ export function Masuk() {
             {...authFields.email}
             {...emailProps}
             value={email}
-            onChangeText={edit(setEmail)}
+            onChangeText={form.edit(setEmail)}
             editable={!busy}
             invalid={fail === "INVALID_CREDENTIALS" || fail === "EMAIL_NOT_CONFIRMED"}
             returnKeyType="next"
@@ -370,9 +337,9 @@ export function Masuk() {
             {...authFields.currentPassword}
             {...passwordProps}
             returnKeyType="go"
-            onSubmitEditing={() => press(emailChecks, () => void signInEmail())}
+            onSubmitEditing={() => form.press(emailChecks, () => void signInEmail())}
             value={password}
-            onChangeText={edit(setPassword)}
+            onChangeText={form.edit(setPassword)}
             editable={!busy}
             invalid={fail === "INVALID_CREDENTIALS"}
             showA11y={t("Tampilkan kata sandi", "Show password")}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
@@ -16,12 +16,13 @@ import {
   useFieldCheck,
 } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
-import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
-import { useAuthRun } from "./useAuthRun";
+import { authClient, authError, REDIRECT_TO, savePending } from "./emailAuth";
+import { canRetry } from "./failure";
+import { emailCheck, useAuthRun, useFormPose } from "./useAuthRun";
 
 /** Daftar dengan email: name, email and password, then a verification link opened on this phone. */
 export function Register() {
-  const { runtime, t } = useMobile();
+  const { runtime, t, locale } = useMobile();
   const params = useLocalSearchParams<{ next?: string }>();
   const next = nativeReturnPath(typeof params.next === "string" ? params.next : undefined);
   const [name, setName] = useState("");
@@ -29,25 +30,15 @@ export function Register() {
   const [password, setPassword] = useState("");
   const [sent, setSent] = useState(false);
   const [resent, setResent] = useState(false);
-  // The mascot is confused after a failure and waves again on the next edit.
-  const [edited, setEdited] = useState(true);
-  const [fieldFailed, setFieldFailed] = useState(false);
   const action = useAuthRun();
+  const form = useFormPose(action.code, action.failures);
   const checks = useFieldCheck({
     name: {
       value: name,
       check: (v) =>
         v.replace(/[^\p{L}]/gu, "").length >= 2 ? "" : t("Tulis namamu, minimal 2 huruf.", "Enter your name, at least 2 letters."),
     },
-    email: {
-      value: email,
-      check: (v) =>
-        !v.trim()
-          ? t("Isi emailmu dulu.", "Enter your email first.")
-          : validEmail(v)
-            ? ""
-            : t("Format email belum benar. Contoh: nama@gmail.com", "That email doesn't look right. Example: name@gmail.com"),
-    },
+    email: { value: email, check: emailCheck(t) },
     // Worded by the PasswordRule line under the field, so its message is not passed to the Field.
     password: { value: password, check: (v) => (v.length >= 8 ? "" : "short") },
   });
@@ -55,13 +46,6 @@ export function Register() {
   const emailProps = checks.fieldProps("email");
   const { error: _ruleOnly, ...passwordProps } = checks.fieldProps("password");
 
-  const edit = (set: (v: string) => void) => (v: string) => {
-    set(v);
-    setEdited(true);
-  };
-  useEffect(() => {
-    if (action.failures) setEdited(false);
-  }, [action.failures]);
 
   const signUp = () =>
     action.run(async () => {
@@ -86,15 +70,7 @@ export function Register() {
       setSent(true);
     });
 
-  const press = () => {
-    let ok = false;
-    checks.submit(() => {
-      ok = true;
-      void signUp();
-    });
-    setFieldFailed(!ok);
-    if (!ok) setEdited(false);
-  };
+  const press = () => form.press(checks, () => void signUp());
 
   const resend = () =>
     action.run(async () => {
@@ -115,7 +91,7 @@ export function Register() {
       message={action.message}
       failureKey={action.failures}
       testID="identity-error"
-      retry={action.code === "OFFLINE" ? () => void (sent ? resend() : signUp()) : undefined}
+      retry={canRetry(action.code, locale) ? () => void (sent ? resend() : signUp()) : undefined}
       action={
         registered
           ? {
@@ -126,7 +102,6 @@ export function Register() {
       }
     />
   ) : null;
-  const pose = edited ? "melambai" : action.code === "OFFLINE" ? "mencari" : action.code || fieldFailed ? "bingung" : "melambai";
 
   return (
     <AuthScreen revealKey={action.failures}>
@@ -151,7 +126,7 @@ export function Register() {
           <AuthHeading
             title={t("Daftar", "Sign up")}
             subtitle={t("Kami kirim tautan verifikasi ke emailmu.", "We'll send a verification link to your email.")}
-            pose={pose}
+            pose={form.pose}
           />
           <View style={{ gap: 14 }}>
             <Field
@@ -159,7 +134,7 @@ export function Register() {
               {...authFields.name}
               {...nameProps}
               value={name}
-              onChangeText={edit(setName)}
+              onChangeText={form.edit(setName)}
               editable={!action.busy}
               returnKeyType="next"
               submitBehavior="submit"
@@ -170,7 +145,7 @@ export function Register() {
               {...authFields.email}
               {...emailProps}
               value={email}
-              onChangeText={edit(setEmail)}
+              onChangeText={form.edit(setEmail)}
               editable={!action.busy}
               invalid={action.code === "EMAIL_NOT_CONFIRMED" || registered}
               returnKeyType="next"
@@ -185,7 +160,7 @@ export function Register() {
                 {...authFields.newPassword}
                 {...passwordProps}
                 value={password}
-                onChangeText={edit(setPassword)}
+                onChangeText={form.edit(setPassword)}
                 editable={!action.busy}
                 invalid={action.code === "PASSWORD_REJECTED"}
                 returnKeyType="go"
