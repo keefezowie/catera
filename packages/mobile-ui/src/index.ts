@@ -96,3 +96,5 @@ export * from "./layout/HeroPhoto";
 export * from "./layout/TwoLineRow";
 export * from "./layout/KeyValueRow";
 export * from "./layout/FigureStrip";
+export * from "./form/CodeInput";
+export * from "./form/CheckEmail";

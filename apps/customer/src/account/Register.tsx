@@ -2,11 +2,10 @@ import { useRef, useState } from "react";
 import { TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, PasswordField } from "@catera/mobile-ui";
+import { AuthHeading, AuthScreen, AuthSwitch, Button, CheckEmail, Field, FormError, PasswordField } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
 import { useAction } from "./useAction";
-import { CheckEmail } from "./CheckEmail";
 
 /** Daftar dengan email: name, email and password, then a verification link opened on this phone. */
 export function Register() {

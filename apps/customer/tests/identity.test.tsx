@@ -256,7 +256,9 @@ describe("Cek emailmu", () => {
           options: { emailRedirectTo: "catera://auth/callback" },
         }),
       );
-      expect(await screen.findByRole("button", { name: "Kirim ulang dalam 1:00" })).toBeDisabled();
+      expect(await screen.findByText("Terkirim")).toBeTruthy();
+      act(() => jest.advanceTimersByTime(3000));
+      expect(await screen.findByRole("button", { name: /Kirim ulang dalam 0:5[0-9]/ })).toBeDisabled();
       expect(screen.getByText("Terkirim lagi. Cek emailmu.")).toBeTruthy();
       fireEvent.press(screen.getByRole("button", { name: "Ubah email" }));
       expect(screen.getByLabelText("Email").props.value).toBe(" rani@example.test ");

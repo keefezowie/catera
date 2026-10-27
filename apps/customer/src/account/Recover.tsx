@@ -2,11 +2,10 @@ import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthScreen, Button, Field, FormError } from "@catera/mobile-ui";
+import { AuthHeading, AuthScreen, Button, CheckEmail, Field, FormError } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
 import { useAction } from "./useAction";
-import { CheckEmail } from "./CheckEmail";
 
 /** Lupa kata sandi: a recovery link by email, opened on this phone to choose a new password. */
 export function Recover() {

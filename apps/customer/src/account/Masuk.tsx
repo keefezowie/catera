@@ -4,10 +4,9 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, type Actor } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthScreen, AuthSwitch, Button, Field, FormError, MethodTabs, PasswordField, Text } from "@catera/mobile-ui";
+import { AuthHeading, AuthScreen, AuthSwitch, Button, CodeInput, Field, FormError, MethodTabs, PasswordField, ResendButton, Text, useResendTimer } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { leaveFor } from "../nav";
-import { CodeInput, ResendButton, useResendTimer } from "./CodeInput";
 
 /** Numbers as typed in Indonesia (0812…, 62812…, +62 812…, 812…) to E.164. */
 export function e164Indonesia(input: string): string {

@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { Text as RNText, TextInput, useWindowDimensions, View } from "react-native";
-import { Button, fontFor, useColors } from "@catera/mobile-ui";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
+import { Button } from "../components";
+import { useHaptic } from "../motion/useHaptic";
+import { useReduced } from "../motion/useReduced";
+import { themedStyles, useColors } from "../theme";
+import { fontFor } from "../type";
+import { useT } from "../useT";
 
 /** An SMS code is six digits. */
 export const CODE_LENGTH = 6;
@@ -13,10 +20,25 @@ export function codeSlotWidth(width: number): number {
   return Math.min(48, Math.floor((width - MARGINS - (CODE_LENGTH - 1) * GAP) / CODE_LENGTH));
 }
 
+/** "0812 3456 7890" -> "0812 •••• 7890": the first 4 and last 4 digits, so the person sees which number it went to. */
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.length <= 8) return digits;
+  return `${digits.slice(0, 4)} •••• ${digits.slice(-4)}`;
+}
+
+const SHAKE_DP = 8;
+const SHAKE_MS = 300;
+const RING_MS = 400;
+
 /**
  * The SMS code as six boxes. One hidden `TextInput` (digits only, `oneTimeCode` / `sms-otp` so the keyboard can offer
  * the code from the SMS) lies over the boxes and takes every tap; the boxes only draw what it holds. The box the next
  * digit goes into carries the forest selection ring. `onFilled` runs once each time the sixth digit arrives.
+ *
+ * `sentTo` writes the masked number above the boxes. `error` puts the danger outline on the boxes and the message under
+ * them, shakes the boxes once and fires the warning haptic once per `errorKey` (the message itself when no key is given).
+ * `verified` draws a forest ring with a check over the boxes.
  */
 export function CodeInput({
   label,
@@ -26,6 +48,10 @@ export function CodeInput({
   invalid = false,
   editable = true,
   inputRef,
+  sentTo,
+  error,
+  errorKey,
+  verified = false,
 }: {
   label: string;
   value: string;
@@ -34,8 +60,42 @@ export function CodeInput({
   invalid?: boolean;
   editable?: boolean;
   inputRef?: Ref<TextInput>;
+  /** The phone number the code went to, shown masked above the boxes. */
+  sentTo?: string;
+  /** The wrong-code message. */
+  error?: string;
+  /** Changes on every wrong code, so the same message shakes and buzzes again. */
+  errorKey?: number;
+  verified?: boolean;
 }) {
   const c = useColors();
+  const styles = useStyles();
+  const t = useT();
+  const haptic = useHaptic();
+  const reduced = useReduced();
+  const shake = useSharedValue(0);
+  const ringOpacity = useSharedValue(0);
+  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
+  const ringStyle = useAnimatedStyle(() => ({ opacity: ringOpacity.value }));
+  const failure = error ? (errorKey ?? error) : undefined;
+  useEffect(() => {
+    if (failure === undefined) return;
+    haptic.warning();
+    if (reduced) return;
+    const step = SHAKE_MS / 6;
+    shake.value = withSequence(
+      ...[1, -1, 1, -1, 1, -1].map((dir) => withTiming(dir * SHAKE_DP, { duration: step, easing: Easing.linear })),
+      withTiming(0, { duration: 0 }),
+    );
+  }, [failure, haptic, reduced, shake]);
+  useEffect(() => {
+    if (!verified) {
+      ringOpacity.value = 0;
+      return;
+    }
+    ringOpacity.value = reduced ? 1 : withTiming(1, { duration: RING_MS });
+  }, [verified, reduced, ringOpacity]);
+  const danger = invalid || !!error;
   const { width } = useWindowDimensions();
   const slot = codeSlotWidth(width);
   const current = Math.min(value.length, CODE_LENGTH - 1);
@@ -55,6 +115,11 @@ export function CodeInput({
 
   return (
     <View style={{ gap: 6 }}>
+      {sentTo ? (
+        <RNText style={{ fontFamily: fontFor("400"), fontSize: 15, lineHeight: 22, color: c.charcoal }}>
+          {t("Kode dikirim ke", "Code sent to")} {maskPhone(sentTo)}
+        </RNText>
+      ) : null}
       {/* The input below carries the label, so a screen reader hears it once. */}
       <RNText
         importantForAccessibility="no"
@@ -64,13 +129,13 @@ export function CodeInput({
         {label}
       </RNText>
       <View>
-        <View
-          style={{ flexDirection: "row", gap: GAP }}
+        <Animated.View
+          style={[{ flexDirection: "row", gap: GAP }, shakeStyle]}
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >
           {Array.from({ length: CODE_LENGTH }, (_, i) => {
-            const ring = editable && i === current && !invalid;
+            const ring = editable && i === current && !danger;
             return (
               <View
                 key={i}
@@ -82,7 +147,7 @@ export function CodeInput({
                   borderRadius: 9,
                   borderCurve: "continuous",
                   borderWidth: 2,
-                  borderColor: invalid ? c.danger : ring ? c.forest : c.fieldBorder,
+                  borderColor: danger ? c.danger : ring ? c.forest : c.fieldBorder,
                   backgroundColor: c.inputFill,
                   alignItems: "center",
                   justifyContent: "center",
@@ -98,13 +163,25 @@ export function CodeInput({
               </View>
             );
           })}
-        </View>
+        </Animated.View>
+        {verified ? (
+          <Animated.View
+            testID="code-verified"
+            pointerEvents="none"
+            importantForAccessibility="no"
+            style={[styles.ring, ringStyle]}
+          >
+            <View style={styles.badge}>
+              <Ionicons name="checkmark" size={16} color={c.cream} />
+            </View>
+          </Animated.View>
+        ) : null}
         <TextInput
           ref={inputRef}
           accessibilityLabel={label}
           value={value}
           onChangeText={change}
-          editable={editable}
+          editable={editable && !verified}
           keyboardType="number-pad"
           textContentType="oneTimeCode"
           autoComplete="sms-otp"
@@ -116,9 +193,43 @@ export function CodeInput({
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.011, color: "transparent" }}
         />
       </View>
+      {error ? (
+        <View testID="code-error" accessibilityLiveRegion="polite" style={styles.error}>
+          <Ionicons name="alert-circle" size={20} color={c.danger} accessible={false} importantForAccessibility="no-hide-descendants" />
+          <RNText selectable style={{ flex: 1, fontFamily: fontFor("400"), fontSize: 14, lineHeight: 20, color: c.danger }}>
+            {error}
+          </RNText>
+        </View>
+      ) : null}
     </View>
   );
 }
+
+const useStyles = themedStyles((c) => ({
+  ring: {
+    position: "absolute",
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderWidth: 2,
+    borderColor: c.forest,
+    borderRadius: 13,
+    borderCurve: "continuous",
+  },
+  badge: {
+    position: "absolute",
+    top: -12,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: c.forest,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  error: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+}));
 
 /** "1:00", "0:42". */
 export function countdownText(seconds: number): string {
