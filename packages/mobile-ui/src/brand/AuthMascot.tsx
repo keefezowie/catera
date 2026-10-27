@@ -3,11 +3,10 @@ import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTi
 import { nativeMotion } from "@catera/design-tokens";
 import { useReduced } from "../motion/useReduced";
 import type { MascotPose } from "./MascotArt";
+import { AUTH_MARK } from "./authMark";
 import { decorative } from "./decorative";
 import { StateArt } from "./StateArt";
 
-/** The mark above a sign-in title: the waving mascot at 56dp. */
-const AUTH_MARK_SIZE = 56;
 
 const ease = Easing.bezier(...nativeMotion.ease);
 
@@ -35,7 +34,7 @@ const along = (p: number, values: number[]) => {
  * (MascotArt's 200ms) and the mark plays that pose's one short gesture. No loop; the same pose again plays nothing;
  * reduced motion swaps with no gesture. Decorative (StateArt hides it from screen readers). `testID` `auth-mascot-{pose}`.
  */
-export function AuthMascot({ pose, base = AUTH_MARK_SIZE }: { pose: MascotPose; base?: number }) {
+export function AuthMascot({ pose, base = AUTH_MARK }: { pose: MascotPose; base?: number }) {
   const reduced = useReduced();
   const progress = useSharedValue(1);
   const shown = useRef(pose);

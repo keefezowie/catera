@@ -19,12 +19,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboard } from "./useKeyboard";
 import { useLayoutScale } from "./layoutScale";
 import { AuthMascot } from "./brand/AuthMascot";
+import { AUTH_MARK } from "./brand/authMark";
 import type { MascotPose } from "./brand/MascotArt";
 import { fontFor } from "./type";
 import { themedStyles, useColors } from "./theme";
 
-/** The brand mark above a sign-in title: the waving mascot at 56dp. Decorative (StateArt hides it from screen readers). */
-export const AUTH_MARK = 56;
+export { AUTH_MARK } from "./brand/authMark";
 
 /** The collapse's length: about an Android keyboard's slide, so the page rises with it. */
 const COLLAPSE_MS = 260;
