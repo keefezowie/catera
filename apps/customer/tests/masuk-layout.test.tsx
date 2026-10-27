@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import * as ReactNative from "react-native";
 import { Keyboard, ScrollView, StyleSheet } from "react-native";
 import { nativeThemes } from "@catera/design-tokens";
-import { ThemeProvider } from "@catera/mobile-ui";
+import { AuthHeading, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -210,9 +210,16 @@ describe("Masuk, the OKX layout", () => {
 
   it("starts the Android collapse from the keyboard's own state, on one timed curve", () => {
     const src = require("node:fs").readFileSync(require.resolve("../../../packages/mobile-ui/src/AuthLayout.tsx"), "utf8");
-    expect(src).toContain("useAnimatedKeyboard()");
+    expect(src).toContain("useAnimatedKeyboard(");
     expect(src).toContain("state === KeyboardState.OPENING || state === KeyboardState.OPEN");
     expect(src).toContain("keyboard.state}");
+  });
+
+  it("keeps the window edge-to-edge in Expo Go: the keyboard hook gets both translucent flags", () => {
+    const spy = jest.spyOn(Reanimated, "useAnimatedKeyboard");
+    render(<ThemeProvider><AuthHeading title="Masuk" /></ThemeProvider>);
+    expect(spy).toHaveBeenCalledWith({ isStatusBarTranslucentAndroid: true, isNavigationBarTranslucentAndroid: true });
+    spy.mockRestore();
   });
 
   it("gives every tab a 48dp target and the password toggle an eye icon with a stateful spoken name", async () => {

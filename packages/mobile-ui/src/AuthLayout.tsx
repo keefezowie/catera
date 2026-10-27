@@ -89,7 +89,8 @@ function Collapsible({
 export function AuthHeading({ title, subtitle, brand, pose = "melambai" }: { title: string; subtitle?: string; brand?: string; pose?: MascotPose }) {
   const c = useColors();
   const { up } = useKeyboard();
-  const keyboard = useAnimatedKeyboard();
+  // Without these flags Reanimated adds window margins in Expo Go, which does not report edge-to-edge.
+  const keyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true, isNavigationBarTranslucentAndroid: true });
   return (
     <View style={{ gap: 8, paddingTop: 8 }}>
       <Collapsible hidden={up} keyboard={process.env.EXPO_OS === "ios" ? undefined : keyboard.state} testID="auth-mark">
