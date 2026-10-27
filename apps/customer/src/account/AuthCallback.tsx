@@ -1,18 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
-import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
-import { useMobile } from "@catera/mobile-core";
+import { authClient, exchangeEmailLink, readPending, resendLink, saveNewPassword, useMobile } from "@catera/mobile-core";
 import { AuthHeading, AuthOutcome, AuthScreen, Button, CheckEmail, ExpiredLink, FormError, NewPasswordForm } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
-import { authClient, authError, clearPending, readPending, REDIRECT_TO, savePending } from "./emailAuth";
+import { REDIRECT_TO } from "./emailAuth";
 import { canRetry } from "./failure";
 import { useAuthRun, useFormPose } from "./useAuthRun";
 import { leaveFor } from "../nav";
-
-/** An email link is good for an hour, on the phone that asked for it. */
-const LINK_LIFETIME_MS = 60 * 60 * 1000;
 
 type Phase = "checking" | "recovery" | "expired" | "sent" | "reset" | "verified";
 /** What this phone remembers about the link it asked for; empty when it asked for none. */
@@ -51,42 +47,28 @@ export function AuthCallback() {
         next.current = nativeReturnPath(stored.next);
         setIntent({ purpose: stored.purpose, email: stored.email, next: next.current });
       }
-      if (!code || linkError || !stored || Date.now() - stored.at > LINK_LIFETIME_MS) throw new Error("RECOVERY_EXPIRED");
-      const client = authClient(runtime);
-      // PKCE binds this one-time code to the device that requested the email.
-      const { data, error } = await client.auth.exchangeCodeForSession(code);
-      if (error || !data.user || !data.session) throw new Error("RECOVERY_EXPIRED");
-      await SecureStore.deleteItemAsync(runtime.storageKey("demo.token"));
-      const redirectType = (data as typeof data & { redirectType?: string | null }).redirectType;
-      if (stored.purpose === "recovery") {
-        // Only a real recovery link may set a password, whatever the local intent says.
-        if (redirectType !== "recovery") throw new Error("RECOVERY_EXPIRED");
-        recoveryUser.current = data.user.id;
+      const link = await exchangeEmailLink(runtime, stored, { code, linkError });
+      if (link.purpose === "recovery") {
+        recoveryUser.current = link.userId;
         setPhase("recovery");
         return;
       }
-      await clearPending(runtime);
-      const display = String(data.user.user_metadata?.name || "").slice(0, 100);
-      const ensured = await client.rpc("catera_v1_command", {
+      const ensured = await authClient(runtime).rpc("catera_v1_command", {
         action: "profile.ensure",
-        payload: { name: display || "Pelanggan" },
+        payload: { name: link.name || "Pelanggan" },
         request_id: Crypto.randomUUID(),
       });
       if (ensured.error) throw ensured.error;
       await refresh();
-      setName(display);
+      setName(link.name);
       setPhase("verified");
     })().catch(() => setPhase("expired"));
   }, [code, linkError, refresh, runtime]);
 
   const savePassword = async (password: string) => {
-    const client = authClient(runtime);
-    const { data, error } = await client.auth.getUser();
-    if (error || !recoveryUser.current || data.user?.id !== recoveryUser.current) throw new Error("RECOVERY_EXPIRED");
-    authError((await client.auth.updateUser({ password })).error);
+    await saveNewPassword(runtime, recoveryUser.current, password);
     recoveryUser.current = "";
     // The session from the link stays: the person is signed in with the new password (owner pick 3A).
-    await clearPending(runtime);
     await refresh();
     setPhase("reset");
   };
@@ -95,15 +77,7 @@ export function AuthCallback() {
     run.run(async () => {
       const again = phase === "sent";
       if (again) setResent(false);
-      await savePending(runtime, intent.purpose as "signup" | "recovery", intent.next, intent.email);
-      const client = authClient(runtime);
-      if (intent.purpose === "signup") {
-        const { error } = await client.auth.resend({ type: "signup", email: intent.email, options: { emailRedirectTo: REDIRECT_TO } });
-        if (!["user_not_found", "email_exists", "email_not_confirmed"].includes(error?.code || "")) authError(error);
-      } else {
-        const { error } = await client.auth.resetPasswordForEmail(intent.email, { redirectTo: REDIRECT_TO });
-        if (error?.code !== "user_not_found") authError(error);
-      }
+      await resendLink(runtime, { ...intent, purpose: intent.purpose || "recovery" }, REDIRECT_TO);
       setPhase("sent");
       if (again) setResent(true);
     });

@@ -23,6 +23,8 @@ export const SCREEN_TAB = {
   // Lives in the root stack now (`app/pindah-tanggal`), and keeps the `index` role mapping on purpose: Hari ini opens it.
   "pindah-tanggal/[id]": "index",
   sampai: "index",
+  // The email link lands here signed out; the screen is never role-guarded (`+native-intent` lets it through as a root-stack path).
+  "auth/callback": "index",
   "pengaturan/data-akun": "index",
   "pengaturan/hapus-akun": "index",
   pengaturan: "index",

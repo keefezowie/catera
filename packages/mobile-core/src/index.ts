@@ -37,3 +37,4 @@ export {
   validEmail,
   type Pending,
 } from "./emailAuth";
+export { exchangeEmailLink, LINK_LIFETIME_MS, resendLink, saveNewPassword, type EmailLink } from "./emailLink";

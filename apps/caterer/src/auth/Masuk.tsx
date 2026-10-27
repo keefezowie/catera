@@ -46,6 +46,8 @@ export function Masuk() {
   const [password, setPassword] = useState("");
   const [verified, setVerified] = useState(false);
   const [misses, setMisses] = useState(0);
+  // Wrong passwords in a row: the second one offers the way back in.
+  const [badLogins, setBadLogins] = useState(0);
   // Which button is waiting, so only it shows the spinner (D-6); the typed values stay on screen.
   const [waiting, setWaiting] = useState<Waiting>("");
   const { busy, failure, run, clear } = useFormRun(locale, serverFallback(t));
@@ -80,6 +82,7 @@ export function Masuk() {
   useEffect(() => {
     if (!failure) return;
     if (failure.code === "AUTH_RATE_LIMITED") rate.restart();
+    setBadLogins((n) => (failure.code === "INVALID_CREDENTIALS" ? n + 1 : 0));
     if (failure.code === "INVALID_CREDENTIALS") {
       setPassword("");
       emailForm.reset();
@@ -97,6 +100,7 @@ export function Masuk() {
     goToTab("index");
   };
 
+  const forgot = () => router.push("/pulihkan" as never);
   const phoneStep = method === "phone";
   const outlined = !!failCode && FIELD_CODES.includes(failCode);
   const wrongOtp = failCode === "INVALID_OTP";
@@ -249,9 +253,15 @@ export function Masuk() {
             showA11y={t("Tampilkan kata sandi", "Show password")}
             hideA11y={t("Sembunyikan kata sandi", "Hide password")}
           />
+          <Button variant="text" label={t("Lupa kata sandi?", "Forgot password?")} style={{ alignSelf: "flex-start", marginTop: -8 }} onPress={forgot} />
         </View>
       )}
-      {message && !wrongOtp ? <FormError message={message} failureKey={failure?.key} retry={retry} /> : null}
+      {message && !wrongOtp ? <FormError
+          message={message}
+          failureKey={failure?.key}
+          retry={retry}
+          action={failCode === "INVALID_CREDENTIALS" && badLogins >= 2 ? { label: t("Lupa kata sandi?", "Forgot password?"), onPress: forgot } : undefined}
+        /> : null}
       <Button label={primaryLabel} busy={waiting === "step"} disabled={limited || (phoneStep && sent && code.length < 6)} onPress={submit} />
       <AuthSwitch
         prompt={t("Belum punya akun?", "No account yet?")}
