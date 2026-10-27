@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import * as Haptics from "expo-haptics";
 
-export type HapticKind = "tap" | "select" | "success" | "warning";
+export type HapticKind = "tap" | "select" | "success" | "warning" | "error";
 
 // Haptics are decoration: a missing motor or a denied permission must never surface as an error.
 const quiet = (run: () => Promise<void>) => () => {
@@ -33,6 +33,7 @@ export function hapticsFor(os = process.env.EXPO_OS): Record<HapticKind, () => v
     select: quiet(android ? androidSelect : () => Haptics.selectionAsync()),
     success: quiet(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
     warning: quiet(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),
+    error: quiet(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)),
   };
 }
 

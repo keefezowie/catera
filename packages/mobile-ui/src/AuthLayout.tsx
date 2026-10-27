@@ -167,14 +167,21 @@ export function PasswordField({
   label,
   showA11y,
   hideA11y,
+  shown: shownProp,
+  onShownChange,
   ...field
 }: {
   label: string;
   showA11y: string;
   hideA11y: string;
+  /** Controlled show/hide, so a password pair can toggle together. */
+  shown?: boolean;
+  onShownChange?: (v: boolean) => void;
 } & Omit<ComponentProps<typeof Field>, "label" | "trailing" | "secureTextEntry">) {
   const c = useColors();
-  const [shown, setShown] = useState(false);
+  const [own, setOwn] = useState(false);
+  const shown = shownProp ?? own;
+  const setShown = (v: boolean) => (onShownChange ? onShownChange(v) : setOwn(v));
   return (
     <Field
       label={label}
@@ -186,7 +193,7 @@ export function PasswordField({
           accessibilityLabel={shown ? hideA11y : showA11y}
           accessibilityState={{ selected: shown }}
           haptic="select"
-          onPress={() => setShown((s) => !s)}
+          onPress={() => setShown(!shown)}
           style={{ minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center" }}
         >
           <Ionicons name={shown ? "eye-off-outline" : "eye-outline"} size={22} color={c.muted} />

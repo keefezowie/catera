@@ -38,7 +38,7 @@ const RING_MS = 400;
  * digit goes into carries the forest selection ring. `onFilled` runs once each time the sixth digit arrives.
  *
  * `sentTo` writes the masked number above the boxes. `error` puts the danger outline on the boxes and the message under
- * them, shakes the boxes once and fires the warning haptic once per `errorKey` (the message itself when no key is given).
+ * them, shakes the boxes once and fires the error haptic once per `errorKey` (the message itself when no key is given).
  * `verified` draws a forest ring with a check over the boxes.
  */
 export function CodeInput({
@@ -81,7 +81,7 @@ export function CodeInput({
   const failure = error ? (errorKey ?? error) : undefined;
   useEffect(() => {
     if (failure === undefined) return;
-    haptic.warning();
+    haptic.error();
     if (reduced) return;
     const step = SHAKE_MS / 6;
     shake.value = withSequence(

@@ -349,6 +349,9 @@ export function Card({
   );
 }
 
+/** The caption style Field uses for its hint and error line, for lines that sit under a field. */
+export const useCaptionStyle = () => useStyles().caption;
+
 export function Field({
   label,
   hint,
@@ -384,14 +387,18 @@ export function Field({
           accessibilityLabel={label}
           placeholderTextColor={c.muted}
           {...input}
+          accessibilityHint={error || input.accessibilityHint}
           style={[styles.input, scaled && v2.input, (!!error || invalid) && { borderColor: c.danger }, trailing ? { paddingRight: Math.round(112 * Math.max(1, fontScale)) } : null, style]}
         />
         {trailing ? <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, justifyContent: "center" }}>{trailing}</View> : null}
       </View>
       {error ? (
-        <RNText selectable accessibilityLiveRegion="polite" style={[styles.caption, { color: c.danger }]}>
-          {error}
-        </RNText>
+        <View style={{ flexDirection: "row", gap: 6, alignItems: "flex-start" }}>
+          <Ionicons name="alert-circle" size={16} color={c.danger} style={{ marginTop: 1 }} accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden />
+          <RNText selectable accessibilityLiveRegion="polite" style={[styles.caption, { color: c.danger, flex: 1 }]}>
+            {error}
+          </RNText>
+        </View>
       ) : hint ? (
         <RNText style={styles.caption}>{hint}</RNText>
       ) : null}

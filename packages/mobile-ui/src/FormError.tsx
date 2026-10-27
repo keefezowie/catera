@@ -8,7 +8,8 @@ import { useT } from "./useT";
 /**
  * A failure at the action it belongs to: an icon and the words on a `surface` card with a `line` edge, in the danger
  * colour. Never loose small text. Android announces a change through the polite live region; iOS has no live regions,
- * so the message is announced when it appears or changes. `retry` adds "Coba lagi".
+ * so the message is announced when it appears or changes. `action` adds a text button under the message;
+ * `retry` is shorthand for an `action` labelled "Coba lagi".
  *
  * `failureKey` tells a repeat apart from a re-render: pass something that changes on every failed attempt (a counter,
  * a timestamp). When it changes, an identical message is announced again on iOS and its text is mounted afresh inside
@@ -17,12 +18,14 @@ import { useT } from "./useT";
 export function FormError({
   message,
   retry,
+  action,
   failureKey,
   testID = "form-error",
   os = process.env.EXPO_OS,
 }: {
   message: string;
   retry?: () => void;
+  action?: { label: string; onPress: () => void };
   failureKey?: string | number;
   testID?: string;
   /** The platform; defaults to the running one (a test passes it, because `process.env.EXPO_OS` is compiled in). */
@@ -31,6 +34,7 @@ export function FormError({
   const c = useColors();
   const styles = useStyles();
   const t = useT();
+  const act = action ?? (retry ? { label: t("Coba lagi", "Try again"), onPress: retry } : undefined);
   useEffect(() => {
     if (os === "ios" && message) AccessibilityInfo.announceForAccessibility(message);
   }, [message, failureKey, os]);
@@ -51,7 +55,7 @@ export function FormError({
           {message}
         </Text>
       </View>
-      {retry ? <Button variant="text" label={t("Coba lagi", "Try again")} onPress={retry} style={styles.retry} /> : null}
+      {act ? <Button variant="text" label={act.label} onPress={act.onPress} style={styles.retry} /> : null}
     </View>
   );
 }
