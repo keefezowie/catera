@@ -645,11 +645,11 @@ export const errors: Record<string, string> = {
   PASSWORD_REJECTED:
     "Gunakan kata sandi lain yang lebih kuat, minimal 8 karakter.",
   AUTH_UNAVAILABLE:
-    "Belum bisa masuk sekarang. Coba lagi nanti.",
+    "Ada gangguan di sisi kami. Coba lagi sebentar lagi.",
   RECOVERY_EXPIRED:
     "Tautan pemulihannya sudah tidak berlaku. Minta tautan baru.",
   INVALID_CREDENTIALS:
-    "Email atau kata sandinya salah. Coba lagi.",
+    "Email atau kata sandinya salah.",
   AUTH_RATE_LIMITED:
     "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
   FORBIDDEN:
@@ -734,11 +734,11 @@ const errorsEn: Record<string, string> = {
   PASSWORD_REJECTED:
     "Use a different, stronger password with at least 8 characters.",
   AUTH_UNAVAILABLE:
-    "Sign-in isn't available right now. Try again later.",
+    "Something went wrong on our side. Try again in a moment.",
   RECOVERY_EXPIRED:
     "This recovery link no longer works. Request a new one.",
   INVALID_CREDENTIALS:
-    "Wrong email or password. Try again.",
+    "Wrong email or password.",
   AUTH_RATE_LIMITED:
     "Too many sign-in attempts. Wait a moment and try again.",
   FORBIDDEN:
@@ -784,6 +784,10 @@ const errorsEn: Record<string, string> = {
 };
 export function errorLabel(code: string, locale: Locale = "id") {
   return (locale === "en" ? errorsEn[code] : errors[code]) || "";
+}
+/** The sentence for a failure nothing else names: a server error or an unknown code (auth spec 7). */
+export function serverErrorLabel(locale: Locale = "id") {
+  return errorLabel("AUTH_UNAVAILABLE", locale);
 }
 export function localizedMessage(message: string, locale: Locale = "id") {
   const separator = " / ";

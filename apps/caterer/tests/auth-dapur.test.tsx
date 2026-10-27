@@ -142,6 +142,19 @@ describe("Dapur Masuk errors", () => {
     expect(border("Email")).not.toBe(quiet);
     expect(border("Kata sandi")).not.toBe(quiet);
     expect(screen.getByLabelText("Kata sandi").props.value).toBe("");
+    expect(screen.getByText("Email atau kata sandinya salah.")).toBeTruthy();
+  });
+
+  it("a server failure on email sign in says so in the spec's words, with Coba lagi", async () => {
+    const runtime = makeRuntime({ signInPassword: jest.fn(async () => Promise.reject(new Error("AUTH_UNAVAILABLE"))) });
+    renderWith(runtime, <Masuk />);
+    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    expect(await screen.findByText("Ada gangguan di sisi kami. Coba lagi sebentar lagi.")).toBeTruthy();
+    expect(screen.queryByText("Belum bisa masuk sekarang. Coba lagi nanti.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy();
   });
 
   it("an unknown failure no longer blames the number or the code", async () => {

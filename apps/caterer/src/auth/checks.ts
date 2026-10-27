@@ -1,3 +1,4 @@
+import { serverErrorLabel } from "@catera/domain";
 import { validEmail } from "@catera/mobile-core";
 
 type T = (id: string, en: string) => string;
@@ -5,9 +6,8 @@ type T = (id: string, en: string) => string;
 /** Server codes about what the person typed: only these outline a field (spec 3.1, S-5). The rest are ours or the network's. */
 export const FIELD_CODES = ["INVALID_CREDENTIALS", "INVALID_OTP"];
 
-/** Spec 7: shown when nothing else names the failure, instead of blaming the number or the code. */
-export const serverFallback = (t: T) =>
-  t("Ada gangguan di sisi kami. Coba lagi sebentar lagi.", "Something went wrong on our side. Try again in a moment.");
+/** Spec 7: shown when nothing else names the failure, instead of blaming the number or the code. The words live in @catera/domain. */
+export const serverFallback = (t: T) => t(serverErrorLabel("id"), serverErrorLabel("en"));
 
 export const phoneCheck = (t: T) => (v: string) => {
   const digits = v.replace(/\D/g, "").length;
