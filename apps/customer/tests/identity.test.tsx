@@ -94,7 +94,7 @@ describe("Daftar dengan email", () => {
     mockParams = { next: "/beli/p-1?portions=2" };
     renderWith(<Register />);
     const send = await screen.findByRole("button", { name: "Daftar & verifikasi email" });
-    expect(send).toBeDisabled();
+    expect(send).toBeEnabled();
     fireEvent.changeText(screen.getByLabelText("Nama"), "Rani Contoh");
     fireEvent.changeText(screen.getByLabelText("Email"), " rani@example.test ");
     const password = screen.getByLabelText("Kata sandi");
@@ -120,6 +120,20 @@ describe("Daftar dengan email", () => {
     expect(screen.queryByText("Daftar dengan email")).toBeNull();
     expect(screen.queryByText("Daftar dengan email dan kata sandi.")).toBeNull();
     expect(screen.getByText("Kami kirim tautan verifikasi ke emailmu.")).toBeTruthy();
+  });
+
+  it("says so when the email is already registered instead of pretending a link was sent", async () => {
+    supabase.auth.signUp.mockResolvedValueOnce({
+      data: { session: null, user: { id: "u-old", identities: [] } },
+      error: null,
+    } as never);
+    renderWith(<Register />);
+    fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
+    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    fireEvent.press(screen.getByText("Daftar & verifikasi email"));
+    expect(await screen.findByText(/sudah terdaftar/)).toBeTruthy();
+    expect(screen.queryByText("Cek emailmu")).toBeNull();
   });
 
   it("explains a rejected password and stays on the form", async () => {
@@ -150,7 +164,7 @@ describe("Lupa kata sandi", () => {
     expect(screen.getByText(/Kami kirim tautan/)).toBeTruthy();
   });
 
-  it("outlines the email when the link cannot be sent", async () => {
+  it("does not outline the email when the service fails, only says so", async () => {
     supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ error: { code: "unexpected_failure", status: 500 } } as never);
     renderWith(<Recover />);
     const email = await screen.findByLabelText("Email");
@@ -158,7 +172,8 @@ describe("Lupa kata sandi", () => {
     fireEvent.changeText(email, "rani@example.test");
     fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
     expect(await screen.findByTestId("identity-error")).toBeTruthy();
-    expect(StyleSheet.flatten(screen.getByLabelText("Email").props.style).borderColor).not.toBe(before);
+    // A server failure the person did not cause never outlines a field (S-5).
+    expect(StyleSheet.flatten(screen.getByLabelText("Email").props.style).borderColor).toBe(before);
   });
 
   it("sends a recovery link to the email and says so", async () => {

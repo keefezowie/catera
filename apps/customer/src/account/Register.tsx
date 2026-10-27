@@ -1,11 +1,23 @@
-import { useRef, useState } from "react";
-import { TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthScreen, AuthSwitch, Button, CheckEmail, Field, FormError, PasswordField } from "@catera/mobile-ui";
+import {
+  authFields,
+  AuthHeading,
+  AuthScreen,
+  AuthSwitch,
+  Button,
+  CheckEmail,
+  Field,
+  FormError,
+  PasswordField,
+  PasswordRule,
+  useFieldCheck,
+} from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
-import { useAction } from "./useAction";
+import { useAuthRun } from "./useAuthRun";
 
 /** Daftar dengan email: name, email and password, then a verification link opened on this phone. */
 export function Register() {
@@ -17,10 +29,39 @@ export function Register() {
   const [password, setPassword] = useState("");
   const [sent, setSent] = useState(false);
   const [resent, setResent] = useState(false);
-  const action = useAction();
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const ready = !!name.trim() && validEmail(email) && password.length >= 8;
+  // The mascot is confused after a failure and waves again on the next edit.
+  const [edited, setEdited] = useState(true);
+  const [fieldFailed, setFieldFailed] = useState(false);
+  const action = useAuthRun();
+  const checks = useFieldCheck({
+    name: {
+      value: name,
+      check: (v) =>
+        v.replace(/[^\p{L}]/gu, "").length >= 2 ? "" : t("Tulis namamu, minimal 2 huruf.", "Enter your name, at least 2 letters."),
+    },
+    email: {
+      value: email,
+      check: (v) =>
+        !v.trim()
+          ? t("Isi emailmu dulu.", "Enter your email first.")
+          : validEmail(v)
+            ? ""
+            : t("Format email belum benar. Contoh: nama@gmail.com", "That email doesn't look right. Example: name@gmail.com"),
+    },
+    // Worded by the PasswordRule line under the field, so its message is not passed to the Field.
+    password: { value: password, check: (v) => (v.length >= 8 ? "" : "short") },
+  });
+  const nameProps = checks.fieldProps("name");
+  const emailProps = checks.fieldProps("email");
+  const { error: _ruleOnly, ...passwordProps } = checks.fieldProps("password");
+
+  const edit = (set: (v: string) => void) => (v: string) => {
+    set(v);
+    setEdited(true);
+  };
+  useEffect(() => {
+    if (action.failures) setEdited(false);
+  }, [action.failures]);
 
   const signUp = () =>
     action.run(async () => {
@@ -36,11 +77,24 @@ export function Register() {
         await client.auth.signOut({ scope: "local" });
         throw new Error("NOT_CONFIGURED");
       }
-      // An existing address gets the same answer, so the form does not reveal who is registered.
-      if (!["user_already_exists", "email_exists"].includes(error?.code || "")) authError(error);
+      // A registered address would otherwise look like a sent link. Supabase hides it by returning a user with no
+      // identities; tell the person plainly so they sign in or recover instead of waiting for an email.
+      if (["user_already_exists", "email_exists"].includes(error?.code || "") || data.user?.identities?.length === 0)
+        throw new Error("EMAIL_REGISTERED");
+      authError(error);
       setPassword("");
       setSent(true);
     });
+
+  const press = () => {
+    let ok = false;
+    checks.submit(() => {
+      ok = true;
+      void signUp();
+    });
+    setFieldFailed(!ok);
+    if (!ok) setEdited(false);
+  };
 
   const resend = () =>
     action.run(async () => {
@@ -55,7 +109,24 @@ export function Register() {
       setResent(true);
     });
 
-  const failed = action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null;
+  const registered = action.code === "EMAIL_REGISTERED";
+  const failed = action.message ? (
+    <FormError
+      message={action.message}
+      failureKey={action.failures}
+      testID="identity-error"
+      retry={action.code === "OFFLINE" ? () => void (sent ? resend() : signUp()) : undefined}
+      action={
+        registered
+          ? {
+              label: t("Masuk dengan email ini", "Sign in with this email"),
+              onPress: () => router.replace({ pathname: "/login", params: { next, email: email.trim() } } as never),
+            }
+          : undefined
+      }
+    />
+  ) : null;
+  const pose = edited ? "melambai" : action.code === "OFFLINE" ? "mencari" : action.code || fieldFailed ? "bingung" : "melambai";
 
   return (
     <AuthScreen revealKey={action.failures}>
@@ -80,62 +151,50 @@ export function Register() {
           <AuthHeading
             title={t("Daftar", "Sign up")}
             subtitle={t("Kami kirim tautan verifikasi ke emailmu.", "We'll send a verification link to your email.")}
+            pose={pose}
           />
           <View style={{ gap: 14 }}>
             <Field
               label={t("Nama", "Name")}
+              {...authFields.name}
+              {...nameProps}
               value={name}
-              onChangeText={setName}
-              autoComplete="name"
-              autoCapitalize="words"
-              maxLength={100}
+              onChangeText={edit(setName)}
+              editable={!action.busy}
               returnKeyType="next"
               submitBehavior="submit"
-              onSubmitEditing={() => emailRef.current?.focus()}
+              onSubmitEditing={() => emailProps.inputRef.current?.focus()}
             />
             <Field
               label="Email"
-              inputRef={emailRef}
+              {...authFields.email}
+              {...emailProps}
+              value={email}
+              onChangeText={edit(setEmail)}
+              editable={!action.busy}
+              invalid={action.code === "EMAIL_NOT_CONFIRMED" || registered}
               returnKeyType="next"
               submitBehavior="submit"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              value={email}
-              onChangeText={setEmail}
-              autoComplete="email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={254}
-              invalid={action.code === "EMAIL_NOT_CONFIRMED"}
+              onSubmitEditing={() => passwordProps.inputRef.current?.focus()}
             />
-            <PasswordField
-              label={t("Kata sandi", "Password")}
-              inputRef={passwordRef}
-              returnKeyType="go"
-              onSubmitEditing={() => {
-                if (ready) void signUp();
-              }}
-              showA11y={t("Tampilkan kata sandi", "Show password")}
-              hideA11y={t("Sembunyikan kata sandi", "Hide password")}
-              value={password}
-              onChangeText={setPassword}
-              invalid={action.code === "PASSWORD_REJECTED"}
-              autoComplete="new-password"
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={256}
-              hint={t(
-                "Minimal 8 karakter. Verifikasi email sebelum masuk.",
-                "At least 8 characters. Verify your email before signing in.",
-              )}
-            />
+            <View style={{ gap: 6 }}>
+              <PasswordField
+                label={t("Kata sandi", "Password")}
+                showA11y={t("Tampilkan kata sandi", "Show password")}
+                hideA11y={t("Sembunyikan kata sandi", "Hide password")}
+                {...authFields.newPassword}
+                {...passwordProps}
+                value={password}
+                onChangeText={edit(setPassword)}
+                editable={!action.busy}
+                invalid={action.code === "PASSWORD_REJECTED"}
+                returnKeyType="go"
+                onSubmitEditing={press}
+              />
+              <PasswordRule value={password} failed={!!checks.messages.password} />
+            </View>
             {failed}
-            <Button
-              label={t("Daftar & verifikasi email", "Sign up & verify email")}
-              busy={action.busy}
-              disabled={!ready}
-              onPress={() => void signUp()}
-            />
+            <Button label={action.label(t("Daftar & verifikasi email", "Sign up & verify email"))} busy={action.busy} disabled={action.wait > 0} onPress={press} />
           </View>
         </>
       )}

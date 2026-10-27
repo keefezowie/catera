@@ -106,7 +106,7 @@ describe("Masuk, the OKX layout", () => {
     expect(screen.getByTestId("masuk-error").props.accessibilityLiveRegion).toBe("polite");
   });
 
-  it("outlines the password field in danger after a credentials error, and keeps both drafts", async () => {
+  it("outlines the password field in danger after a credentials error, keeps the email and clears the password", async () => {
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
@@ -119,7 +119,7 @@ describe("Masuk, the OKX layout", () => {
     await screen.findByTestId("masuk-error");
     expect(borderOf("Kata sandi")).not.toBe(before);
     expect(screen.getByLabelText("Email").props.value).toBe("rani@example.test");
-    expect(screen.getByLabelText("Kata sandi").props.value).toBe("wrong-password");
+    expect(screen.getByLabelText("Kata sandi").props.value).toBe("");
   });
 
   it("puts the sign-up line under the primary button, after the form", async () => {
@@ -333,14 +333,13 @@ describe("Masuk, the SMS code", () => {
     });
     renderWith(<Masuk />);
     fireEvent.changeText(await toCode(), "123456");
-    await waitFor(() => expect(screen.getByTestId("masuk-error")).toBeTruthy());
-    expect(screen.getByText(/Kode belum cocok/)).toBeTruthy();
+    // Worded under the boxes (spec 6), not in the FormError.
+    expect(await screen.findByText("Kodenya salah. Cek SMS-nya, lalu coba lagi.")).toBeTruthy();
+    expect(screen.queryByTestId("masuk-error")).toBeNull();
     expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("");
     expect(slotText()).toEqual(["", "", "", "", "", ""]);
     // The slots carry the danger edge, and the error sits above Masuk.
     expect(StyleSheet.flatten(slots()[1].props.style).borderColor).toBe(nativeThemes.light.danger);
-    const page = order();
-    expect(page.indexOf("error")).toBeLessThan(page.indexOf("button:Masuk"));
     // The number stays typed.
     expect(screen.getByLabelText("Nomor HP").props.value).toBe("0812 3456 7890");
     // A new code is tried as soon as its sixth digit is in.

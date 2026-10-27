@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { AuthHeading, AuthScreen, Button, CheckEmail, Field, FormError } from "@catera/mobile-ui";
+import { authFields, AuthHeading, AuthScreen, Button, CheckEmail, Field, FormError, useFieldCheck } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
-import { useAction } from "./useAction";
+import { useAuthRun } from "./useAuthRun";
 
 /** Lupa kata sandi: a recovery link by email, opened on this phone to choose a new password. */
 export function Recover() {
@@ -15,7 +15,23 @@ export function Recover() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [resent, setResent] = useState(false);
-  const action = useAction();
+  const [edited, setEdited] = useState(true);
+  const [fieldFailed, setFieldFailed] = useState(false);
+  const action = useAuthRun();
+  const checks = useFieldCheck({
+    email: {
+      value: email,
+      check: (v) =>
+        !v.trim()
+          ? t("Isi emailmu dulu.", "Enter your email first.")
+          : validEmail(v)
+            ? ""
+            : t("Format email belum benar. Contoh: nama@gmail.com", "That email doesn't look right. Example: name@gmail.com"),
+    },
+  });
+  useEffect(() => {
+    if (action.failures) setEdited(false);
+  }, [action.failures]);
 
   const send = () =>
     action.run(async () => {
@@ -29,7 +45,24 @@ export function Recover() {
       if (again) setResent(true);
     });
 
-  const failed = action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null;
+  const press = () => {
+    let ok = false;
+    checks.submit(() => {
+      ok = true;
+      void send();
+    });
+    setFieldFailed(!ok);
+    if (!ok) setEdited(false);
+  };
+
+  const failed = action.message ? (
+    <FormError
+      message={action.message}
+      failureKey={action.failures}
+      testID="identity-error"
+      retry={action.code === "OFFLINE" ? () => void send() : undefined}
+    />
+  ) : null;
   const back = (
     <Button
       variant="text"
@@ -38,6 +71,7 @@ export function Recover() {
       onPress={() => router.replace({ pathname: "/login", params: { next } } as never)}
     />
   );
+  const pose = edited ? "melambai" : action.code === "OFFLINE" ? "mencari" : action.code || fieldFailed ? "bingung" : "melambai";
 
   return (
     <AuthScreen revealKey={action.failures}>
@@ -65,26 +99,24 @@ export function Recover() {
               "Kami kirim tautan ke emailmu. Buka tautannya di HP ini untuk membuat kata sandi baru.",
               "We'll email you a link. Open it on this phone to set a new password.",
             )}
+            pose={pose}
           />
           <View style={{ gap: 14 }}>
             <Field
               label="Email"
+              {...authFields.email}
+              {...checks.fieldProps("email")}
               value={email}
-              onChangeText={setEmail}
-              autoComplete="email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={254}
-              invalid={!!action.error}
+              onChangeText={(v) => {
+                setEmail(v);
+                setEdited(true);
+              }}
+              editable={!action.busy}
+              returnKeyType="go"
+              onSubmitEditing={press}
             />
             {failed}
-            <Button
-              label={t("Kirim tautan pemulihan", "Send recovery link")}
-              busy={action.busy}
-              disabled={!validEmail(email)}
-              onPress={() => void send()}
-            />
+            <Button label={action.label(t("Kirim tautan pemulihan", "Send recovery link"))} busy={action.busy} disabled={action.wait > 0} onPress={press} />
             {back}
           </View>
         </>

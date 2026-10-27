@@ -430,7 +430,7 @@ describe("Masuk", () => {
     await codeEntered(async () => {
       throw Object.assign(new Error("INVALID_OTP"), { code: "INVALID_OTP" });
     });
-    expect(await screen.findByText("Kode belum cocok. Periksa SMS lalu coba lagi.")).toBeTruthy();
+    expect(await screen.findByText("Kodenya salah. Cek SMS-nya, lalu coba lagi.")).toBeTruthy();
     expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("");
     expect(screen.queryByTestId("mascot-loading")).toBeNull();
   });
