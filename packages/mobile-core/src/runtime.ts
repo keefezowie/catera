@@ -118,8 +118,10 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
   }
 
   async function signOut() {
-    // The demo session also lives in an httpOnly web cookie; best effort, clear it while the token is still sent.
-    if (await SecureStore.getItemAsync(key("demo.token"))) await api.request("auth/logout", {}).catch(() => undefined);
+    // The demo session also lives in an httpOnly web cookie. Fire the logout best effort and do not wait for it,
+    // so a hanging network never stalls sign-out.
+    if (await SecureStore.getItemAsync(key("demo.token")))
+      void Promise.resolve(api.request("auth/logout", {})).catch(() => undefined);
     await SecureStore.deleteItemAsync(key("demo.token"));
     const result = await supabase?.auth.signOut({ scope: "local" });
     if (result?.error) throw result.error;

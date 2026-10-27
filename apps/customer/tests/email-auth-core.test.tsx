@@ -25,8 +25,12 @@ describe("email-auth core", () => {
     expect(thrown(() => authError({ code: "email_not_confirmed" }))).toBe("EMAIL_NOT_CONFIRMED");
     expect(thrown(() => authError({ code: "weak_password" }))).toBe("PASSWORD_REJECTED");
     expect(thrown(() => authError({ status: 500 }))).toBe("AUTH_UNAVAILABLE");
+    expect(thrown(() => authError({ name: "AuthRetryableFetchError", status: 503 }))).toBe("AUTH_UNAVAILABLE");
+    expect(thrown(() => authError({ name: "AuthRetryableFetchError" }))).toBe("OFFLINE");
     expect(isOffline(new TypeError("Network request failed"))).toBe(true);
     expect(isOffline({ status: 400 })).toBe(false);
+    expect(isOffline({ name: "AuthRetryableFetchError", status: 503 })).toBe(false);
+    expect(isOffline({ name: "AuthRetryableFetchError", status: 0 })).toBe(true);
   });
 
   it("signInPassword, sendPhoneOtp and verifyPhoneOtp report OFFLINE on a network failure", async () => {
@@ -37,6 +41,11 @@ describe("email-auth core", () => {
     expect(await caught(r.sendPhoneOtp("+62811"))).toBe("OFFLINE");
     mockAuth.verifyOtp.mockResolvedValueOnce({ data: null, error: { name: "AuthRetryableFetchError", status: 0 } });
     expect(await caught(r.verifyPhoneOtp("+62811", "123456", "N", "req"))).toBe("OFFLINE");
+  });
+
+  it("a 400 from the server is still INVALID_CREDENTIALS", async () => {
+    mockAuth.signInWithPassword.mockResolvedValueOnce({ data: { session: null, user: null }, error: { name: "AuthApiError", status: 400, code: "invalid_credentials" } });
+    expect(await caught(runtime().signInPassword("a@b.co", "secret123", "req"))).toBe("INVALID_CREDENTIALS");
   });
 
   it("remembers the email with the pending link", async () => {
@@ -54,6 +63,18 @@ describe("email-auth core", () => {
     await r.signOut();
     expect(request).toHaveBeenCalledTimes(1);
     expect(request).toHaveBeenCalledWith("auth/logout", expect.anything());
+    expect(await SecureStore.getItemAsync(r.storageKey("demo.token"))).toBeNull();
+  });
+
+  it("sign-out clears the demo token even when the logout request rejects or hangs", async () => {
+    const r = runtime();
+    await SecureStore.setItemAsync(r.storageKey("demo.token"), "t");
+    const request = jest.spyOn(r.api, "request").mockRejectedValue(new Error("down"));
+    await r.signOut();
+    expect(await SecureStore.getItemAsync(r.storageKey("demo.token"))).toBeNull();
+    await SecureStore.setItemAsync(r.storageKey("demo.token"), "t");
+    request.mockReturnValue(new Promise(() => undefined));
+    await r.signOut();
     expect(await SecureStore.getItemAsync(r.storageKey("demo.token"))).toBeNull();
   });
 

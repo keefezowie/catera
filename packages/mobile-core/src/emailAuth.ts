@@ -42,11 +42,16 @@ export function authClient(runtime: MobileRuntime) {
   return runtime.supabase;
 }
 
-/** True when the request never reached the server (no network, DNS, timeout). */
+/**
+ * True when the request never reached the server (no network, DNS, timeout): a fetch TypeError, or an
+ * AuthRetryableFetchError with no HTTP status. Supabase also uses that name for HTTP 500-530 (status set),
+ * which is the server answering, not the phone being offline.
+ */
 export function isOffline(error: unknown): boolean {
   if (error instanceof TypeError) return true;
   const e = error as { name?: string; status?: number } | null;
-  return !!e && typeof e === "object" && (e.name === "AuthRetryableFetchError" || e.status === 0);
+  if (!e || typeof e !== "object") return false;
+  return e.status === 0 || (e.name === "AuthRetryableFetchError" && e.status == null);
 }
 
 /** Supabase auth errors as Catera error codes (errorLabel has a sentence for each). */
