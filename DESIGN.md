@@ -1854,3 +1854,70 @@ The switch stays synchronous: the band and the page change in one render, as GC-
 - Production-JS timing: Expo Go keeps a production bundle per project across Metro ports and `--clear`, so a before/after pair could not be isolated without wiping Expo Go's data. The numbers above are dev JS on one emulator; the release figure from gate g-c-14 (0.22–0.35s for the old swap) is the last production measurement.
 - A live TalkBack pass: adb-injected taps, swipes and key chords do not drive TalkBack on this emulator. Labels, roles and selected states are checked in Jest and in uiautomator dumps.
 - iOS (no Mac).
+
+## Auth experience (October 2026)
+
+Validation, error copy, outcomes and recovery on the auth screens of both native apps. The spec is `docs/superpowers/specs/2026-10-27-auth-experience-design.md`; the owner picked 1A (two password fields with a match line), 2A (buttons enabled), 3A (stay signed in after a reset), 4B (no sign-in toast), 5A (Dapur recovery) and 6A (a mascot that reacts). Where this section and the spec differ, this section describes what shipped.
+
+### Validation timing and field messages
+
+- `useFieldCheck` (`packages/mobile-ui/src/form/useFieldCheck.ts`) keeps a field quiet while it is typed for the first time. Leaving a field with text in it checks it; an empty field left on blur stays quiet. Once a message shows, the field is re-checked on every change, so the message clears as soon as the input is right.
+- `submit` checks every field, empty ones included. If any fail, nothing is sent, focus moves to the first failing field, the `error` haptic fires once (`NotificationFeedbackType.Error`, a new `useHaptic` kind), and a screen reader hears "{n} isian perlu diperbaiki" ("1 field needs fixing" in English for one). Test: "submit focuses the first failing field and announces the count".
+- The message sits under the field in Field's caption style with a 16 `alert-circle` glyph (hidden from screen readers) and is also the input's `accessibilityHint`. Sign-in passwords are checked only for being empty. Phone numbers take 9 to 15 digits; the customer name needs 2 letters, the Dapur business name 3.
+- Dapur Daftar's area message sits under the chips as `FieldMessage` (`packages/mobile-ui/src/form/PasswordLines.tsx`, test id `area-error`), because `tests/native-theme-guard.test.ts` rejects loose danger text in app code.
+- A server failure outlines a field only when it is about the person's own input. Customer Masuk outlines for INVALID_CREDENTIALS, EMAIL_NOT_CONFIRMED and a wrong code; Daftar for EMAIL_REGISTERED, EMAIL_NOT_CONFIRMED and PASSWORD_REJECTED; Pemulihan never. Dapur outlines for INVALID_CREDENTIALS and INVALID_OTP. Offline, rate-limit and server failures outline nothing (identity.test.tsx "does not outline the email when the service fails, only says so"; Dapur "offline says Belum ada koneksi and outlines nothing").
+- After INVALID_CREDENTIALS the password is cleared and focused and the field checks reset, so "Isi kata sandimu dulu." never sits beside the FormError.
+
+### Passwords and buttons
+
+- `PasswordRule` and `PasswordMatch` live in `packages/mobile-ui/src/form/PasswordLines.tsx`. The rule line ("Minimal 8 karakter") turns into a forest check when met and announces that once ("PasswordRule announces met once"); when it is still short after a blur or submit, it shows the alert glyph. The match line stays quiet until the confirm field is as long as the first or is left, then says "Kata sandinya sama" or "Kata sandinya belum sama." ("PasswordMatch quiet until..."). It renders nothing while both fields are empty.
+- `NewPasswordForm` pairs two `PasswordField`s that share one show/hide state ("toggling a controlled PasswordField pair shows both"). The return key on the first goes to the confirm field, and the confirm field submits.
+- Primary buttons stay enabled (2A), including "Simpan kata sandi" and Dapur's "Kirim kode", whose reason line is gone ("keeps Kirim kode enabled and shows no reason line"). The customer code step is the one exception, and a running rate wait disables the primary.
+
+### Errors, retry, rate limit, offline
+
+- The wording lives in `packages/domain/src/index.ts` (lines 641-652): EMAIL_NOT_CONFIRMED "Emailmu belum diverifikasi.", OFFLINE "Belum ada koneksi. Cek internetmu, lalu coba lagi.", AUTH_UNAVAILABLE "Ada gangguan di sisi kami. Coba lagi sebentar lagi." and INVALID_CREDENTIALS "Email atau kata sandinya salah.". `serverErrorLabel` (line 789) is the shared server and unknown sentence; customer `authFailure` and Dapur `serverFallback` both read it. The web shows the same table wherever it falls back to `errorLabel`.
+- FormError takes an `action`. From the second INVALID_CREDENTIALS in a row it offers "Lupa kata sandi?" in both apps. EMAIL_NOT_CONFIRMED offers "Kirim ulang tautan", which resends there and opens Cek emailmu. EMAIL_REGISTERED offers "Masuk dengan email ini", which opens Masuk on the Email tab with the address filled in.
+- "Coba lagi" appears only for OFFLINE, AUTH_UNAVAILABLE and unknown codes (`canRetry` in `apps/customer/src/account/failure.ts` and `apps/caterer/src/auth/checks.ts`), never for field failures, a wrong code or the rate limit. Customer Masuk retries with what is typed now ("Coba lagi retries with what is typed now"). A code check empties the boxes only on INVALID_OTP, so a retry after a server failure re-sends the typed code.
+- A 429 waits `RATE_WAIT_S`, 60 seconds (`packages/mobile-core/src/emailAuth.ts:7`). No code reads `Retry-After`. The primary shows the countdown and is disabled while FormError says "Terlalu banyak percobaan. Coba lagi dalam {m:ss}." ("429 shows a 60s countdown on the button"; Dapur "a rate limit counts down on the button and in the message"). `verifyPhoneOtp` in `packages/mobile-core/src/runtime.ts` calls only a refused code wrong: a 429 is the rate limit and a 5xx the server.
+- `isOffline` (`emailAuth.ts:50`) is true only with no HTTP status: a fetch `TypeError`, status 0, or `AuthRetryableFetchError` without a status. A 503 is AUTH_UNAVAILABLE. Offline keeps typed values and outlines nothing.
+- Unrecognised 4xx codes, such as a server-side email rejection, still map to AUTH_UNAVAILABLE. This is a parked follow-up.
+
+### Outcomes
+
+- `AuthOutcome` (`packages/mobile-ui/src/AuthOutcome.tsx`) wraps `SuccessBeat`: one title, one line, a primary in the footer and an optional text button. `play` is set only on the transition into success. Sign in has no toast (4B).
+- A verified sign-up shows "Email terverifikasi", "Akunmu sudah siap, {nama}." ("Akunmu sudah siap." without a stored name) and "Mulai" ("verified shows Email terverifikasi with the name").
+- A reset keeps the recovery session (3A): "Kata sandi diganti", "Kamu sudah masuk dengan kata sandi baru." and "Lanjut" ("save keeps the session and shows Kata sandi diganti").
+- Dapur Daftar ends on "Dapurmu siap" with "Buka Hari ini", which runs `signedIn(actor)` and then opens Hari ini ("kitchen outcome says Dapurmu siap and opens Hari ini"). The sign-in waits for the press because Masuk sits under Daftar and would otherwise leave before the beat; the Supabase session is already stored after the code check.
+- A verified code turns the boxes into a forest ring with a check for 400ms before the screen leaves, in both apps and under reduced motion ("the verified ring shows for 400ms before the screen leaves").
+- Outcome exits are locked. Header back and swipe are off, and `usePreventRemove` plus Android hardware back send every removal where the primary goes ("back from an outcome goes where Lanjut goes"; Dapur "the outcome locks its exits and every removal goes where Lanjut goes").
+
+### Links, code entry and Cek emailmu
+
+- The pending intent stores the purpose, `next` and the email in SecureStore (`savePending`). `exchangeEmailLink` (`packages/mobile-core/src/emailLink.ts:27`) fails fast with no network call when there is no code, an error param, no pending intent, an unaccepted purpose or an intent older than an hour. A recovery intent counts only when the server marks the link as recovery; otherwise the session is signed out locally. Only a link the server rejects reaches the expired screen. An offline exchange shows the offline FormError, and "Coba lagi" tries the same link again.
+- `ExpiredLink` (`packages/mobile-ui/src/form/ExpiredLink.tsx`) has one title, "Tautannya sudah tidak berlaku", and offers "Kirim tautan baru", a one-tap resend of the stored purpose that opens Cek emailmu. A double press sends one email. With no stored email the primary is "Masukkan email", which opens Daftar for a sign-up link and Pemulihan otherwise. "Kembali ke Masuk" goes back to Masuk.
+- `CodeInput` (`packages/mobile-ui/src/form/CodeInput.tsx`) writes "Kode dikirim ke 0812 •••• 7890" above the boxes, masked once, with 62 or +62 normalised to 0. A wrong code shows its message under the boxes, shakes them once (8dp, 300ms, none under reduced motion) and plays the error haptic. From the third miss it adds "Belum dapat kodenya? Kirim ulang.". Dapur uses it too, auto-submitting on the sixth digit, with a 60 second resend.
+- `CheckEmail` (`packages/mobile-ui/src/form/CheckEmail.tsx`) puts "Ubah email" under the address and adds the spam line. "Buka aplikasi email" opens the Android `APP_EMAIL` chooser through `expo-intent-launcher`, falling back to `mailto:`, and `message://` on iOS. After a resend the button reads "Terkirim" with a check for 3000ms (`SENT_SHOWN_MS`), then the countdown returns.
+
+### The reacting mascot (6A)
+
+Customer screens set the pose through `useFormPose` (`apps/customer/src/account/useAuthRun.ts`). It is `melambai` when ready and after any edit, `bingung` for a failed field check or the person's own failures (INVALID_CREDENTIALS, INVALID_OTP, EMAIL_REGISTERED, EMAIL_NOT_CONFIRMED, PASSWORD_REJECTED), and `mencari` offline. Server trouble and the rate limit leave it waving. The expired link is `bingung`, a code or link check is `membaca`, and Cek emailmu keeps its `membaca` still. Outcomes show `SuccessBeat`'s `merayakan`, the still at 180 under reduced motion.
+
+`AuthMascot` (`packages/mobile-ui/src/brand/AuthMascot.tsx`) plays one gesture on each pose change, over MascotArt's 200ms dissolve and on the Catera ease: `bingung` tilts to -6° and settles in 520ms, `merayakan` hops 16dp with a squash in 560ms, `membaca` leans in over 480ms, `mencari` looks left and right in 640ms, and `melambai` rocks 2° in 520ms. The spec asked for under 600ms, but the owner approved `mencari` at 640ms in the prototype. A mount, a repeated pose and reduced motion play nothing ("a mount plays no gesture; each pose change plays exactly one, never a loop"). Dapur keeps the "Catera Dapur" wordmark and passes `art={null}`.
+
+### Dapur recovery (5A)
+
+Masuk's Email tab has "Lupa kata sandi?" under the password. It opens `/(auth)/pulihkan` (`apps/caterer/src/auth/Pulihkan.tsx`), and the link returns to `catera-dapur://auth/callback` (`apps/caterer/src/auth/AuthCallback.tsx`). The callback accepts recovery only: a sign-up intent goes to the expired screen without an exchange, and a link that signed in another account is refused. `apps/caterer/src/nav.ts:46` lets `auth/callback` through the native intent, and `roles.ts:27` maps it to the Hari ini tab. Owner action: add `catera-dapur://auth/callback` to Supabase Auth, URL Configuration, Redirect URLs, beside `catera://auth/callback`.
+
+### Shared pieces
+
+`packages/mobile-ui/src/form/` holds `useFieldCheck`, `PasswordLines`, `authFields` (autofill presets), `CodeInput`, `CheckEmail`, `ExpiredLink`, `NewPasswordForm`, `RecoverForm` and the `AuthRun` types. `AuthMascot` and `AuthOutcome` are in mobile-ui at the paths above. `packages/mobile-core/src/emailAuth.ts` holds the pending intent, `authError`, `isOffline`, `RATE_WAIT_S` and `redirectFor`. `packages/mobile-core/src/emailLink.ts` holds `exchangeEmailLink`, `saveNewPassword` and `resendLink`, which both apps use.
+
+### Fixes
+
+- Demo sign-out: the demo session also lives in an httpOnly web cookie, so `signOut` (`packages/mobile-core/src/runtime.ts:125-131`) fires `auth/logout` without waiting when a demo token is held, then clears the local session ("demo sign-out clears the server cookie once...").
+- C-1, light strips behind the bars on dark customer auth screens: `AuthHeading` passes `isStatusBarTranslucentAndroid` and `isNavigationBarTranslucentAndroid` to `useAnimatedKeyboard` (`packages/mobile-ui/src/AuthLayout.tsx:92-93`). Without them Reanimated adds window margins in Expo Go, which does not report edge-to-edge. `masuk-layout.test.tsx` asserts both flags.
+
+### Not verified
+
+The callback's checking subtitle "Memeriksa tautan…" stays beside a failure FormError, and an offline `profile.ensure` shows the server sentence; both are parked follow-ups. Not verified: iOS (no Mac), real email and SMS delivery (no custom SMTP, no SMS provider), the new-password and verified states against the hosted Supabase project on a device, and TalkBack or VoiceOver passes.
