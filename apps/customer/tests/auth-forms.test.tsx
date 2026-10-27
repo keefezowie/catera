@@ -259,6 +259,59 @@ describe("Masuk validation and errors", () => {
     expect(screen.getByTestId("auth-mascot-melambai", hidden)).toBeTruthy();
   });
 
+  it("server trouble keeps the mascot waving, offline searches, a wrong password is bingung", async () => {
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("AUTH_UNAVAILABLE");
+    });
+    renderWith(<Masuk />);
+    await emailTab();
+    fill();
+    submit();
+    await screen.findByTestId("masuk-error");
+    expect(screen.getByTestId("auth-mascot-melambai", hidden)).toBeTruthy();
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("OFFLINE");
+    });
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    submit();
+    await screen.findByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.");
+    expect(screen.getByTestId("auth-mascot-mencari", hidden)).toBeTruthy();
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("INVALID_CREDENTIALS");
+    });
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    submit();
+    await screen.findByText("Email atau kata sandinya salah.");
+    expect(screen.getByTestId("auth-mascot-bingung", hidden)).toBeTruthy();
+  });
+
+  it("Coba lagi retries with what is typed now, not what was typed at the failure", async () => {
+    runtime.signInPassword = jest.fn(async () => {
+      throw new Error("OFFLINE");
+    });
+    renderWith(<Masuk />);
+    await emailTab();
+    fill();
+    submit();
+    const error = await screen.findByTestId("masuk-error");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "typed-after-the-failure");
+    fireEvent.press(within(error).getByText("Coba lagi"));
+    await waitFor(() => expect(runtime.signInPassword).toHaveBeenCalledTimes(2));
+    expect(runtime.signInPassword).toHaveBeenLastCalledWith("rani@example.test", "typed-after-the-failure", expect.any(String), "Pelanggan");
+  });
+
+  it("a registered email offers its Masuk action, never Coba lagi", async () => {
+    supabase.auth.signUp.mockResolvedValueOnce({ data: { session: null, user: { id: "u-old", identities: [] } }, error: null } as never);
+    renderWith(<Register />);
+    fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
+    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+    const error = await screen.findByTestId("identity-error");
+    expect(within(error).getByText("Masuk dengan email ini")).toBeTruthy();
+    expect(within(error).queryByText("Coba lagi")).toBeNull();
+  });
+
   it("opens on the Email tab with the address filled when Daftar sends it", async () => {
     mockParams = { email: "rani@example.test" };
     renderWith(<Masuk />);

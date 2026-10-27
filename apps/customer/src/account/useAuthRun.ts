@@ -5,6 +5,8 @@ import { RATE_WAIT_S, validEmail } from "./emailAuth";
 import { authFailure, rateText } from "./failure";
 import { useAction } from "./useAction";
 
+const OWN_FAILURES = ["INVALID_CREDENTIALS", "INVALID_OTP", "EMAIL_REGISTERED", "EMAIL_NOT_CONFIRMED", "PASSWORD_REJECTED"];
+
 type Tr = (id: string, en: string) => string;
 
 /** The email field's rule on sign in, sign up and recovery: empty, then shape. */
@@ -38,7 +40,8 @@ export function useFormPose(code: string, failures: number) {
   useEffect(() => {
     if (failures) setEdited(false);
   }, [failures]);
-  const pose: MascotPose = edited ? "melambai" : code === "OFFLINE" ? "mencari" : code || fieldFailed ? "bingung" : "melambai";
+  // bingung only for what the person did (spec 6A); server trouble and the rate limit leave the mascot waving.
+  const pose: MascotPose = edited ? "melambai" : code === "OFFLINE" ? "mencari" : fieldFailed || OWN_FAILURES.includes(code) ? "bingung" : "melambai";
   return {
     pose,
     edit: (set: (v: string) => void) => (v: string) => {

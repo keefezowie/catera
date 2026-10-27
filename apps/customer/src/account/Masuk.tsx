@@ -39,7 +39,8 @@ export function e164Indonesia(input: string): string {
 
 const VERIFIED_HOLD_MS = 400;
 
-type Step = { step: () => Promise<void>; which: "step" | "resend" | "demo" };
+type Which = "step" | "resend" | "demo";
+type Kind = "email" | "send" | "verify" | "link" | "resendCode" | "demo";
 
 /** Sign in with the phone number (SMS code) first; email and password on request. */
 export function Masuk() {
@@ -68,7 +69,9 @@ export function Masuk() {
   const [resent, setResent] = useState(false);
   // Held from the press to the answer, so a code that fills twice in one frame is still checked once.
   const lock = useRef(false);
-  const lastStep = useRef<Step | null>(null);
+  // The last step by name, re-run through the latest render's handlers so a retry reads what is typed now.
+  const lastKind = useRef<Kind | null>(null);
+  const latest = useRef<Record<Kind, () => unknown>>(null as never);
   const refocusPassword = useRef(false);
   const resend = useResendTimer(60);
   const rate = useRateWait();
@@ -109,10 +112,10 @@ export function Masuk() {
     }
   }, [busy, passwordProps.inputRef]);
 
-  async function run(step: () => Promise<void>, which: Step["which"] = "step") {
+  async function run(step: () => Promise<void>, kind: Kind, which: Which = "step") {
     if (lock.current) return;
     lock.current = true;
-    lastStep.current = { step, which };
+    lastKind.current = kind;
     setBusy(true);
     setWaiting(which);
     setFail("");
@@ -158,17 +161,30 @@ export function Masuk() {
         await new Promise((done) => setTimeout(done, VERIFIED_HOLD_MS));
         await finish(actor);
       } catch (e) {
-        setCode("");
+        // No connection keeps the code, so Coba lagi can check it again.
+        if (((e as { code?: string }).code || (e as Error).message) !== "OFFLINE") setCode("");
         throw e;
       }
-    });
+    }, "verify");
   const sendCode = () =>
     run(async () => {
       await runtime.sendPhoneOtp(e164Indonesia(phone));
       setSent(true);
       resend.restart();
-    });
-  const signInEmail = () => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID(), "Pelanggan")));
+    }, "send");
+  const signInEmail = () => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID(), "Pelanggan")), "email");
+  const resendCode = () =>
+    run(async () => {
+      await runtime.sendPhoneOtp(e164Indonesia(phone));
+      setCode("");
+      resend.restart();
+    }, "resendCode", "resend");
+  const demoLogin = () =>
+    run(async () => {
+      await runtime.demoLogin("customer");
+      await refresh();
+      leaveFor(next);
+    }, "demo", "demo");
   // Unverified: a new sign-up link right here, then "Cek emailmu" for that address.
   const resendLink = () =>
     run(async () => {
@@ -183,7 +199,8 @@ export function Masuk() {
       if (!["user_not_found", "email_exists", "email_not_confirmed"].includes(error?.code || "")) authError(error);
       setMail(true);
       if (again) setResent(true);
-    }, "resend");
+    }, "link", "resend");
+  latest.current = { email: signInEmail, send: sendCode, verify: () => verify(code), link: resendLink, resendCode, demo: demoLogin };
 
   const limited = fail === "AUTH_RATE_LIMITED";
   const wait = limited ? rate.left : 0;
@@ -198,13 +215,13 @@ export function Masuk() {
       ? t("Kodenya salah. Cek SMS-nya, lalu coba lagi.", "That code is wrong. Check the SMS and try again.") +
         (wrongCodes >= 3 ? " " + t("Belum dapat kodenya? Kirim ulang.", "Didn't get the code? Resend it.") : "")
       : undefined;
-  const retry = lastStep.current;
+  const retryKind = lastKind.current;
   const formError = message ? (
     <FormError
       message={message}
       failureKey={failures}
       testID="masuk-error"
-      retry={canRetry(fail, locale) && retry ? () => void run(retry.step, retry.which) : undefined}
+      retry={canRetry(fail, locale) && retryKind ? () => void latest.current[retryKind]() : undefined}
       action={
         fail === "EMAIL_NOT_CONFIRMED"
           ? { label: t("Kirim ulang tautan", "Resend link"), onPress: () => void resendLink() }
@@ -296,13 +313,7 @@ export function Masuk() {
                 ready={t("Kirim ulang kode", "Resend code")}
                 waiting={(time) => t(`Kirim ulang dalam ${time}`, `Resend in ${time}`)}
                 busy={waiting === "resend"}
-                onPress={() =>
-                  void run(async () => {
-                    await runtime.sendPhoneOtp(e164Indonesia(phone));
-                    setCode("");
-                    resend.restart();
-                  }, "resend")
-                }
+                onPress={() => void resendCode()}
               />
               <Button
                 variant="text"
@@ -368,13 +379,7 @@ export function Masuk() {
             label={t("Masuk sebagai pelanggan demo", "Sign in as demo customer")}
             busy={waiting === "demo"}
             disabled={busy && waiting !== "demo"}
-            onPress={() =>
-              run(async () => {
-                await runtime.demoLogin("customer");
-                await refresh();
-                leaveFor(next);
-              }, "demo")
-            }
+            onPress={() => void demoLogin()}
           />
         </View>
       ) : null}
