@@ -1,14 +1,17 @@
 import type { ReactNode } from "react";
 import { Linking, Text as RNText, View } from "react-native";
 import { router } from "expo-router";
+import { useMobile } from "@catera/mobile-core";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { currency, mealLabel, perMealPrice, priceUnitLabel, type DirectPaymentMethod, type Locale, type Offer, type PaymentAvailability } from "@catera/domain";
+import { currency, mealLabel, paymentMethodInfo, perMealPrice, priceUnitLabel, type DirectPaymentMethod, type Locale, type Offer, type PaymentAvailability } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { Button, Card, fontFor, FormError, PressableRow, ReadError, Text, themedStyles, useColors, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { packageHref } from "../hrefs";
 import { DecorativeIcon, GlyphCircle, ListCard, SectionHeader, Thumb } from "../layout";
 import { goToTab, leaveFor } from "../nav";
 import { photoUri } from "../today/photoUri";
+import { MethodMark } from "./MethodMark";
+import { usePayMethodPicker } from "./PayMethodSheet";
 import { SUMMARY_PAD, THREE_LINE_PAD } from "./metrics";
 
 type T = (id: string, en: string) => string;
@@ -77,7 +80,11 @@ export function NoLongerSold({ caterer, offers, t }: { caterer: string; offers: 
   );
 }
 
-/** "Bayar dengan": QRIS first when offered, the other method one text button away (Beli: a row with Ganti). */
+/**
+ * "Bayar dengan": the chosen method as a row (its mark, name, one-line detail) with a trailing Ubah that opens the picker
+ * sheet, shown only when the purchase offers more than one method. Beli sets it under a section heading in a list card;
+ * Bayar keeps the small label.
+ */
 export function PayWith({
   availability,
   chosen,
@@ -93,36 +100,29 @@ export function PayWith({
   section?: boolean;
 }) {
   const styles = useStyles();
-  const other = chosen === "QRIS" ? "VIRTUAL_ACCOUNT_BRI" : "QRIS";
-  const name = (m: DirectPaymentMethod) => (m === "QRIS" ? "QRIS" : t("Transfer bank BRI (VA)", "BRI bank transfer (VA)"));
-  const how = (m: DirectPaymentMethod) =>
-    m === "QRIS"
-      ? t("Pindai dari aplikasi bank atau e-wallet apa pun.", "Scan from any bank or e-wallet app.")
-      : t("Bayar ke nomor virtual account BRI.", "Pay to a BRI virtual account number.");
-  // Beli (deep pages R1): the chosen method is a plain row in a list card with a trailing Ganti, not a bordered box that
-  // reads as an input. With two methods, Ganti switches to the other one and names it; a third method needs a choice sheet.
-  if (section && availability?.mode === "direct" && chosen)
-    return (
-      <View testID="buy-pay-with">
-        <SectionHeader title={t("Bayar dengan", "Pay with")} />
-        <ListCard inset={0}>
-          <View testID="buy-pay-method" style={styles.methodRow}>
-            <View style={styles.fieldText}>
-              <Text variant="bodyStrong">{name(chosen)}</Text>
-              <Text variant="meta">{how(chosen)}</Text>
-            </View>
-            {availability.availableMethods.includes(other) ? (
-              <Button
-                variant="text"
-                label={t("Ganti", "Change")}
-                accessibilityLabel={t(`Ganti ke ${name(other)}`, `Change to ${name(other)}`)}
-                onPress={() => onChoose(other)}
-              />
-            ) : null}
-          </View>
-        </ListCard>
+  const { locale } = useMobile();
+  const pick = usePayMethodPicker();
+  const info = chosen ? paymentMethodInfo(chosen) : undefined;
+  const text = (p: { id: string; en: string }) => (locale === "en" ? p.en : p.id);
+  const methods = availability?.availableMethods ?? [];
+  const row =
+    info && chosen ? (
+      <View testID="buy-pay-method" style={styles.methodRow}>
+        <MethodMark info={info} />
+        <View style={styles.fieldText}>
+          <Text variant="bodyStrong">{text(info.name)}</Text>
+          <Text variant="meta">{text(info.detail)}</Text>
+        </View>
+        {methods.length > 1 ? (
+          <Button
+            variant="text"
+            label={t("Ubah", "Change")}
+            accessibilityLabel={t("Ubah cara bayar", "Change payment method")}
+            onPress={() => void pick({ codes: methods, selected: chosen }).then((code) => code && onChoose(code as DirectPaymentMethod))}
+          />
+        ) : null}
       </View>
-    );
+    ) : null;
   return (
     <View testID={section ? "buy-pay-with" : undefined} style={{ gap: section ? 0 : 8 }}>
       {section ? <SectionHeader title={t("Bayar dengan", "Pay with")} /> : <Text variant="label">{t("Bayar dengan", "Pay with")}</Text>}
@@ -132,25 +132,10 @@ export function PayWith({
         </Card>
       ) : !chosen ? (
         <FormError message={t("Pembayaran belum tersedia. Coba lagi nanti.", "Payment isn't available yet. Try again later.")} />
+      ) : section ? (
+        <ListCard inset={0}>{row}</ListCard>
       ) : (
-        <>
-          <Card style={styles.method}>
-            <Text style={styles.strong}>{chosen === "QRIS" ? "QRIS" : t("Transfer bank BRI (VA)", "BRI bank transfer (VA)")}</Text>
-            <Text variant="caption">
-              {chosen === "QRIS"
-                ? t("Pindai dari aplikasi bank atau e-wallet apa pun.", "Scan from any bank or e-wallet app.")
-                : t("Bayar ke nomor virtual account BRI.", "Pay to a BRI virtual account number.")}
-            </Text>
-          </Card>
-          {availability.availableMethods.includes(other) ? (
-            <Button
-              variant="text"
-              style={{ alignSelf: "flex-start", marginTop: section ? nativeLayout.groupGap : 0 }}
-              label={other === "QRIS" ? t("Pakai QRIS", "Use QRIS") : t("Pakai transfer bank (VA)", "Use bank transfer (VA)")}
-              onPress={() => onChoose(other)}
-            />
-          ) : null}
-        </>
+        row
       )}
     </View>
   );
@@ -255,7 +240,6 @@ const useStyles = themedStyles((c) => ({
   field: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md },
   fieldText: { flex: 1, minWidth: 0 },
   below: { paddingBottom: nativeLayout.space.md },
-  strong: { fontFamily: fontFor("800"), color: c.charcoal },
   method: { borderColor: c.forest, borderWidth: 1.5, gap: 4 },
   methodRow: {
     flexDirection: "row",

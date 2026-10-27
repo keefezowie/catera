@@ -946,12 +946,12 @@ describe("Jadwal", () => {
       await waitFor(() => expect(screen.queryByRole("button", { name: "Coba lagi" })).toBeNull());
     });
 
-    it("a loaded month with no deliveries still draws the grid and says so, with the resting mascot", async () => {
+    it("a loaded month with no deliveries still draws the grid and says so, without a mascot", async () => {
       renderV2(runtimeWith(stateOf([])), <Jadwal />);
       expect(await screen.findByRole("button", { name: /^Rabu 7 Oktober/ })).toBeTruthy();
       expect(screen.getByTestId("month-grid")).toBeTruthy();
       expect(screen.queryByRole("progressbar")).toBeNull();
-      expect(screen.getByTestId("mascot-tidur", hidden)).toBeTruthy();
+      expect(screen.queryByTestId("mascot-tidur", hidden)).toBeNull();
       expect(screen.getByText("Tidak ada pengantaran di minggu ini")).toBeTruthy();
     });
 

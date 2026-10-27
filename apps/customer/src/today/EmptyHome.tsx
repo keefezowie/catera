@@ -69,25 +69,25 @@ export function EmptyHomeBody({
   const { actor, t } = useMobile();
   const c = useColors();
   const offers: Offer[] = (catalog.data?.items ?? []).slice(0, 3);
-  // The waving mascot says hello above the invitation (spec 7.2), but never under the recap's food photo. While the
-  // recap reads its seen marks the art's box is held, so the invitation does not move down when the art lands.
+  // The waving mascot says hello to the right of the heading (spec 7.2, 2B), 64 high so it costs the page no height. It
+  // stays out from under the recap's food photo. While the recap reads its seen marks the art's box is held, so the
+  // heading does not move when the art lands.
   const held = !!lead && leadShown === undefined;
   const art = !lead || leadShown === false || held;
-  const centred = art ? ({ textAlign: "center" } as const) : null;
   return (
     <>
       {lead}
-      <View style={{ gap: 6, paddingTop: 8 }}>
-        {art ? <StateArt pose="melambai" held={held} style={{ marginBottom: 10 }} /> : null}
-        <Text variant="title" style={centred}>
-          {t("Mau makan apa minggu ini?", "What would you like to eat this week?")}
-        </Text>
-        <Text style={[{ color: c.muted }, centred]}>
-          {t(
-            "Pilih paket katering rumahan, diantar sesuai jadwalmu.",
-            "Pick a home-style catering package, delivered on your schedule.",
-          )}
-        </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 8 }}>
+        <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+          <Text variant="title">{t("Mau makan apa minggu ini?", "What would you like to eat this week?")}</Text>
+          <Text style={{ color: c.muted }}>
+            {t(
+              "Pilih paket katering rumahan, diantar sesuai jadwalmu.",
+              "Pick a home-style catering package, delivered on your schedule.",
+            )}
+          </Text>
+        </View>
+        {art ? <StateArt pose="melambai" base={64} held={held} /> : null}
       </View>
       {/* The three packages fade in from their skeleton as one block. */}
       <FadeSwap swapKey={catalog.data ? "ready" : catalog.loading ? "loading" : "error"} style={{ gap: 16 }}>

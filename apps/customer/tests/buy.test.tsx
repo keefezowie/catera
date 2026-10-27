@@ -20,6 +20,7 @@ import { BuyScreen } from "../src/buy/BuyScreen";
 import { QrisCode } from "../src/buy/QrisCode";
 import { announceNotice, PaymentScreen } from "../src/buy/PaymentScreen";
 import { ChoiceRoute } from "../src/choice";
+import { PayMethodRoute } from "../src/buy/PayMethodSheet";
 import { offer, subscription } from "./fixtures";
 
 jest.mock("expo-router", () => ({
@@ -312,7 +313,7 @@ function ChoiceHost() {
     <NavigationContext.Provider value={navigation as never}>
       <NavigationRouteContext.Provider value={{ key: "choice", name: open.pathname, params: open.params } as never}>
         <ReactNative.View testID="choice-sheet">
-          <ChoiceRoute />
+          {open.pathname === "/pembelian/bayar-pakai" ? <PayMethodRoute /> : <ChoiceRoute />}
         </ReactNative.View>
       </NavigationRouteContext.Provider>
     </NavigationContext.Provider>
@@ -477,8 +478,9 @@ describe("Beli / Perpanjang", () => {
 
   it("transfer bank starts the virtual account instead", async () => {
     const runtime = server();
-    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Ganti ke Transfer bank BRI (VA)" }));
+    wrap(runtime, withChoices(<BuyScreen packageId="p-rumahan" />));
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah cara bayar" }));
+    fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
     await bayarReady();
     fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
@@ -1249,9 +1251,10 @@ describe("Bayar", () => {
     const runtime = server({
       checkout: pendingCheckout({}, { status: "choose_method", selectedMethod: null, instructions: null }),
     });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Pakai transfer bank (VA)" }));
-    fireEvent.press(screen.getByRole("button", { name: "Tampilkan nomor VA" }));
+    wrap(runtime, withChoices(<PaymentScreen checkoutId="ck-1" />));
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah cara bayar" }));
+    fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
+    fireEvent.press(await screen.findByRole("button", { name: "Tampilkan nomor VA" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "checkout.payment.start",
@@ -2061,26 +2064,30 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
   });
 
-  it("Bayar dengan is a row with Ganti, not an input", async () => {
-    wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
+  it("Bayar dengan is a row with Ubah, not an input", async () => {
+    wrapV2(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
     const row = screen.getByTestId("buy-pay-method");
     expect(flat(row).borderWidth ?? 0).toBe(0);
     expect(within(row).getByText("QRIS")).toBeTruthy();
-    expect(within(row).getByText("Ganti")).toBeTruthy();
+    expect(within(row).getByText("Pindai dari aplikasi bank atau e-wallet apa pun.")).toBeTruthy();
+    // No logo files yet, so the mark is the group glyph on its tile.
+    expect(within(row).getByTestId("pay-mark")).toBeTruthy();
+    expect(within(row).getByText("Ubah")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Pakai transfer bank (VA)" })).toBeNull();
-    fireEvent.press(within(row).getByRole("button", { name: "Ganti ke Transfer bank BRI (VA)" }));
-    expect(within(screen.getByTestId("buy-pay-method")).getByText("Transfer bank BRI (VA)")).toBeTruthy();
-    expect(within(screen.getByTestId("buy-pay-method")).getByRole("button", { name: "Ganti ke QRIS" })).toBeTruthy();
+    fireEvent.press(within(row).getByRole("button", { name: "Ubah cara bayar" }));
+    fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
+    await waitFor(() => expect(within(screen.getByTestId("buy-pay-method")).getByText("BRI Virtual Account")).toBeTruthy());
+    expect(within(screen.getByTestId("buy-pay-method")).getByText("Transfer dari aplikasi atau ATM BRI.")).toBeTruthy();
   });
 
-  it("Bayar dengan has no Ganti when only one method is offered", async () => {
+  it("Bayar dengan has no Ubah when only one method is offered", async () => {
     const runtime = server();
     (runtime.api.request as jest.Mock).mockImplementation(async () => ({ mode: "direct", availableMethods: ["QRIS"] }));
     wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     expect(within(screen.getByTestId("buy-pay-method")).getByText("QRIS")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /^Ganti ke/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ubah cara bayar" })).toBeNull();
   });
 
   it("at 360dp and font scale 1.3 the reason and the method row wrap instead of clipping", async () => {

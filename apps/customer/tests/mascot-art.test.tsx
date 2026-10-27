@@ -11,6 +11,7 @@ import {
   SuccessRig,
   SuccessRing,
   mascotArtFrame,
+  stateArtSize,
   successRigFrame,
   SUCCESS_RIG_MS,
   ThemeProvider,
@@ -405,5 +406,17 @@ describe("MascotReading transform origins", () => {
       expect((origin as unknown[]).every((part) => typeof part === "number" && Number.isFinite(part))).toBe(true);
       expect((origin as number[])[1]).toBeCloseTo(readingRig.magnifierPivot.y * mascotArtFrame(readingRigBox, 120).canvas, 5);
     }
+  });
+});
+
+describe("stateArtSize", () => {
+  it("draws 88, or 72 on a 360dp phone at font scale 1.3 or more", () => {
+    expect(stateArtSize({ width: 360, fontScale: 1 })).toBe(88);
+    expect(stateArtSize({ width: 360, fontScale: 1.3 })).toBe(72);
+    expect(stateArtSize({ width: 412, fontScale: 1.3 })).toBe(88);
+  });
+  it("scales a base by the same four-fifths rule: 72 stays 72, and becomes 59 when compact", () => {
+    expect(stateArtSize({ width: 411, fontScale: 1 }, 72)).toBe(72);
+    expect(stateArtSize({ width: 360, fontScale: 1.3 }, 72)).toBe(59);
   });
 });

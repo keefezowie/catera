@@ -19,8 +19,8 @@ import { canvasDay } from "./fixtures";
 import { withDapurScale } from "./dapur-scale";
 
 /**
- * Spec 7.2, Task 13: Dapur's empty, done and failed states show their delivered mascot still, 120pt and centred above
- * their title (96 on a 360dp phone at font scale 1.3), decorative for screen readers; the cooking session shows the
+ * Spec 7.2, Task 13: Dapur's empty, done and failed states show their delivered mascot still, 88pt and centred above
+ * their title (72 on a 360dp phone at font scale 1.3), decorative for screen readers; the cooking session shows the
  * cooking mascot at 72 beside the count card's numbers. The state's own copy and action are unchanged.
  */
 
@@ -258,7 +258,7 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     it.each(STATES.map((s) => [s.name, s] as const))("%s", async (_name, state) => {
       jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
       const art = await open(state);
-      expect(artHeight(art)).toBe(120);
+      expect(artHeight(art)).toBe(88);
       expect(StyleSheet.flatten(art.props.style).alignSelf).toBe("center");
       for (const pose of POSES.filter((p) => p !== state.pose))
         expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
@@ -267,10 +267,10 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     });
   });
 
-  it("draws the art at 96 on a 360dp phone at font scale 1.3, so the title and action stay above the fold", async () => {
+  it("draws the art at 72 on a 360dp phone at font scale 1.3, so the title and action stay above the fold", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     for (const state of [STATES[0], STATES[2], STATES[3]]) {
-      expect(artHeight(await open(state))).toBe(96);
+      expect(artHeight(await open(state))).toBe(72);
       screen.unmount();
     }
   });
@@ -285,7 +285,7 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const art = await open(STATES[2]);
     expect(within(art).getByTestId("mascot-art-image", hidden)).toBeTruthy();
-    expect(artHeight(art)).toBe(120);
+    expect(artHeight(art)).toBe(88);
   });
 });
 

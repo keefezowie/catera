@@ -799,6 +799,7 @@ export function localizedMessage(message: string, locale: Locale = "id") {
 }
 
 export * from "./payment";
+export * from "./paymentMethods";
 
 /** What a caterer's WhatsApp claim link shows before the customer signs in. Nothing else is revealed. */
 export type ClaimPreview = {

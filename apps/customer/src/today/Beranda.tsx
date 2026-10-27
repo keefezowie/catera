@@ -32,7 +32,6 @@ import {
   Screen,
   Skeleton,
   SkeletonGroup,
-  StateArt,
   Text,
   useMood,
   useMoodColors,
@@ -370,14 +369,6 @@ function SignedInHome({ actorId }: { actorId: string }) {
         swapKey={savedAt ? "kept" : "fresh"}
         style={[{ gap: 16 }, heroPlates.length ? { marginTop: HERO_BAND_RISE } : null]}
       >
-        {/* Nothing comes today and nothing is scheduled next: the resting mascot stands where a plate would, under the
-            headline that says so. A day with a plate leads with its photo and never shows the mascot. Nothing else
-            sits between the mascot and the Paket selesai recap here, so it stays out while the recap's food photo
-            shows; while the recap reads its seen marks the art's box is held, so the page does not move when it
-            lands. */}
-        {!plates.length && !days.length && (!recap || recapShown !== true) ? (
-          <StateArt pose="tidur" held={!!recap && recapShown === undefined} />
-        ) : null}
         {/* Both meals' heroes stay mounted and a switch only shows the other one, so it lands at once, photo included:
             nothing is built, measured or downloaded at the tap. The hidden one is out of the layout and out of the
             screen reader's reach, and its journey is never counted as seen. */}

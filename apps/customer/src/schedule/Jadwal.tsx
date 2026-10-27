@@ -97,11 +97,6 @@ function SignedInJadwal() {
 
   const deliveries = useMemo(() => state?.deliveries ?? [], [state]);
   const days = useMemo(() => calendarDays(deliveries), [deliveries]);
-  // No meal comes this month: every delivery of its own days is cancelled, or every meal of it is.
-  const monthEmpty = !deliveries.some(
-    (d) => monthOf(d.service_date) === month && d.status !== "cancelled" && (d.meals ?? []).some((m) => m.status !== "cancelled"),
-  );
-
   // The whole week of the selected day, and the one after it (a Monday in the next month when this is the last row).
   const weeks = monthFullWeeks(month);
   const row = Math.max(0, weeks.findIndex((w) => w.includes(selected)));
@@ -195,8 +190,6 @@ function SignedInJadwal() {
               // A refresh failed but the month is on screen: the error stays with its retry in the page.
               <ReadError message={data.error} onRetry={() => void data.reload()} />
             ) : null}
-            {/* A month with no meals at all: the resting mascot sits above the agenda, which says there is nothing. */}
-            {monthEmpty ? <StateArt pose="tidur" /> : null}
             <WeekAgenda
               week={week}
               next={next}

@@ -30,8 +30,8 @@ import { TomorrowStoryScreen } from "../src/tomorrow/TomorrowStory";
 import { customerState, delivery, offer, subscription, TODAY, morningOf } from "./fixtures";
 
 /**
- * Spec 7.2, Task 13: every empty and error state of the customer app shows its delivered mascot still, 120pt and
- * centred above its title (96 on a 360dp phone at font scale 1.3), decorative for screen readers, and never beside a
+ * Spec 7.2, Task 13: every empty and error state of the customer app shows its delivered mascot still, 88pt and
+ * centred above its title (72 on a 360dp phone at font scale 1.3), decorative for screen readers, and never beside a
  * photo of food. The state's own copy and action are unchanged.
  */
 
@@ -155,26 +155,14 @@ type State = {
   action?: string;
   /** What the person does before the state shows (a search that matches nothing). */
   reach?: () => Promise<void>;
+  /** The art's drawn height at the default window: 88 unless the state draws its own (the Beranda heading row, 64). */
+  size?: number;
   /** The startup gate draws its own providers. */
   bare?: boolean;
 };
 
 const STATES: State[] = [
-  // tidur: nothing scheduled.
-  {
-    name: "Beranda with no delivery today and nothing next",
-    pose: "tidur",
-    runtime: () => runtimeWith({ customer: jest.fn(async () => nothingNext()) }),
-    ui: <Beranda />,
-    copy: [/tidak ada pengantaran\.$/],
-  },
-  {
-    name: "Jadwal month with no meals",
-    pose: "tidur",
-    runtime: () => runtimeWith({ customer: jest.fn(async () => ({ ...customerState(null), deliveries: [] })) }),
-    ui: <Jadwal />,
-    copy: ["Tidak ada pengantaran di minggu ini"],
-  },
+  // tidur: nothing here. Beranda with nothing today or next and an empty Jadwal month draw no art (tested below).
   {
     name: "Notifikasi with no updates",
     pose: "tidur",
@@ -213,6 +201,7 @@ const STATES: State[] = [
   {
     name: "EmptyHome",
     pose: "melambai",
+    size: 64,
     runtime: () => runtimeWith({}, null),
     ui: <Beranda />,
     copy: ["Mau makan apa minggu ini?", "Pilih paket katering rumahan, diantar sesuai jadwalmu."],
@@ -221,6 +210,7 @@ const STATES: State[] = [
   {
     name: "a signed-in Beranda with nothing running",
     pose: "melambai",
+    size: 64,
     runtime: () => runtimeWith({ customer: jest.fn(async () => ({ ...customerState(null), subscriptions: [], deliveries: [] })) }),
     ui: <Beranda />,
     copy: ["Mau makan apa minggu ini?"],
@@ -425,8 +415,8 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     it.each(STATES.map((s) => [s.name, s] as const))("%s", async (_name, state) => {
       jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
       const art = await open(state);
-      // 120pt, centred, and the only mascot on the page.
-      expect(artHeight(art)).toBe(120);
+      // 88pt (the Beranda heading row, 64), centred, and the only mascot on the page.
+      expect(artHeight(art)).toBe(state.size ?? 88);
       expect(StyleSheet.flatten(art.props.style).alignSelf).toBe("center");
       for (const pose of otherPoses(state.pose)) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
       for (const copy of state.copy) expect(screen.getByText(copy)).toBeTruthy();
@@ -434,26 +424,26 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     });
   });
 
-  it("draws the art at 96 on a 360dp phone at font scale 1.3, so the title and action stay above the fold", async () => {
+  it("draws the art at 72 on a 360dp phone at font scale 1.3, so the title and action stay above the fold", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    for (const state of [STATES[0], STATES[5], STATES[8], STATES[9]]) {
+    for (const state of [STATES[0], STATES[3], STATES[6], STATES[7]]) {
       const art = await open(state);
-      expect(artHeight(art)).toBe(96);
+      expect(artHeight(art)).toBe(72);
       screen.unmount();
     }
-    // Enlarged text on a wider phone, or a 360dp phone at the default size, keeps 120.
+    // Enlarged text on a wider phone, or a 360dp phone at the default size, keeps 88.
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
-    expect(artHeight(await open(STATES[5]))).toBe(120);
+    expect(artHeight(await open(STATES[3]))).toBe(88);
     screen.unmount();
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
-    expect(artHeight(await open(STATES[5]))).toBe(120);
+    expect(artHeight(await open(STATES[3]))).toBe(88);
   });
 
   it("shows the same still under reduced motion: the art never moves", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    const art = await open(STATES[2]);
+    const art = await open(STATES[0]);
     expect(within(art).getByTestId("mascot-art-image", hidden)).toBeTruthy();
-    expect(artHeight(art)).toBe(120);
+    expect(artHeight(art)).toBe(88);
   });
 
   it("puts Jadwal's failed month art inside the month frame, which keeps the month's week rows", async () => {
@@ -467,7 +457,7 @@ describe("each empty and error state shows its pose and keeps its copy and actio
 });
 
 it("mascot art is hidden from screen readers", async () => {
-  for (const state of [STATES[0], STATES[3], STATES[6], STATES[10]]) {
+  for (const state of [STATES[0], STATES[1], STATES[4], STATES[8]]) {
     const art = await open(state);
     // Present for the eye, absent for TalkBack and VoiceOver: the state's own text carries the meaning.
     expect(screen.queryByTestId(`mascot-${state.pose}`)).toBeNull();
@@ -530,12 +520,41 @@ describe("no mascot art next to a food photo", () => {
     expect(screen.queryByTestId("mascot-tidur-slot", hidden)).toBeNull();
   });
 
-  it("draws the resting mascot on that Beranda once the recap was already seen", async () => {
+  it("keeps the resting mascot out of that Beranda once the recap was already seen too", async () => {
     const runtime = runtimeWith({ customer: jest.fn(async () => quietWithRecap()) });
     secureStoreMap().set(runtime.storageKey("recap.s-old"), "1");
     render(wrap(runtime, <Beranda />));
-    expect(await screen.findByTestId("mascot-tidur", hidden, { timeout: 4000 })).toBeTruthy();
+    expect(await screen.findByText(/tidak ada pengantaran.$/, {}, { timeout: 4000 })).toBeTruthy();
     expect(screen.queryByTestId("recap-photo", hidden)).toBeNull();
+    noArt();
+    expect(screen.queryByTestId("mascot-tidur-slot", hidden)).toBeNull();
+  });
+
+  it("a Beranda with nothing today or next and no recap draws no resting mascot either", async () => {
+    render(wrap(runtimeWith({ customer: jest.fn(async () => nothingNext()) }), <Beranda />));
+    expect(await screen.findByText(/tidak ada pengantaran.$/, {}, { timeout: 4000 })).toBeTruthy();
+    noArt();
+    expect(screen.queryByTestId("mascot-tidur-slot", hidden)).toBeNull();
+  });
+
+  it("an empty Jadwal month draws no resting mascot", async () => {
+    render(wrap(runtimeWith({ customer: jest.fn(async () => ({ ...customerState(null), deliveries: [] })) }), <Jadwal />));
+    expect(await screen.findByText("Tidak ada pengantaran di minggu ini", {}, { timeout: 4000 })).toBeTruthy();
+    noArt();
+  });
+
+  it("the empty Beranda's hello sits beside its heading: one left-aligned row, the art 64 high (52 compact)", async () => {
+    const art = await open(state("EmptyHome"));
+    const title = screen.getByText("Mau makan apa minggu ini?");
+    let row = art.parent!;
+    while (StyleSheet.flatten(row.props.style)?.flexDirection !== "row") row = row.parent!;
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: "row", alignItems: "center" });
+    expect(within(row).getByText("Mau makan apa minggu ini?")).toBe(title);
+    expect(StyleSheet.flatten(title.props.style).textAlign).not.toBe("center");
+    expect(artHeight(art)).toBe(64);
+    screen.unmount();
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    expect(artHeight(await open(state("EmptyHome")))).toBe(52);
   });
 });
 
@@ -560,7 +579,7 @@ describe("EmptyHome while the recap's seen marks are read", () => {
       // Not known yet: the art's box is held where the art will stand, the mascot invisible in it.
       const slot = screen.getByTestId("mascot-melambai-slot", hidden);
       const fade = within(slot).getByTestId("mascot-art-fade", hidden);
-      expect(StyleSheet.flatten(fade.props.style).height).toBe(120);
+      expect(StyleSheet.flatten(fade.props.style).height).toBe(64);
       expect(StyleSheet.flatten(fade.props.style).opacity).toBe(0);
       expect(screen.queryByTestId("mascot-melambai", hidden)).toBeNull();
       timing.mockClear();
@@ -569,7 +588,7 @@ describe("EmptyHome while the recap's seen marks are read", () => {
       const art = await screen.findByTestId("mascot-melambai", hidden);
       expect(art).toBe(slot);
       expect(within(art).getByTestId("mascot-art-fade", hidden)).toBe(fade);
-      expect(artHeight(art)).toBe(120);
+      expect(artHeight(art)).toBe(64);
       expect(timing.mock.calls.filter(([to, config]) => to === 1 && (config as { duration?: number })?.duration === nativeMotion.content)).toHaveLength(1);
       for (const el of [art, fade]) {
         expect(el.props.entering).toBeUndefined();

@@ -1,0 +1,275 @@
+{
+  "logos": [
+    {
+      "key": "ovo",
+      "file": "ovo.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Logo_ovo_purple.svg/330px-Logo_ovo_purple.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Logo_ovo_purple.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 330,
+      "height": 103,
+      "alpha": true
+    },
+    {
+      "key": "dana",
+      "file": "dana.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Logo_dana_blue.svg/500px-Logo_dana_blue.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Logo_dana_blue.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 500,
+      "height": 143,
+      "alpha": true
+    },
+    {
+      "key": "bca",
+      "file": "bca.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Bank_Central_Asia.svg/330px-Bank_Central_Asia.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Bank_Central_Asia.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 330,
+      "height": 104,
+      "alpha": true
+    },
+    {
+      "key": "mandiri",
+      "file": "mandiri.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Bank_Mandiri_logo_2016.svg/500px-Bank_Mandiri_logo_2016.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Bank_Mandiri_logo_2016.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 500,
+      "height": 146,
+      "alpha": true
+    },
+    {
+      "key": "bsi",
+      "file": "bsi.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Bank_Syariah_Indonesia.svg/500px-Bank_Syariah_Indonesia.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Bank_Syariah_Indonesia.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 500,
+      "height": 140,
+      "alpha": true
+    },
+    {
+      "key": "bri",
+      "file": "bri.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/BANK_BRI_logo.svg/500px-BANK_BRI_logo.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:BANK_BRI_logo.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 500,
+      "height": 118,
+      "alpha": true
+    },
+    {
+      "key": "bni",
+      "file": "bni.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Bank_Negara_Indonesia_logo_%282004%29.svg/500px-Bank_Negara_Indonesia_logo_%282004%29.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Bank_Negara_Indonesia_logo_(2004).svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 500,
+      "height": 145,
+      "alpha": true
+    },
+    {
+      "key": "permata",
+      "file": "permata.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Permata_Bank_%282024%29.svg/500px-Permata_Bank_%282024%29.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Permata_Bank_(2024).svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 500,
+      "height": 124,
+      "alpha": true
+    },
+    {
+      "key": "cimb",
+      "file": "cimb.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/CIMB_Niaga_logo.svg/500px-CIMB_Niaga_logo.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:CIMB_Niaga_logo.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 500,
+      "height": 77,
+      "alpha": true
+    },
+    {
+      "key": "danamon",
+      "file": "danamon.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Danamon_%282024%29.svg/330px-Danamon_%282024%29.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Danamon_(2024).svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 330,
+      "height": 127,
+      "alpha": true
+    },
+    {
+      "key": "btn",
+      "file": "btn.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/BTN_2024.svg/250px-BTN_2024.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:BTN_2024.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 250,
+      "height": 141,
+      "alpha": true
+    },
+    {
+      "key": "bnc",
+      "file": "bnc.png",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/ee/Bank_Neo_Commerce.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Bank_Neo_Commerce.png",
+      "licence_note": "Commons file license \"Public domain\"; brand mark remains a trademark of its owner",
+      "width": 318,
+      "height": 147,
+      "alpha": true
+    },
+    {
+      "key": "sinarmas",
+      "file": "sinarmas.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Bank_Sinarmas.png/500px-Bank_Sinarmas.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Bank_Sinarmas.png",
+      "licence_note": "Commons file license \"Public domain\"; brand mark remains a trademark of its owner",
+      "width": 500,
+      "height": 119,
+      "alpha": true
+    },
+    {
+      "key": "alfamart",
+      "file": "alfamart.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Alfamart_logo.svg/330px-Alfamart_logo.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Alfamart_logo.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 330,
+      "height": 106,
+      "alpha": true
+    },
+    {
+      "key": "indomaret",
+      "file": "indomaret.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Indomaret.svg/330px-Indomaret.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Indomaret.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 330,
+      "height": 116,
+      "alpha": true
+    },
+    {
+      "key": "visa",
+      "file": "visa.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Visa_Inc._logo_%282021%E2%80%93present%29.svg/330px-Visa_Inc._logo_%282021%E2%80%93present%29.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Visa_Inc._logo_(2021–present).svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 330,
+      "height": 108,
+      "alpha": true
+    },
+    {
+      "key": "mastercard",
+      "file": "mastercard.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Mastercard_2019_logo.svg/250px-Mastercard_2019_logo.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Mastercard_2019_logo.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 250,
+      "height": 155,
+      "alpha": true
+    },
+    {
+      "key": "qris",
+      "file": "qris.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/QRIS_Logo.svg/330px-QRIS_Logo.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:QRIS_Logo.svg",
+      "licence_note": "Commons file license \"CC0\"; brand mark remains a trademark of its owner",
+      "width": 330,
+      "height": 126,
+      "alpha": true
+    },
+    {
+      "key": "jcb",
+      "file": "jcb.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/JCB_logo.svg/250px-JCB_logo.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:JCB_logo.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 250,
+      "height": 193,
+      "alpha": true
+    },
+    {
+      "key": "linkaja",
+      "file": "linkaja.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/LinkAja.svg/250px-LinkAja.svg.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:LinkAja.svg",
+      "licence_note": "Commons file license \"Public domain\", marked {{trademarked}}; brand mark remains a trademark of its owner",
+      "width": 250,
+      "height": 250,
+      "alpha": true
+    },
+    {
+      "key": "bjb",
+      "file": "bjb.png",
+      "source_url": "https://thumb.wikimedia.org/wikipedia/id/thumb/4/41/Bank_BJB_logo.svg/330px-Bank_BJB_logo.svg.png",
+      "source_page": "https://id.wikipedia.org/wiki/Berkas:Bank_BJB_logo.svg",
+      "licence_note": "id.wikipedia local file (not Commons), marked PD / Domain publik; trademark of PT Bank Pembangunan Daerah Jawa Barat dan Banten",
+      "width": 233,
+      "height": 128,
+      "alpha": true
+    },
+    {
+      "key": "doku",
+      "file": "doku.png",
+      "source_url": "https://cdn.prod.website-files.com/674ab654de930b217c6389c1/6abddb22b73493c3ac2fb8f0_Final-Logo_DOKUbyAntom_Primary%20Horizontal%20Lockup.svg",
+      "source_page": "https://www.doku.com",
+      "licence_note": "Official SVG from doku.com (DOKU by Antom lockup), rasterised locally to PNG with sharp; trademark of PT Nusantara Compnet Integrator / DOKU",
+      "width": 278,
+      "height": 128,
+      "alpha": true
+    },
+    {
+      "key": "shopeepay",
+      "file": "shopeepay.png",
+      "source_url": "https://deo.shopeemobile.com/shopee/shopee-shopeepayfe-live-id/shopeepay-website/shopeepay-logo.png",
+      "source_page": "https://shopeepay.co.id",
+      "licence_note": "Official og:image from shopeepay.co.id, trimmed and downscaled locally; trademark of Shopee/ShopeePay",
+      "width": 512,
+      "height": 98,
+      "alpha": true
+    },
+    {
+      "key": "kredivo",
+      "file": "kredivo.png",
+      "source_url": "https://www.kredivo.com/common/images/ic-krdv.png",
+      "source_page": "https://www.kredivo.com",
+      "licence_note": "Official og:image from kredivo.com, trimmed locally; trademark of Kredivo / PT FinAccel Teknologi Indonesia",
+      "width": 217,
+      "height": 74,
+      "alpha": true
+    },
+    {
+      "key": "indodana",
+      "file": "indodana.png",
+      "source_url": "https://prod-tmf.imgix.net/tmf-assets/assets/logo-color.png",
+      "source_page": "https://www.indodana.id",
+      "licence_note": "Official header logo from indodana.id (includes 'Finance' word); trademark of PT Indodana Multi Finance",
+      "width": 452,
+      "height": 128,
+      "alpha": true
+    },
+    {
+      "key": "akulaku",
+      "file": "akulaku.png",
+      "source_url": "https://ec-cstatic.akulaku.net/web-site/_nuxt/img/akulaku_logo.4e0dc68.png",
+      "source_page": "https://www.akulaku.com",
+      "licence_note": "Official logo from akulaku.com; red background is part of the file (opaque); trademark of Akulaku",
+      "width": 354,
+      "height": 128,
+      "alpha": false
+    },
+    {
+      "key": "sampoerna",
+      "file": "sampoerna.png",
+      "source_url": "https://statics.banksampoerna.com/assets/images/logo.png",
+      "source_page": "https://www.banksampoerna.com",
+      "licence_note": "Official header logo from banksampoerna.com; trademark of PT Bank Sahabat Sampoerna",
+      "width": 233,
+      "height": 79,
+      "alpha": true
+    }
+  ],
+  "missing": []
+}

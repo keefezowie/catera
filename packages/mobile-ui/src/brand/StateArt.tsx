@@ -7,16 +7,16 @@ import { useReduced } from "../motion/useReduced";
 import { MascotArt, mascotArtFrame, type MascotPose } from "./MascotArt";
 import { decorative } from "./decorative";
 
-/** An empty or error state's art: 120pt above its title (spec 7.2). */
-export const STATE_ART = 120;
+/** An empty or error state's art: 88pt above its title (spec 7.2; 120 before October 2026). */
+export const STATE_ART = 88;
 /** What `STATE_ART` becomes on a 360dp phone at font scale 1.3, so the title and its action stay above the fold. */
-export const STATE_ART_COMPACT = 96;
+export const STATE_ART_COMPACT = 72;
 
 const ease = Easing.bezier(...nativeMotion.ease);
 
 /**
- * The size a state's art draws at: `base` (120 for an empty or error state, 72 for the cooking count card) on most
- * phones, and four fifths of it (96, 58) when the text is enlarged to 1.3 or more on a phone 360dp wide or narrower,
+ * The size a state's art draws at: `base` (88 for an empty or error state, 72 for the cooking count card) on most
+ * phones, and four fifths of it (72, 59) when the text is enlarged to 1.3 or more on a phone 360dp wide or narrower,
  * where the larger art would push the state's title and its action below the fold.
  */
 export function stateArtSize({ width, fontScale }: { width: number; fontScale: number }, base = STATE_ART): number {

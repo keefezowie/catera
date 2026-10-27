@@ -106,6 +106,8 @@ jest.mock("../src/buy/BuyScreen", () => ({
     const { Pressable: P, Text: T, View: V } = require("react-native");
     const { useChoice } = require("../src/choice");
     const choose = useChoice();
+    const { usePayMethodPicker } = require("../src/buy/PayMethodSheet");
+    const askPay = usePayMethodPicker();
     const [picked, setPicked] = useState("belum");
     const button = (label: string, run: () => Promise<string | null>) =>
       h(P, { accessibilityRole: "button", accessibilityLabel: label, onPress: () => void run().then((r: string | null) => setPicked(String(r))) }, h(T, null, label));
@@ -133,6 +135,7 @@ jest.mock("../src/buy/BuyScreen", () => ({
           extras: [{ key: "kelola", label: "Kelola alamat", href: "/pembelian/alamat" }],
         }),
       ),
+      button("Ubah cara bayar", () => askPay({ codes: ["QRIS", "VIRTUAL_ACCOUNT_BRI"], selected: "QRIS" })),
       button("Ganti tanggal mulai", () =>
         choose("/pembelian/mulai", { title: "Mulai tanggal", items: [{ id: "2026-10-19", label: "Senin 19 Okt" }], selected: null }),
       ),
@@ -377,6 +380,10 @@ describe("routes", () => {
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti tanggal mulai" })));
     expectSheet("pembelian/mulai", "fit");
     await go(() => fireEvent.press(screen.getByRole("radio", { name: "Senin 19 Okt" })));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah cara bayar" })));
+    expectSheet("pembelian/bayar-pakai", "fit");
+    await go(() => fireEvent.press(screen.getByRole("radio", { name: /^BRI Virtual Account/ })));
+    expect(screen.getByTestId("beli-picked").props.children).toBe("VIRTUAL_ACCOUNT_BRI");
     await go(() => router.push("/pembelian/alamat-form"));
     expectSheet("pembelian/alamat-form", "form");
     await go(() => router.back());

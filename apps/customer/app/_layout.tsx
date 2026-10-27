@@ -113,6 +113,7 @@ function Navigation() {
               purchase: native sheets in this stack, so the purchase stays underneath and Close returns to it. */}
           <Stack.Screen name="pembelian/alamat-pilih" options={sheetOptions({ detents: "fit", palette })} />
           <Stack.Screen name="pembelian/mulai" options={sheetOptions({ detents: "fit", palette })} />
+          <Stack.Screen name="pembelian/bayar-pakai" options={sheetOptions({ detents: "fit", palette })} />
           <Stack.Screen name="pembelian/alamat-form" options={sheetOptions({ detents: "form", palette })} />
           <Stack.Screen name="pembelian/bantuan-form" options={sheetOptions({ detents: "form", palette })} />
           {/* The forms with fields are sheets in this stack, not in a tab's: a root sheet draws above the tab bar, so
