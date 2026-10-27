@@ -101,3 +101,5 @@ export * from "./form/CheckEmail";
 export * from "./form/useFieldCheck";
 export * from "./form/PasswordLines";
 export * from "./form/authFields";
+export * from "./brand/AuthMascot";
+export * from "./AuthOutcome";

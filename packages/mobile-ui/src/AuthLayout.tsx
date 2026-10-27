@@ -18,7 +18,8 @@ import { useReduced } from "./motion/useReduced";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboard } from "./useKeyboard";
 import { useLayoutScale } from "./layoutScale";
-import { StateArt } from "./brand/StateArt";
+import { AuthMascot } from "./brand/AuthMascot";
+import type { MascotPose } from "./brand/MascotArt";
 import { fontFor } from "./type";
 import { themedStyles, useColors } from "./theme";
 
@@ -85,7 +86,7 @@ function Collapsible({
  * the collapse starts from the keyboard's own state on the UI thread (Android announces the keyboard to JS only once it
  * is up, too late to move with it).
  */
-export function AuthHeading({ title, subtitle, brand }: { title: string; subtitle?: string; brand?: string }) {
+export function AuthHeading({ title, subtitle, brand, pose = "melambai" }: { title: string; subtitle?: string; brand?: string; pose?: MascotPose }) {
   const c = useColors();
   const { up } = useKeyboard();
   const keyboard = useAnimatedKeyboard();
@@ -95,7 +96,7 @@ export function AuthHeading({ title, subtitle, brand }: { title: string; subtitl
         {brand ? (
           <Text style={{ color: c.charcoal, fontFamily: fontFor("800"), fontSize: 17, lineHeight: 24 }}>{brand}</Text>
         ) : (
-          <StateArt pose="melambai" base={AUTH_MARK} style={{ alignSelf: "flex-start" }} />
+          <AuthMascot pose={pose} base={AUTH_MARK} />
         )}
       </Collapsible>
       <Text variant="display" accessibilityRole="header">{title}</Text>
