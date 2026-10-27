@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import * as Crypto from "expo-crypto";
-import { authClient, exchangeEmailLink, readPending, resendLink, saveNewPassword, useMobile } from "@catera/mobile-core";
+import { authClient, exchangeEmailLink, isOffline, readPending, resendLink, saveNewPassword, useMobile, type EmailLink } from "@catera/mobile-core";
 import { AuthHeading, AuthOutcome, AuthScreen, Button, CheckEmail, ExpiredLink, FormError, NewPasswordForm } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
-import { REDIRECT_TO } from "./emailAuth";
+import { redirectTo } from "./emailAuth";
 import { canRetry } from "./failure";
 import { useAuthRun, useFormPose } from "./useAuthRun";
 import { leaveFor } from "../nav";
@@ -34,36 +34,62 @@ export function AuthCallback() {
   const recoveryUser = useRef("");
   const started = useRef(false);
   const leaving = useRef(false);
+  // A good link whose account set-up did not finish: Coba lagi re-runs the set-up, not the spent code.
+  const exchanged = useRef<EmailLink | null>(null);
   const run = useAuthRun();
   const form = useFormPose(run.code, run.failures);
   const action = { ...run, retryable: canRetry(run.code, locale) };
 
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    void (async () => {
-      const stored = await readPending(runtime);
-      if (stored) {
-        next.current = nativeReturnPath(stored.next);
-        setIntent({ purpose: stored.purpose, email: stored.email, next: next.current });
-      }
-      const link = await exchangeEmailLink(runtime, stored, { code, linkError });
-      if (link.purpose === "recovery") {
-        recoveryUser.current = link.userId;
-        setPhase("recovery");
-        return;
-      }
-      const ensured = await authClient(runtime).rpc("catera_v1_command", {
+  // The account behind a verified sign-up link, then the signed-in actor.
+  const finish = async (link: EmailLink) => {
+    const ensured = await authClient(runtime)
+      .rpc("catera_v1_command", {
         action: "profile.ensure",
         payload: { name: link.name || "Pelanggan" },
         request_id: Crypto.randomUUID(),
-      });
-      if (ensured.error) throw ensured.error;
-      await refresh();
-      setName(link.name);
-      setPhase("verified");
-    })().catch(() => setPhase("expired"));
-  }, [code, linkError, refresh, runtime]);
+      })
+      .then(
+        (r) => r,
+        (error: unknown) => ({ error }),
+      );
+    if (ensured.error) throw new Error(isOffline(ensured.error) ? "OFFLINE" : "AUTH_UNAVAILABLE");
+    await refresh();
+    setName(link.name);
+    setPhase("verified");
+  };
+
+  // Only a link the server or this phone rejects is "expired". Offline keeps the link for Coba lagi; a failure after a
+  // good exchange keeps the session and retries the set-up (spec 7).
+  const check = async () => {
+    if (exchanged.current) return finish(exchanged.current);
+    const stored = await readPending(runtime);
+    if (stored) {
+      next.current = nativeReturnPath(stored.next);
+      setIntent({ purpose: stored.purpose, email: stored.email, next: next.current });
+    }
+    let link: EmailLink;
+    try {
+      link = await exchangeEmailLink(runtime, stored, { code, linkError });
+    } catch (e) {
+      if ((e as Error).message === "OFFLINE") throw e;
+      setPhase("expired");
+      return;
+    }
+    if (link.purpose === "recovery") {
+      recoveryUser.current = link.userId;
+      setPhase("recovery");
+      return;
+    }
+    exchanged.current = link;
+    await finish(link);
+  };
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void run.run(check);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, for the link that opened the screen
+  }, []);
 
   const savePassword = async (password: string) => {
     await saveNewPassword(runtime, recoveryUser.current, password);
@@ -77,7 +103,7 @@ export function AuthCallback() {
     run.run(async () => {
       const again = phase === "sent";
       if (again) setResent(false);
-      await resendLink(runtime, { ...intent, purpose: intent.purpose || "recovery" }, REDIRECT_TO);
+      await resendLink(runtime, { ...intent, purpose: intent.purpose || "recovery" }, redirectTo());
       setPhase("sent");
       if (again) setResent(true);
     });
@@ -149,8 +175,15 @@ export function AuthCallback() {
       </AuthScreen>
     );
   return (
-    <AuthScreen>
-      <AuthHeading title={t("Verifikasi akun", "Verify account")} subtitle={t("Memeriksa tautan…", "Checking your link…")} pose="membaca" />
+    <AuthScreen revealKey={run.failures}>
+      <AuthHeading
+        title={t("Verifikasi akun", "Verify account")}
+        subtitle={t("Memeriksa tautan…", "Checking your link…")}
+        pose={!run.message ? "membaca" : run.code === "OFFLINE" ? "mencari" : "melambai"}
+      />
+      {run.message ? (
+        <FormError message={run.message} failureKey={run.failures} testID="identity-error" retry={() => void run.run(check)} />
+      ) : null}
     </AuthScreen>
   );
 }

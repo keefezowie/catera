@@ -30,17 +30,26 @@ export function AuthCallback() {
   const leaving = useRef(false);
   const run = useAuthRun();
 
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    void (async () => {
-      const stored = await readPending(runtime);
-      if (stored?.purpose === "recovery") setEmail(stored.email);
+  // Only a link the server or this phone rejects is "expired"; offline keeps the link for Coba lagi (spec 7).
+  const check = async () => {
+    const stored = await readPending(runtime);
+    if (stored?.purpose === "recovery") setEmail(stored.email);
+    try {
       const link = await exchangeEmailLink(runtime, stored, { code, linkError }, ["recovery"]);
       recoveryUser.current = link.userId;
       setPhase("recovery");
-    })().catch(() => setPhase("expired"));
-  }, [code, linkError, runtime]);
+    } catch (e) {
+      if ((e as Error).message === "OFFLINE") throw e;
+      setPhase("expired");
+    }
+  };
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void run.run(check);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, for the link that opened the screen
+  }, []);
 
   const savePassword = async (password: string) => {
     await saveNewPassword(runtime, recoveryUser.current, password);
@@ -129,8 +138,9 @@ export function AuthCallback() {
       </AuthScreen>
     );
   return (
-    <AuthScreen>
+    <AuthScreen revealKey={run.failures}>
       <AuthHeading brand="Catera Dapur" title={t("Pemulihan akun", "Account recovery")} subtitle={t("Memeriksa tautan…", "Checking your link…")} />
+      {run.message ? <FormError message={run.message} failureKey={run.failures} testID="identity-error" retry={() => void run.run(check)} /> : null}
     </AuthScreen>
   );
 }

@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import { authClient, authError, clearPending, savePending, type Pending } from "./emailAuth";
+import { authClient, authError, clearPending, isOffline, savePending, type Pending } from "./emailAuth";
 import type { MobileRuntime } from "./runtime";
 
 /** An email link is good for an hour, on the phone that asked for it. */
@@ -19,7 +19,8 @@ export type EmailLink = {
  * Finishes an email link (the one place the security checks live, for both apps). Fails with `RECOVERY_EXPIRED`,
  * before any network call, when the link has no code, carries an error, this phone has no pending request for it
  * (`pending`, from `readPending`), the request is older than an hour, or its purpose is not one the app `accepts`
- * (Dapur: recovery only). Otherwise the one-time code is exchanged (PKCE binds it to this phone); a recovery intent
+ * (Dapur: recovery only). Otherwise the one-time code is exchanged (PKCE binds it to this phone; `OFFLINE` when the
+ * exchange never reached the server, so the same link can be tried again); a recovery intent
  * is honoured only when the server itself marks the link as recovery, whatever the local intent says. A recovery
  * keeps its pending intent until `saveNewPassword`; any other purpose clears it here.
  */
@@ -32,7 +33,11 @@ export async function exchangeEmailLink(
   const expired = () => new Error("RECOVERY_EXPIRED");
   if (!link.code || link.linkError || !pending || !accepts.includes(pending.purpose) || Date.now() - pending.at > LINK_LIFETIME_MS) throw expired();
   const client = authClient(runtime);
-  const { data, error } = await client.auth.exchangeCodeForSession(link.code);
+  const { data, error } = await client.auth
+    .exchangeCodeForSession(link.code)
+    .catch((e: unknown) => ({ data: { user: null, session: null }, error: e }));
+  // Offline, the code was never spent: say so, so the screen can try the same link again.
+  if (error && isOffline(error)) throw new Error("OFFLINE");
   if (error || !data.user || !data.session) throw expired();
   await SecureStore.deleteItemAsync(runtime.storageKey("demo.token"));
   if (pending.purpose === "recovery") {

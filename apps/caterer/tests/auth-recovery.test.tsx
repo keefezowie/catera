@@ -190,6 +190,33 @@ describe("callback", () => {
     renderWith(<AuthCallback />);
     expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
+    expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
+  });
+
+  it("an offline exchange says so, and Coba lagi tries the same link again", async () => {
+    recoveryLink();
+    supabase.auth.exchangeCodeForSession.mockResolvedValueOnce({
+      data: { user: null, session: null },
+      error: { name: "AuthRetryableFetchError", status: 0 },
+    } as never);
+    renderWith(<AuthCallback />);
+    expect(await screen.findByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.")).toBeTruthy();
+    expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByLabelText("Kata sandi baru")).toBeTruthy();
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(2);
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenLastCalledWith("one-time-code");
+  });
+
+  it("a server-rejected code still reaches the expired screen", async () => {
+    recoveryLink();
+    supabase.auth.exchangeCodeForSession.mockResolvedValueOnce({
+      data: { user: null, session: null },
+      error: { name: "AuthApiError", status: 400, code: "flow_state_expired" },
+    } as never);
+    renderWith(<AuthCallback />);
+    expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
+    expect(screen.queryByText(/Belum ada koneksi/)).toBeNull();
   });
 
   it("refuses to set a password for a different user than the link signed in", async () => {

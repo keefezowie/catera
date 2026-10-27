@@ -155,6 +155,7 @@ describe("new password", () => {
     renderCallback();
     expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
+    expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
   });
 });
 
@@ -201,6 +202,49 @@ describe("verified", () => {
     expect(store.has("catera.auth.pending")).toBe(false);
     fireEvent.press(screen.getByRole("button", { name: "Mulai" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/checkout/package?cycles=3"));
+  });
+
+  it("a set-up failure after a good exchange says the server failed and Coba lagi finishes, never expired", async () => {
+    mockParams = { code: "one-time-code" };
+    intent("signup");
+    supabase.auth.exchangeCodeForSession.mockResolvedValue({
+      data: { user: { id: "verified-user", user_metadata: { name: "Rani Contoh" } }, session: { access_token: "synthetic" } },
+      error: null,
+    });
+    supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: "boom", code: "XX000" } } as never);
+    renderCallback();
+    expect(await screen.findByText("Ada gangguan di sisi kami. Coba lagi sebentar lagi.")).toBeTruthy();
+    expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByRole("header", { name: "Email terverifikasi" })).toBeTruthy();
+    // The spent code is not exchanged again; only the set-up re-runs.
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(1);
+    expect(supabase.rpc).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("offline link", () => {
+  it("an offline exchange says so, and Coba lagi tries the same link again", async () => {
+    recoveryLink();
+    supabase.auth.exchangeCodeForSession.mockResolvedValueOnce({
+      data: { user: null, session: null },
+      error: { name: "AuthRetryableFetchError", status: 0 },
+    } as never);
+    renderCallback();
+    expect(await screen.findByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.")).toBeTruthy();
+    expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByLabelText("Kata sandi baru")).toBeTruthy();
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(2);
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenLastCalledWith("one-time-code");
+  });
+
+  it("a thrown fetch error during the exchange is offline too", async () => {
+    recoveryLink();
+    supabase.auth.exchangeCodeForSession.mockRejectedValueOnce(new TypeError("Network request failed"));
+    renderCallback();
+    expect(await screen.findByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.")).toBeTruthy();
+    expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
   });
 });
 
