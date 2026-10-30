@@ -489,26 +489,6 @@ describe("customerLink", () => {
 });
 
 describe("Masuk", () => {
-  it("signs in with the phone code first and offers email on request", async () => {
-    const runtime = runtimeWith(async () => customerState(null), null);
-    runtime.sendPhoneOtp = jest.fn(async () => undefined);
-    runtime.verifyPhoneOtp = jest.fn(async () => customer as never);
-    render(
-      <MobileProvider runtime={runtime} linkMapper={customerLink}>
-        <Masuk />
-      </MobileProvider>,
-    );
-    expect(screen.queryByLabelText("Kata sandi")).toBeNull();
-    fireEvent.changeText(screen.getByLabelText("Nomor HP"), "0812 3456 7890");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    await waitFor(() => expect(runtime.sendPhoneOtp).toHaveBeenCalledWith("+6281234567890"));
-    fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
-    expect(runtime.verifyPhoneOtp).toHaveBeenCalledWith("+6281234567890", "123456", "Pelanggan", expect.any(String));
-    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
-    expect(screen.getByLabelText("Kata sandi").props.secureTextEntry).toBe(true);
-  });
 
   it("signs a new email customer in as Pelanggan, not Katering", async () => {
     const runtime = runtimeWith(async () => customerState(null), null);
@@ -518,7 +498,7 @@ describe("Masuk", () => {
         <Masuk />
       </MobileProvider>,
     );
-    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Lanjut dengan email" }));
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));

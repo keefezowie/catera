@@ -150,6 +150,7 @@ export function Button({
   edge,
   style,
   spinnerTestID = "button-spinner",
+  trailingIcon,
 }: {
   label: string;
   onPress: () => void;
@@ -171,6 +172,8 @@ export function Button({
   edge?: string;
   style?: StyleProp<ViewStyle>;
   spinnerTestID?: string;
+  /** A glyph after the label in its colour (the ↗ of a link that leaves the app); none by default. Not announced. */
+  trailingIcon?: keyof typeof Ionicons.glyphMap;
 }) {
   const danger = variant === "danger";
   // A danger button is filled like the primary one, in the danger ink.
@@ -214,7 +217,14 @@ export function Button({
         style,
       ]}
     >
-      <RNText style={[styles.buttonLabel, { color: labelColor }, spinning && { opacity: 0 }]}>{label}</RNText>
+      {trailingIcon ? (
+        <View style={[{ flexDirection: "row", alignItems: "center", gap: 6 }, spinning && { opacity: 0 }]}>
+          <RNText style={[styles.buttonLabel, { color: labelColor }]}>{label}</RNText>
+          <Ionicons testID="button-trailing-icon" name={trailingIcon} size={16} color={labelColor} accessible={false} importantForAccessibility="no" />
+        </View>
+      ) : (
+        <RNText style={[styles.buttonLabel, { color: labelColor }, spinning && { opacity: 0 }]}>{label}</RNText>
+      )}
       {spinning ? (
         <View
           pointerEvents="none"

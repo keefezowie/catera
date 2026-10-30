@@ -165,13 +165,11 @@ export type PilotState = {
 };
 
 export function normalizeCustomerPhone(value: string) {
+  // 0812…, 62812…, +62812…, 0062812… and a trunk 0 kept after the code (+62 0812…) all mean +62812….
   const digits = value.replace(/[\s().-]/g, "");
-  const result = digits.startsWith("0")
-    ? "+62" + digits.slice(1)
-    : digits.startsWith("62")
-      ? "+" + digits
-      : digits;
-  if (!/^\+62\d{8,13}$/.test(result)) throw new Error("PHONE");
+  const prefix = /^(?:\+62|0062|62)0?|^0/.exec(digits)?.[0];
+  const result = prefix ? "+62" + digits.slice(prefix.length) : digits;
+  if (!/^\+62[1-9]\d{7,12}$/.test(result)) throw new Error("PHONE");
   return result;
 }
 /** "+6281234500001" as people write it: "0812-3450-0001". */

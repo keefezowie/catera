@@ -51,7 +51,8 @@ it("an ActivityIndicator is allowed only inside a busy Button, StickyAction, Set
     .map((path) => relative(shared, path).split("\\").join("/"))
     .filter((file) => /\bActivityIndicator\b/.test(readFileSync(join(shared, file), "utf8")))
     .sort();
-  expect(found).toEqual(["components.tsx", "settings/SettingsRows.tsx"]);
+  // ProviderButton (Lanjut dengan Google/Apple) draws the same busy spinner as Button, inside its own pill.
+  expect(found).toEqual(["ProviderButton.tsx", "components.tsx", "settings/SettingsRows.tsx"]);
   expect(readFileSync(join(shared, "StickyAction.tsx"), "utf8")).toMatch(/<Button\b[^>]*\bbusy=\{busy\}/);
 });
 

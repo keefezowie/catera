@@ -5,7 +5,7 @@ import { RATE_WAIT_S, validEmail } from "./emailAuth";
 import { authFailure, rateText } from "./failure";
 import { useAction } from "./useAction";
 
-const OWN_FAILURES = ["INVALID_CREDENTIALS", "INVALID_OTP", "EMAIL_REGISTERED", "EMAIL_NOT_CONFIRMED", "PASSWORD_REJECTED"];
+const OWN_FAILURES = ["INVALID_CREDENTIALS", "EMAIL_REGISTERED", "EMAIL_NOT_CONFIRMED", "PASSWORD_REJECTED"];
 
 type Tr = (id: string, en: string) => string;
 

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { MobileProvider, createMobileRuntime, type MobileRuntime } from "@catera/mobile-core";
-import { catererSlug, e164Indonesia } from "../src/onboarding";
+import { catererSlug, e164Indonesia, waLink } from "../src/onboarding";
 import { tabsForRole } from "../src/roles";
 import { Daftar } from "../src/auth/Daftar";
 import { AktifkanScreen } from "../src/business/AktifkanScreen";
@@ -9,7 +9,7 @@ import { withDapurScale } from "./dapur-scale";
 import { RoleGate } from "../src/RoleGate";
 import { router } from "expo-router";
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null, useNavigation: () => ({ setOptions: () => undefined }) }));
+jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => false }, Link: () => null, useNavigation: () => ({ setOptions: () => undefined }) }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -25,8 +25,6 @@ function runtimeWith(actor: unknown): MobileRuntime {
     me: jest.fn(async () => ({ actor, demo: false })),
     command: jest.fn(async () => ({ id: "k-new" })),
   } as MobileRuntime["api"];
-  runtime.sendPhoneOtp = jest.fn(async () => undefined);
-  runtime.verifyPhoneOtp = jest.fn(async () => ({ id: "u-1", role: "customer" }) as never);
   return runtime;
 }
 
@@ -35,9 +33,16 @@ describe("onboarding helpers", () => {
     expect(e164Indonesia("0812 3456 7890")).toBe("+6281234567890");
     expect(e164Indonesia("+62 812-3456-7890")).toBe("+6281234567890");
     expect(e164Indonesia("62812 3456 7890")).toBe("+6281234567890");
+    expect(e164Indonesia("0062 812 3456 7890")).toBe("+6281234567890");
+    expect(e164Indonesia("+62 0812 3456 7890")).toBe("+6281234567890");
+    expect(e164Indonesia("0812 345")).toBeNull();
+    expect(e164Indonesia("62 0 812")).toBeNull();
   });
   it("builds a URL-safe caterer slug with a short suffix", () => {
     expect(catererSlug("Dapur Bu Rina!", "ab12")).toBe("dapur-bu-rina-ab12");
+  });
+  it("links a typed number to its WhatsApp chat, digits only", () => {
+    expect(waLink("0812 3456 7890")).toBe("https://wa.me/6281234567890");
   });
 });
 
@@ -55,45 +60,6 @@ describe("roles", () => {
       </MobileProvider>,
     );
     expect(await screen.findByText("Buka aplikasi Catera")).toBeTruthy();
-  });
-});
-
-describe("Daftar", () => {
-  it("verifies the WhatsApp number and creates the caterer with name and area", async () => {
-    const runtime = runtimeWith(null);
-    render(
-      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-        <Daftar />
-      </MobileProvider>,
-    );
-    fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Bu Rina");
-    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3456 7890");
-    fireEvent.press(screen.getByText("Jakarta Selatan"));
-    fireEvent.press(screen.getByText("Kirim kode"));
-    await waitFor(() => expect(runtime.sendPhoneOtp).toHaveBeenCalledWith("+6281234567890"));
-    fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
-    await waitFor(() =>
-      expect(runtime.verifyPhoneOtp).toHaveBeenCalledWith(
-        "+6281234567890",
-        "123456",
-        "Dapur Bu Rina",
-        expect.any(String),
-      ),
-    );
-    await waitFor(() =>
-      expect(runtime.api.command).toHaveBeenCalledWith(
-        "seller.create",
-        expect.objectContaining({
-          name: "Dapur Bu Rina",
-          areas: ["Jakarta Selatan"],
-          description: "",
-          slug: expect.stringMatching(/^dapur-bu-rina-[a-z0-9]{4}$/),
-        }),
-        expect.any(String),
-      ),
-    );
-    fireEvent.press(await screen.findByRole("button", { name: "Buka Hari ini" }));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
   });
 });
 
@@ -121,16 +87,22 @@ describe("Daftar on the Dapur scale", () => {
         </MobileProvider>,
       ),
     );
-    const intro = await screen.findByText(/^Daftar masak, rute antar/);
-    expect(flatStyle(intro)).toMatchObject({ fontSize: 15, lineHeight: 22 });
+    const intro = await screen.findByText(/^Nama ini yang dilihat pelanggan/);
+    // The intro is the shared auth heading's subtitle, as on Masuk.
+    expect(flatStyle(intro)).toMatchObject({ fontSize: 14, lineHeight: 23 });
     // The heading and its paragraph sit 8 apart (the group gap).
     expect(gapAbove(intro)).toBe(8);
-    // "Lokasi dapur" reads like the fields' own 13 bold labels, not the classic 12/23 label.
-    expect(flatStyle(screen.getByText("Lokasi dapur"))).toMatchObject({ fontSize: 13, lineHeight: 18, fontFamily: "Jakarta-Bold" });
-    // A 34 chip's 48 target is 7 above and below it, so the wrapped rows sit 14 apart and the targets never overlap.
+    fireEvent.changeText(screen.getByLabelText("Nama usaha katering"), "Dapur Bu Rina");
+    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    // A later step's line has the same ladder, without the mascot.
+    const line = await screen.findByText(/^Pelanggan di area ini/);
+    expect(flatStyle(line)).toMatchObject({ fontSize: 14, lineHeight: 23 });
+    expect(gapAbove(line)).toBe(8);
     const chip = screen.getByRole("button", { name: "Jakarta Selatan" });
-    expect(chip.props.hitSlop).toEqual({ top: 7, bottom: 7 });
-    expect(above(chip, "flexWrap")).toMatchObject({ flexWrap: "wrap", columnGap: 8, rowGap: 14 });
+    // The area chips are drawn 40 tall; 4 of slop above and below reaches the 48 target, so the wrapped rows sit 8 apart.
+    expect(chip.props.hitSlop).toEqual({ top: 4, bottom: 4 });
+    expect(flatStyle(chip)).toMatchObject({ minHeight: 40 });
+    expect(above(chip, "flexWrap")).toMatchObject({ flexWrap: "wrap", columnGap: 8, rowGap: 8 });
   });
 });
 

@@ -174,7 +174,6 @@ const ERROR_OWNERS = new Set([
   "packages/mobile-ui/src/ConnectionBanner.tsx",
   "packages/mobile-ui/src/settings/SettingsRows.tsx", // Keluar, a destructive action label, not an error
   "packages/mobile-ui/src/RantangTrack.tsx", // the "Gagal diantar" stop: heroWarn ring, alert glyph and words together (spec 5.4)
-  "packages/mobile-ui/src/form/CodeInput.tsx", // the wrong-code line under the boxes: alert glyph, words and a live region
 ]);
 const DANGER_INK = String.raw`\bcolor\s*:\s*[^,}]*\b(?:danger|heroWarn)\b`;
 const bareErrorTexts = (source: string) => {

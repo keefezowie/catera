@@ -315,20 +315,20 @@ describe("Masuk links", () => {
   it("offers email registration and password recovery, keeping where to return", async () => {
     mockParams = { next: "/disimpan" };
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Daftar" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Daftar dengan email" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/register", params: { next: "/disimpan" } });
-    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
     fireEvent.press(screen.getByRole("button", { name: "Lupa kata sandi?" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/recover", params: { next: "/disimpan" } });
   });
 });
 
 describe("Masuk heading", () => {
-  it("leaves the title to the header and keeps the explanation", async () => {
+  it("has one heading, Masuk ke Catera, with the line that one account covers sign-up too", async () => {
     renderWith(<Masuk />);
-    expect(await screen.findByRole("button", { name: "Kirim kode" })).toBeTruthy();
-    expect(screen.queryAllByText("Masuk ke Catera")).toHaveLength(0);
-    expect(screen.getByText(/Pakai nomor HP yang kamu berikan/)).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Lanjut dengan Google" })).toBeTruthy();
+    expect(screen.getAllByText("Masuk ke Catera")).toHaveLength(1);
+    expect(screen.getByText(/Langsung dibuatkan/)).toBeTruthy();
   });
 });
 
@@ -339,7 +339,7 @@ describe("Masuk with email", () => {
       throw new Error("INVALID_CREDENTIALS");
     });
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));

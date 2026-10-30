@@ -193,7 +193,7 @@ describe("return keys", () => {
       throw new Error("INVALID_CREDENTIALS");
     });
     renderWith(runtime, <Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const email = screen.getByLabelText("Email");
     const password = screen.getByLabelText("Kata sandi");
     expect(email.props.returnKeyType).toBe("next");

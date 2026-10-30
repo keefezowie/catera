@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
-import { ScrollView, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
+import { ScrollView, View, type StyleProp, type ViewStyle } from "react-native";
 import { Button, Field, Screen, Text } from "./components";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Animated, {
@@ -21,8 +21,7 @@ import { useLayoutScale } from "./layoutScale";
 import { AuthMascot } from "./brand/AuthMascot";
 import { AUTH_MARK } from "./brand/authMark";
 import type { MascotPose } from "./brand/MascotArt";
-import { fontFor } from "./type";
-import { themedStyles, useColors } from "./theme";
+import { useColors } from "./theme";
 
 export { AUTH_MARK } from "./brand/authMark";
 
@@ -80,13 +79,12 @@ function Collapsible({
 }
 
 /**
- * The head of a sign-in or sign-up screen, left-aligned: a small mark (the waving mascot at 56dp, or `brand` as a
- * wordmark where there is no mascot), then the large title, the screen's one heading, and under it one line that says
+ * The head of a sign-in or sign-up screen, left-aligned: a small mark (the waving mascot at 56dp), then the large title, the screen's one heading, and under it one line that says
  * what this method needs. The mark gives its room back while the keyboard is up and the page rises under it; on Android
  * the collapse starts from the keyboard's own state on the UI thread (Android announces the keyboard to JS only once it
  * is up, too late to move with it).
  */
-export function AuthHeading({ title, subtitle, brand, pose = "melambai" }: { title: string; subtitle?: string; brand?: string; pose?: MascotPose }) {
+export function AuthHeading({ title, subtitle, pose = "melambai" }: { title: string; subtitle?: string; pose?: MascotPose }) {
   const c = useColors();
   const { up } = useKeyboard();
   // Without these flags Reanimated adds window margins in Expo Go, which does not report edge-to-edge.
@@ -94,50 +92,10 @@ export function AuthHeading({ title, subtitle, brand, pose = "melambai" }: { tit
   return (
     <View style={{ gap: 8, paddingTop: 8 }}>
       <Collapsible hidden={up} keyboard={process.env.EXPO_OS === "ios" ? undefined : keyboard.state} testID="auth-mark">
-        {brand ? (
-          <Text style={{ color: c.charcoal, fontFamily: fontFor("800"), fontSize: 17, lineHeight: 24 }}>{brand}</Text>
-        ) : (
-          <AuthMascot pose={pose} base={AUTH_MARK} />
-        )}
+        <AuthMascot pose={pose} base={AUTH_MARK} />
       </Collapsible>
       <Text variant="display" accessibilityRole="header">{title}</Text>
       {subtitle ? <Text style={{ color: c.muted }}>{subtitle}</Text> : null}
-    </View>
-  );
-}
-
-/**
- * Text tabs for the sign-in method: the chosen one is bold ink with a forest bar under it, the others are muted.
- * Each tab is a 48dp target; they sit at the start of the row and wrap under large text.
- */
-export function MethodTabs<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  const c = useColors();
-  const styles = useStyles();
-  return (
-    <View accessibilityRole="tablist" style={styles.row}>
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <PressableScale
-            key={o.value}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            haptic="select"
-            onPress={() => onChange(o.value)}
-            style={[styles.tab, { borderBottomColor: on ? c.forest : "transparent" }]}
-          >
-            <RNText style={[styles.label, { color: on ? c.charcoal : c.muted, fontFamily: fontFor(on ? "800" : "600") }]}>{o.label}</RNText>
-          </PressableScale>
-        );
-      })}
     </View>
   );
 }
@@ -152,12 +110,6 @@ export function AuthSwitch({ prompt, action, onPress, style }: { prompt: string;
     </View>
   );
 }
-
-const useStyles = themedStyles((c) => ({
-  row: { flexDirection: "row", flexWrap: "wrap", columnGap: 24 },
-  tab: { minHeight: 48, minWidth: 48, paddingHorizontal: 4, justifyContent: "center", alignItems: "center", borderBottomWidth: 3 },
-  label: { fontSize: 16 },
-}));
 
 /** A password field with a show/hide toggle at its end edge. Everything else is `Field`'s. */
 export function PasswordField({

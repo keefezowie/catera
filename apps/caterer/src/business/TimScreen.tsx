@@ -33,8 +33,8 @@ export function TimScreen() {
       setCode(r.code);
       const shared = await Share.share({
         message: t(
-          `Halo! Pasang aplikasi Catera Dapur, masuk dengan nomor WhatsApp kamu, lalu masukkan kode undangan ini: ${r.code}`,
-          `Hi! Install the Catera Dapur app, sign in with your WhatsApp number, then enter this invite code: ${r.code}`,
+          `Halo! Pasang aplikasi Catera Dapur, daftar lewat 'Gabung ke dapur', lalu masukkan kode undangan ini: ${r.code}`,
+          `Hi! Install the Catera Dapur app, sign up through 'Join a kitchen', then enter this invite code: ${r.code}`,
         ),
       });
       if (inviteShared(shared.action))

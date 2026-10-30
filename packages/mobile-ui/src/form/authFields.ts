@@ -7,5 +7,4 @@ export const authFields = {
   newPassword: { autoComplete: "new-password", textContentType: "newPassword", passwordRules: "minlength: 8;", autoCapitalize: "none", autoCorrect: false, maxLength: 256 },
   phone: { autoComplete: "tel", textContentType: "telephoneNumber", autoCapitalize: "none", autoCorrect: false, keyboardType: "phone-pad", maxLength: 20 },
   name: { autoComplete: "name", textContentType: "name", autoCapitalize: "words", autoCorrect: false, maxLength: 100 },
-  code: { autoComplete: "sms-otp", textContentType: "oneTimeCode", autoCapitalize: "none", autoCorrect: false, keyboardType: "number-pad", maxLength: 6 },
 } satisfies Record<string, TextInputProps>;

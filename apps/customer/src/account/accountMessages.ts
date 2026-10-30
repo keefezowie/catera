@@ -18,10 +18,6 @@ export function accountMessage(e: unknown, locale: "id" | "en", t: T): string {
       return t("Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.", "Too many tries. Wait a moment, then try again.");
     case "EMAIL_IN_USE":
       return t("Email ini sudah dipakai akun lain.", "Another account already uses this email.");
-    case "PHONE_IN_USE":
-      return t("Nomor ini sudah dipakai akun lain.", "Another account already uses this number.");
-    case "CODE_INVALID":
-      return t("Kode belum cocok. Periksa SMS lalu coba lagi.", "That code doesn't match. Check the SMS and try again.");
     case "INVALID_CREDENTIALS":
       return t("Kata sandi saat ini belum cocok.", "Your current password doesn't match.");
     case "PASSWORD_REJECTED":
@@ -29,8 +25,6 @@ export function accountMessage(e: unknown, locale: "id" | "en", t: T): string {
         "Kata sandi baru belum bisa dipakai. Pilih yang lain, minimal 8 karakter.",
         "The new password can't be used. Choose another, at least 8 characters.",
       );
-    case "PHONE_CHANGE_FAILED":
-      return t("Nomor HP belum bisa diganti. Coba lagi nanti.", "The phone number couldn't be changed. Try again later.");
     case "EMAIL_CHANGE_FAILED":
       return t("Email belum bisa diganti. Coba lagi nanti.", "The email couldn't be changed. Try again later.");
     case "NO_EMAIL":

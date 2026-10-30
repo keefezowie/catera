@@ -11,20 +11,17 @@ import { useFieldCheck } from "./useFieldCheck";
 
 /**
  * Choose a new password after a recovery link (spec 3.4): the password with its rules line, the repeat with a live
- * match line, one show/hide for both, and a button that stays enabled (a press shows what is wrong). `brand` swaps the
- * mascot for a wordmark (Dapur).
+ * match line, one show/hide for both, and a button that stays enabled (a press shows what is wrong).
  */
 export function NewPasswordForm({
   onSave,
   action,
   form,
-  brand,
   onBack,
 }: {
   onSave(password: string): Promise<void>;
   action: AuthRun;
   form: FormPose;
-  brand?: string;
   /** A way out ("Kembali ke Masuk"); the recovery session stays. */
   onBack?: () => void;
 }) {
@@ -52,7 +49,7 @@ export function NewPasswordForm({
   };
   return (
     <AuthScreen revealKey={action.failures}>
-      <AuthHeading title={t("Kata sandi baru", "New password")} brand={brand} pose={form.pose} />
+      <AuthHeading title={t("Kata sandi baru", "New password")} pose={form.pose} />
       <View style={{ gap: 14 }}>
         <View style={{ gap: 6 }}>
           <PasswordField label={t("Kata sandi baru", "New password")} {...common} {...passwordProps} invalid={common.invalid || !!checks.messages.password} value={password} onChangeText={form.edit(setPassword)}

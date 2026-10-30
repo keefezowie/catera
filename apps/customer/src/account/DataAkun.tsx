@@ -5,16 +5,15 @@ import {
   changePassword,
   listAccountRequests,
   requestEmailChange,
-  sendPhoneChangeCode,
   updateProfileName,
   useData,
   useMobile,
-  verifyPhoneChangeCode,
 } from "@catera/mobile-core";
 import { Button, Card, Field, FormError, ReadError, Screen, SettingsRow, SettingsSection, Text, useToast } from "@catera/mobile-ui";
 import { pushSheet } from "../nav";
 import { ListSkeleton } from "../skeletons";
 import { localPhone } from "./localPhone";
+import { e164 } from "./phone";
 import { accountMessage } from "./accountMessages";
 import { SignInFirst } from "./SignInFirst";
 import { useAction } from "./useAction";
@@ -73,8 +72,6 @@ function useSessionInfo() {
   return {
     info,
     status,
-    // After a phone change the rows stay on screen while the session is read again.
-    reload: () => setRound((n) => n + 1),
     // A retry after a failed read shows the skeleton again.
     retry: () => {
       setStatus("loading");
@@ -112,7 +109,9 @@ export function DataAkun() {
 
 function Details() {
   const { actor, demo, runtime, t } = useMobile();
-  const { info, status, reload, retry } = useSessionInfo();
+  const { info, status, retry } = useSessionInfo();
+  // The profile's own number (profile.update) first; an older account may only have a verified auth phone.
+  const phone = actor?.phone || info?.phone || "";
   const [open, setOpen] = useState<Open>("");
   const requests = useData("data-akun:requests", () => listAccountRequests(runtime.api));
   const deletionOpen = !!requests.data?.some((r) => r.kind === "deletion" && r.status === "open");
@@ -149,7 +148,7 @@ function Details() {
           <>
             <SettingsRow
               label={t("Nomor HP", "Phone number")}
-              value={info?.phone ? localPhone(info.phone) : none}
+              value={phone ? localPhone(phone) : none}
               expanded={open === "hp"}
               onPress={() => toggle("hp")}
             />
@@ -161,7 +160,7 @@ function Details() {
         )}
       </SettingsSection>
       {open === "nama" ? <NameEditor key="nama" current={actor?.name ?? ""} onDone={() => setOpen("")} /> : null}
-      {open === "hp" ? <PhoneEditor key="hp" onChanged={reload} onDone={() => setOpen("")} /> : null}
+      {open === "hp" ? <PhoneEditor key="hp" current={phone ? localPhone(phone) : ""} onDone={() => setOpen("")} /> : null}
       {open === "email" ? <EmailEditor key="email" /> : null}
       {open === "sandi" ? <PasswordEditor key="sandi" onDone={() => setOpen("")} /> : null}
       <SettingsSection>
@@ -217,87 +216,44 @@ function NameEditor({ current, onDone }: { current: string; onDone: () => void }
   );
 }
 
-function PhoneEditor({ onChanged, onDone }: { onChanged: () => void; onDone: () => void }) {
-  const { runtime, demo, t } = useMobile();
+function PhoneEditor({ current, onDone }: { current: string; onDone: () => void }) {
+  const { command, refresh, t } = useMobile();
   const toast = useToast();
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [sent, setSent] = useState(false);
+  const [phone, setPhone] = useState(current);
   const first = useFirstField();
   const action = useAction(accountMessage);
-  const send = () =>
+  const save = () =>
     action.run(async () => {
-      await sendPhoneChangeCode(runtime.supabase, demo, phone);
-      setSent(true);
-    });
-  const verify = () =>
-    action.run(async () => {
-      const done = await verifyPhoneChangeCode(runtime.supabase, demo, phone, code.trim());
-      onChanged();
-      toast.show({
-        message: done.simulated ? t("Contoh saja: nomor HP tidak berubah", "Sample only: the number did not change") : t("Nomor HP diganti", "Phone number changed"),
-        // A simulated change is not a success to celebrate: it carries no tone.
-        tone: done.simulated ? undefined : "success",
-      });
+      const typed = phone.trim();
+      const number = e164(typed);
+      if (typed && !number) throw new Error("INVALID_PHONE");
+      // An emptied field clears the number.
+      await command("profile.update", { phone: number });
+      await refresh();
+      toast.show({ message: t("Nomor HP disimpan", "Phone number saved"), tone: "success" });
       onDone();
     });
   return (
     <Editor>
       <Field
         inputRef={first}
-        label={t("Nomor HP baru", "New phone number")}
+        label={t("Nomor HP", "Phone number")}
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
         autoComplete="tel"
         placeholder="0812…"
-        editable={!sent}
-        autoFocus={!sent}
-        hint={
-          sent
-            ? demo
-              ? t("Demo: tidak ada SMS yang dikirim. Isi enam angka apa saja.", "Demo: no SMS was sent. Enter any six digits.")
-              : undefined
-            : t("Kami kirim kode lewat SMS ke nomor ini.", "We text a code to this number.")
-        }
+        editable={!action.busy}
+        autoFocus
+        hint={t("Nomor WhatsApp untuk katering dan kurir. Contoh: 0812 3456 7890", "The WhatsApp number caterers and couriers use. Example: 0812 3456 7890")}
       />
-      {sent ? (
-        <Field
-          label={t("Kode dari SMS", "Code from SMS")}
-          value={code}
-          onChangeText={setCode}
-          keyboardType="number-pad"
-          autoComplete="sms-otp"
-          maxLength={6}
-          autoFocus
-        />
-      ) : null}
       {action.error ? <FormError message={action.error} failureKey={action.failures} testID="phone-error" /> : null}
-      {sent ? (
-        <>
-          <Button
-            label={t("Simpan nomor", "Save number")}
-            busy={action.busy}
-            disabled={code.trim().length < 6}
-            onPress={() => void verify()}
-          />
-          <Button
-            variant="text"
-            label={t("Ganti nomor", "Change number")}
-            onPress={() => {
-              setSent(false);
-              setCode("");
-            }}
-          />
-        </>
-      ) : (
-        <Button
-          label={t("Kirim kode", "Send code")}
-          busy={action.busy}
-          disabled={phone.replace(/\D/g, "").length < 9}
-          onPress={() => void send()}
-        />
-      )}
+      <Button
+        label={t("Simpan nomor", "Save number")}
+        busy={action.busy}
+        disabled={phone.trim() === current.trim()}
+        onPress={() => void save()}
+      />
     </Editor>
   );
 }

@@ -83,7 +83,9 @@ function Navigation() {
         <Stack screenOptions={screenOptions}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)/masuk" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)/daftar" options={{ title: t("Daftar", "Sign up") }} />
+          {/* Daftar and Gabung draw their own step header (back, the segmented bar, n/N). */}
+          <Stack.Screen name="(auth)/daftar" options={{ headerShown: false, title: t("Daftar", "Sign up") }} />
+          <Stack.Screen name="(auth)/gabung" options={{ headerShown: false, title: t("Gabung ke dapur", "Join a kitchen") }} />
           <Stack.Screen name="(auth)/pulihkan" options={{ ...modal, title: t("Pemulihan akun", "Account recovery"), headerTitle: "" }} />
           <Stack.Screen name="auth/callback" options={{ title: t("Pemulihan akun", "Account recovery"), headerTitle: "", headerBackVisible: false }} />
           {/* Short, self-contained tasks, so they present as modals over the tab bar, with Close at the leading edge

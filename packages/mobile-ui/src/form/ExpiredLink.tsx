@@ -9,13 +9,12 @@ import { useT } from "../useT";
 /**
  * An email link that no longer works (spec 7). Nothing the person did was wrong, so no danger colour: the mascot is
  * bingung, one title, what happened, and a one-tap new link (or "Masukkan email" when this phone has no address
- * on file). `brand` swaps the mascot for a wordmark (Dapur). `error` is a FormError for a failed resend.
+ * on file). `error` is a FormError for a failed resend.
  */
 export function ExpiredLink({
   email,
   busy,
   error,
-  brand,
   pose = "bingung",
   onResend,
   onEnterEmail,
@@ -24,7 +23,6 @@ export function ExpiredLink({
   email: string;
   busy?: boolean;
   error?: ReactNode;
-  brand?: string;
   /** `mencari` when a resend failed offline. */
   pose?: MascotPose;
   onResend(): void;
@@ -35,7 +33,7 @@ export function ExpiredLink({
   const c = useColors();
   return (
     <AuthScreen>
-      <AuthHeading title={t("Tautannya sudah tidak berlaku", "This link no longer works")} brand={brand} pose={pose} />
+      <AuthHeading title={t("Tautannya sudah tidak berlaku", "This link no longer works")} pose={pose} />
       <View style={{ gap: 14 }}>
         <Text style={{ color: c.muted }}>
           {email

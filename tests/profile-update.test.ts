@@ -7,9 +7,7 @@ import {
   requestAccountDeletion,
   requestEmailChange,
   requestHelp,
-  sendPhoneChangeCode,
   updateProfileName,
-  verifyPhoneChangeCode,
 } from "../packages/mobile-core/src/account";
 
 let db: Awaited<ReturnType<typeof createDemoDatabase>>;
@@ -68,43 +66,17 @@ it("the deletion request is created once per open request", async () => {
   await expect(cmd("accountRequest.create", { kind: "deletion", body: "x" })).rejects.toThrow("INVALID_INPUT");
 });
 
-it("the demo simulates phone and email change without calling Supabase", async () => {
-  const auth = { updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithPassword: vi.fn(), getUser: vi.fn() };
+it("the demo simulates email and password change without calling Supabase", async () => {
+  const auth = { updateUser: vi.fn(), signInWithPassword: vi.fn(), getUser: vi.fn() };
   const supabase = { auth } as any;
-  await expect(sendPhoneChangeCode(supabase, true, "0812-3456-7890")).resolves.toEqual({ simulated: true });
-  await expect(verifyPhoneChangeCode(supabase, true, "+6281234567890", "123456")).resolves.toEqual({ simulated: true });
   await expect(requestEmailChange(supabase, true, "baru@example.test")).resolves.toEqual({ simulated: true });
   await expect(changePassword(supabase, true, { current: "lama-lama", next: "baru-baru-1" })).resolves.toEqual({ simulated: true });
-  await expect(sendPhoneChangeCode(supabase, true, "+1 555 0100")).rejects.toThrow("INVALID_PHONE");
   for (const fn of Object.values(auth)) expect(fn).not.toHaveBeenCalled();
-});
-
-it("outside the demo the phone change runs on the mobile Supabase session, not the cookie-only web routes", async () => {
-  const auth = {
-    updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
-    verifyOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
-  };
-  const supabase = { auth } as any;
-  await expect(sendPhoneChangeCode(supabase, false, "0812-3456-7890")).resolves.toEqual({ simulated: false });
-  expect(auth.updateUser).toHaveBeenLastCalledWith({ phone: "+6281234567890" });
-  await verifyPhoneChangeCode(supabase, false, "6281234567890", "123456");
-  expect(auth.verifyOtp).toHaveBeenLastCalledWith({ phone: "+6281234567890", token: "123456", type: "phone_change" });
-  await expect(verifyPhoneChangeCode(supabase, false, "081234567890", "12")).rejects.toThrow("INVALID_INPUT");
-  await expect(sendPhoneChangeCode(supabase, false, "abc")).rejects.toThrow("INVALID_PHONE");
-  await expect(sendPhoneChangeCode(null, false, "081234567890")).rejects.toThrow("NOT_CONFIGURED");
-  expect(auth.updateUser).toHaveBeenCalledTimes(1);
 });
 
 it("Supabase failures become typed codes the screens can name", async () => {
   const fail = (error: object) => vi.fn().mockResolvedValue({ data: {}, error });
-  const client = (updateUser: any, verifyOtp?: any) => ({ auth: { updateUser, verifyOtp } }) as any;
-  const phone = "081234567890";
-  await expect(sendPhoneChangeCode(client(fail({ status: 422, code: "phone_exists" })), false, phone)).rejects.toThrow("PHONE_IN_USE");
-  await expect(sendPhoneChangeCode(client(fail({ status: 429, code: "over_sms_send_rate_limit" })), false, phone)).rejects.toThrow("AUTH_RATE_LIMITED");
-  await expect(sendPhoneChangeCode(client(fail({ status: 500, code: "sms_send_failed" })), false, phone)).rejects.toThrow("PHONE_CHANGE_FAILED");
-  await expect(verifyPhoneChangeCode(client(vi.fn(), fail({ status: 403, code: "otp_expired" })), false, phone, "123456")).rejects.toThrow("CODE_INVALID");
-  await expect(verifyPhoneChangeCode(client(vi.fn(), fail({ status: 400 })), false, phone, "123456")).rejects.toThrow("CODE_INVALID");
-  await expect(verifyPhoneChangeCode(client(vi.fn(), fail({ status: 422, code: "phone_exists" })), false, phone, "123456")).rejects.toThrow("PHONE_IN_USE");
+  const client = (updateUser: any) => ({ auth: { updateUser } }) as any;
   await expect(requestEmailChange(client(fail({ status: 422, code: "email_exists" })), false, "a@example.test")).rejects.toThrow("EMAIL_IN_USE");
   await expect(requestEmailChange(client(fail({ status: 400, code: "email_address_invalid" })), false, "a@example.test")).rejects.toThrow("INVALID_INPUT");
   await expect(requestEmailChange(client(fail({ status: 500 })), false, "a@example.test")).rejects.toThrow("EMAIL_CHANGE_FAILED");

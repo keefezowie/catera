@@ -24,7 +24,7 @@ export function authFailure(e: unknown, locale: Locale, t: Tr): string {
 }
 
 /** Codes about what the person typed or the account: a new try with the same input cannot help, so no Coba lagi. */
-const FIELD_CODES = ["INVALID_CREDENTIALS", "INVALID_OTP", "EMAIL_REGISTERED", "EMAIL_NOT_CONFIRMED", "PASSWORD_REJECTED", "AUTH_RATE_LIMITED"];
+const FIELD_CODES = ["INVALID_CREDENTIALS", "EMAIL_REGISTERED", "EMAIL_NOT_CONFIRMED", "PASSWORD_REJECTED", "AUTH_RATE_LIMITED"];
 
 /** Failures worth a Coba lagi: no connection, the service down, or a code with no sentence of its own. */
 export const canRetry = (code: string, locale: Locale) =>

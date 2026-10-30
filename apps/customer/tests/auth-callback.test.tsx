@@ -249,15 +249,17 @@ describe("offline link", () => {
 });
 
 describe("expired link", () => {
-  it("expired with no pending intent offers Masukkan email and makes no request", async () => {
+  it("expired with no pending intent (a code Supabase refuses) offers Masukkan email and sends nothing", async () => {
     mockParams = { code: "one-time-code" };
+    supabase.auth.exchangeCodeForSession.mockResolvedValue({ data: { user: null, session: null }, error: { status: 400 } });
     renderCallback();
     expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
     expect(screen.getAllByRole("header")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Kirim tautan baru" })).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Masukkan email" }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/recover", params: { next: "/" } });
-    expect(supabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
+    // Tried once as a Google sign-in that arrived as a deep link, never as an email link.
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(1);
     expect(supabase.auth.resend).not.toHaveBeenCalled();
     expect(supabase.auth.resetPasswordForEmail).not.toHaveBeenCalled();
   });
@@ -307,5 +309,48 @@ describe("expired link", () => {
     expect(await screen.findByText(/Belum ada koneksi/)).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
+  });
+});
+
+describe("a Google code that arrives as a deep link", () => {
+  const google = { id: "g-user", app_metadata: { provider: "google" }, user_metadata: { full_name: "Sari Wulandari" } };
+  const googleCode = (user: Record<string, unknown> = google) => {
+    mockParams = { code: "google-code" };
+    supabase.auth.exchangeCodeForSession.mockResolvedValue({ data: { user, session: { access_token: "synthetic" } }, error: null });
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { user } } } as never);
+  };
+  const actorRpc = (actor: Record<string, unknown>) =>
+    supabase.rpc.mockImplementation((async (fn: string) => (fn === "catera_v1_read" ? { data: actor, error: null } : { data: {}, error: null })) as never);
+
+  it("exchanges the code, ensures the profile with the Google name and continues to Beranda", async () => {
+    googleCode();
+    actorRpc({ id: "g-user", role: "customer", name: "Sari Wulandari", phone: "+6281234567890" });
+    renderCallback();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith("google-code");
+    expect(supabase.rpc).toHaveBeenCalledWith("catera_v1_command", expect.objectContaining({ action: "profile.ensure", payload: { name: "Sari Wulandari" } }));
+    expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
+  });
+
+  it("shows Lengkapi akun first for a fresh account", async () => {
+    googleCode();
+    actorRpc({ id: "g-user", role: "customer", name: "Pelanggan", phone: null });
+    renderCallback();
+    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+    expect(screen.getByLabelText("Nama").props.value).toBe("Sari Wulandari");
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("a profile set-up that fails offers Coba lagi, which re-runs only the set-up", async () => {
+    googleCode();
+    let calls = 0;
+    supabase.rpc.mockImplementation((async (fn: string) => {
+      if (fn === "catera_v1_command" && ++calls === 1) return { data: null, error: { message: "boom" } };
+      return fn === "catera_v1_read" ? { data: { id: "g-user", role: "customer", name: "Sari", phone: "+6281234567890" }, error: null } : { data: {}, error: null };
+    }) as never);
+    renderCallback();
+    fireEvent.press(await screen.findByText("Coba lagi"));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(1);
   });
 });

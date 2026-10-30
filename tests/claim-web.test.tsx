@@ -117,7 +117,7 @@ async function type(label: string, value: string) {
 }
 
 it("claim shows the package before asking for the phone", async () => {
-  await show();
+  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
   expect(text()).toContain("Dari Dapur Contoh");
   expect(container.querySelector("h1")?.textContent).toBe("Langganan Anda sekarang ada di Catera");
   expect(text()).toContain(
@@ -142,97 +142,78 @@ it("claim error never shows other data", async () => {
   expect(container.querySelector("input, button")).toBeNull();
 });
 
-it("connects by SMS code, shows the next days and offers the app", async () => {
-  vi.stubEnv("NEXT_PUBLIC_CATERA_ANDROID_URL", "https://play.example.test/catera");
-  routes["auth/send"] = () => ({ data: {} });
-  routes["auth/verify"] = () => ({ data: { session: null } });
-  routes["commands:customer.claim"] = () => ({ data: { status: "claimed" } });
-  routes["customer"] = () => ({ data: { subscriptions: [], deliveries: [], addresses: [], notifications: [], cases: [] } });
+it("a signed-out visitor signs in first and comes back to the link", async () => {
+  const assign = vi.fn();
+  vi.stubGlobal("location", { ...window.location, pathname: "/claim/" + TOKEN, search: "", assign });
   await show();
   await press(/^Lanjut dengan/);
+  expect(assign).toHaveBeenCalledWith("/login?next=" + encodeURIComponent("/claim/" + TOKEN));
+  expect(calls.some((c) => c.path.startsWith("auth/") || c.path === "commands")).toBe(false);
+});
+
+it("connects with the typed number, shows the next days and offers the app, with no SMS", async () => {
+  vi.stubEnv("NEXT_PUBLIC_CATERA_ANDROID_URL", "https://play.example.test/catera");
+  routes["commands:customer.claim"] = () => ({ data: { status: "claimed" } });
+  routes["customer"] = () => ({ data: { subscriptions: [], deliveries: [], addresses: [], notifications: [], cases: [] } });
+  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
+  await press(/^Lanjut dengan/);
   await type("Nomor HP", "0812 3450 0001");
-  await press("Kirim kode");
-  expect(calls.find((c) => c.path === "auth/send")?.body).toEqual({ phone: "+6281234500001", intent: "claim" });
-  expect(container.querySelector("h1")?.textContent).toBe("Masukkan kode dari SMS");
-  expect(text()).toContain("Kami kirim 6 angka ke 0812-3450-0001, nomor yang dicatat Dapur Contoh.");
-  await type("Kode", "123456");
-  await type("Nama Anda", "Andre Contoh");
   await press("Sambungkan langganan");
-  expect(calls.find((c) => c.path === "auth/verify")?.body).toEqual({
-    phone: "+6281234500001",
-    token: "123456",
-    name: "Andre Contoh",
-  });
   expect(calls.find((c) => c.path === "commands")?.body).toMatchObject({
     action: "customer.claim",
-    payload: { token: TOKEN },
+    payload: { token: TOKEN, phone: "+6281234500001" },
   });
+  expect(calls.some((c) => c.path.startsWith("auth/"))).toBe(false);
   expect(container.querySelector("h1")?.textContent).toBe("Tersambung, Andre");
   expect(text()).toContain("Tahu saat makanan berangkat");
   expect(button("Pasang aplikasi").getAttribute("href")).toBe("https://play.example.test/catera");
   expect(button("Lihat jadwal di browser saja").getAttribute("href")).toBe("/home");
 });
 
-it("hides the app card when no store link is configured, and a refused claim shows only the plain message", async () => {
+it("an account whose number matches connects straight from Lanjut, and a refused claim shows only the plain message", async () => {
   vi.stubEnv("NEXT_PUBLIC_CATERA_ANDROID_URL", "");
-  routes["commands:customer.claim"] = () => ({ status: 409, code: "CLAIM_UNAVAILABLE" });
-  // A signed-in customer whose phone is already verified connects straight from "Lanjut".
-  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
-  await press(/^Lanjut dengan/);
-  expect(text()).toBe(DEAD);
-
+  const known = { id: "u-1", role: "customer", name: "Andre Contoh", phone: "+6281234500001" } as Actor;
   routes["commands:customer.claim"] = () => ({ data: { status: "claimed" } });
   routes["customer"] = () => ({ data: { subscriptions: [], deliveries: [], addresses: [], notifications: [], cases: [] } });
-  await act(async () => root.unmount());
-  root = createRoot(container);
-  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
+  await show(known);
   await press(/^Lanjut dengan/);
+  expect(calls.find((c) => c.path === "commands")?.body).toMatchObject({ payload: { token: TOKEN, phone: "+6281234500001" } });
   expect(container.querySelector("h1")?.textContent).toBe("Tersambung, Andre");
   expect(text()).not.toContain("Pasang aplikasi");
+
+  // The account's own number refused: type the recorded one, once; refused again is the plain message.
+  routes["commands:customer.claim"] = () => ({ status: 400, code: "CLAIM_UNAVAILABLE" });
+  await act(async () => root.unmount());
+  root = createRoot(container);
+  await show(known);
+  await press(/^Lanjut dengan/);
+  expect(container.querySelector('input[type="tel"]')).not.toBeNull();
+  await type("Nomor HP", "081234500001");
+  await press("Sambungkan langganan");
+  expect(text()).toBe(DEAD);
 });
 
-it("a signed-in customer without a verified phone verifies it on this account", async () => {
-  routes["commands:customer.claim"] = () => ({ status: 403, code: "PHONE_VERIFICATION_REQUIRED" });
-  routes["auth/phone-send"] = () => ({ data: { sent: true } });
-  routes["auth/phone-verify"] = () => ({ data: { sent: true } });
-  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
-  await press(/^Lanjut dengan/);
-  await type("Nomor HP", "081234500001");
-  await press("Kirim kode");
-  expect(calls.find((c) => c.path === "auth/phone-send")?.body).toEqual({ phone: "+6281234500001" });
-  // The account already has a name; only the code is asked for.
-  expect(() => field("Nama Anda")).toThrow();
+it("a number that differs from the recorded one is not sent and gets a plain explanation", async () => {
   routes["commands:customer.claim"] = () => ({ data: { status: "claimed" } });
   routes["customer"] = () => ({ data: { subscriptions: [], deliveries: [], addresses: [], notifications: [], cases: [] } });
-  await type("Kode", "123456");
-  await press("Sambungkan langganan");
-  expect(calls.find((c) => c.path === "auth/phone-verify")?.body).toEqual({
-    phone: "+6281234500001",
-    token: "123456",
-  });
-  expect(container.querySelector("h1")?.textContent).toBe("Tersambung, Andre");
-});
-
-it("a number that differs from the recorded one gets no SMS and a plain explanation", async () => {
-  routes["auth/send"] = () => ({ data: {} });
-  await show();
+  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
   await press(/^Lanjut dengan/);
   await type("Nomor HP", "0812 9999 0000");
-  await press("Kirim kode");
+  await press("Sambungkan langganan");
   expect(text()).toContain(
     "Nomor ini berbeda dengan yang dicatat Dapur Contoh. Pakai nomor yang Anda berikan ke Dapur Contoh, atau minta Dapur Contoh memperbarui nomor Anda.",
   );
-  expect(calls.some((c) => c.path.startsWith("auth/"))).toBe(false);
+  expect(calls.some((c) => c.path === "commands")).toBe(false);
   expect(field("Nomor HP").disabled).toBe(false);
   await type("Nomor HP", "081234500001");
-  await press("Kirim kode");
-  expect(calls.find((c) => c.path === "auth/send")?.body).toEqual({ phone: "+6281234500001", intent: "claim" });
+  await press("Sambungkan langganan");
+  expect(calls.find((c) => c.path === "commands")?.body).toMatchObject({ payload: { phone: "+6281234500001" } });
 });
 
 it("a claim sent for review never says it connected", async () => {
   const toast = () => container.querySelector(".toast")?.textContent ?? "";
   routes["commands:customer.claim"] = () => ({ data: { status: "review" } });
-  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
+  await show({ id: "u-1", role: "customer", name: "Andre Contoh", phone: "+6281234500001" } as Actor);
   await press(/^Lanjut dengan/);
   expect(text()).toContain("Dapur Contoh perlu memeriksa langganan ini dulu.");
   expect(toast()).not.toContain("tersambung");
@@ -241,7 +222,7 @@ it("a claim sent for review never says it connected", async () => {
   routes["customer"] = () => ({ data: { subscriptions: [], deliveries: [], addresses: [], notifications: [], cases: [] } });
   await act(async () => root.unmount());
   root = createRoot(container);
-  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
+  await show({ id: "u-1", role: "customer", name: "Andre Contoh", phone: "+6281234500001" } as Actor);
   await press(/^Lanjut dengan/);
   expect(toast()).toBe("Langganan tersambung.");
 });

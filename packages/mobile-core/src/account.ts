@@ -1,4 +1,3 @@
-import { normalizeCustomerPhone } from "@catera/domain";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** The slice of the mobile runtime the account calls need; `useMobile()` and `runtime` supply it. */
@@ -29,19 +28,15 @@ export type AccountErrorCode =
   | "NO_EMAIL"
   | "AUTH_RATE_LIMITED"
   | "EMAIL_IN_USE"
-  | "PHONE_IN_USE"
-  | "CODE_INVALID"
   | "INVALID_CREDENTIALS"
   | "ACCOUNT_MISMATCH"
   | "PASSWORD_REJECTED"
-  | "PHONE_CHANGE_FAILED"
   | "EMAIL_CHANGE_FAILED";
 
 type Auth = Pick<SupabaseClient, "auth">;
 type AuthFailure = { status?: number; code?: string };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const OTP = /^\d{6}$/;
 
 function fail(code: AccountErrorCode): never {
   throw new Error(code);
@@ -50,18 +45,9 @@ function fail(code: AccountErrorCode): never {
 function authFailure(error: AuthFailure, fallback: AccountErrorCode): never {
   if (error.status === 429 || error.code?.startsWith("over_")) fail("AUTH_RATE_LIMITED");
   if (error.code === "email_exists") fail("EMAIL_IN_USE");
-  if (error.code === "phone_exists") fail("PHONE_IN_USE");
   if (error.code === "email_address_invalid") fail("INVALID_INPUT");
   if (error.code === "weak_password" || error.code === "same_password") fail("PASSWORD_REJECTED");
   fail(fallback);
-}
-
-function phoneNumber(phone: string) {
-  try {
-    return normalizeCustomerPhone(phone);
-  } catch {
-    return fail("INVALID_PHONE");
-  }
 }
 
 /** Renames the signed-in person's own profile (`profile.update`). Rejects INVALID_INPUT before sending when the trimmed name is not 2 to 80 characters. */
@@ -70,35 +56,6 @@ export async function updateProfileName(command: AccountCommand, name: string): 
   const length = [...trimmed].length;
   if (length < PROFILE_NAME_MIN || length > PROFILE_NAME_MAX) fail("INVALID_INPUT");
   return command<{ name: string }>("profile.update", { name: trimmed });
-}
-
-/**
- * Sends a code to the new number (Supabase `phone_change`) on the mobile session. The web routes `auth/phone-send` and
- * `auth/phone-verify` read a cookie session, so a Bearer-only phone cannot use them. Demo sends nothing.
- */
-export async function sendPhoneChangeCode(supabase: Auth | null, demo: boolean, phone: string): Promise<AccountChange> {
-  const value = phoneNumber(phone);
-  if (demo) return { simulated: true };
-  if (!supabase) fail("NOT_CONFIGURED");
-  const { error } = await supabase.auth.updateUser({ phone: value });
-  if (error) authFailure(error, "PHONE_CHANGE_FAILED");
-  return { simulated: false };
-}
-
-/** Confirms the six-digit `phone_change` code. Any failure but a taken number or a rate limit is CODE_INVALID. In demo any six digits pass and nothing changes. */
-export async function verifyPhoneChangeCode(
-  supabase: Auth | null,
-  demo: boolean,
-  phone: string,
-  code: string,
-): Promise<AccountChange> {
-  const value = phoneNumber(phone);
-  if (!OTP.test(code)) fail("INVALID_INPUT");
-  if (demo) return { simulated: true };
-  if (!supabase) fail("NOT_CONFIGURED");
-  const { error } = await supabase.auth.verifyOtp({ phone: value, token: code, type: "phone_change" });
-  if (error) authFailure(error, "CODE_INVALID");
-  return { simulated: false };
 }
 
 /**

@@ -268,9 +268,8 @@ it("requires matching verified phone, consumes claims once and preserves snapsho
     verifiedPhone: "+6289999999999",
     requestId: crypto.randomUUID(),
   };
-  await expect(sys("pilot.claim", payload)).rejects.toThrow(
-    "CLAIM_UNAVAILABLE",
-  );
+  // A wrong number is an answer, not an exception, so its count against the link commits.
+  expect(await sys("pilot.claim", payload)).toEqual({ status: "unavailable" });
   await expect(
     localRpc(
       db,
@@ -614,4 +613,33 @@ it('keeps synthetic revenue and cost evidence outside commercial results',async(
  const m=(await read('pilot',{id:K[0]},U.platform_admin)).metrics;
  expect(m.dataMode).toBe('commercial');expect(m.processedGmv).toBe(0);expect(m.monthlyCollected).toBe(0);expect(m.refundCosts).toBe(0);expect(m.contribution).toBeNull();
  expect(m.renewals.eligible).toBe(0);
+});
+
+it("counts wrong numbers against a claim link and expires it on the fifth", async () => {
+  const claimLink = async (n: number) => {
+    const p = row({
+      customer: { name: "Attempts " + n, phone: "+628127700" + String(n).padStart(4, "0"), address },
+      startDate: addDays(localDay(), 300 + n * 10),
+      externalReference: "attempts-" + n,
+    });
+    const imported = await batch([p]);
+    const record = imported.subscriptions[0].customerRecordId;
+    const invite = await cmd("customer.invite", { catererId: K[0], customerRecordId: record });
+    const who = crypto.randomUUID();
+    await db.query("insert into v1.profiles(id,name) values($1,'Attempts')", [who]);
+    const attempt = (verifiedPhone: string) =>
+      sys("pilot.claim", { userId: who, token: invite.path.split("/").at(-1), verifiedPhone, requestId: crypto.randomUUID() });
+    const count = async () =>
+      (await db.query<any>("select failed_attempts from v1.customer_claims where customer_record_id=$1", [record])).rows[0].failed_attempts;
+    return { phone: p.customer.phone, attempt, count };
+  };
+  const spent = await claimLink(1);
+  for (let i = 1; i <= 5; i++) {
+    expect(await spent.attempt("+628999999000" + i)).toEqual({ status: "unavailable" });
+    expect(await spent.count()).toBe(i);
+  }
+  await expect(spent.attempt(spent.phone)).rejects.toThrow("CLAIM_UNAVAILABLE");
+  const kept = await claimLink(2);
+  for (let i = 1; i <= 4; i++) await kept.attempt("+628999999000" + i);
+  expect((await kept.attempt(kept.phone)).status).toBe("claimed");
 });

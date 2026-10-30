@@ -402,37 +402,21 @@ describe("Beranda skeleton, below the hero", () => {
 });
 
 describe("Masuk", () => {
-  async function codeEntered(verify: () => Promise<never>) {
+  it("the email sign-in keeps the form on screen and busies Masuk", async () => {
     const runtime = runtimeWith({ me: jest.fn(async () => ({ actor: null, demo: false })) });
-    runtime.sendPhoneOtp = jest.fn(async () => undefined);
-    runtime.verifyPhoneOtp = jest.fn(verify);
+    runtime.signInPassword = jest.fn(() => new Promise<never>(() => undefined));
     renderWith(runtime, <Masuk />);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 3456 7890");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
-    return runtime;
-  }
-
-  it("the OTP check keeps the code visible and busies Masuk", async () => {
-    await codeEntered(() => new Promise(() => undefined));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
     await act(async () => fireEvent.press(screen.getByRole("button", { name: "Masuk" })));
-    // The page stays the form: no mascot screen, the typed code still on it, and the button is the busy one.
+    // The page stays the form: no mascot screen, the typed email still on it, and the button is the busy one.
     expect(screen.queryByTestId("mascot-loading")).toBeNull();
-    expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("123456");
+    expect(screen.getByLabelText("Email").props.value).toBe("rani@example.test");
     expect(screen.getByRole("button", { name: "Masuk" }).props.accessibilityState.busy).toBe(true);
-    // A second press while it waits sends nothing more.
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    expect(runtime.signInPassword).toHaveBeenCalledTimes(1);
     expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
-  });
-
-  it("a code that does not match comes back to the form with its message and empty slots for the next try", async () => {
-    // The sixth digit submits the code by itself (spec R9).
-    await codeEntered(async () => {
-      throw Object.assign(new Error("INVALID_OTP"), { code: "INVALID_OTP" });
-    });
-    expect(await screen.findByText("Kodenya salah. Cek SMS-nya, lalu coba lagi.")).toBeTruthy();
-    expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("");
-    expect(screen.queryByTestId("mascot-loading")).toBeNull();
   });
 });
 

@@ -65,7 +65,7 @@ function build(signedIn: boolean) {
     removeChannel: async () => undefined,
   };
   (runtime as { supabase: unknown }).supabase = fake;
-  runtime.sendPhoneOtp = jest.fn(async () => void (await wait.promise));
+  runtime.signInWithGoogle = jest.fn(async () => (await wait.promise, customer)) as never;
   runtime.api = {
     ...runtime.api,
     me: jest.fn(async () => ({ actor: signedIn ? customer : null, demo: false })),
@@ -89,14 +89,14 @@ type Site = {
 
 const sites: Site[] = [
   {
-    name: "Masuk: Kirim kode",
+    name: "Masuk: Lanjut dengan Google",
     signedIn: false,
     ui: <Masuk />,
     fill: async () => {
-      fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 3456 7890");
-      return "Kirim kode";
+      await screen.findByRole("button", { name: "Lanjut dengan Google" });
+      return "Lanjut dengan Google";
     },
-    calls: (r) => (r.runtime.sendPhoneOtp as jest.Mock).mock.calls.length,
+    calls: (r) => (r.runtime.signInWithGoogle as jest.Mock).mock.calls.length,
   },
   {
     name: "Daftar: Daftar & verifikasi email",

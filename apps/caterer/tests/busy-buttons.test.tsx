@@ -34,39 +34,42 @@ const held = <T,>() => {
 const busyOf = (name: string) => screen.getByRole("button", { name }).props.accessibilityState.busy;
 
 describe("Masuk", () => {
-  it("every awaiting command button is busy while it waits: Kirim kode, and a second press sends nothing", async () => {
-    const wait = held<void>();
-    const sendPhoneOtp = jest.fn(() => wait.promise);
+  const fill = async () => {
+    fireEvent.changeText(await screen.findByLabelText("Email"), "rina@example.com");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
+  };
+
+  it("Masuk is busy while it waits, and a second press sends nothing", async () => {
+    const wait = held<{ id: string; role: string; name: string }>();
+    const signInPassword = jest.fn(() => wait.promise);
     render(
-      <MobileProvider runtime={runtimeFor(null, { sendPhoneOtp })} linkMapper={(h) => h}>
+      <MobileProvider runtime={runtimeFor(null, { signInPassword })} linkMapper={(h) => h}>
         <Masuk />
       </MobileProvider>,
     );
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234567890");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    await waitFor(() => expect(busyOf("Kirim kode")).toBe(true));
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    expect(sendPhoneOtp).toHaveBeenCalledTimes(1);
-    await act(async () => wait.resolve());
-    // The code field takes the number's place, and the button now signs in.
-    expect(await screen.findByLabelText("Kode dari SMS")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Masuk" }).props.accessibilityState.busy).toBeFalsy();
+    await fill();
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await waitFor(() => expect(busyOf("Masuk")).toBe(true));
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    expect(signInPassword).toHaveBeenCalledTimes(1);
+    await act(async () => wait.resolve({ id: "u-1", role: "owner", name: "R" }));
+    await waitFor(() => expect(busyOf("Masuk")).toBeFalsy());
   });
 
   it("a failed sign-in is a FormError that says what to check, not a loose line", async () => {
-    const sendPhoneOtp = jest.fn(async () => {
+    const signInPassword = jest.fn(async () => {
       throw new Error("SOMETHING_ODD");
     });
     render(
-      <MobileProvider runtime={runtimeFor(null, { sendPhoneOtp })} linkMapper={(h) => h}>
+      <MobileProvider runtime={runtimeFor(null, { signInPassword })} linkMapper={(h) => h}>
         <Masuk />
       </MobileProvider>,
     );
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234567890");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    await fill();
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(await screen.findByTestId("form-error")).toBeTruthy();
     expect(screen.getByText("Ada gangguan di sisi kami. Coba lagi sebentar lagi.")).toBeTruthy();
-    expect(busyOf("Kirim kode")).toBeFalsy();
+    expect(busyOf("Masuk")).toBeFalsy();
   });
 });
 

@@ -53,109 +53,72 @@ function order(): string[] {
   return out;
 }
 
-describe("Dapur Masuk, the OKX layout", () => {
-  it("shows the failure under the fields and above Masuk, with the sign-up line last", async () => {
-    runtime.signInPassword = jest.fn(async () => {
-      throw new Error("INVALID_CREDENTIALS");
-    });
+const flatStyle = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
+const keyboard = () => {
+  const handlers: Record<string, ((e?: never) => void)[]> = {};
+  jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, fn: () => void) => {
+    (handlers[event] ??= []).push(fn);
+    return { remove: jest.fn() };
+  }) as never);
+  return {
+    show: (height: number) =>
+      act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height } } as never)))),
+    hide: () => act(() => ["keyboardDidHide", "keyboardWillHide"].forEach((name) => handlers[name]?.forEach((fn) => fn()))),
+  };
+};
+const failSignIn = () =>
+  (runtime.signInPassword = jest.fn(async () => {
+    throw new Error("INVALID_CREDENTIALS");
+  }));
+
+describe("Dapur Masuk layout", () => {
+  it("shows the failure under the fields, then the Daftar and Gabung lines, then Masuk last", async () => {
+    failSignIn();
     renderMasuk();
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
-    fireEvent.changeText(screen.getByLabelText("Email"), "dapur@example.test");
+    fireEvent.changeText(await screen.findByLabelText("Email"), "dapur@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     await screen.findByTestId("form-error");
     const page = order();
     expect(page.indexOf("error")).toBeGreaterThan(page.indexOf("field:Kata sandi"));
-    expect(page.indexOf("error")).toBeLessThan(page.indexOf("button:Masuk"));
-    expect(page.indexOf("button:Daftar")).toBeGreaterThan(page.indexOf("button:Masuk"));
+    expect(page.indexOf("button:Gabung ke dapur")).toBeGreaterThan(page.indexOf("button:Daftar"));
+    expect(page.indexOf("button:Masuk")).toBeGreaterThan(page.indexOf("button:Gabung ke dapur"));
     expect(screen.getByLabelText("Email").props.value).toBe("dapur@example.test");
   });
 
-  it("keeps typed values across the method tabs and words each method", async () => {
+  it("spaces the fields 16 apart, the group gap that matches Daftar's", async () => {
     renderMasuk();
-    expect(await screen.findByText("Kami kirim kode lewat SMS ke nomor WhatsApp kamu.")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3456 7890");
-    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
-    expect(screen.getByText("Masuk dengan email dan kata sandi kamu.")).toBeTruthy();
-    fireEvent.press(screen.getByRole("tab", { name: "Nomor HP" }));
-    expect(screen.getByLabelText("Nomor WhatsApp").props.value).toBe("0812 3456 7890");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
-    expect(router.push).toHaveBeenCalledWith("/daftar");
-  });
-});
-
-describe("Dapur Masuk on the 16 rhythm", () => {
-  const flatStyle = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
-  it("spaces the fields of both methods 16 apart, the group gap that matches Daftar's", async () => {
-    renderMasuk();
-    const phone = await screen.findByTestId("masuk-fields");
-    expect(flatStyle(phone)).toMatchObject({ gap: 16 });
-    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
     expect(flatStyle(await screen.findByTestId("masuk-fields"))).toMatchObject({ gap: 16 });
   });
 
-  it("shows a failure under the fields with the keyboard open, and the padding holds one inset", async () => {
-    const handlers: Record<string, ((e?: never) => void)[]> = {};
-    jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, fn: () => void) => {
-      (handlers[event] ??= []).push(fn);
-      return { remove: jest.fn() };
-    }) as never);
-    runtime.signInPassword = jest.fn(async () => {
-      throw new Error("INVALID_CREDENTIALS");
-    });
+  it("lifts the pinned Masuk by the keyboard height only; the screen pays the inset once", async () => {
+    const kb = keyboard();
     renderMasuk();
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
-    act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height: 300 } } as never))));
-    fireEvent.changeText(screen.getByLabelText("Email"), "dapur@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
-    await screen.findByTestId("form-error");
-    expect(StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle).paddingBottom).toBe(32 + 24 + 300);
-  });
-});
-
-describe("Dapur Masuk heading and labels", () => {
-  it("follows the v2 keyboard padding: the screen pays the bottom inset once, the keyboard adds only its height", async () => {
-    const handlers: Record<string, ((e?: never) => void)[]> = {};
-    jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, fn: () => void) => {
-      (handlers[event] ??= []).push(fn);
-      return { remove: jest.fn() };
-    }) as never);
-    renderMasuk();
-    await screen.findByRole("tab", { name: "Email" });
+    await screen.findByRole("button", { name: "Masuk" });
     const pad = () => StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle).paddingBottom as number;
     const down = pad();
-    // 32 under the content and the 24 gesture-bar inset a full-screen flow pays on Android.
-    expect(down).toBe(32 + 24);
-    act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height: 300 } } as never))));
-    expect(pad()).toBe(down + 300);
-    act(() => ["keyboardDidHide", "keyboardWillHide"].forEach((name) => handlers[name]?.forEach((fn) => fn())));
+    expect(flatStyle(screen.getByTestId("screen-footer")).marginBottom ?? 0).toBe(0);
+    kb.show(300);
+    expect(flatStyle(screen.getByTestId("screen-footer")).marginBottom).toBe(300);
     expect(pad()).toBe(down);
+    kb.hide();
+    expect(flatStyle(screen.getByTestId("screen-footer")).marginBottom ?? 0).toBe(0);
   });
 
-  it("has one heading, Masuk, with the Catera Dapur wordmark where the mascot sits elsewhere", async () => {
+  it("has one heading, Masuk, under the waving mascot, and no method tabs", async () => {
     renderMasuk();
-    expect(await screen.findByText("Catera Dapur")).toBeTruthy();
+    expect(await screen.findByTestId("mascot-melambai", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.queryByText("Catera Dapur")).toBeNull();
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Masuk"]);
-    expect(screen.queryByTestId("masuk-header")).toBeNull();
-    expect(screen.queryByTestId("mascot-melambai", { includeHiddenElements: true })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Lupa kata sandi?" })).toBeNull();
-  });
-
-  it("names the phone tab Nomor HP and keeps the field Nomor WhatsApp", async () => {
-    renderMasuk();
-    expect(await screen.findByRole("tab", { name: "Nomor HP" })).toBeTruthy();
-    expect(screen.queryByRole("tab", { name: "WhatsApp" })).toBeNull();
-    expect(screen.getByLabelText("Nomor WhatsApp")).toBeTruthy();
+    expect(screen.queryByRole("tab")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
+    expect(router.push).toHaveBeenCalledWith("/daftar");
   });
 
   it("toggles the password with an eye icon whose spoken name follows its state, and outlines both fields on a failure", async () => {
-    runtime.signInPassword = jest.fn(async () => {
-      throw new Error("INVALID_CREDENTIALS");
-    });
+    failSignIn();
     renderMasuk();
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
-    fireEvent.press(screen.getByRole("button", { name: "Tampilkan kata sandi" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Tampilkan kata sandi" }));
     expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
     const edge = (label: string) => StyleSheet.flatten(screen.getByLabelText(label).props.style).borderColor;
     const [e0, p0] = [edge("Email"), edge("Kata sandi")];

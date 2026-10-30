@@ -13,7 +13,7 @@ import { useFieldCheck } from "./useFieldCheck";
 /**
  * Lupa kata sandi, for either app: an email field, a recovery link sent to it, then "Cek emailmu". The app brings its
  * own failure hook (`action`, `form`) and email rule (`emailCheck`). `art` is CheckEmail's (undefined: the reading
- * mascot, null: none); `brand` swaps the heading mascot for a wordmark.
+ * mascot, null: none).
  */
 export function RecoverForm({
   next,
@@ -22,7 +22,6 @@ export function RecoverForm({
   form,
   emailCheck,
   art,
-  brand,
   onBack,
 }: {
   /** Where to return after the new password; already a safe in-app path. */
@@ -32,7 +31,6 @@ export function RecoverForm({
   form: FormPose;
   emailCheck: (value: string) => string;
   art?: ReactNode;
-  brand?: string;
   onBack(): void;
 }) {
   const { runtime } = useMobile();
@@ -94,7 +92,7 @@ export function RecoverForm({
               "Kami kirim tautan ke emailmu. Buka tautannya di HP ini untuk membuat kata sandi baru.",
               "We'll email you a link. Open it on this phone to set a new password.",
             )}
-            brand={brand}
+           
             pose={form.pose}
           />
           <View style={{ gap: 14 }}>

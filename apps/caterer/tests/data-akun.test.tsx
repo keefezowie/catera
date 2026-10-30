@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { Linking, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -41,6 +41,7 @@ function runtimeFor(options: { actor?: Record<string, unknown>; requests?: unkno
     request: jest.fn(async (path: string) => (path === "account-requests" ? rows : [])),
     command: options.command ?? jest.fn(async () => ({})),
     usage: jest.fn(async () => undefined),
+    sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", whatsapp: "+6281234567890" } })),
   } as unknown as MobileRuntime["api"];
   return { runtime, rows };
 }
@@ -59,28 +60,37 @@ beforeEach(() => jest.clearAllMocks());
 describe("Data akun on the Dapur scale", () => {
   const flatStyle = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
 
-  it("heads each card with a 20/26 section title and puts the cards 24 apart", async () => {
+  it("is one flat form as drawn: Nama, the kitchen WhatsApp, then the Email and Kata sandi rows, 24 apart", async () => {
     const { runtime } = runtimeFor();
     renderWith(runtime, <DataAkun />);
-    await screen.findByLabelText("Kata sandi saat ini");
-    const headers = screen.getAllByRole("header");
-    expect(headers.map((h) => h.props.children)).toEqual(["Nama", "Nomor HP", "Email", "Kata sandi", "Ubah nama atau kontak dapur"]);
-    for (const h of headers) expect(flatStyle(h)).toMatchObject({ fontSize: 20, lineHeight: 26 });
-    // One column for the cards and the Hapus akun row, spaced by the Dapur section gap, not the screen's 16.
+    await screen.findByTestId("data-akun-row-password");
+    // The screen's title, then the only card left (the owner's kitchen request); the rest is flat.
+    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Data akun", "Ubah nama atau kontak dapur"]);
+    expect(screen.getByLabelText("Nama")).toBeTruthy();
+    expect(screen.getByLabelText("Nomor WhatsApp dapur")).toBeTruthy();
+    const rows = within(screen.getByTestId("data-akun-rows"));
+    expect(rows.getByText("Email")).toBeTruthy();
+    expect(rows.getByText("Kata sandi")).toBeTruthy();
+    expect(rows.getByText("••••••••")).toBeTruthy();
+    expect(rows.getByRole("button", { name: "Ganti email" })).toBeTruthy();
+    expect(rows.getByRole("button", { name: "Ganti kata sandi" })).toBeTruthy();
+    // The change forms stay closed until Ganti.
+    expect(screen.queryByLabelText("Email baru")).toBeNull();
     expect(flatStyle(screen.getByTestId("data-akun-sections"))).toMatchObject({ gap: 24 });
     expect(within(screen.getByTestId("data-akun-sections")).getByRole("button", { name: "Hapus akun" })).toBeTruthy();
   });
 
-  it("keeps the notes at 13/18 meta and a card's items 8 apart, with 50 tall fields and buttons", async () => {
+  it("puts Cek di WhatsApp with its arrow and an outlined Simpan nomor on one row, 50 tall", async () => {
     const { runtime } = runtimeFor();
     renderWith(runtime, <DataAkun />);
-    const note = await screen.findByText("Kode dikirim ke nomor baru sebelum nomor berganti.");
-    expect(flatStyle(note)).toMatchObject({ fontSize: 13, lineHeight: 18 });
-    expect(flatStyle(screen.getByText(/^Demo \(data contoh\): perubahan di halaman ini/))).toMatchObject({ fontSize: 13, lineHeight: 18 });
-    const card = screen.getByTestId("data-akun-card-phone");
-    expect(flatStyle(card)).toMatchObject({ borderRadius: 16, gap: 8 });
-    expect(flatStyle(screen.getByLabelText("Nomor HP baru"))).toMatchObject({ minHeight: 50 });
-    expect(flatStyle(screen.getByRole("button", { name: "Kirim kode" }))).toMatchObject({ minHeight: 50 });
+    const row = within(await screen.findByTestId("data-akun-wa-actions"));
+    const check = row.getByRole("button", { name: "Cek di WhatsApp" });
+    expect(within(check).getByTestId("button-trailing-icon")).toBeTruthy();
+    const save = row.getByRole("button", { name: "Simpan nomor" });
+    expect(flatStyle(screen.getByTestId("data-akun-wa-actions"))).toMatchObject({ flexDirection: "row" });
+    expect(flatStyle(screen.getByLabelText("Nomor WhatsApp dapur"))).toMatchObject({ minHeight: 50 });
+    expect(flatStyle(save)).toMatchObject({ minHeight: 50, borderWidth: 1 });
+    expect(flatStyle(screen.getByText(/^Demo \(data contoh\): nama dan nomor WhatsApp tersimpan/))).toMatchObject({ fontSize: 13, lineHeight: 18 });
   });
 
   it("an owner's request card shows its last request status in 13/18 meta", async () => {
@@ -92,7 +102,7 @@ describe("Data akun on the Dapur scale", () => {
   it("a staff account has no kitchen request card", async () => {
     const { runtime } = runtimeFor({ actor: staff });
     renderWith(runtime, <DataAkun />);
-    await screen.findByLabelText("Nama kamu");
+    await screen.findByLabelText("Nama");
     expect(screen.queryByRole("header", { name: "Ubah nama atau kontak dapur" })).toBeNull();
   });
 });
@@ -133,9 +143,10 @@ describe("Data akun", () => {
   it("keeps the kitchen request for the owner and gives staff the personal rows only", async () => {
     const { runtime } = runtimeFor({ actor: staff });
     renderWith(runtime, <DataAkun />);
-    await screen.findByLabelText("Nama kamu");
+    await screen.findByLabelText("Nama");
     expect(screen.queryByLabelText("Apa yang diubah?")).toBeNull();
-    expect(screen.getByText("Nomor HP")).toBeTruthy();
+    expect(screen.queryByLabelText("Nomor WhatsApp dapur")).toBeNull();
+    expect(runtime.api.sellerOperations).not.toHaveBeenCalled();
     expect(screen.getByText("Email")).toBeTruthy();
   });
 
@@ -143,8 +154,9 @@ describe("Data akun", () => {
     const command = jest.fn(async () => ({ name: "Bu Rina Wati" }));
     const { runtime } = runtimeFor({ command });
     renderWith(runtime, <DataAkun />);
-    const field = await screen.findByLabelText("Nama kamu");
-    expect(screen.getByRole("button", { name: "Simpan nama" }).props.accessibilityState.disabled).toBe(true);
+    const field = await screen.findByLabelText("Nama");
+    // Nothing to save until the name changes.
+    expect(screen.queryByRole("button", { name: "Simpan nama" })).toBeNull();
     fireEvent.changeText(field, "Bu Rina Wati");
     fireEvent.press(screen.getByRole("button", { name: "Simpan nama" }));
     await waitFor(() => expect(command).toHaveBeenCalledWith("profile.update", { name: "Bu Rina Wati" }, expect.any(String)));
@@ -154,27 +166,74 @@ describe("Data akun", () => {
   it("a name that is too short is a FormError at the button, not a loose line", async () => {
     const { runtime } = runtimeFor();
     renderWith(runtime, <DataAkun />);
-    fireEvent.changeText(await screen.findByLabelText("Nama kamu"), "A");
+    fireEvent.changeText(await screen.findByLabelText("Nama"), "A");
     fireEvent.press(screen.getByRole("button", { name: "Simpan nama" }));
     const error = await screen.findByTestId("form-error");
     expect(within(error).getByText("Periksa isiannya, lalu coba lagi.")).toBeTruthy();
   });
 
-  it("changing the phone number asks for a code first, and demo says nothing was sent", async () => {
-    const { runtime } = runtimeFor();
+  it("prefills the kitchen WhatsApp, opens it in WhatsApp and saves a new one through seller.whatsapp", async () => {
+    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    const command = jest.fn(async () => ({ catererId: "k-1", whatsapp: "+6281299998888" }));
+    const { runtime } = runtimeFor({ command });
     renderWith(runtime, <DataAkun />);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP baru"), "081234567890");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    expect(await screen.findByLabelText("Kode dari SMS")).toBeTruthy();
-    expect(screen.getByText(/Demo \(data contoh\): tidak ada SMS yang dikirim/)).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "123456");
-    fireEvent.press(screen.getByRole("button", { name: "Ganti nomor" }));
-    expect(await screen.findByText("Demo (data contoh): nomor tidak benar-benar diganti.")).toBeTruthy();
+    await waitFor(() => expect(screen.getByLabelText("Nomor WhatsApp dapur").props.value).toBe("081234567890"));
+    expect(runtime.api.sellerOperations).toHaveBeenCalledWith("k-1");
+    expect(screen.getByText("Pelanggan menghubungimu lewat nomor ini. Tidak dipakai untuk masuk.")).toBeTruthy();
+    // Nothing changed yet, so there is nothing to save.
+    expect(screen.getByRole("button", { name: "Simpan nomor" })).toBeDisabled();
+    fireEvent.press(screen.getByRole("button", { name: "Cek di WhatsApp" }));
+    expect(open).toHaveBeenCalledWith("https://wa.me/6281234567890");
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp dapur"), "0812");
+    expect(screen.getByText("Nomor WhatsApp belum lengkap. Contoh: 0812 3456 7890")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Simpan nomor" })).toBeDisabled();
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp dapur"), "0812 9999 8888");
+    fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("seller.whatsapp", { whatsapp: "+6281299998888", catererId: "k-1" }, expect.any(String)));
+    expect(await screen.findByText("Nomor tersimpan")).toBeTruthy();
+  });
+
+  it("keeps the typed number on screen while the save is read back, never flashing empty", async () => {
+    let saved = "+6281234567890";
+    // The first read answers at once; every read after the save waits until the test lets it go.
+    const held: Array<() => void> = [];
+    let reads = 0;
+    const command = jest.fn(async () => {
+      saved = "+6281299998888";
+      return { catererId: "k-1", whatsapp: saved };
+    });
+    const { runtime } = runtimeFor({ command });
+    (runtime.api as { sellerOperations: unknown }).sellerOperations = jest.fn(() =>
+      reads++ === 0
+        ? Promise.resolve({ caterer: { id: "k-1", whatsapp: saved } })
+        : new Promise((resolve) => held.push(() => resolve({ caterer: { id: "k-1", whatsapp: saved } }))),
+    );
+    renderWith(runtime, <DataAkun />);
+    await waitFor(() => expect(screen.getByLabelText("Nomor WhatsApp dapur").props.value).toBe("081234567890"));
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp dapur"), "0812 9999 8888");
+    fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
+    await waitFor(() => expect(command).toHaveBeenCalled());
+    // The read back is still on its way: the typed number stays.
+    expect(screen.getByLabelText("Nomor WhatsApp dapur").props.value).toBe("0812 9999 8888");
+    await act(async () => held.forEach((go) => go()));
+    await waitFor(() => expect(screen.getByLabelText("Nomor WhatsApp dapur").props.value).toBe("081299998888"));
+  });
+
+  it("an emptied number clears it, and no phone code is asked for anywhere", async () => {
+    const command = jest.fn(async () => ({ catererId: "k-1", whatsapp: null }));
+    const { runtime } = runtimeFor({ command });
+    renderWith(runtime, <DataAkun />);
+    await waitFor(() => expect(screen.getByLabelText("Nomor WhatsApp dapur").props.value).toBe("081234567890"));
+    expect(screen.queryByText(/Kode dari SMS|Kirim kode/)).toBeNull();
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp dapur"), "");
+    fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("seller.whatsapp", { whatsapp: null, catererId: "k-1" }, expect.any(String)));
   });
 
   it("an email change never claims to be done: it names both inboxes", async () => {
     const { runtime } = runtimeFor();
     renderWith(runtime, <DataAkun />);
+    fireEvent.press(await screen.findByRole("button", { name: "Ganti email" }));
     fireEvent.changeText(await screen.findByLabelText("Email baru"), "rina@contoh.id");
     fireEvent.press(screen.getByRole("button", { name: "Kirim tautan konfirmasi" }));
     expect(await screen.findByText("Demo (data contoh): tidak ada email yang dikirim.")).toBeTruthy();
@@ -183,7 +242,10 @@ describe("Data akun", () => {
   it("the password section waits for the current password and eight characters", async () => {
     const { runtime } = runtimeFor();
     renderWith(runtime, <DataAkun />);
-    const button = async () => screen.getByRole("button", { name: "Ganti kata sandi" });
+    fireEvent.press(await screen.findByRole("button", { name: "Ganti kata sandi" }));
+    // The row's own button now closes the form; the form's button is the one that saves.
+    expect(screen.getByRole("button", { name: "Tutup ganti kata sandi" })).toBeTruthy();
+    const button = async () => screen.getAllByRole("button", { name: "Ganti kata sandi" }).pop()!;
     fireEvent.changeText(await screen.findByLabelText("Kata sandi saat ini"), "lama-sekali");
     fireEvent.changeText(screen.getByLabelText("Kata sandi baru"), "pendek");
     expect((await button()).props.accessibilityState.disabled).toBe(true);

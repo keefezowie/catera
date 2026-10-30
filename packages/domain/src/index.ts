@@ -31,6 +31,8 @@ export type Actor = {
   name: string;
   role: "customer" | "owner" | "staff" | "platform_admin";
   catererId?: string;
+  /** The person's own phone (E.164): typed through profile.update, else a verified auth phone. */
+  phone?: string | null;
 };
 export type Address = {
   id: string;
@@ -52,6 +54,8 @@ export type Caterer = {
   timezone: string;
   version: number;
   review_note?: string;
+  /** The kitchen's WhatsApp (E.164), on the owner's seller read only. */
+  whatsapp?: string | null;
   offers?: Offer[];
 };
 export { nextStartAfter, purchaseStartAvailable, startDates } from "./checkout-eligibility";
@@ -654,6 +658,10 @@ export const errors: Record<string, string> = {
     "Email atau kata sandinya salah.",
   AUTH_RATE_LIMITED:
     "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
+  NOT_AVAILABLE:
+    "Cara masuk ini belum bisa dipakai di HP ini. Pilih cara lain.",
+  INVALID_PHONE:
+    "Nomor HP belum benar. Contoh: 0812 3456 7890",
   FORBIDDEN:
     "Akun ini tidak bisa melakukan itu.",
   CUSTOMER_NOT_LINKED:
@@ -745,6 +753,10 @@ const errorsEn: Record<string, string> = {
     "Wrong email or password.",
   AUTH_RATE_LIMITED:
     "Too many sign-in attempts. Wait a moment and try again.",
+  NOT_AVAILABLE:
+    "This sign-in option isn't available on this phone. Choose another.",
+  INVALID_PHONE:
+    "That phone number isn't right. Example: 0812 3456 7890",
   FORBIDDEN:
     "This account can't do that.",
   CUSTOMER_NOT_LINKED:

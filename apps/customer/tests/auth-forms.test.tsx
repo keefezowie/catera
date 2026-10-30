@@ -84,7 +84,7 @@ const renderWith = (ui: React.ReactElement) =>
 const hidden = { includeHiddenElements: true };
 const submit = (name = "Masuk") => fireEvent.press(screen.getByRole("button", { name }));
 const emailTab = async () => {
-  fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+  fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
 };
 const fill = (email = "rani@example.test", password = "synthetic-password") => {
   fireEvent.changeText(screen.getByLabelText("Email"), email);
@@ -178,7 +178,7 @@ describe("Masuk validation and errors", () => {
         throw new Error("AUTH_RATE_LIMITED");
       });
       renderWith(<Masuk />);
-      fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+      fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
       fill();
       submit();
       const wait = await screen.findByRole("button", { name: "Coba lagi dalam 1:00" });
@@ -219,45 +219,8 @@ describe("Masuk validation and errors", () => {
     await waitFor(() => expect(within(screen.getByTestId("masuk-error")).queryByText("Coba lagi")).toBeNull());
   });
 
-  it("the verified ring shows for 400ms before the screen leaves", async () => {
-    jest.useFakeTimers();
-    try {
-      runtime.sendPhoneOtp = jest.fn(async () => undefined);
-      runtime.verifyPhoneOtp = jest.fn(async () => ({ id: "u-1" })) as never;
-      renderWith(<Masuk />);
-      fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 3456 7890");
-      fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-      fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
-      expect(await screen.findByTestId("code-verified", hidden)).toBeTruthy();
-      expect(router.replace).not.toHaveBeenCalled();
-      await act(async () => {
-        jest.advanceTimersByTime(399);
-      });
-      expect(mockLeave).not.toHaveBeenCalled();
-      await act(async () => {
-        jest.advanceTimersByTime(1);
-      });
-      expect(mockLeave).toHaveBeenCalledTimes(1);
-    } finally {
-      jest.useRealTimers();
-    }
-  });
 
-  it("the code screen names the number it went to, masked once", async () => {
-    runtime.sendPhoneOtp = jest.fn(async () => undefined);
-    renderWith(<Masuk />);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 3456 7890");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    expect(await screen.findByText("Kode dikirim ke 0812 •••• 7890", hidden)).toBeTruthy();
-  });
 
-  it("a phone press with nothing typed shows the field message and sends nothing", async () => {
-    runtime.sendPhoneOtp = jest.fn();
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Kirim kode" }));
-    expect(await screen.findByText("Isi nomor HP-mu dulu.")).toBeTruthy();
-    expect(runtime.sendPhoneOtp).not.toHaveBeenCalled();
-  });
 
   it("mascot is bingung after a failure and melambai after the next edit", async () => {
     renderWith(<Masuk />);
@@ -310,26 +273,6 @@ describe("Masuk validation and errors", () => {
     expect(runtime.signInPassword).toHaveBeenLastCalledWith("rani@example.test", "typed-after-the-failure", expect.any(String), "Pelanggan");
   });
 
-  it("Coba lagi after a server failure on the code check re-sends the typed code and counts no wrong code", async () => {
-    runtime.sendPhoneOtp = jest.fn(async () => undefined);
-    let calls = 0;
-    runtime.verifyPhoneOtp = jest.fn(async (_phone: string, code: string) => {
-      calls += 1;
-      if (calls === 1) throw Object.assign(new Error("AUTH_UNAVAILABLE"), { code: "AUTH_UNAVAILABLE" });
-      if (code !== "123456") throw Object.assign(new Error("INVALID_OTP"), { code: "INVALID_OTP" });
-      return { id: "u-1" };
-    }) as never;
-    renderWith(<Masuk />);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 3456 7890");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
-    const error = await screen.findByTestId("masuk-error");
-    expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("123456");
-    fireEvent.press(within(error).getByText("Coba lagi"));
-    await waitFor(() => expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(2));
-    expect((runtime.verifyPhoneOtp as jest.Mock).mock.calls[1][1]).toBe("123456");
-    expect(screen.queryByText(/Kodenya salah/)).toBeNull();
-  });
 
   it("a registered email offers its Masuk action, never Coba lagi", async () => {
     supabase.auth.signUp.mockResolvedValueOnce({ data: { session: null, user: { id: "u-old", identities: [] } }, error: null } as never);
@@ -343,13 +286,226 @@ describe("Masuk validation and errors", () => {
     expect(within(error).queryByText("Coba lagi")).toBeNull();
   });
 
-  it("opens on the Email tab with the address filled when Daftar sends it", async () => {
+  it("opens on the email step with the address filled when Daftar sends it", async () => {
     mockParams = { email: "rani@example.test" };
     renderWith(<Masuk />);
     expect((await screen.findByLabelText("Email")).props.value).toBe("rani@example.test");
-    expect(screen.getByRole("tab", { name: "Email" }).props.accessibilityState.selected).toBe(true);
+    expect(screen.queryByRole("button", { name: "Lanjut dengan Google" })).toBeNull();
   });
 
+});
+
+describe("Masuk providers", () => {
+  const customer = { id: "u-g1", role: "customer", name: "Sari Wulandari", phone: "+6281234567890" };
+
+  it("offers Google and email, Apple only where the device has it, and the legal line", async () => {
+    renderWith(<Masuk />);
+    expect(await screen.findByText("Masuk ke Catera")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Lanjut dengan Google" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Lanjut dengan email" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Lanjut dengan Apple" })).toBeNull();
+    expect(screen.getByTestId("legal-line")).toBeTruthy();
+    for (const link of screen.getAllByRole("link")) expect(StyleSheet.flatten(link.props.style).textDecorationLine).toBe("underline");
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+    // No phone sign-in is left.
+    expect(screen.queryByLabelText("Nomor HP")).toBeNull();
+    expect(screen.queryByRole("tab")).toBeNull();
+  });
+
+  it("shows Apple when the device offers it, and signs in with it", async () => {
+    jest.replaceProperty(require("react-native").Platform, "OS", "ios");
+    (require("expo-apple-authentication").isAvailableAsync as jest.Mock).mockResolvedValueOnce(true);
+    runtime.signInWithApple = jest.fn(async () => customer) as never;
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Apple" }));
+    await waitFor(() => expect(mockLeave).toHaveBeenCalledWith("/"));
+    expect(runtime.signInWithApple).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it("Google success signs in and leaves for next", async () => {
+    mockParams = { next: "/jadwal" };
+    runtime.signInWithGoogle = jest.fn(async () => customer) as never;
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
+    await waitFor(() => expect(mockLeave).toHaveBeenCalledWith("/jadwal"));
+    expect(runtime.signInWithGoogle).toHaveBeenCalledWith("catera://auth/callback", expect.any(String));
+  });
+
+  it("a cancelled Google page is silent; a failure shows under the buttons with Coba lagi", async () => {
+    runtime.signInWithGoogle = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("CANCELLED"))
+      .mockRejectedValueOnce(new Error("AUTH_UNAVAILABLE"))
+      .mockResolvedValueOnce(customer) as never;
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
+    await waitFor(() => expect(runtime.signInWithGoogle).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("masuk-error")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Lanjut dengan Google" }));
+    const error = await screen.findByTestId("masuk-error");
+    expect(within(error).getByText("Ada gangguan di sisi kami. Coba lagi sebentar lagi.")).toBeTruthy();
+    fireEvent.press(within(error).getByText("Coba lagi"));
+    await waitFor(() => expect(mockLeave).toHaveBeenCalledTimes(1));
+  });
+
+  it("NOT_AVAILABLE is said plainly", async () => {
+    runtime.signInWithGoogle = jest.fn(async () => {
+      throw new Error("NOT_AVAILABLE");
+    }) as never;
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
+    expect(await screen.findByText("Cara masuk ini belum bisa dipakai di HP ini. Pilih cara lain.")).toBeTruthy();
+  });
+
+  it("the email step has its back, Lupa kata sandi and Daftar dengan email", async () => {
+    renderWith(<Masuk />);
+    await emailTab();
+    expect(screen.getByText("Masuk dengan email")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Daftar dengan email" }));
+    expect(router.push).toHaveBeenCalledWith({ pathname: "/register", params: { next: "/" } });
+    fireEvent.press(screen.getByRole("button", { name: "Kembali ke pilihan masuk" }));
+    expect(await screen.findByRole("button", { name: "Lanjut dengan Google" })).toBeTruthy();
+  });
+
+  it("opens on the email step when asked to (the claim's email button)", async () => {
+    mockParams = { method: "email", next: "/claim/abc" };
+    renderWith(<Masuk />);
+    expect(await screen.findByLabelText("Email")).toBeTruthy();
+  });
+});
+
+describe("Lengkapi akun", () => {
+  const session = (user: Record<string, unknown>) =>
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { user } } } as never);
+  const google = { app_metadata: { provider: "google" }, user_metadata: { full_name: "Sari Wulandari" } };
+  const fresh = { id: "u-g2", role: "customer", name: "Pelanggan", phone: null };
+
+  beforeEach(() => {
+    (supabase.auth as Record<string, unknown>).updateUser = jest.fn(async () => ({ data: {}, error: null }));
+  });
+
+  const signIn = async () => {
+    runtime.signInWithGoogle = jest.fn(async () => fresh) as never;
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
+  };
+
+  it("shows after a first Google sign-in, prefilled, and saves name and WhatsApp", async () => {
+    session(google);
+    runtime.api = { ...runtime.api, command: jest.fn(async () => ({})) } as never;
+    mockParams = { next: "/jadwal" };
+    await signIn();
+    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+    expect(screen.getByLabelText("Nama").props.value).toBe("Sari Wulandari");
+    expect(screen.getByText("Dari akun Google-mu. Ubah kalau perlu.")).toBeTruthy();
+    expect(screen.getByTestId("step-bar").props.accessibilityLabel).toBe("Langkah 1 dari 2");
+    expect(mockLeave).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    expect(await screen.findByText("Nomor WhatsApp-mu")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812");
+    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    expect(await screen.findByText("Nomornya belum benar. Contoh: 0812 3456 7890")).toBeTruthy();
+    expect(runtime.api.command).not.toHaveBeenCalled();
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3456 7890");
+    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    await waitFor(() => expect(mockLeave).toHaveBeenCalledWith("/jadwal"));
+    expect(runtime.api.command).toHaveBeenCalledWith(
+      "profile.update",
+      { name: "Sari Wulandari", phone: "+6281234567890" },
+      expect.any(String),
+    );
+    expect(supabase.auth.updateUser).toHaveBeenCalledWith({ data: { catera_onboarded: true } });
+    expect(store.get("catera.onboarded.u-g2")).toBe("1");
+  });
+
+  it("Nanti saja keeps the name, skips the number and never shows again", async () => {
+    session(google);
+    runtime.api = { ...runtime.api, command: jest.fn(async () => ({})) } as never;
+    await signIn();
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Nanti saja" }));
+    await waitFor(() => expect(mockLeave).toHaveBeenCalledWith("/"));
+    expect(runtime.api.command).toHaveBeenCalledWith("profile.update", { name: "Sari Wulandari" }, expect.any(String));
+    screen.unmount();
+    mockLeave.mockClear();
+    await signIn();
+    await waitFor(() => expect(mockLeave).toHaveBeenCalledWith("/"));
+    expect(screen.queryByText("Halo! Siapa namamu?")).toBeNull();
+  });
+
+  it("Nanti saja with the name unchanged sends nothing, so it works offline", async () => {
+    session({ app_metadata: { provider: "google" }, user_metadata: {} });
+    runtime.api = { ...runtime.api, command: jest.fn(async () => Promise.reject(new Error("OFFLINE"))) } as never;
+    runtime.signInWithGoogle = jest.fn(async () => ({ ...fresh, name: "Sari" })) as never;
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Nanti saja" }));
+    await waitFor(() => expect(mockLeave).toHaveBeenCalledWith("/"));
+    expect(runtime.api.command).not.toHaveBeenCalled();
+    expect(store.get("catera.onboarded.u-g2")).toBe("1");
+  });
+
+  it("Android's back on step 2 returns to step 1", async () => {
+    const { BackHandler } = require("react-native");
+    const handlers: (() => boolean)[] = [];
+    jest.spyOn(BackHandler, "addEventListener").mockImplementation(((_: string, h: () => boolean) => {
+      handlers.push(h);
+      return { remove: () => handlers.splice(handlers.indexOf(h), 1) };
+    }) as never);
+    session(google);
+    await signIn();
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut" }));
+    expect(await screen.findByText("Nomor WhatsApp-mu")).toBeTruthy();
+    let handled = false;
+    act(() => {
+      handled = handlers[handlers.length - 1]();
+    });
+    expect(handled).toBe(true);
+    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+  });
+
+  it("a provider sign-in forgets a pending email link, whose PKCE verifier it replaced", async () => {
+    store.set("catera.auth.pending", JSON.stringify({ purpose: "signup", next: "/", at: Date.now(), email: "rani@example.test" }));
+    session({ ...google, user_metadata: { catera_onboarded: true } });
+    await signIn();
+    await waitFor(() => expect(mockLeave).toHaveBeenCalled());
+    expect(store.has("catera.auth.pending")).toBe(false);
+  });
+
+  it("step 2's back returns to the name", async () => {
+    session(google);
+    await signIn();
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Kembali" }));
+    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+  });
+
+  it("is skipped when the account says it was done, or already has a name and a number", async () => {
+    session({ ...google, user_metadata: { ...google.user_metadata, catera_onboarded: true } });
+    await signIn();
+    await waitFor(() => expect(mockLeave).toHaveBeenCalledWith("/"));
+    screen.unmount();
+    mockLeave.mockClear();
+    store.clear();
+    session(google);
+    runtime.signInWithGoogle = jest.fn(async () => ({ ...fresh, id: "u-g3", name: "Sari", phone: "+6281234567890" })) as never;
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
+    await waitFor(() => expect(mockLeave).toHaveBeenCalledWith("/"));
+  });
+
+  it("an email account with no number gets no provider hint", async () => {
+    session({ app_metadata: { provider: "email" }, user_metadata: { name: "Rani" } });
+    runtime.signInPassword = jest.fn(async () => ({ id: "u-e1", role: "customer", name: "Rani", phone: null })) as never;
+    renderWith(<Masuk />);
+    await emailTab();
+    fill();
+    submit();
+    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+    expect(screen.getByLabelText("Nama").props.value).toBe("Rani");
+    expect(screen.queryByText(/Dari akun/)).toBeNull();
+  });
 });
 
 describe("Daftar validation and errors", () => {

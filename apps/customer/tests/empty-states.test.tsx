@@ -216,15 +216,6 @@ const STATES: State[] = [
     copy: ["Mau makan apa minggu ini?"],
     action: "Jelajah paket",
   },
-  {
-    name: "the claim link preview",
-    pose: "melambai",
-    runtime: () => runtimeWith({}, null),
-    ui: <ClaimRoute />,
-    params: { token: "t".repeat(64) },
-    copy: ["Dari Dapur Contoh", "Makan Siang Rumahan"],
-    action: "Lanjut dengan 0812-•••-0001",
-  },
   // bingung: could not connect or load.
   {
     name: "Belum bisa terhubung",
@@ -426,7 +417,7 @@ describe("each empty and error state shows its pose and keeps its copy and actio
 
   it("draws the art at 72 on a 360dp phone at font scale 1.3, so the title and action stay above the fold", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    for (const state of [STATES[0], STATES[3], STATES[6], STATES[7]]) {
+    for (const state of [STATES[0], STATES[3], STATES[6]]) {
       const art = await open(state);
       expect(artHeight(art)).toBe(72);
       screen.unmount();

@@ -178,7 +178,10 @@ it("shares a helper invite code over WhatsApp", async () => {
   fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
   await waitFor(() => expect(share).toHaveBeenCalled());
   expect(command.mock.calls[0]).toEqual(["staff.invite", { catererId: "k-1" }, expect.any(String)]);
-  expect((share.mock.calls[0][0] as { message: string }).message).toContain("abc123");
+  // The helper joins through Gabung ke dapur with the code; nothing says to sign in with a phone number.
+  expect((share.mock.calls[0][0] as { message: string }).message).toBe(
+    "Halo! Pasang aplikasi Catera Dapur, daftar lewat 'Gabung ke dapur', lalu masukkan kode undangan ini: abc123",
+  );
 });
 
 it("lets a helper join a kitchen with the invite code", async () => {

@@ -97,3 +97,20 @@ jest.mock("@react-native-community/netinfo", () => {
 afterEach(() => {
   require("@react-native-community/netinfo").__set();
 });
+// Google and Apple sign-in (mobile-core `signInWithGoogle`, `signInWithApple`, `isAppleSignInAvailable`) reach native
+// modules Jest does not have. The stand-ins resolve as a cancelled browser and an unavailable Apple sign-in; a test that
+// drives either flow sets its own result with `mockResolvedValueOnce` or `mockRejectedValueOnce`.
+jest.mock("expo-web-browser", () => ({
+  openAuthSessionAsync: jest.fn(async () => ({ type: "cancel" })),
+  openBrowserAsync: jest.fn(async () => ({ type: "opened" })),
+  maybeCompleteAuthSession: jest.fn(() => ({ type: "failed" })),
+  dismissAuthSession: jest.fn(),
+  WebBrowserResultType: { CANCEL: "cancel", DISMISS: "dismiss", OPENED: "opened", LOCKED: "locked" },
+}));
+jest.mock("expo-apple-authentication", () => ({
+  isAvailableAsync: jest.fn(async () => false),
+  signInAsync: jest.fn(async () => {
+    throw Object.assign(new Error("The user canceled the authorization attempt."), { code: "ERR_REQUEST_CANCELED" });
+  }),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+}));

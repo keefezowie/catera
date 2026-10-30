@@ -21,6 +21,8 @@ const config: ExpoConfig = {
     },
     supportsTablet: true,
     bundleIdentifier: "id.catera.customer",
+    // Sign in with Apple (sign-in rethink, 2026-10-30): the entitlement AppleAuthentication.signInAsync needs.
+    usesAppleSignIn: true,
     ...(webHost ? { associatedDomains: [`applinks:${webHost}`] } : {}),
   },
   android: {
@@ -51,6 +53,7 @@ const config: ExpoConfig = {
     "expo-sharing",
     "expo-router",
     "expo-secure-store",
+    "expo-apple-authentication",
     ["expo-notifications", { color: "#163D2E" }],
     // One splash in both themes (the system draws it before the app's stored theme is known): the forest of the app icon with
     // the icon's mascot, a processed transparent derivative inside the Android 12+ circular safe zone. LaunchCover repeats it.

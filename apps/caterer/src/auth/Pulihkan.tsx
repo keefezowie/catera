@@ -10,8 +10,6 @@ export function Pulihkan() {
   const action = useAuthRun();
   return (
     <RecoverForm
-      brand="Catera Dapur"
-      art={null}
       next="/"
       redirectTo={redirectFor("catera-dapur")}
       action={action}

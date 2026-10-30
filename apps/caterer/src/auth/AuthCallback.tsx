@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { BackHandler } from "react-native";
+import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
-import { exchangeEmailLink, readPending, redirectFor, resendLink, saveNewPassword, useMobile } from "@catera/mobile-core";
+import { authClient, ensureActor, exchangeEmailLink, readPending, redirectFor, resendLink, saveNewPassword, useMobile, type Pending } from "@catera/mobile-core";
 import { AuthHeading, AuthOutcome, AuthScreen, Button, CheckEmail, ExpiredLink, FormError, NewPasswordForm } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
 import { formPose, useAuthRun } from "./useAuthRun";
@@ -10,36 +11,54 @@ import { formPose, useAuthRun } from "./useAuthRun";
 type Phase = "checking" | "recovery" | "expired" | "sent" | "reset";
 
 /**
- * catera-dapur://auth/callback: sets a new password after recovery (the person stays signed in, then is told so).
- * Dapur has no email sign-up, so any other intent, a link with no code or an error, or no pending request on this
+ * catera-dapur://auth/callback: a sign-up link (Daftar, Gabung) signs the person in and opens the tabs, where RoleGate
+ * finishes the sign-up; a recovery link sets a new password (the person stays signed in, then is told so).
+ * A link with no code or an error, or no pending request on this
  * phone goes straight to the expired screen without asking the server.
  */
 export function AuthCallback() {
-  const { runtime, refresh, t } = useMobile();
+  const { runtime, refresh, signedIn, t } = useMobile();
   const navigation = useNavigation();
   const params = useLocalSearchParams<{ code?: string; error?: string }>();
   const code = typeof params.code === "string" ? params.code : "";
   const linkError = typeof params.error === "string" ? params.error : "";
   const [phase, setPhase] = useState<Phase>("checking");
-  // Only a recovery request is Dapur's to resend; anything else on file is not shown as an address.
+  // What this phone asked for (Daftar and Gabung ask for a sign-up link), and the address it went to.
+  const [purpose, setPurpose] = useState<Pending["purpose"]>("recovery");
   const [email, setEmail] = useState("");
   const [resent, setResent] = useState(false);
   const [left, setLeft] = useState(false);
   const recoveryUser = useRef("");
+  // A sign-up link already spent: a retry only makes the profile again, never re-exchanges the code.
+  const signedUp = useRef<string | null>(null);
   const started = useRef(false);
   const leaving = useRef(false);
   const run = useAuthRun();
 
+  // A confirmed sign-up is signed in; RoleGate then makes the kitchen or accepts the invite and opens Hari ini.
+  const enter = async (name: string) => {
+    await signedIn(await ensureActor(authClient(runtime), name || "Katering", Crypto.randomUUID()));
+    goToTab("index");
+  };
+
   // Only a link the server or this phone rejects is "expired"; offline keeps the link for Coba lagi (spec 7).
   const check = async () => {
+    if (signedUp.current !== null) return enter(signedUp.current);
     const stored = await readPending(runtime);
-    if (stored?.purpose === "recovery") setEmail(stored.email);
+    if (stored) {
+      setPurpose(stored.purpose);
+      setEmail(stored.email);
+    }
     try {
-      const link = await exchangeEmailLink(runtime, stored, { code, linkError }, ["recovery"]);
+      const link = await exchangeEmailLink(runtime, stored, { code, linkError }, ["signup", "recovery"]);
+      if (link.purpose === "signup") {
+        signedUp.current = link.name;
+        return await enter(link.name);
+      }
       recoveryUser.current = link.userId;
       setPhase("recovery");
     } catch (e) {
-      if ((e as Error).message === "OFFLINE") throw e;
+      if ((e as Error).message === "OFFLINE" || signedUp.current !== null) throw e;
       setPhase("expired");
     }
   };
@@ -63,13 +82,13 @@ export function AuthCallback() {
     run.run(async () => {
       const again = phase === "sent";
       if (again) setResent(false);
-      await resendLink(runtime, { purpose: "recovery", next: "/", email }, redirectFor("catera-dapur"));
+      await resendLink(runtime, { purpose, next: "/", email }, redirectFor("catera-dapur"));
       setPhase("sent");
       if (again) setResent(true);
     });
 
   const toSignIn = () => router.replace("/masuk" as never);
-  const enterEmail = () => router.replace("/pulihkan" as never);
+  const enterEmail = () => router.replace((purpose === "signup" ? "/daftar" : "/pulihkan") as never);
 
   // Back, swipe and the hardware key from the outcome go where Lanjut goes, never back into the form.
   const outcome = phase === "reset";
@@ -104,7 +123,7 @@ export function AuthCallback() {
         primary={{ label: t("Lanjut", "Continue"), onPress: () => void proceed() }}
       />
     );
-  if (phase === "recovery") return <NewPasswordForm brand="Catera Dapur" action={run} form={formPose} onSave={savePassword} onBack={toSignIn} />;
+  if (phase === "recovery") return <NewPasswordForm action={run} form={formPose} onSave={savePassword} onBack={toSignIn} />;
 
   const failed = run.message ? (
     <FormError message={run.message} failureKey={run.failures} testID="identity-error" retry={run.retryable ? () => void resend() : undefined} />
@@ -112,7 +131,7 @@ export function AuthCallback() {
   if (phase === "expired")
     return (
       <ExpiredLink
-        brand="Catera Dapur"
+        pose={run.code === "OFFLINE" ? "mencari" : "bingung"}
         email={email}
         busy={run.busy}
         error={failed}
@@ -126,8 +145,11 @@ export function AuthCallback() {
       <AuthScreen revealKey={run.failures}>
         <CheckEmail
           email={email}
-          intro={t("Kalau email ini terdaftar, tautan pemulihan sudah kami kirim ke", "If this email has an account, we've sent a recovery link to")}
-          art={null}
+          intro={
+            purpose === "signup"
+              ? t("Kalau email ini bisa didaftarkan, tautan verifikasi sudah kami kirim ke", "If this email can be registered, we've sent a verification link to")
+              : t("Kalau email ini terdaftar, tautan pemulihan sudah kami kirim ke", "If this email has an account, we've sent a recovery link to")
+          }
           resent={resent}
           resendBusy={run.busy}
           error={failed}
@@ -139,7 +161,7 @@ export function AuthCallback() {
     );
   return (
     <AuthScreen revealKey={run.failures}>
-      <AuthHeading brand="Catera Dapur" title={t("Pemulihan akun", "Account recovery")} subtitle={t("Memeriksa tautan…", "Checking your link…")} />
+      <AuthHeading pose={run.message ? "bingung" : "membaca"} title={purpose === "signup" ? t("Verifikasi email", "Email verification") : t("Pemulihan akun", "Account recovery")} subtitle={t("Memeriksa tautan…", "Checking your link…")} />
       {run.message ? <FormError message={run.message} failureKey={run.failures} testID="identity-error" retry={() => void run.run(check)} /> : null}
     </AuthScreen>
   );

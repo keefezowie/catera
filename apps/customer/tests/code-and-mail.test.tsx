@@ -1,49 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Linking } from "react-native";
 import * as IntentLauncher from "expo-intent-launcher";
-import { CheckEmail, CodeInput, maskPhone } from "@catera/mobile-ui";
+import { CheckEmail } from "@catera/mobile-ui";
 
 jest.mock("expo-intent-launcher", () => ({ startActivityAsync: jest.fn(async () => ({})) }));
-
-function Code(props: Partial<React.ComponentProps<typeof CodeInput>> & { onFilled?: (code: string) => void }) {
-  return <CodeInput label="Kode dari SMS" value="" onChangeText={() => undefined} onFilled={() => undefined} {...props} />;
-}
-
-describe("shared code entry", () => {
-  it("maskPhone keeps 4 and 4", () => {
-    expect(maskPhone("0812 3456 7890")).toBe("0812 •••• 7890");
-    expect(maskPhone("+62 812 3456 7890")).toBe("0812 •••• 7890");
-  });
-
-  it("writes the masked number above the boxes", () => {
-    render(<Code sentTo="0812 3456 7890" />);
-    expect(screen.getByText("Kode dikirim ke 0812 •••• 7890")).toBeTruthy();
-  });
-
-  it("wrong code shows the message under the boxes", () => {
-    render(<Code error="Kodenya salah. Cek SMS-nya, lalu coba lagi." errorKey={1} />);
-    const message = screen.getByText("Kodenya salah. Cek SMS-nya, lalu coba lagi.");
-    expect(message.props.selectable).toBe(true);
-    expect(screen.getByTestId("code-error")).toBeTruthy();
-  });
-
-  it("onFilled fires once for a code filled twice", () => {
-    const onFilled = jest.fn();
-    render(<Code onFilled={onFilled} />);
-    const input = screen.getByLabelText("Kode dari SMS");
-    fireEvent.changeText(input, "123456");
-    fireEvent.changeText(input, "123456");
-    expect(onFilled).toHaveBeenCalledTimes(1);
-    expect(onFilled).toHaveBeenCalledWith("123456");
-  });
-
-  it("verified ring renders with testID code-verified", () => {
-    const { rerender } = render(<Code />);
-    expect(screen.queryByTestId("code-verified")).toBeNull();
-    rerender(<Code verified />);
-    expect(screen.getByTestId("code-verified")).toBeTruthy();
-  });
-});
 
 describe("shared Cek emailmu", () => {
   const props = { email: "rani@example.test", intro: "Kami kirim tautan ke", resendBusy: false, onResend: () => undefined, onChangeEmail: () => undefined };

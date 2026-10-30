@@ -13,3 +13,11 @@ it("matches a number to the claim preview's mask by its first and last four loca
 it("writes an E.164 number the local way", () => {
   expect(localCustomerPhone("+6281234500001")).toBe("0812-3450-0001");
 });
+
+it("normalizes every way people write an Indonesian number, and drops a trunk 0 kept after the code", async () => {
+  const { normalizeCustomerPhone } = await import("@catera/domain");
+  for (const written of ["0812 3450 0001", "62812-3450-0001", "+62 812 3450 0001", "+62 0812 3450 0001", "0062812 3450 0001", "0062 0812 3450 0001", "(0812) 3450.0001"])
+    expect(normalizeCustomerPhone(written)).toBe("+6281234500001");
+  for (const bad of ["812 3450 0001", "+1 555 123 4567", "+62 0", "0812", "+62 00812 3450 0001", "+620"])
+    expect(() => normalizeCustomerPhone(bad)).toThrow("PHONE");
+});

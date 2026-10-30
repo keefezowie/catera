@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowRight, Check, CircleAlert } from "lucide-react";
@@ -8,7 +8,6 @@ import {
   dayLabel,
   durationOptions,
   jakartaDay,
-  localCustomerPhone,
   normalizeCustomerPhone,
   phoneMatchesMask,
   purchaseCommitment,
@@ -33,9 +32,9 @@ const TRANSIENT = [
 const failureCode = (e: unknown) => (e as { code?: string }).code || "";
 const transient = (e: unknown) =>
   !failureCode(e) || TRANSIENT.includes(failureCode(e));
-type ClaimStage = "lihat" | "nomor" | "kode" | "selesai" | "tinjau";
-/** A caterer's claim link, web first: the package before any phone number, then the
- * SMS code, then the next days and the app. Anyone holding the link sees the preview;
+type ClaimStage = "lihat" | "nomor" | "selesai" | "tinjau";
+/** A caterer's claim link, web first: the package before any phone number, then sign-in
+ * and the number the caterer recorded (no SMS: the link is the secret), then the next days and the app. Anyone holding the link sees the preview;
  * nothing from it is shown once the link turns out to be unusable. */
 export function ClaimCustomer({ token }: { token: string }) {
   const { t, perform, actor, locale } = useApp();
@@ -44,12 +43,8 @@ export function ClaimCustomer({ token }: { token: string }) {
     [attempt, setAttempt] = useState(0),
     [stage, setStage] = useState<ClaimStage>("lihat"),
     [phone, setPhone] = useState(""),
-    [sentTo, setSentTo] = useState(""),
-    [codeError, setCodeError] = useState(""),
     [who, setWho] = useState(""),
     [days, setDays] = useState<UpcomingRow[]>([]);
-  // A used SMS code cannot be verified twice: a retry after a dropped claim skips it.
-  const verified = useRef("");
   // Read once per token: after the claim the same token answers NOT_FOUND.
   useEffect(() => {
     let live = true;
@@ -87,13 +82,13 @@ export function ClaimCustomer({ token }: { token: string }) {
     );
   if (!preview) return <Loading />;
   const katering = preview.catererName;
-  async function claim(name: string) {
+  async function claim(name: string, phone: string) {
     let result: { status?: string };
     try {
-      result = await perform<{ status?: string }>("customer.claim", { token });
+      result = await perform<{ status?: string }>("customer.claim", { token, phone });
     } catch (e) {
-      // A signed-in account without a verified phone verifies it first.
-      if (stage === "lihat" && failureCode(e) === "PHONE_VERIFICATION_REQUIRED")
+      // The account's own number was tried for the person: let them type the recorded one, once.
+      if (stage === "lihat" && ["CLAIM_UNAVAILABLE", "INVALID_INPUT"].includes(failureCode(e)))
         return setStage("nomor");
       if (transient(e)) throw e;
       return setFailure("dead");
@@ -162,8 +157,8 @@ export function ClaimCustomer({ token }: { token: string }) {
               <p>
                 <strong>{t("Tahu saat makanan berangkat", "Know when your food leaves")}</strong>
                 {t(
-                  "Aplikasi Catera memberi notifikasi saat diantar. Masuk dengan nomor yang sama.",
-                  "The Catera app notifies you when it’s on the way. Sign in with the same number.",
+                  "Aplikasi Catera memberi notifikasi saat diantar. Masuk dengan akun yang sama.",
+                  "The Catera app notifies you when it’s on the way. Sign in with the same account.",
                 )}
               </p>
             </div>
@@ -179,152 +174,64 @@ export function ClaimCustomer({ token }: { token: string }) {
       </section>
     );
   }
-  if (stage === "nomor" || stage === "kode") {
-    const sent = stage === "kode";
+  if (stage === "nomor" && actor) {
     return (
       <section className="claim narrow">
         <div className="claim-intro">
-          <h1>
-            {sent
-              ? t("Masukkan kode dari SMS", "Enter the code from the SMS")
-              : t("Nomor HP Anda", "Your phone number")}
-          </h1>
+          <h1>{t("Nomor HP Anda", "Your phone number")}</h1>
           <p>
-            {sent
-              ? t(
-                  `Kami kirim 6 angka ke ${localCustomerPhone(sentTo)}, nomor yang dicatat ${katering}.`,
-                  `We sent 6 digits to ${localCustomerPhone(sentTo)}, the number ${katering} recorded.`,
-                )
-              : t(
-                  `Tulis nomor yang dicatat ${katering} (${preview.maskedPhone}). Kami kirim kode lewat SMS.`,
-                  `Enter the number ${katering} recorded (${preview.maskedPhone}). We’ll text you a code.`,
-                )}
+            {t(
+              `Tulis nomor yang dicatat ${katering} (${preview.maskedPhone}).`,
+              `Enter the number ${katering} recorded (${preview.maskedPhone}).`,
+            )}
           </p>
         </div>
-        {!sent ? (
-          <ActionForm
-            key="nomor"
-            submit={t("Kirim kode", "Send code")}
-            validate={() => {
-              let normalized: string;
-              try {
-                normalized = normalizeCustomerPhone(phone);
-              } catch {
-                return t(
-                  "Tulis nomor HP yang benar, misalnya 0812 3456 7890.",
-                  "Enter a valid phone number, for example 0812 3456 7890.",
-                );
-              }
-              // Another number could never claim this link: say so before any SMS
-              // (or, signed out, any new account) instead of failing at the end.
-              if (!phoneMatchesMask(normalized, preview.maskedPhone))
-                return t(
-                  `Nomor ini berbeda dengan yang dicatat ${katering}. Pakai nomor yang Anda berikan ke ${katering}, atau minta ${katering} memperbarui nomor Anda.`,
-                  `This number differs from the one ${katering} has. Use the number you gave ${katering}, or ask ${katering} to update it.`,
-                );
-            }}
-            onSubmit={async () => {
-              const normalized = normalizeCustomerPhone(phone);
-              // Signed in: verify the number on this account. Otherwise the code signs in.
-              if (actor)
-                await api.request("auth/phone-send", { phone: normalized });
-              else
-                await api.request("auth/send", {
-                  phone: normalized,
-                  intent: "claim",
-                });
-              setSentTo(normalized);
-              setCodeError("");
-              setStage("kode");
-            }}
-          >
-            <Field label={t("Nomor HP", "Phone number")}>
-              <TextInput
-                type="tel"
-                autoComplete="tel"
-                placeholder="0812…"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-              />
-            </Field>
-          </ActionForm>
-        ) : (
-          <ActionForm
-            key="kode"
-            submit={t("Sambungkan langganan", "Connect subscription")}
-            actions={(submitButton) => (
-              <div className="claim-actions">
-                {submitButton}
-                <p className="claim-hint">
-                  {t(
-                    "Dengan melanjutkan, Anda setuju dengan Ketentuan dan Kebijakan Privasi Catera.",
-                    "By continuing, you agree to Catera’s Terms and Privacy Policy.",
-                  )}
-                </p>
-              </div>
-            )}
-            onSubmit={async (f) => {
-              const name = String(f.get("name") || "").trim();
-              if (verified.current !== sentTo) {
-                try {
-                  if (actor)
-                    await api.request("auth/phone-verify", {
-                      phone: sentTo,
-                      token: f.get("code"),
-                    });
-                  else
-                    await api.request("auth/verify", {
-                      phone: sentTo,
-                      token: f.get("code"),
-                      name,
-                    });
-                } catch (e) {
-                  if (transient(e)) throw e;
-                  setCodeError(
-                    t(
-                      "Kode belum cocok. Periksa SMS lalu coba lagi.",
-                      "That code doesn’t match. Check the SMS and try again.",
-                    ),
-                  );
-                  return;
-                }
-                verified.current = sentTo;
-              }
-              await claim(actor ? actor.name : name);
-            }}
-          >
-            <Field label={t("Kode", "Code")} error={codeError}>
-              <TextInput
-                name="code"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                autoComplete="one-time-code"
-                required
-                onChange={() => setCodeError("")}
-              />
-            </Field>
-            {!actor && (
-              <Field label={t("Nama Anda", "Your name")}>
-                <TextInput
-                  name="name"
-                  autoComplete="name"
-                  maxLength={100}
-                  required
-                />
-              </Field>
-            )}
-          </ActionForm>
-        )}
-        <Button
-          type="button"
-          variant="text"
-          onClick={() => setStage(sent ? "nomor" : "lihat")}
+        <ActionForm
+          key="nomor"
+          submit={t("Sambungkan langganan", "Connect subscription")}
+          actions={(submitButton) => (
+            <div className="claim-actions">
+              {submitButton}
+              <p className="claim-hint">
+                {t(
+                  "Dengan melanjutkan, Anda setuju dengan Ketentuan dan Kebijakan Privasi Catera.",
+                  "By continuing, you agree to Catera’s Terms and Privacy Policy.",
+                )}
+              </p>
+            </div>
+          )}
+          validate={() => {
+            let normalized: string;
+            try {
+              normalized = normalizeCustomerPhone(phone);
+            } catch {
+              return t(
+                "Tulis nomor HP yang benar, misalnya 0812 3456 7890.",
+                "Enter a valid phone number, for example 0812 3456 7890.",
+              );
+            }
+            // Another number could never claim this link (and each wrong try counts against it): say so first.
+            if (!phoneMatchesMask(normalized, preview.maskedPhone))
+              return t(
+                `Nomor ini berbeda dengan yang dicatat ${katering}. Pakai nomor yang Anda berikan ke ${katering}, atau minta ${katering} memperbarui nomor Anda.`,
+                `This number differs from the one ${katering} has. Use the number you gave ${katering}, or ask ${katering} to update it.`,
+              );
+          }}
+          onSubmit={() => claim(actor.name, normalizeCustomerPhone(phone))}
         >
-          {sent
-            ? t("Ganti nomor", "Change number")
-            : t("Kembali", "Back")}
+          <Field label={t("Nomor HP", "Phone number")}>
+            <TextInput
+              type="tel"
+              autoComplete="tel"
+              placeholder="0812…"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
+          </Field>
+        </ActionForm>
+        <Button type="button" variant="text" onClick={() => setStage("lihat")}>
+          {t("Kembali", "Back")}
         </Button>
       </section>
     );
@@ -384,8 +291,14 @@ export function ClaimCustomer({ token }: { token: string }) {
           </div>
         )}
         onSubmit={async () => {
-          // A signed-in account whose phone is already verified connects right away.
-          if (actor) await claim(actor.name);
+          // Signed out: sign in (or register) first, then come back to this link.
+          if (!actor)
+            return window.location.assign(
+              "/login?next=" + encodeURIComponent(window.location.pathname + window.location.search),
+            );
+          // A signed-in account whose number matches the record connects right away.
+          if (actor.phone && phoneMatchesMask(actor.phone, preview.maskedPhone))
+            await claim(actor.name, actor.phone);
           else setStage("nomor");
         }}
       >

@@ -6,7 +6,7 @@ import { Button, Text } from "../components";
 import { themedStyles, useColors } from "../theme";
 import { fontFor } from "../type";
 import { useT } from "../useT";
-import { ResendButton, useResendTimer } from "./CodeInput";
+import { ResendButton, useResendTimer } from "./resend";
 
 /** How long "Terkirim" shows after a resend before the countdown takes over. */
 export const SENT_SHOWN_MS = 3000;

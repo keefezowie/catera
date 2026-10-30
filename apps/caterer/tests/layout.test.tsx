@@ -172,7 +172,7 @@ describe("demo strip", () => {
 
   it("shows no strip outside demo mode", async () => {
     render(<RootLayout />);
-    await screen.findByTestId("header:(auth)/daftar");
+    await screen.findByTestId("header:(auth)/pulihkan");
     expect(screen.queryByText("Demo (data contoh)")).toBeNull();
   });
 });

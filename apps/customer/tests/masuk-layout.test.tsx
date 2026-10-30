@@ -92,7 +92,7 @@ describe("Masuk, the OKX layout", () => {
       throw new Error("INVALID_CREDENTIALS");
     });
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
@@ -102,7 +102,7 @@ describe("Masuk, the OKX layout", () => {
     expect(at("error")).toBeGreaterThan(at("field:Kata sandi"));
     expect(at("error")).toBeGreaterThan(at("button:Lupa kata sandi?"));
     expect(at("error")).toBeLessThan(at("button:Masuk"));
-    expect(at("error")).toBeLessThan(at("button:Daftar"));
+    expect(at("error")).toBeLessThan(at("button:Daftar dengan email"));
     expect(screen.getByTestId("masuk-error").props.accessibilityLiveRegion).toBe("polite");
   });
 
@@ -111,7 +111,7 @@ describe("Masuk, the OKX layout", () => {
       throw new Error("INVALID_CREDENTIALS");
     });
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const before = borderOf("Kata sandi");
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
@@ -122,40 +122,8 @@ describe("Masuk, the OKX layout", () => {
     expect(screen.getByLabelText("Kata sandi").props.value).toBe("");
   });
 
-  it("puts the sign-up line under the primary button, after the form", async () => {
-    renderWith(<Masuk />);
-    await screen.findByRole("button", { name: "Kirim kode" });
-    const page = order();
-    expect(page.indexOf("button:Daftar")).toBeGreaterThan(page.indexOf("button:Kirim kode"));
-    expect(screen.getByText("Belum punya akun?")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
-    expect(router.push).toHaveBeenCalledWith({ pathname: "/register", params: { next: "/" } });
-  });
 
-  it("keeps what was typed when the method changes, and says what each method needs", async () => {
-    renderWith(<Masuk />);
-    expect(await screen.findByText(/Pakai nomor HP yang kamu berikan ke katering/)).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Nomor HP"), "0812 3456 7890");
-    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
-    expect(screen.getByText("Masuk dengan email dan kata sandi kamu.")).toBeTruthy();
-    expect(screen.queryByText(/Pakai nomor HP yang kamu berikan/)).toBeNull();
-    expect(screen.queryByLabelText("Nomor HP")).toBeNull();
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByRole("tab", { name: "Nomor HP" }));
-    expect(screen.getByLabelText("Nomor HP").props.value).toBe("0812 3456 7890");
-    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
-    expect(screen.getByLabelText("Email").props.value).toBe("rani@example.test");
-    expect(screen.getByLabelText("Kata sandi").props.value).toBe("synthetic-password");
-  });
 
-  it("marks the chosen method as selected and sets the title at the start", async () => {
-    renderWith(<Masuk />);
-    expect((await screen.findByRole("tab", { name: "Nomor HP" })).props.accessibilityState.selected).toBe(true);
-    expect(screen.getByRole("tab", { name: "Email" }).props.accessibilityState.selected).toBe(false);
-    const title = screen.getByRole("header", { name: "Masuk" });
-    expect(StyleSheet.flatten(title.props.style).textAlign).not.toBe("center");
-  });
 
   it("shows the 56dp mascot mark, gives its room back while the keyboard is up and brings it back", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
@@ -176,25 +144,26 @@ describe("Masuk, the OKX layout", () => {
     await waitFor(() => expect(slot()).toMatchObject({ height: 56, opacity: 1 }));
   });
 
-  it("adds the Android keyboard's height under the page and scrolls to the error and the button when a sign-in fails", async () => {
+  it("lifts the pinned footer over the Android keyboard and scrolls to the error and the button when a sign-in fails", async () => {
     const kb = keyboard();
     const scrollToEnd = jest.spyOn(ScrollView.prototype as never as { scrollToEnd: () => void }, "scrollToEnd").mockImplementation(() => undefined);
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
-    const pad = () => StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle).paddingBottom as number;
-    const down = pad();
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    // The pinned footer (Daftar and Masuk) rises by the keyboard's height; the scroll view above it shrinks.
+    const lift = () => (StyleSheet.flatten(screen.getByTestId("screen-footer").props.style).marginBottom ?? 0) as number;
+    expect(lift()).toBe(0);
     kb.show(300);
-    expect(pad()).toBe(down + 300);
+    expect(lift()).toBe(300);
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     await screen.findByTestId("masuk-error");
     await waitFor(() => expect(scrollToEnd).toHaveBeenCalled());
     kb.hide();
-    expect(pad()).toBe(down);
+    expect(lift()).toBe(0);
   });
 
   it.each([false, true])("does not scroll the page by itself when the keyboard comes up (reduced motion %s)", async (reducedMotion) => {
@@ -202,7 +171,7 @@ describe("Masuk, the OKX layout", () => {
     const kb = keyboard();
     const scrollToEnd = jest.spyOn(ScrollView.prototype as never as { scrollToEnd: (o?: { animated?: boolean }) => void }, "scrollToEnd").mockImplementation(() => undefined);
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     kb.show(300);
     await new Promise((r) => setTimeout(r, 50));
     expect(scrollToEnd).not.toHaveBeenCalled();
@@ -222,25 +191,13 @@ describe("Masuk, the OKX layout", () => {
     spy.mockRestore();
   });
 
-  it("gives every tab a 48dp target and the password toggle an eye icon with a stateful spoken name", async () => {
-    renderWith(<Masuk />);
-    for (const name of ["Nomor HP", "Email"]) {
-      const tab = await screen.findByRole("tab", { name });
-      expect(StyleSheet.flatten(tab.props.style)).toMatchObject({ minWidth: 48, minHeight: 48 });
-    }
-    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
-    const toggle = screen.getByRole("button", { name: "Tampilkan kata sandi" });
-    expect(screen.queryByText("Tampilkan")).toBeNull();
-    fireEvent.press(toggle);
-    expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
-  });
 
   it("outlines both the email and the password after a credentials error", async () => {
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const [e0, p0] = [borderOf("Email"), borderOf("Kata sandi")];
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
@@ -250,168 +207,109 @@ describe("Masuk, the OKX layout", () => {
     expect(borderOf("Kata sandi")).not.toBe(p0);
   });
 
-  it("offers Lupa kata sandi? under the password field on the email path only", async () => {
+
+  it("on the email step puts the sign-up line above Masuk, as drawn", async () => {
     renderWith(<Masuk />);
-    await screen.findByRole("button", { name: "Kirim kode" });
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    const page = order();
+    expect(page.indexOf("button:Daftar dengan email")).toBeLessThan(page.indexOf("button:Masuk"));
+    expect(page.indexOf("button:Daftar dengan email")).toBeGreaterThan(page.indexOf("button:Lupa kata sandi?"));
+    expect(screen.getByText("Belum punya akun?")).toBeTruthy();
+  });
+
+  it("keeps what was typed when going back to the providers and returning", async () => {
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    expect(screen.getByText("Pakai email dan kata sandi akun Catera-mu.")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    const back = screen.getByRole("button", { name: "Kembali ke pilihan masuk" });
+    expect(StyleSheet.flatten(back.props.style)).toMatchObject({ width: 48, height: 48 });
+    fireEvent.press(back);
+    expect(screen.queryByLabelText("Email")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Lanjut dengan email" }));
+    expect(screen.getByLabelText("Email").props.value).toBe("rani@example.test");
+    expect(screen.getByLabelText("Kata sandi").props.value).toBe("synthetic-password");
+  });
+
+  it("sets the title at the start, with providers as 52 pills and no method tabs", async () => {
+    renderWith(<Masuk />);
+    const title = await screen.findByRole("header", { name: "Masuk ke Catera" });
+    expect(StyleSheet.flatten(title.props.style).textAlign).not.toBe("center");
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(StyleSheet.flatten(screen.getByTestId("provider-google").props.style).minHeight).toBe(52);
+    // Lupa kata sandi? belongs to the email step only.
     expect(screen.queryByRole("button", { name: "Lupa kata sandi?" })).toBeNull();
-    fireEvent.press(screen.getByRole("tab", { name: "Email" }));
+  });
+
+  it("puts Lupa kata sandi? right under the password field and gives the toggle a stateful name", async () => {
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const page = order();
     const gap = page.slice(page.indexOf("field:Kata sandi") + 1, page.indexOf("button:Lupa kata sandi?"));
     expect(page.indexOf("button:Lupa kata sandi?")).toBeGreaterThan(-1);
     expect(gap.every((s) => s === "button:Tampilkan kata sandi")).toBe(true);
+    expect(screen.queryByText("Tampilkan")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Tampilkan kata sandi" }));
+    expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
+  });
+
+  it("pins Belum punya akun? Daftar dengan email and Masuk at the bottom of the email step", async () => {
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    const footer = screen.getByTestId("screen-footer");
+    expect(within(footer).getByRole("button", { name: "Daftar dengan email" })).toBeTruthy();
+    expect(within(footer).getByRole("button", { name: "Masuk" })).toBeTruthy();
+    expect(within(footer).queryByLabelText("Email")).toBeNull();
+  });
+
+  it("hides the header Close on the email step, so the page's back is the one nav control, and brings it back", async () => {
+    const { NavigationContext } = require("expo-router/react-navigation");
+    const setOptions = jest.fn();
+    const nav = { setOptions, isFocused: () => true, addListener: () => () => undefined, getParent: () => undefined, getState: () => ({ type: "stack", routes: [] }) };
+    render(
+      <NavigationContext.Provider value={nav as never}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <Masuk />
+        </MobileProvider>
+      </NavigationContext.Provider>,
+    );
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await waitFor(() => expect(setOptions).toHaveBeenCalled());
+    expect(setOptions.mock.calls.at(-1)[0].headerLeft()).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Kembali ke pilihan masuk" }));
+    await waitFor(() => expect(setOptions.mock.calls.at(-1)[0].headerLeft()).not.toBeNull());
+  });
+
+  it("Android's back on the email step returns to the providers instead of closing Masuk", async () => {
+    const { BackHandler } = require("react-native");
+    const handlers: (() => boolean)[] = [];
+    jest.spyOn(BackHandler, "addEventListener").mockImplementation(((_: string, h: () => boolean) => {
+      handlers.push(h);
+      return { remove: () => handlers.splice(handlers.indexOf(h), 1) };
+    }) as never);
+    renderWith(<Masuk />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    expect(handlers).toHaveLength(1);
+    let handled = false;
+    act(() => {
+      handled = handlers[0]();
+    });
+    expect(handled).toBe(true);
+    expect(await screen.findByRole("button", { name: "Lanjut dengan Google" })).toBeTruthy();
+    // On the providers the back is the modal's own again.
+    expect(handlers).toHaveLength(0);
   });
 
   it("shows and hides the password", async () => {
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     expect(screen.getByLabelText("Kata sandi").props.secureTextEntry).toBe(true);
     fireEvent.press(screen.getByRole("button", { name: "Tampilkan kata sandi" }));
     expect(screen.getByLabelText("Kata sandi").props.secureTextEntry).toBe(false);
     expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
   });
 
-});
-
-describe("Masuk, the SMS code", () => {
-  const slots = () => screen.getAllByTestId(/^code-slot-\d$/, { includeHiddenElements: true });
-  const slotText = () =>
-    slots().map((s) => (within(s).queryByText(/\d/, { includeHiddenElements: true })?.props.children as string | undefined) ?? "");
-  const toCode = async () => {
-    if (!jest.isMockFunction(runtime.sendPhoneOtp)) runtime.sendPhoneOtp = jest.fn(async () => undefined);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 3456 7890");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    return screen.findByLabelText("Kode dari SMS");
-  };
-
-  it("the SMS code is 6 slots and the sixth digit submits once", async () => {
-    let settle: (v: unknown) => void = () => {};
-    runtime.verifyPhoneOtp = jest.fn(() => new Promise((resolve) => (settle = resolve))) as never;
-    renderWith(<Masuk />);
-    const input = await toCode();
-    expect(input.props.textContentType).toBe("oneTimeCode");
-    expect(input.props.autoComplete).toBe("sms-otp");
-    expect(input.props.keyboardType).toBe("number-pad");
-    expect(input.props.maxLength).toBe(6);
-    expect(slots()).toHaveLength(6);
-    // Digits only: what is not a digit is dropped.
-    fireEvent.changeText(input, "12-34a5");
-    expect(slotText()).toEqual(["1", "2", "3", "4", "5", ""]);
-    expect(runtime.verifyPhoneOtp).not.toHaveBeenCalled();
-    // The current slot (the sixth, still empty) carries the ring; a filled one does not.
-    const edge = (i: number) => StyleSheet.flatten(slots()[i].props.style).borderColor;
-    expect(edge(5)).toBe(nativeThemes.light.forest);
-    expect(edge(0)).toBe(nativeThemes.light.fieldBorder);
-    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "123456");
-    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "123456");
-    await waitFor(() => expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(1));
-    expect(runtime.verifyPhoneOtp).toHaveBeenCalledWith("+6281234567890", "123456", "Pelanggan", expect.any(String));
-    // While it is checked, pressing Masuk sends nothing more.
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
-    expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(1);
-    await act(async () => settle({ id: "u-c1", role: "customer", name: "Rani" }));
-  });
-
-  it("a code pasted whole into empty slots submits once, and the slots hold still while it is checked", async () => {
-    let settle: (v: unknown) => void = () => {};
-    runtime.verifyPhoneOtp = jest.fn(() => new Promise((resolve) => (settle = resolve))) as never;
-    renderWith(<Masuk />);
-    const input = await toCode();
-    expect(input.props.selectTextOnFocus).toBe(false);
-    fireEvent.changeText(input, "123456");
-    await waitFor(() => expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(1));
-    expect(slotText()).toEqual(["1", "2", "3", "4", "5", "6"]);
-    expect(screen.getByLabelText("Kode dari SMS").props.editable).toBe(false);
-    await act(async () => settle({ id: "u-c1", role: "customer", name: "Rani" }));
-    expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(1);
-  });
-
-  it("names the code once for a screen reader: the input carries the label, the visible one is hidden", async () => {
-    renderWith(<Masuk />);
-    await toCode();
-    const visible = screen.getByText("Kode dari SMS", { includeHiddenElements: true });
-    expect(visible.props.importantForAccessibility).toBe("no");
-    expect(visible.props.accessibilityElementsHidden).toBe(true);
-    expect(screen.getByLabelText("Kode dari SMS").props.accessibilityLabel).toBe("Kode dari SMS");
-  });
-
-  it("a wrong code shows the error and clears the slots", async () => {
-    runtime.verifyPhoneOtp = jest.fn(async () => {
-      throw Object.assign(new Error("INVALID_OTP"), { code: "INVALID_OTP" });
-    });
-    renderWith(<Masuk />);
-    fireEvent.changeText(await toCode(), "123456");
-    // Worded under the boxes (spec 6), not in the FormError.
-    expect(await screen.findByText("Kodenya salah. Cek SMS-nya, lalu coba lagi.")).toBeTruthy();
-    expect(screen.queryByTestId("masuk-error")).toBeNull();
-    expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("");
-    expect(slotText()).toEqual(["", "", "", "", "", ""]);
-    // The slots carry the danger edge, and the error sits above Masuk.
-    expect(StyleSheet.flatten(slots()[1].props.style).borderColor).toBe(nativeThemes.light.danger);
-    // The number stays typed.
-    expect(screen.getByLabelText("Nomor HP").props.value).toBe("0812 3456 7890");
-    // A new code is tried as soon as its sixth digit is in.
-    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "654321");
-    await waitFor(() => expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(2));
-  });
-
-  it("Kirim ulang counts down 60 seconds then calls sendPhoneOtp", async () => {
-    jest.useFakeTimers();
-    try {
-      renderWith(<Masuk />);
-      await toCode();
-      expect(runtime.sendPhoneOtp).toHaveBeenCalledTimes(1);
-      expect(screen.getByRole("button", { name: "Kirim ulang dalam 1:00" })).toBeDisabled();
-      act(() => jest.advanceTimersByTime(18_000));
-      expect(screen.getByRole("button", { name: "Kirim ulang dalam 0:42" })).toBeDisabled();
-      act(() => jest.advanceTimersByTime(42_000));
-      const ready = screen.getByRole("button", { name: "Kirim ulang kode" });
-      expect(ready).not.toBeDisabled();
-      // Ganti nomor stays its own action.
-      expect(screen.getByRole("button", { name: "Ganti nomor" })).toBeTruthy();
-      fireEvent.press(ready);
-      await waitFor(() => expect(runtime.sendPhoneOtp).toHaveBeenCalledTimes(2));
-      expect(runtime.sendPhoneOtp).toHaveBeenLastCalledWith("+6281234567890");
-      expect(await screen.findByRole("button", { name: "Kirim ulang dalam 1:00" })).toBeDisabled();
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  it("fits the 6 slots at 360dp and font scale 1.3, with slots that grow instead of clipping", async () => {
-    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
-    renderWith(<Masuk />);
-    await toCode();
-    const widths = slots().map((s) => StyleSheet.flatten(s.props.style).width as number);
-    const slot = Math.min(48, (360 - 32 - 5 * 8) / 6);
-    for (const w of widths) expect(w).toBeLessThanOrEqual(slot);
-    expect(widths.reduce((a, b) => a + b, 0) + 5 * 8).toBeLessThanOrEqual(360 - 32);
-    for (const s of slots()) {
-      const style = StyleSheet.flatten(s.props.style);
-      expect(style.height).toBeUndefined();
-      expect(style.minHeight).toBeGreaterThanOrEqual(48);
-    }
-    // The countdown is a text button whose words wrap rather than truncate.
-    const resend = screen.getByRole("button", { name: "Kirim ulang dalam 1:00" });
-    for (const text of within(resend).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
-  });
-
-  it("draws the slots from the dark palette", async () => {
-    const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    render(
-      <ThemeProvider storageKey="masuk-dark-test">
-        <MobileProvider runtime={runtime} linkMapper={customerLink}>
-          <Masuk />
-        </MobileProvider>
-      </ThemeProvider>,
-    );
-    await toCode();
-    const dark = nativeThemes.dark;
-    const first = StyleSheet.flatten(slots()[0].props.style);
-    expect(first.backgroundColor).toBe(dark.inputFill);
-    expect(first.borderColor).toBe(dark.forest);
-    expect(StyleSheet.flatten(slots()[1].props.style).borderColor).toBe(dark.fieldBorder);
-    scheme.mockRestore();
-  });
 });
 
 describe("Daftar, the same layout", () => {

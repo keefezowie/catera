@@ -18,7 +18,6 @@ jest.mock("expo-notifications", () => ({
 }));
 
 const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
-const newActor = { id: "u-9", role: "owner", name: "Bu Rina", catererId: null };
 
 function makeRuntime(options: { demo?: boolean; request?: jest.Mock; command?: jest.Mock; actor?: unknown } = {}) {
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "auth-account", app: "dapur" });
@@ -28,6 +27,7 @@ function makeRuntime(options: { demo?: boolean; request?: jest.Mock; command?: j
     request: options.request ?? jest.fn(async () => []),
     command: options.command ?? jest.fn(async () => ({})),
     usage: jest.fn(async () => undefined),
+    sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", whatsapp: null } })),
   } as unknown as MobileRuntime["api"];
   return runtime;
 }
@@ -46,126 +46,45 @@ const renderWith = (runtime: MobileRuntime, ui: React.ReactNode) =>
 beforeEach(() => jest.clearAllMocks());
 afterEach(() => jest.useRealTimers());
 
-async function reachCodeStep(runtime: MobileRuntime) {
-  renderWith(runtime, <Daftar />);
-  fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Rina");
-  fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "081234567890");
-  fireEvent.press(screen.getByText("Jakarta Selatan"));
-  fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-  await screen.findByLabelText("Kode dari SMS");
-}
-
-describe("Daftar retry and recovery", () => {
-  const setup = () => {
-    const command = jest.fn().mockRejectedValueOnce(new Error("NETWORK")).mockResolvedValue({});
-    const runtime = makeRuntime({ command });
-    runtime.sendPhoneOtp = jest.fn(async () => undefined) as never;
-    runtime.verifyPhoneOtp = jest.fn(async () => newActor) as never;
-    return { runtime, command };
-  };
-
-  it("verifies the code once: a failed seller.create retries without verifying again, with the same slug", async () => {
-    const { runtime, command } = setup();
-    await reachCodeStep(runtime);
-    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "123456");
-    fireEvent.press(screen.getByRole("button", { name: "Buat dapur saya" }));
-    await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Buat dapur saya" })).toBeEnabled());
-    fireEvent.press(screen.getByRole("button", { name: "Buat dapur saya" }));
-    await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
-    expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(1);
-    expect(command.mock.calls[1][1].slug).toBe(command.mock.calls[0][1].slug);
-    expect(command.mock.calls[1][2]).toBe(command.mock.calls[0][2]);
-  });
-
-  it("once verified, the retry needs no code and the resend action is gone", async () => {
-    const { runtime, command } = setup();
-    await reachCodeStep(runtime);
-    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "123456");
-    fireEvent.press(screen.getByRole("button", { name: "Buat dapur saya" }));
-    await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
-    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "");
-    await waitFor(() => expect(screen.getByRole("button", { name: "Buat dapur saya" })).toBeEnabled());
-    expect(screen.queryByRole("button", { name: "Kirim ulang kode" })).toBeNull();
-  });
-
-  it("Ganti nomor after verifying signs the old number out, and the next create verifies again", async () => {
-    const { runtime, command } = setup();
-    runtime.signOut = jest.fn(async () => undefined) as never;
-    await reachCodeStep(runtime);
-    fireEvent.changeText(screen.getByLabelText("Kode dari SMS"), "123456");
-    fireEvent.press(screen.getByRole("button", { name: "Buat dapur saya" }));
-    await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Ganti nomor" })).toBeEnabled());
-    fireEvent.press(screen.getByRole("button", { name: "Ganti nomor" }));
-    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.queryByLabelText("Kode dari SMS")).toBeNull());
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "654321");
-    fireEvent.press(screen.getByRole("button", { name: "Buat dapur saya" }));
-    await waitFor(() => expect(runtime.verifyPhoneOtp).toHaveBeenCalledTimes(2));
-  });
-
-  it("Ganti nomor goes back to the editable fields and clears the code", async () => {
-    const { runtime } = setup();
-    await reachCodeStep(runtime);
-    expect(screen.getByLabelText("Nomor WhatsApp").props.editable).toBe(false);
-    fireEvent.press(screen.getByRole("button", { name: "Ganti nomor" }));
-    expect(screen.getByLabelText("Nomor WhatsApp").props.editable).not.toBe(false);
-    expect(screen.queryByLabelText("Kode dari SMS")).toBeNull();
-  });
-
-  it("Kirim ulang kode sends the code again once the 60s wait is over", async () => {
-    jest.useFakeTimers();
-    const { runtime } = setup();
-    await reachCodeStep(runtime);
-    expect(screen.getByRole("button", { name: "Kirim ulang dalam 1:00" })).toBeDisabled();
-    act(() => jest.advanceTimersByTime(60_000));
-    fireEvent.press(screen.getByRole("button", { name: "Kirim ulang kode" }));
-    await waitFor(() => expect(runtime.sendPhoneOtp).toHaveBeenCalledTimes(2));
-  });
-
-  it("keeps Kirim kode enabled and shows no reason line", async () => {
-    renderWith(makeRuntime(), <Daftar />);
-    await screen.findByLabelText("Nama usaha katering");
-    expect(screen.getByRole("button", { name: "Kirim kode" })).toBeEnabled();
-    expect(screen.queryByTestId("daftar-reason")).toBeNull();
-  });
-
-  it("tags the phone and code fields for autofill", async () => {
-    const { runtime } = setup();
-    await reachCodeStep(runtime);
-    expect(screen.getByLabelText("Nomor WhatsApp").props).toMatchObject({ autoComplete: "tel", textContentType: "telephoneNumber" });
-    expect(screen.getByLabelText("Kode dari SMS").props).toMatchObject({ autoComplete: "sms-otp", textContentType: "oneTimeCode" });
+describe("Masuk autofill tags", () => {
+  it("tags email and password", async () => {
+    renderWith(makeRuntime(), <Masuk />);
+    expect((await screen.findByLabelText("Email")).props).toMatchObject({ autoComplete: "email", textContentType: "emailAddress" });
+    expect(screen.getByLabelText("Kata sandi").props).toMatchObject({ autoComplete: "current-password", textContentType: "password" });
   });
 });
 
-describe("Masuk autofill tags", () => {
-  it("tags phone, email and password", async () => {
-    renderWith(makeRuntime(), <Masuk />);
-    expect((await screen.findByLabelText("Nomor WhatsApp")).props).toMatchObject({ autoComplete: "tel" });
-    fireEvent.press(screen.getByText("Email"));
-    expect(screen.getByLabelText("Email").props).toMatchObject({ autoComplete: "email", textContentType: "emailAddress" });
-    expect(screen.getByLabelText("Kata sandi").props).toMatchObject({ autoComplete: "current-password", textContentType: "password" });
+describe("Daftar autofill tags", () => {
+  it("tags the WhatsApp number, the email and the new password", async () => {
+    renderWith(makeRuntime(), <Daftar />);
+    fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Rina");
+    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    fireEvent.press(await screen.findByText("Jakarta Selatan"));
+    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    const phone = await screen.findByLabelText("Nomor WhatsApp");
+    expect(phone.props).toMatchObject({ autoComplete: "tel", keyboardType: "phone-pad" });
+    fireEvent.changeText(phone, "081234567890");
+    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    expect((await screen.findByLabelText("Email")).props).toMatchObject({ autoComplete: "email" });
+    expect(screen.getByLabelText("Kata sandi").props).toMatchObject({ autoComplete: "new-password", textContentType: "newPassword" });
   });
 });
 
 describe("Data akun hints, tags and failed reads", () => {
   it("says what the disabled buttons wait for", async () => {
     renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
-    await screen.findByLabelText("Nomor HP baru");
-    expect(screen.getByTestId("phone-reason")).toBeTruthy();
+    await screen.findByLabelText("Apa yang diubah?");
     expect(screen.getByTestId("request-reason")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Nomor HP baru"), "081234567");
-    expect(screen.queryByTestId("phone-reason")).toBeNull();
     fireEvent.changeText(screen.getByLabelText("Apa yang diubah?"), "nama baru");
     expect(screen.queryByTestId("request-reason")).toBeNull();
   });
 
-  it("tags phone, email and the password fields", async () => {
+  it("tags the kitchen WhatsApp, email and the password fields", async () => {
     renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
-    expect((await screen.findByLabelText("Nomor HP baru")).props).toMatchObject({ autoComplete: "tel" });
+    expect((await screen.findByLabelText("Nomor WhatsApp dapur")).props).toMatchObject({ autoComplete: "tel", keyboardType: "phone-pad" });
+    fireEvent.press(screen.getByRole("button", { name: "Ganti email" }));
     expect(screen.getByLabelText("Email baru").props).toMatchObject({ autoComplete: "email" });
+    fireEvent.press(await screen.findByRole("button", { name: "Ganti kata sandi" }));
     expect((await screen.findByLabelText("Kata sandi saat ini")).props).toMatchObject({ autoComplete: "current-password" });
     expect(screen.getByLabelText("Kata sandi baru").props).toMatchObject({ autoComplete: "new-password", textContentType: "newPassword" });
   });
@@ -185,14 +104,16 @@ describe("Data akun hints, tags and failed reads", () => {
     renderWith(runtime, <DataAkun />);
     await screen.findByText("Belum bisa membaca akunmu.");
     fireEvent.press(screen.getByText("Coba lagi"));
-    await screen.findByLabelText("Kata sandi saat ini");
+    // The password row comes back, with the address the account read named.
+    await screen.findByTestId("data-akun-row-password");
+    expect(screen.getByText("rina@example.test")).toBeTruthy();
     expect(getUser).toHaveBeenCalledTimes(2);
   });
 
   it("the disabled button carries the reason as an accessibility hint", async () => {
     renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
-    await screen.findByLabelText("Nomor HP baru");
-    expect(screen.getByRole("button", { name: "Kirim kode" }).props.accessibilityHint).toMatch(/9 angka/);
+    await screen.findByLabelText("Apa yang diubah?");
+    expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityHint).toMatch(/5 karakter/);
   });
 
   it("a failed request-status read shows a ReadError that retries", async () => {
@@ -223,5 +144,15 @@ describe("Hapus akun read states", () => {
     fail = false;
     await act(async () => fireEvent.press(retry));
     await screen.findByRole("button", { name: "Kirim permintaan hapus akun" });
+  });
+});
+
+describe("demo sign-out", () => {
+  it("always asks the demo backend to drop its cookie when there is no Supabase, without waiting for it", async () => {
+    const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "demo-signout", app: "dapur" });
+    const request = jest.spyOn(runtime.api, "request").mockImplementation(() => new Promise(() => undefined));
+    // No demo token is stored, yet the shared cookie jar may still hold the demo session.
+    await runtime.signOut();
+    expect(request).toHaveBeenCalledWith("auth/logout", {});
   });
 });

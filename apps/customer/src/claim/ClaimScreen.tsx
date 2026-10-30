@@ -1,25 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import { Image, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { useLocalSearchParams } from "expo-router";
-import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
+import { router, useLocalSearchParams } from "expo-router";
+import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type Actor, type ClaimPreview } from "@catera/domain";
 import { plural, useMobile } from "@catera/mobile-core";
 import {
+  authFields,
+  AuthHeading,
+  AuthScreen,
   Button,
-  Card,
   Field,
   fontFor,
   FormError,
   MascotLoading,
   ReadError,
   Screen,
-  StateArt,
   Text,
   themedStyles,
   useBusy,
   useColors,
 } from "@catera/mobile-ui";
-import { e164Indonesia } from "../account/Masuk";
+import { clearPending, redirectTo } from "../account/emailAuth";
+import { authFailure } from "../account/failure";
+import { LegalLine } from "../account/LegalLine";
+import { Lengkapi, lengkapiNeeded, type LengkapiInfo } from "../account/Lengkapi";
+import { SignInProviders, useAppleAvailable } from "../account/Masuk";
+import { e164 } from "../account/phone";
 import { goToTab } from "../nav";
 
 /** Failures worth retrying; every other code means this link cannot be used. */
@@ -30,27 +36,22 @@ const transient = (e: unknown) => {
   return !(e as { code?: string }).code || TRANSIENT.includes(code);
 };
 
-type Step = "lihat" | "nomor" | "kode";
-
-/** A caterer's claim link: the package first, then the SMS code, then Beranda. */
+/** A caterer's claim link: sign in (Apple, Google or email), then the number the caterer recorded, then Beranda. */
 export function ClaimScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
-  const { runtime, command, signedIn, t, locale } = useMobile();
-  // `run` below names its error code `c`, so the palette keeps a longer name here.
-  const palette = useColors();
+  const { runtime, actor, command, signedIn, t, locale } = useMobile();
   const [preview, setPreview] = useState<ClaimPreview | null>(null);
   const [dead, setDead] = useState(false);
   const [offline, setOffline] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const [step, setStep] = useState<Step>("lihat");
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
+  const [phone, setPhone] = useState(actor?.phone ? localCustomerPhone(actor.phone).replace(/-/g, " ") : "");
   const [error, setError] = useState("");
   const [failures, setFailures] = useState(0);
   const [review, setReview] = useState(false);
-  // A used SMS code cannot be verified twice: a retry after a dropped claim goes straight to it.
-  const verified = useRef("");
+  const [lengkapi, setLengkapi] = useState<LengkapiInfo | null>(null);
+  const [waiting, setWaiting] = useState("");
+  const lock = useRef(false);
+  const apple = useAppleAvailable();
 
   // Read once per token: after a claim the same token answers NOT_FOUND.
   useEffect(() => {
@@ -69,34 +70,76 @@ export function ClaimScreen() {
     };
   }, [runtime, token, attempt]);
 
+  // A number Lengkapi akun just saved fills the field, unless something is typed already.
+  useEffect(() => {
+    if (actor?.phone) setPhone((now) => now || localCustomerPhone(actor.phone!).replace(/-/g, " "));
+  }, [actor?.phone]);
+
+  const fail = (message: string) => {
+    setError(message);
+    setFailures((n) => n + 1);
+  };
+
+  // Apple or Google right here; the claim stays on screen and turns into the number step once signed in.
+  async function provider(which: "apple" | "google", go: () => Promise<Actor>) {
+    if (lock.current) return;
+    lock.current = true;
+    setWaiting(which);
+    setError("");
+    try {
+      const signed = await go();
+      // As in Masuk: a pending sign-up link lost its PKCE verifier to this sign-in.
+      await clearPending(runtime).catch(() => undefined);
+      await signedIn(signed);
+      const need = await lengkapiNeeded(runtime, signed);
+      if (need) setLengkapi(need);
+    } catch (e) {
+      if (codeOf(e) !== "CANCELLED") fail(authFailure(e, locale, t));
+    } finally {
+      lock.current = false;
+      setWaiting("");
+    }
+  }
+
   // `useBusy` drops a second press that lands while one is running, before `busy` has re-rendered.
   const [busy, run] = useBusy(async (work: () => Promise<void>) => {
     setError("");
     try {
       await work();
     } catch (e) {
-      const c = codeOf(e);
-      setError(
-        c === "INVALID_OTP"
-          ? t("Kode belum cocok. Periksa SMS lalu coba lagi.", "That code doesn't match. Check the SMS and try again.")
-          : errorLabel(c, locale) || t("Belum bisa menyambungkan langganan. Coba lagi.", "Couldn't connect the subscription. Try again."),
-      );
-      setFailures((n) => n + 1);
+      fail(errorLabel(codeOf(e), locale) || t("Belum bisa menyambungkan langganan. Coba lagi.", "Couldn't connect the subscription. Try again."));
     }
   });
 
-  async function connect() {
-    const number = e164Indonesia(phone);
-    if (verified.current !== number) {
-      const actor = await runtime.verifyPhoneOtp(number, code.trim(), name.trim(), Crypto.randomUUID());
-      verified.current = number;
-      await signedIn(actor);
-    }
+  // `preview` is set by the time the number step shows.
+  async function connect(recorded: ClaimPreview) {
+    const katering = recorded.catererName;
+    const number = e164(phone);
+    if (!number)
+      return fail(t("Nomornya belum benar. Contoh: 0812 3456 7890", "That number doesn't look right. Example: 0812 3456 7890"));
+    // Another number could never claim this link: say so before asking the server.
+    if (!phoneMatchesMask(number, recorded.maskedPhone))
+      return fail(
+        t(
+          `Nomor ini beda dengan yang dicatat ${katering}. Pakai nomor yang kamu berikan ke mereka, atau minta mereka memperbarui nomormu.`,
+          `This number doesn't match the one ${katering} has. Use the number you gave them, or ask them to update it.`,
+        ),
+      );
     let result: { status?: string };
     try {
-      result = await command<{ status?: string }>("customer.claim", { token: String(token) });
+      result = await command<{ status?: string }>("customer.claim", { token: String(token), phone: number });
     } catch (e) {
       if (transient(e)) throw e;
+      const c = codeOf(e);
+      // The server cannot tell a different number from a spent link, so both are said, with both ways out.
+      if (c === "CLAIM_UNAVAILABLE")
+        return fail(
+          t(
+            `Nomornya belum cocok dengan catatan ${katering}, atau tautannya sudah tidak berlaku. Periksa nomornya, atau minta tautan baru ke ${katering}.`,
+            `The number doesn't match ${katering}'s record, or the link no longer works. Check the number, or ask ${katering} for a new link.`,
+          ),
+        );
+      if (c === "INVALID_INPUT") throw e;
       setDead(true);
       return;
     }
@@ -109,6 +152,7 @@ export function ClaimScreen() {
   const home = (
     <Button variant="secondary" label={t("Ke Beranda", "Go to Home")} onPress={() => goToTab("index")} />
   );
+  if (lengkapi) return <Lengkapi info={lengkapi} onDone={() => setLengkapi(null)} />;
   if (dead)
     return (
       <Screen nativeTitle={t("Tautan tidak bisa dipakai", "This link can't be used")}>
@@ -156,149 +200,111 @@ export function ClaimScreen() {
       </Screen>
     );
 
-  if (step === "lihat")
+  const formError = error ? <FormError message={error} failureKey={failures} testID="claim-error" /> : null;
+
+  if (!actor)
     return (
-      <Screen
-        nativeTitle={t("Langgananmu sekarang ada di Catera", "Your subscription is now on Catera")}
-        footer={
-          <View style={{ gap: 10 }}>
-            <Button
-              label={t(`Lanjut dengan ${preview.maskedPhone}`, `Continue with ${preview.maskedPhone}`)}
-              onPress={() => setStep("nomor")}
-            />
-            <Text variant="caption" style={{ textAlign: "center" }}>
-              {t(
-                `Bukan nomormu? Minta ${katering} mengirim tautan baru.`,
-                `Not your number? Ask ${katering} to send a new link.`,
-              )}
-            </Text>
-          </View>
-        }
-      >
-        <Header />
-        {/* The waving mascot welcomes the customer to Catera above the caterer's name; the card below has no photo. */}
-        <StateArt pose="melambai" />
-        <Text variant="label" style={{ color: palette.muted, textAlign: "center" }}>
-          {t(`Dari ${katering}`, `From ${katering}`)}
-        </Text>
-        <Text style={{ textAlign: "center" }}>
-          {t(
-            `Sudah dibayar ke ${katering}, tidak ada tagihan baru. Di sini kamu bisa melihat menu, tahu kapan makanan berangkat, dan memindahkan tanggal pengantaran.`,
-            `Already paid to ${katering}, no new bill. Here you can see the menu, know when your food leaves, and move delivery dates.`,
+      <AuthScreen revealKey={failures} footer={<LegalLine />}>
+        <AuthHeading
+          title={t("Langgananmu sudah menunggu", "Your subscription is waiting")}
+          subtitle={t(
+            `${katering} mencatat langgananmu. Masuk dulu supaya jadwal dan tagihannya tersambung ke akunmu.`,
+            `${katering} recorded your subscription. Sign in first so its schedule and bills connect to your account.`,
           )}
-        </Text>
-        <Card>
-          <Text style={{ fontSize: 18, fontFamily: fontFor("800"), color: palette.charcoal }}>{preview.packageName}</Text>
-          <Fact label={t("Sisa", "Left")} value={t(`${preview.remainingDays} hari`, plural(preview.remainingDays, "day"))} />
-          {preview.nextDate ? (
-            <Fact
-              label={t("Berikutnya", "Next")}
-              value={shortDate(preview.nextDate, locale) + (preview.nextWindow ? `, ${preview.nextWindow}` : "")}
-            />
-          ) : null}
-          <Fact label={t("Alamat", "Address")} value={preview.addressLabel} />
-        </Card>
-      </Screen>
+        />
+        <PackageCard preview={preview} withAddress />
+        <SignInProviders
+          apple={apple}
+          waiting={waiting}
+          busy={!!waiting}
+          onApple={() => void provider("apple", () => runtime.signInWithApple(Crypto.randomUUID()))}
+          onGoogle={() => void provider("google", () => runtime.signInWithGoogle(redirectTo(), Crypto.randomUUID()))}
+          onEmail={() => router.replace({ pathname: "/login", params: { next: `/claim/${token}`, method: "email" } } as never)}
+        />
+        {formError}
+      </AuthScreen>
     );
 
-  const sent = step === "kode";
+  const last4 = /(\d{4})$/.exec(preview.maskedPhone)?.[1];
   return (
-    <Screen nativeTitle={sent ? t("Masukkan kode dari SMS", "Enter the code from the SMS") : t("Nomor HP kamu", "Your phone number")}>
-      <Text>
-        {sent
-          ? t(
-              `Kami kirim 6 angka ke ${localCustomerPhone(e164Indonesia(phone))}, nomor yang dicatat ${katering}.`,
-              `We sent 6 digits to ${localCustomerPhone(e164Indonesia(phone))}, the number ${katering} recorded.`,
-            )
-          : t(
-              `Tulis nomor yang dicatat ${katering} (${preview.maskedPhone}). Kami kirim kode lewat SMS.`,
-              `Enter the number ${katering} recorded (${preview.maskedPhone}). We'll text you a code.`,
-            )}
-      </Text>
-      {!sent ? (
-        <>
-          <Field
-            label={t("Nomor HP", "Phone number")}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            placeholder="0812…"
-            autoFocus
-          />
-          <Button
-            label={t("Kirim kode", "Send code")}
-            busy={busy}
-            disabled={phone.replace(/\D/g, "").length < 9}
-            onPress={() =>
-              run(async () => {
-                const number = e164Indonesia(phone);
-                // Another number could never claim this link: say so before any SMS.
-                if (!phoneMatchesMask(number, preview.maskedPhone)) {
-                  setError(
-                    t(
-                      `Nomor ini beda dengan yang dicatat ${katering}. Pakai nomor yang kamu berikan ke mereka, atau minta mereka memperbarui nomormu.`,
-                      `This number doesn't match the one ${katering} has. Use the number you gave them, or ask them to update it.`,
-                    ),
-                  );
-                  setFailures((n) => n + 1);
-                  return;
-                }
-                await runtime.sendPhoneOtp(number);
-                setStep("kode");
-              })
-            }
-          />
-        </>
-      ) : (
-        <>
-          <Field
-            label={t("Kode", "Code")}
-            value={code}
-            onChangeText={setCode}
-            keyboardType="number-pad"
-            autoComplete="sms-otp"
-            maxLength={6}
-            autoFocus
-          />
-          <Field
-            label={t("Namamu", "Your name")}
-            value={name}
-            onChangeText={setName}
-            autoComplete="name"
-            maxLength={100}
-          />
-          <Button
-            label={t("Sambungkan langganan", "Connect subscription")}
-            busy={busy}
-            disabled={code.trim().length < 6 || !name.trim()}
-            onPress={() => run(connect)}
-          />
-          <Text variant="caption" style={{ textAlign: "center" }}>
-            {t(
-              "Dengan melanjutkan, kamu setuju dengan Ketentuan dan Kebijakan Privasi Catera.",
-              "By continuing, you agree to Catera's Terms and Privacy Policy.",
-            )}
-          </Text>
-        </>
-      )}
-      {error ? <FormError message={error} failureKey={failures} /> : null}
-      {/* The header's Close leaves the link; this steps back inside it, to the number or to the package. */}
-      <Button
-        variant="text"
-        label={t("Kembali", "Back")}
-        accessibilityLabel={sent ? t("Kembali ke nomor HP", "Back to the phone number") : t("Kembali ke paket", "Back to the package")}
-        onPress={() => {
-          setStep(sent ? "nomor" : "lihat");
-          setCode("");
-          setError("");
-        }}
+    <AuthScreen
+      revealKey={failures}
+      footer={
+        <View style={{ gap: 12 }}>
+          <SignedInAs fallback={actor.name} />
+          <Button label={t("Sambungkan", "Connect")} busy={busy} onPress={() => void run(() => connect(preview))} />
+        </View>
+      }
+    >
+      <AuthHeading
+        title={t("Sambungkan langgananmu", "Connect your subscription")}
+        subtitle={t(
+          `Masukkan nomor yang kamu berikan ke ${katering}. Kalau cocok, langganannya pindah ke akunmu.`,
+          `Enter the number you gave ${katering}. If it matches, the subscription moves to your account.`,
+        )}
       />
-    </Screen>
+      <PackageCard preview={preview} />
+      <Field
+        label={t("Nomor HP", "Phone number")}
+        {...authFields.phone}
+        value={phone}
+        onChangeText={setPhone}
+        placeholder="0812…"
+        editable={!busy}
+        hint={
+          last4
+            ? t(`${katering} mencatat nomor berakhiran ••• ${last4}.`, `${katering} recorded a number ending in ••• ${last4}.`)
+            : undefined
+        }
+        returnKeyType="go"
+        onSubmitEditing={() => void run(() => connect(preview))}
+      />
+      {formError}
+    </AuthScreen>
   );
 }
 
-/** The illustrated wordmark, kept in the page body on every claim state. */
+/** "Masuk sebagai keefe@gmail.com": the account the subscription will move to. */
+function SignedInAs({ fallback }: { fallback: string }) {
+  const { runtime, t } = useMobile();
+  const [email, setEmail] = useState("");
+  useEffect(() => {
+    let live = true;
+    void runtime.supabase?.auth
+      .getSession()
+      .then(({ data }) => live && setEmail(data?.session?.user?.email ?? ""))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [runtime]);
+  const who = email || fallback;
+  if (!who) return null;
+  return (
+    <Text variant="caption" style={{ textAlign: "center" }}>
+      {t(`Masuk sebagai ${who}`, `Signed in as ${who}`)}
+    </Text>
+  );
+}
+
+function PackageCard({ preview, withAddress = false }: { preview: ClaimPreview; withAddress?: boolean }) {
+  const { t, locale } = useMobile();
+  const styles = useStyles();
+  const c = useColors();
+  const days = t(`Sisa ${preview.remainingDays} hari`, `${plural(preview.remainingDays, "day")} left`);
+  const next = preview.nextDate
+    ? t(" · antar berikutnya ", " · next delivery ") + shortDate(preview.nextDate, locale) + (preview.nextWindow ? `, ${preview.nextWindow}` : "")
+    : "";
+  return (
+    <View style={styles.card} testID="claim-package">
+      <Text style={{ fontSize: 16, fontFamily: fontFor("700"), color: c.charcoal }}>{preview.packageName}</Text>
+      <Text variant="caption" style={{ fontSize: 14 }}>{days + next}</Text>
+      {withAddress ? <Text variant="caption" style={{ fontSize: 14 }}>{preview.addressLabel}</Text> : null}
+    </View>
+  );
+}
+
+/** The illustrated wordmark, kept in the page body on the loading, dead-link and offline states. */
 function Header() {
   const styles = useStyles();
   return (
@@ -313,16 +319,7 @@ function Header() {
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
-  const c = useColors();
-  return (
-    <View style={{ flexDirection: "row", gap: 16 }}>
-      <Text style={{ color: c.muted, width: 84, fontSize: 14 }}>{label}</Text>
-      <Text style={{ flex: 1, fontFamily: fontFor("700"), fontSize: 14 }}>{value}</Text>
-    </View>
-  );
-}
-
-const useStyles = themedStyles(() => ({
+const useStyles = themedStyles((c) => ({
   header: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4 },
+  card: { borderWidth: 1, borderColor: c.line, borderRadius: 16, borderCurve: "continuous", padding: 16, gap: 4, marginTop: 8 },
 }));

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { View } from "react-native";
+import { Linking, View } from "react-native";
 import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import {
@@ -8,14 +8,17 @@ import {
   PASSWORD_MIN,
   requestEmailChange,
   requestHelp,
-  sendPhoneChangeCode,
   updateProfileName,
   useData,
   useMobile,
-  verifyPhoneChangeCode,
 } from "@catera/mobile-core";
-import { Button, Card, Field, FormError, ReadError, Screen, SettingsRow, SettingsSection, Text, useBusy, useToast } from "@catera/mobile-ui";
+import { Button, Card, Field, FormError, ReadError, Screen, SettingsRow, SettingsSection, Text, useBusy, useColors, useToast } from "@catera/mobile-ui";
+import { waCheck } from "../auth/checks";
+import { e164Indonesia, waLink } from "../onboarding";
 import { accountMessage } from "./accountMessages";
+
+/** The kitchen's stored +62 number as people type it (0812…). */
+const localNumber = (e164: string | null) => (e164 ? "0" + e164.replace(/^\+62/, "") : "");
 
 /** A section's failed attempt: the words and a number that rises with every failure. */
 type Failure = { message: string; key: number } | null;
@@ -34,14 +37,61 @@ function Section({ id, title, note, children }: { id: string; title: string; not
 }
 
 /**
- * Data akun (spec 5.10), reached from Pengaturan: the name, the phone number, the email, the password (email accounts
- * only), and for an owner the request to change the kitchen's name or contact. Deleting the account opens its own
- * confirm sheet. A change that waits on something outside the app (a code, a link in two inboxes) says so, and never
- * claims it is done. In demo mode nothing is sent and the page says so.
+ * A sign-in row of the canvas: its label, the current value under it and "Ganti" at the trailing edge, which opens the
+ * change form under the row (and closes it again).
+ */
+function AccountRow({
+  id,
+  label,
+  value,
+  open,
+  onToggle,
+  children,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  const { t } = useMobile();
+  const c = useColors();
+  const what = label.toLowerCase();
+  return (
+    <View testID={`data-akun-row-${id}`} style={{ borderBottomWidth: 1, borderBottomColor: c.line }}>
+      <View style={{ minHeight: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: nativeLayout.groupGap }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="label">{label}</Text>
+          {value ? (
+            <Text selectable style={{ color: c.muted }}>
+              {value}
+            </Text>
+          ) : null}
+        </View>
+        <Button
+          variant="text"
+          label={open ? t("Tutup", "Close") : t("Ganti", "Change")}
+          accessibilityLabel={open ? t(`Tutup ganti ${what}`, `Close change ${what}`) : t(`Ganti ${what}`, `Change ${what}`)}
+          onPress={onToggle}
+        />
+      </View>
+      {open ? <View style={{ gap: nativeLayout.groupGap, paddingBottom: nativeLayout.space.lg }}>{children}</View> : null}
+    </View>
+  );
+}
+
+/**
+ * Data akun (spec 5.10, the approved canvas), reached from Pengaturan: the name, the kitchen's WhatsApp (owner only), then
+ * the email and the password (email accounts only) as rows whose "Ganti" opens their change form, and for an owner the
+ * request to change the kitchen's name or contact. Deleting the account opens its own
+ * confirm sheet. A change that waits on something outside the app (a link in two inboxes) says so, and never
+ * claims it is done. In demo mode the page says what is kept and what is only pretended.
  */
 export function DataAkun() {
   const { runtime, actor, demo, t, locale, command, refresh } = useMobile();
   const toast = useToast();
+  const c = useColors();
   const supabase = runtime.supabase ?? null;
   const owner = actor?.role === "owner";
   const catererId = actor?.catererId;
@@ -49,7 +99,9 @@ export function DataAkun() {
   const bump = (f: Failure) => (f?.key ?? 0) + 1;
 
   // Nama.
-  const [name, setName] = useState(actor?.name ?? "");
+  // Null until edited, so the field shows the account name as soon as it is read.
+  const [typedName, setName] = useState<string | null>(null);
+  const name = typedName ?? actor?.name ?? "";
   const [nameFailure, setNameFailure] = useState<Failure>(null);
   const [savingName, saveName] = useBusy(async () => {
     setNameFailure(null);
@@ -62,42 +114,24 @@ export function DataAkun() {
     }
   });
 
-  // Nomor HP: a code to the new number, then the change.
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
-  const [phoneFailure, setPhoneFailure] = useState<Failure>(null);
-  const [phoneNote, setPhoneNote] = useState("");
-  const [sendingCode, sendCode] = useBusy(async () => {
-    setPhoneFailure(null);
-    setPhoneNote("");
+  // Nomor WhatsApp dapur (owner only): a plain number customers reach the kitchen on, saved by seller.whatsapp.
+  const seller = useData(`data-akun-seller:${catererId ?? ""}`, async () => (owner && catererId ? runtime.api.sellerOperations(catererId) : null));
+  const savedWa = seller.data?.caterer.whatsapp ?? null;
+  const [whatsapp, setWhatsapp] = useState<string | null>(null);
+  const waValue = whatsapp ?? localNumber(savedWa);
+  const waProblem = waValue.trim() ? waCheck(t)(waValue) : "";
+  const [waFailure, setWaFailure] = useState<Failure>(null);
+  const [savingWa, saveWa] = useBusy(async () => {
+    setWaFailure(null);
     try {
-      const result = await sendPhoneChangeCode(supabase, demo, phone);
-      setCodeSent(true);
-      setPhoneNote(
-        result.simulated
-          ? t("Demo (data contoh): tidak ada SMS yang dikirim. Isi enam angka apa saja.", "Demo (sample data): no SMS is sent. Enter any six digits.")
-          : t("Kode dikirim lewat SMS ke nomor baru.", "A code was sent by SMS to the new number."),
-      );
+      // The kitchen this page is about, named, so an owner of more than one never writes to another.
+      await command("seller.whatsapp", { whatsapp: waValue.trim() ? e164Indonesia(waValue) : null, catererId });
+      // The typed value stays on screen until the read carries the saved one, so the field never flashes empty.
+      await seller.reload();
+      setWhatsapp(null);
+      toast.show({ message: t("Nomor tersimpan", "Number saved"), tone: "success" });
     } catch (e) {
-      setPhoneFailure((f) => ({ message: messageFor(e, t("Kode belum terkirim. Coba lagi.", "The code was not sent. Try again.")), key: bump(f) }));
-    }
-  });
-  const [verifying, verifyCode] = useBusy(async () => {
-    setPhoneFailure(null);
-    try {
-      const result = await verifyPhoneChangeCode(supabase, demo, phone, code.trim());
-      setCodeSent(false);
-      setCode("");
-      setPhone("");
-      setPhoneNote(
-        result.simulated
-          ? t("Demo (data contoh): nomor tidak benar-benar diganti.", "Demo (sample data): the number is not really changed.")
-          : t("Nomor HP diganti.", "Phone number changed."),
-      );
-      if (!result.simulated) await refresh();
-    } catch (e) {
-      setPhoneFailure((f) => ({ message: messageFor(e, t("Nomor belum diganti. Coba lagi.", "The number was not changed. Try again.")), key: bump(f) }));
+      setWaFailure((f) => ({ message: messageFor(e, t("Nomor belum tersimpan. Coba lagi.", "The number was not saved. Try again.")), key: bump(f) }));
     }
   });
 
@@ -125,6 +159,9 @@ export function DataAkun() {
 
   // Kata sandi: only for an account that signs in with email.
   const [hasEmail, setHasEmail] = useState<boolean | null>(demo ? true : null);
+  const [accountEmail, setAccountEmail] = useState("");
+  // Which sign-in row has its change form open under it ("Ganti").
+  const [editing, setEditing] = useState<"" | "email" | "password">("");
   const [userReadFailed, setUserReadFailed] = useState(false);
   const [userReads, setUserReads] = useState(0);
   useEffect(() => {
@@ -139,7 +176,10 @@ export function DataAkun() {
       .then(({ data, error }) => {
         if (!live) return;
         if (error) setUserReadFailed(true);
-        else setHasEmail(!!data.user?.email);
+        else {
+          setHasEmail(!!data.user?.email);
+          setAccountEmail(data.user?.email ?? "");
+        }
       })
       .catch(() => live && setUserReadFailed(true));
     return () => {
@@ -184,7 +224,6 @@ export function DataAkun() {
     }
   });
 
-  const phoneReason = t("Isi nomor HP baru, minimal 9 angka.", "Enter the new phone number, at least 9 digits.");
   const requestReason = t("Tulis minimal 5 karakter.", "Write at least 5 characters.");
 
   const status = (r: NonNullable<typeof latest>) =>
@@ -195,75 +234,106 @@ export function DataAkun() {
         : t("Selesai.", "Done.");
 
   return (
-    <Screen>
+    <Screen nativeTitle={t("Data akun", "Account data")}>
       {demo ? (
         <Text variant="meta">
-          {t("Demo (data contoh): perubahan di halaman ini tidak dikirim ke mana pun.", "Demo (sample data): changes on this page are not sent anywhere.")}
+          {t(
+            "Demo (data contoh): nama dan nomor WhatsApp tersimpan di data contoh. Email dan kata sandi tidak benar-benar diganti.",
+            "Demo (sample data): the name and WhatsApp number are saved to the sample data. The email and password are not really changed.",
+          )}
         </Text>
       ) : null}
-      {/* One card per concern, the cards and the delete row 24 apart (the Dapur section gap). */}
+      {/* One flat form (the approved canvas): the fields, then the sign-in rows, the groups 24 apart (the Dapur section gap). */}
       <View testID="data-akun-sections" style={{ gap: nativeLayout.dense.sectionGap }}>
-        <Section id="name" title={t("Nama", "Name")}>
-          <Field label={t("Nama kamu", "Your name")} value={name} onChangeText={setName} autoCapitalize="words" />
+        <View testID="data-akun-name" style={{ gap: nativeLayout.groupGap }}>
+          <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoCapitalize="words" autoComplete="name" textContentType="name" />
           {nameFailure ? <FormError message={nameFailure.message} failureKey={nameFailure.key} /> : null}
-          <Button label={t("Simpan nama", "Save name")} busy={savingName} disabled={!name.trim() || name.trim() === actor?.name} onPress={() => void saveName()} />
-        </Section>
-        <Section id="phone" title={t("Nomor HP", "Phone number")} note={t("Kode dikirim ke nomor baru sebelum nomor berganti.", "A code goes to the new number before it changes.")}>
-          <Field label={t("Nomor HP baru", "New phone number")} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" editable={!codeSent} />
-          {codeSent ? (
-            <Field label={t("Kode dari SMS", "Code from SMS")} value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="sms-otp" textContentType="oneTimeCode" maxLength={6} />
-          ) : null}
-          {phoneNote ? <Text variant="meta">{phoneNote}</Text> : null}
-          {phoneFailure ? <FormError message={phoneFailure.message} failureKey={phoneFailure.key} /> : null}
-          {codeSent ? (
-            <Button label={t("Ganti nomor", "Change number")} busy={verifying} disabled={code.trim().length < 6} onPress={() => void verifyCode()} />
-          ) : (
-            <>
-              <Button
-                label={t("Kirim kode", "Send code")}
-                busy={sendingCode}
-                disabled={phone.replace(/\D/g, "").length < 9}
-                accessibilityHint={phone.replace(/\D/g, "").length < 9 ? phoneReason : undefined}
-                onPress={() => void sendCode()}
-              />
-              <View style={{ minHeight: 18 }}>
-                {phone.replace(/\D/g, "").length < 9 ? (
-                  <Text testID="phone-reason" variant="meta">
-                    {phoneReason}
-                  </Text>
-                ) : null}
-              </View>
-            </>
-          )}
-        </Section>
-        <Section id="email" title="Email" note={t("Kamu mendapat tautan di email lama dan baru. Keduanya perlu dibuka.", "You get a link in the old and the new inbox. Both must be opened.")}>
-          <Field label={t("Email baru", "New email")} value={email} onChangeText={setEmail} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" autoCapitalize="none" />
-          {emailNote ? <Text variant="meta">{emailNote}</Text> : null}
-          {emailFailure ? <FormError message={emailFailure.message} failureKey={emailFailure.key} /> : null}
-          <Button label={t("Kirim tautan konfirmasi", "Send confirmation link")} busy={sendingEmail} disabled={!email.includes("@")} onPress={() => void sendEmail()} />
-        </Section>
-        {userReadFailed && hasEmail === null ? (
-          <Section id="password" title={t("Kata sandi", "Password")}>
-            <ReadError message={t("Belum bisa membaca akunmu.", "Couldn't read your account.")} onRetry={() => setUserReads((n) => n + 1)} />
-          </Section>
-        ) : null}
-        {hasEmail ? (
-          <Section id="password" title={t("Kata sandi", "Password")}>
-            <Field label={t("Kata sandi saat ini", "Current password")} value={current} onChangeText={setCurrent} autoComplete="current-password" textContentType="password" secureTextEntry />
-            <Field
-              label={t("Kata sandi baru", "New password")}
-              hint={t(`Minimal ${PASSWORD_MIN} karakter.`, `At least ${PASSWORD_MIN} characters.`)}
-              value={next}
-              onChangeText={setNext}
-              autoComplete="new-password"
-              textContentType="newPassword"
-              secureTextEntry
+          {name.trim() !== (actor?.name ?? "") || nameFailure ? (
+            <Button
+              variant="secondary"
+              label={t("Simpan nama", "Save name")}
+              busy={savingName}
+              disabled={!name.trim()}
+              style={{ alignSelf: "flex-end" }}
+              onPress={() => void saveName()}
             />
-            {passwordNote ? <Text variant="meta">{passwordNote}</Text> : null}
-            {passwordFailure ? <FormError message={passwordFailure.message} failureKey={passwordFailure.key} /> : null}
-            <Button label={t("Ganti kata sandi", "Change password")} busy={changing} disabled={!current || next.length < PASSWORD_MIN} onPress={() => void changeIt()} />
-          </Section>
+          ) : null}
+        </View>
+        {owner ? (
+          <View testID="data-akun-whatsapp" style={{ gap: nativeLayout.groupGap }}>
+            {seller.error && !seller.data ? <ReadError message={seller.error} onRetry={() => void seller.reload()} /> : null}
+            <Field
+              label={t("Nomor WhatsApp dapur", "Kitchen WhatsApp number")}
+              hint={t("Pelanggan menghubungimu lewat nomor ini. Tidak dipakai untuk masuk.", "Customers reach you on this number. It isn't used to sign in.")}
+              error={waProblem || undefined}
+              value={waValue}
+              onChangeText={setWhatsapp}
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              textContentType="telephoneNumber"
+            />
+            {waFailure ? <FormError message={waFailure.message} failureKey={waFailure.key} /> : null}
+            <View testID="data-akun-wa-actions" style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: nativeLayout.groupGap }}>
+              <Button
+                variant="text"
+                label={t("Cek di WhatsApp", "Check in WhatsApp")}
+                trailingIcon="open-outline"
+                disabled={!waValue.trim() || !!waProblem}
+                onPress={() => void Linking.openURL(waLink(waValue)).catch(() => undefined)}
+              />
+              <Button
+                variant="secondary"
+                label={t("Simpan nomor", "Save number")}
+                busy={savingWa}
+                disabled={!!waProblem || !seller.data || (whatsapp ?? null) === null}
+                onPress={() => void saveWa()}
+              />
+            </View>
+          </View>
         ) : null}
+        <View testID="data-akun-rows" style={{ borderTopWidth: 1, borderTopColor: c.line }}>
+          <AccountRow
+            id="email"
+            label="Email"
+            value={accountEmail}
+            open={editing === "email"}
+            onToggle={() => setEditing((e) => (e === "email" ? "" : "email"))}
+          >
+            <Text variant="meta">{t("Kamu mendapat tautan di email lama dan baru. Keduanya perlu dibuka.", "You get a link in the old and the new inbox. Both must be opened.")}</Text>
+            <Field label={t("Email baru", "New email")} value={email} onChangeText={setEmail} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" autoCapitalize="none" />
+            {emailNote ? <Text variant="meta">{emailNote}</Text> : null}
+            {emailFailure ? <FormError message={emailFailure.message} failureKey={emailFailure.key} /> : null}
+            <Button label={t("Kirim tautan konfirmasi", "Send confirmation link")} busy={sendingEmail} disabled={!email.includes("@")} onPress={() => void sendEmail()} />
+          </AccountRow>
+          {userReadFailed && hasEmail === null ? (
+            <View style={{ paddingVertical: nativeLayout.groupGap }}>
+              <ReadError message={t("Belum bisa membaca akunmu.", "Couldn't read your account.")} onRetry={() => setUserReads((n) => n + 1)} />
+            </View>
+          ) : null}
+          {hasEmail ? (
+            <AccountRow
+              id="password"
+              label={t("Kata sandi", "Password")}
+              value="••••••••"
+              open={editing === "password"}
+              onToggle={() => setEditing((e) => (e === "password" ? "" : "password"))}
+            >
+              <Field label={t("Kata sandi saat ini", "Current password")} value={current} onChangeText={setCurrent} autoComplete="current-password" textContentType="password" secureTextEntry />
+              <Field
+                label={t("Kata sandi baru", "New password")}
+                hint={t(`Minimal ${PASSWORD_MIN} karakter.`, `At least ${PASSWORD_MIN} characters.`)}
+                value={next}
+                onChangeText={setNext}
+                autoComplete="new-password"
+                textContentType="newPassword"
+                secureTextEntry
+              />
+              {passwordNote ? <Text variant="meta">{passwordNote}</Text> : null}
+              {passwordFailure ? <FormError message={passwordFailure.message} failureKey={passwordFailure.key} /> : null}
+              <Button label={t("Ganti kata sandi", "Change password")} busy={changing} disabled={!current || next.length < PASSWORD_MIN} onPress={() => void changeIt()} />
+            </AccountRow>
+          ) : null}
+        </View>
         {owner ? (
           <Section
             id="request"

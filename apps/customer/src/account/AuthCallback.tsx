@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import * as Crypto from "expo-crypto";
-import { authClient, exchangeEmailLink, isOffline, readPending, resendLink, saveNewPassword, useMobile, type EmailLink } from "@catera/mobile-core";
+import { authClient, ensureActor, exchangeEmailLink, isOffline, readPending, resendLink, saveNewPassword, useMobile, type EmailLink } from "@catera/mobile-core";
 import { AuthHeading, AuthOutcome, AuthScreen, Button, CheckEmail, ExpiredLink, FormError, NewPasswordForm } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { redirectTo } from "./emailAuth";
 import { canRetry } from "./failure";
 import { useAuthRun, useFormPose } from "./useAuthRun";
 import { leaveFor } from "../nav";
+import { Lengkapi, lengkapiNeeded, type LengkapiInfo } from "./Lengkapi";
 
 type Phase = "checking" | "recovery" | "expired" | "sent" | "reset" | "verified";
 /** What this phone remembers about the link it asked for; empty when it asked for none. */
@@ -16,11 +17,13 @@ type Intent = { purpose: "signup" | "recovery" | ""; email: string; next: string
 
 /**
  * catera://auth/callback: finishes email verification (then says so), or sets a new password after recovery (the
- * person stays signed in, then is told so). A link with no code, an error, or no pending request on this phone goes
- * straight to the expired screen without asking the server (audit C-3).
+ * person stays signed in, then is told so). A link with no code or with an error goes straight to the expired screen
+ * without asking the server (audit C-3). A code with no pending email request on this phone is tried once as a Google
+ * sign-in that arrived as a deep link; if Supabase refuses it, the expired screen shows.
  */
 export function AuthCallback() {
-  const { runtime, refresh, t, locale } = useMobile();
+  const { runtime, actor, refresh, signedIn, t, locale } = useMobile();
+  const [lengkapi, setLengkapi] = useState<LengkapiInfo | null>(null);
   const navigation = useNavigation();
   const params = useLocalSearchParams<{ code?: string; error?: string }>();
   const code = typeof params.code === "string" ? params.code : "";
@@ -36,6 +39,8 @@ export function AuthCallback() {
   const leaving = useRef(false);
   // A good link whose account set-up did not finish: Coba lagi re-runs the set-up, not the spent code.
   const exchanged = useRef<EmailLink | null>(null);
+  // A Google code whose session is in but whose profile set-up did not finish: Coba lagi re-runs only the set-up.
+  const providerName = useRef<string | null>(null);
   const run = useAuthRun();
   const form = useFormPose(run.code, run.failures);
   const action = { ...run, retryable: canRetry(run.code, locale) };
@@ -58,11 +63,44 @@ export function AuthCallback() {
     setPhase("verified");
   };
 
+  // The profile behind a Google code, then the signed-in actor, Lengkapi akun when needed, and Beranda.
+  const finishProvider = async (given: string) => {
+    let signed;
+    try {
+      signed = await ensureActor(authClient(runtime), given || "Pelanggan", Crypto.randomUUID());
+    } catch (e) {
+      throw new Error(isOffline(e) ? "OFFLINE" : "AUTH_UNAVAILABLE");
+    }
+    providerName.current = null;
+    await signedIn(signed);
+    leaving.current = true;
+    const need = await lengkapiNeeded(runtime, signed);
+    if (need) setLengkapi(need);
+    else setLeft(true);
+  };
+
   // Only a link the server or this phone rejects is "expired". Offline keeps the link for Coba lagi; a failure after a
   // good exchange keeps the session and retries the set-up (spec 7).
   const check = async () => {
     if (exchanged.current) return finish(exchanged.current);
+    if (providerName.current !== null) return finishProvider(providerName.current);
     const stored = await readPending(runtime);
+    // No email link was asked for on this phone: the code can be a Google sign-in whose redirect reached the app as a
+    // deep link (Android reported the Custom Tab closed first, or the app was killed while it was open).
+    if (!stored && code && !linkError) {
+      const client = authClient(runtime);
+      const { data, error } = await client.auth
+        .exchangeCodeForSession(code)
+        .catch((e: unknown) => ({ data: { user: null, session: null }, error: e }));
+      if (error && isOffline(error)) throw new Error("OFFLINE");
+      if (error || !data.session) {
+        setPhase("expired");
+        return;
+      }
+      const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+      providerName.current = String(meta.full_name || meta.name || "");
+      return finishProvider(providerName.current);
+    }
     if (stored) {
       next.current = nativeReturnPath(stored.next);
       setIntent({ purpose: stored.purpose, email: stored.email, next: next.current });
@@ -117,7 +155,10 @@ export function AuthCallback() {
   const proceed = async () => {
     if (leaving.current) return;
     leaving.current = true;
-    setLeft(true);
+    // A first sign-in by link: Lengkapi akun before the destination, when the account still needs it.
+    const need = await lengkapiNeeded(runtime, actor);
+    if (need) setLengkapi(need);
+    else setLeft(true);
   };
   useEffect(() => {
     if (outcome) navigation.setOptions({ headerBackVisible: false, headerLeft: () => null, gestureEnabled: false });
@@ -128,6 +169,7 @@ export function AuthCallback() {
     if (left) leaveFor(next.current);
   }, [left]);
 
+  if (lengkapi) return <Lengkapi info={lengkapi} onDone={() => setLeft(true)} />;
   if (phase === "reset")
     return (
       <AuthOutcome

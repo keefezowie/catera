@@ -93,18 +93,16 @@ const savePassword = async (repeat = "synthetic-password-2026") => {
 };
 
 describe("Dapur Masuk to Pulihkan", () => {
-  it("Masuk email tab links to Pulihkan", async () => {
+  it("Masuk links to Pulihkan", async () => {
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
-    fireEvent.press(screen.getByRole("button", { name: "Lupa kata sandi?" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Lupa kata sandi?" }));
     expect(router.push).toHaveBeenCalledWith("/pulihkan");
   });
 
   it("the second wrong password adds Lupa kata sandi? to the error", async () => {
     runtime.signInPassword = jest.fn(async () => Promise.reject(new Error("INVALID_CREDENTIALS"))) as never;
     renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("tab", { name: "Email" }));
-    fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.test");
+    fireEvent.changeText(await screen.findByLabelText("Email"), "rina@example.test");
     const attempt = async (n: number) => {
       fireEvent.changeText(screen.getByLabelText("Kata sandi"), "salah-salah");
       fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
@@ -228,15 +226,30 @@ describe("callback", () => {
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
   });
 
-  it("a signup intent in Dapur goes to expired", async () => {
+  it("a sign-up link (Daftar, Gabung) makes the profile, signs in and opens Hari ini", async () => {
     mockParams = { code: "one-time-code" };
     intent("signup");
+    supabase.auth.exchangeCodeForSession.mockResolvedValue({
+      data: { user: { id: "kitchen-user", user_metadata: { name: "Dapur Bu Rina" } }, session: { access_token: "synthetic" } },
+      error: null,
+    });
+    supabase.rpc.mockImplementation((async (fn: string) =>
+      fn === "catera_v1_read" ? { data: { id: "kitchen-user", role: "customer", name: "Dapur Bu Rina" }, error: null } : { data: {}, error: null }) as never);
     renderWith(<AuthCallback />);
-    expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
-    expect(supabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
-    expect(screen.queryByText(/rina@example.test/)).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Masukkan email" }));
-    expect(router.replace).toHaveBeenCalledWith("/pulihkan");
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith("one-time-code");
+    expect(supabase.rpc).toHaveBeenCalledWith("catera_v1_command", expect.objectContaining({ action: "profile.ensure", payload: { name: "Dapur Bu Rina" } }));
+    expect(store.has(pendingKey(runtime))).toBe(false);
+  });
+
+  it("an expired sign-up link offers a new verification link and the way back to Daftar", async () => {
+    mockParams = { error: "access_denied", code: "one-time-code" };
+    intent("signup");
+    renderWith(<AuthCallback />);
+    expect(await screen.findByText(/rina@example.test/)).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan baru" }));
+    expect(await screen.findByText("Cek emailmu")).toBeTruthy();
+    expect(supabase.auth.resend).toHaveBeenCalledWith({ type: "signup", email: "rina@example.test", options: { emailRedirectTo: "catera-dapur://auth/callback" } });
   });
 
   it("with no pending request it fails fast and asks for the email", async () => {

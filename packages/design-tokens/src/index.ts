@@ -338,3 +338,17 @@ export const nativeLayout = {
   /** The lead figure (`Text variant="figure"`): the one number that answers Hari ini and Uang. */
   figure: { lead: 32, leadLine: 40 },
 } as const;
+
+/**
+ * Third-party sign-in marks (sign-in rethink, 2026-10-30). These are the providers' own fixed inks, not Catera tones,
+ * and they never follow the theme: Apple's black and white button styles (HIG, Sign in with Apple) and the four
+ * colours of Google's G (Google sign-in branding guidelines). Only `ProviderButton` reads them.
+ */
+export const providerMarks = {
+  appleBlack: "#000000",
+  appleWhite: "#FFFFFF",
+  googleRed: "#EA4335",
+  googleBlue: "#4285F4",
+  googleYellow: "#FBBC05",
+  googleGreen: "#34A853",
+} as const;

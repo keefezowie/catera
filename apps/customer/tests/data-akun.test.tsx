@@ -144,18 +144,43 @@ describe("Data akun", () => {
     await waitFor(() => expect(screen.queryByLabelText("Nama")).toBeNull());
   });
 
-  it("sends a code to the new number, then saves it with the code", async () => {
+
+  it("saves the number as a plain field through profile.update, with no SMS code", async () => {
     const { runtime, auth } = runtimeWith({ user: phoneUser });
     renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Nomor HP, / }));
-    fireEvent.changeText(screen.getByLabelText("Nomor HP baru"), "0812 5555 0000");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
-    await waitFor(() => expect(auth.updateUser).toHaveBeenCalledWith({ phone: "+6281255550000" }));
-    fireEvent.changeText(await screen.findByLabelText("Kode dari SMS"), "123456");
+    fireEvent.press(await screen.findByRole("button", { name: /^Nomor HP, 0812-3456-7890/ }));
+    const field = screen.getByLabelText("Nomor HP");
+    expect(field.props.value).toBe("0812-3456-7890");
+    expect(screen.getByRole("button", { name: "Simpan nomor" }).props.accessibilityState.disabled).toBe(true);
+    fireEvent.changeText(field, "0812 5555 0000");
     fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
     await waitFor(() =>
-      expect(auth.verifyOtp).toHaveBeenCalledWith({ phone: "+6281255550000", token: "123456", type: "phone_change" }),
+      expect(runtime.api.command).toHaveBeenCalledWith("profile.update", { phone: "+6281255550000" }, expect.any(String)),
     );
+    expect(await screen.findByText("Nomor HP disimpan")).toBeTruthy();
+    expect(auth.updateUser).not.toHaveBeenCalled();
+    expect(auth.verifyOtp).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/Kode/)).toBeNull();
+  });
+
+  it("refuses a malformed number before the server, and an emptied field clears it", async () => {
+    const { runtime } = runtimeWith({ user: phoneUser });
+    renderWith(runtime, <DataAkun />);
+    fireEvent.press(await screen.findByRole("button", { name: /^Nomor HP, / }));
+    fireEvent.changeText(screen.getByLabelText("Nomor HP"), "0812");
+    fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
+    expect(await screen.findByText("Nomor HP belum benar. Periksa lagi.")).toBeTruthy();
+    expect(runtime.api.command).not.toHaveBeenCalledWith("profile.update", expect.anything(), expect.any(String));
+    fireEvent.changeText(screen.getByLabelText("Nomor HP"), "");
+    fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
+    await waitFor(() => expect(runtime.api.command).toHaveBeenCalledWith("profile.update", { phone: null }, expect.any(String)));
+  });
+
+  it("shows the profile's own number before the session's", async () => {
+    const { runtime } = runtimeWith({ user: emailUser });
+    (runtime.api.me as jest.Mock).mockResolvedValue({ actor: { ...actor, phone: "+6281299990001" }, demo: false });
+    renderWith(runtime, <DataAkun />);
+    expect(await screen.findByRole("button", { name: /^Nomor HP, 0812-9999-0001/ })).toBeTruthy();
   });
 
   it("asks for the email change by link and says nothing has changed yet", async () => {

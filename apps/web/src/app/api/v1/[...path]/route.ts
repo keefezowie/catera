@@ -68,15 +68,27 @@ import {
   workspaceCookieName,
 } from "@/lib/workspace";
 export const runtime = "nodejs";
+// A typed Indonesian number, written the local way or E.164, as +62... (no OTP: the user types it).
+const phoneSchema = z.string().transform((value, ctx) => {
+  try {
+    return normalizeCustomerPhone(value);
+  } catch {
+    ctx.addIssue({ code: "custom", message: "PHONE" });
+    return z.NEVER;
+  }
+});
 // Counted in code points, as the database's char_length and the mobile check count.
 const profileUpdateSchema = z
   .object({
     name: z
       .string()
       .trim()
-      .refine((name) => [...name].length >= 2 && [...name].length <= 80),
+      .refine((name) => [...name].length >= 2 && [...name].length <= 80)
+      .optional(),
+    phone: phoneSchema.nullable().optional(),
   })
-  .strict();
+  .strict()
+  .refine((p) => p.name !== undefined || p.phone !== undefined);
 const immediatePush = new Set([
   "delivery.cook",
   "delivery.depart",
@@ -387,29 +399,6 @@ export async function POST(request: Request, context: Context) {
     const a = JSON.parse(raw);
     const { path } = await context.params;
     if (path[0] === "auth") {
-      if (["phone-send", "phone-verify"].includes(path[1])) {
-        const s = await session(request);
-        if (!s.id || demoEnabled())
-          throw new Error("PHONE_VERIFICATION_REQUIRED");
-        const client = await supabase();
-        const current = await client.auth.getUser();
-        if (current.error || current.data.user?.id !== s.id)
-          throw new Error("FORBIDDEN");
-        const phone = normalizeCustomerPhone(z.string().parse(a.phone));
-        const result =
-          path[1] === "phone-send"
-            ? await client.auth.updateUser({ phone })
-            : await client.auth.verifyOtp({
-                phone,
-                token: z
-                  .string()
-                  .regex(/^\d{6}$/)
-                  .parse(a.token),
-                type: "phone_change",
-              });
-        if (result.error) throw new Error("PHONE_VERIFICATION_REQUIRED");
-        return ok({ sent: true });
-      }
       if (path[1] === "demo") {
         const role = z
           .enum(["customer", "owner", "staff", "platform_admin"])
@@ -554,34 +543,28 @@ export async function POST(request: Request, context: Context) {
       if (command.action === "customer.save" && !command.payload.id)
         throw new Error("NOT_AVAILABLE");
       if (command.action === "customer.claim") {
-        if (demoEnabled()) throw new Error("PHONE_VERIFICATION_REQUIRED");
-        const client = await supabase();
-        const verified = await client.auth.getUser(s.token || undefined);
-        const user = verified.data.user;
-        if (
-          verified.error ||
-          user?.id !== s.id ||
-          !user.phone ||
-          !user.phone_confirmed_at
-        )
-          throw new Error("PHONE_VERIFICATION_REQUIRED");
-        return ok(
-          await rpc(
-            null,
-            null,
-            "catera_v1_system",
-            {
-              action: "pilot.claim",
-              payload: {
-                userId: s.id,
-                verifiedPhone: normalizeCustomerPhone(user.phone),
-                token: z.string().min(20).max(200).parse(command.payload.token),
-                requestId: command.requestId,
-              },
+        // The claim token is the secret; the typed phone must match the kitchen's record (v1.pilot_claim).
+        const claim = z
+          .object({ token: z.string().min(20).max(200), phone: phoneSchema })
+          .parse(command.payload);
+        const claimed = await rpc<{ status?: string }>(
+          null,
+          null,
+          "catera_v1_system",
+          {
+            action: "pilot.claim",
+            payload: {
+              userId: s.id,
+              verifiedPhone: claim.phone,
+              token: claim.token,
+              requestId: command.requestId,
             },
-            true,
-          ),
+          },
+          true,
         );
+        // A wrong number is answered (so its count against the link commits), never told apart from a dead link.
+        if (claimed?.status === "unavailable") throw new Error("CLAIM_UNAVAILABLE");
+        return ok(claimed);
       }
       if (command.action === "package.durationPricing.save")
         command.payload = durationPricingSchema.parse(command.payload);

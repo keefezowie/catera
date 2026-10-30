@@ -30,7 +30,7 @@ export function useAuthRun(): AuthRun {
   };
 }
 
-/** Dapur has no mascot, so a form never changes pose; a press still checks the fields and runs `go` only when they pass. */
+/** The mascot keeps waving here, so a form never changes pose; a press still checks the fields and runs `go` only when they pass. */
 export const formPose: FormPose = {
   pose: "melambai",
   edit: (set) => set,

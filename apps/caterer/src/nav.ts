@@ -43,7 +43,7 @@ function appPathOf(link: string) {
 }
 
 /** First path segments of the screens that sit above the tabs in the root stack. */
-const ROOT_STACK = new Set(["aktifkan", "impor", "impor-baris", "impor-foto", "pindah-tanggal", "masuk", "daftar", "pulihkan", "auth"]);
+const ROOT_STACK = new Set(["aktifkan", "impor", "impor-baris", "impor-foto", "pindah-tanggal", "masuk", "daftar", "gabung", "pulihkan", "auth"]);
 /** Routes the app opens itself (never from an OS link) that a link may still name; they pass through like ROOT_STACK. */
 const OWN_ROUTES = new Set(["aksi", "konfirmasi"]);
 

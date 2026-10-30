@@ -128,7 +128,6 @@ for (const locale of ["id", "en"] as const) {
       }) => {
         await login(page, "customer");
         let result = "review";
-        let verified = false;
         // Synthetic preview: the demo database holds no claim link for this token.
         await page.route("**/api/v1/claim-preview/**", (route) =>
           route.fulfill({
@@ -145,19 +144,13 @@ for (const locale of ["id", "en"] as const) {
             },
           }),
         );
-        await page.route("**/api/v1/auth/phone-*", (route) => {
-          if (route.request().url().endsWith("phone-verify")) verified = true;
-          return route.fulfill({ json: { data: { sent: true } } });
-        });
+        // No SMS: the typed number goes with the claim.
         await page.route("**/api/v1/commands", (route) => {
-          if (route.request().postDataJSON().action !== "customer.claim")
-            return route.continue();
-          return verified
+          const body = route.request().postDataJSON();
+          if (body.action !== "customer.claim") return route.continue();
+          return body.payload?.phone === "+6281234500001"
             ? route.fulfill({ json: { data: { status: result } } })
-            : route.fulfill({
-                status: 403,
-                json: { error: { code: "PHONE_VERIFICATION_REQUIRED" } },
-              });
+            : route.fulfill({ status: 400, json: { error: { code: "INVALID_INPUT" } } });
         });
         await page.goto("/claim/synthetic-context-refinement");
         const claim = page.locator("section.claim");
@@ -169,10 +162,6 @@ for (const locale of ["id", "en"] as const) {
         await page
           .getByLabel(t("Nomor HP", "Phone number"), { exact: true })
           .fill("081234500001");
-        await page
-          .getByRole("button", { name: t("Kirim kode", "Send code"), exact: true })
-          .click();
-        await page.getByLabel(t("Kode", "Code"), { exact: true }).fill("123456");
         await containedText(claim);
         await page
           .getByRole("button", {
@@ -192,6 +181,15 @@ for (const locale of ["id", "en"] as const) {
         result = "claimed";
         await page.reload();
         await page.getByRole("button", { name: next, exact: true }).click();
+        await page
+          .getByLabel(t("Nomor HP", "Phone number"), { exact: true })
+          .fill("081234500001");
+        await page
+          .getByRole("button", {
+            name: t("Sambungkan langganan", "Connect subscription"),
+            exact: true,
+          })
+          .click();
         await expect(page.locator("section.claim h1")).toContainText(
           t("Tersambung", "Connected"),
         );
