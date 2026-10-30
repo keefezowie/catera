@@ -111,10 +111,13 @@ test("only mood.tsx and the Tampilan thumbnails name siangHeaderFill", () => {
   expect(callers).toEqual(["packages/mobile-ui/src/mood.tsx", "packages/mobile-ui/src/settings/ThemeChoice.tsx"]);
 });
 
-// Direction K (spec 2.6): Sunrise is spent in four places only. The tracker's current stop (which reads `stopActive`,
+// Direction K (spec 2.6): Sunrise is spent in few places only. The tracker's current stop (which reads `stopActive`,
 // the mood's own Sunrise step), `nativeArt` (the success ring, the sparkles and the reading highlight, in the tokens
-// package), the confetti file and the launch hand-off sparkles. Nothing else reads the theme's `sunrise` or
-// `sunriseInk`: a caption, a price, a pill or a ring in Sunrise would again make it the colour of the whole app.
+// package), the confetti file and the launch hand-off sparkles. Since the Dapur week and batch progress plan, Sunrise
+// is also Catera's "on the way" accent in Dapur, the meaning RantangTrack gave it there before the plan removed the
+// track: BatchProgress's Diantar segment and legend (through `stopActive` today) and StopRow's Diantar pill (cream with
+// `sunriseInk`). Nothing else reads the theme's `sunrise` or `sunriseInk`: a caption, a price, a pill or a ring in
+// Sunrise for anything but "on the way" would again make it the colour of the whole app.
 const stripComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 const readsSunrise = (source: string) => /\bsunriseInk\b|\.sunrise\b|\bsunrise\??\s*:/.test(stripComments(source));
 
@@ -126,7 +129,7 @@ test("the Sunrise matcher sees a palette read but not a ring prop or a comment",
   expect(readsSunrise("// the sunrise ink: c.sunriseInk\nconst x = 1;")).toBe(false);
 });
 
-test("sunrise and sunriseInk are read only by RantangTrack, nativeArt, Confetti and LaunchCover", () => {
+test("sunrise and sunriseInk are read only by RantangTrack, nativeArt, Confetti, LaunchCover and Dapur's on-the-way marks (BatchProgress, StopRow)", () => {
   const readers = appDirs
     .flatMap((d) => walk(join(root, d)))
     .filter((f) => readsSunrise(readFileSync(f, "utf8")))
@@ -137,6 +140,9 @@ test("sunrise and sunriseInk are read only by RantangTrack, nativeArt, Confetti 
     "packages/mobile-ui/src/RantangTrack.tsx",
     "packages/mobile-ui/src/Confetti.tsx",
     "packages/mobile-ui/src/LaunchCover.tsx",
+    // Sunrise as "on the way" in Dapur, where the track used to say it: the Diantar segment and legend, the Diantar pill.
+    "apps/caterer/src/today/BatchProgress.tsx",
+    "packages/mobile-ui/src/StopRow.tsx",
   ]);
   expect(readers.filter((f) => !allowed.has(f))).toEqual([]);
 });
