@@ -401,8 +401,14 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // The meta keeps the kitchen's name while the other day loads, instead of dropping it for a moment.
   const [catererName, setCatererName] = useState("");
   if (ops && ops.caterer.name !== catererName) setCatererName(ops.caterer.name);
-  // Once the meal is out the header says so, in place of the day word: the batch progress and the order below say the rest.
-  const out = today && (session?.journey.stage === "out_for_delivery" || session?.journey.stage === "arrived");
+  // From the first stop that leaves until every active stop is delivered, the header says the meal is out, in place of
+  // the day word (the same "left" test SessionCard uses to put the order first): the batch progress and the order below
+  // say the rest. A partial departure counts, so two of six out already reads "Sedang diantar".
+  const out =
+    today &&
+    !!session &&
+    session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0 &&
+    session.journey.stage !== "delivered";
   const dayWord = out
     ? t("Sedang diantar", "On the way")
     : today

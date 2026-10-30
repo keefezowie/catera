@@ -859,6 +859,23 @@ describe("the order across the stages", () => {
     expect(screen.queryByText(LINE)).toBeNull();
   });
 
+  it("says Sedang diantar from the first stop out, before the rest have left", async () => {
+    const day = manyStops(6);
+    day.deliveries = day.deliveries.map((d, i) => {
+      const m = i < 2 ? departed : cooking;
+      return { ...d, status: m.status, meals: [{ meal: "lunch", ...m }] } as typeof d;
+    }) as typeof day.deliveries;
+    renderToday(runtimeWith(async () => day));
+    expect(await screen.findByText("Dapur Bu Rina · Sedang diantar")).toBeTruthy();
+    expect(screen.queryByText("Dapur Bu Rina · Hari ini")).toBeNull();
+  });
+
+  it("goes back to Hari ini once every active stop is delivered", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([delivered])));
+    expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
+    expect(screen.queryByText("Dapur Bu Rina · Sedang diantar")).toBeNull();
+  });
+
   it("lets a stop of a meal that is out for delivery be reported", async () => {
     renderToday(runtimeWith(async () => kitchenDay([departed])));
     fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah: \S/));
