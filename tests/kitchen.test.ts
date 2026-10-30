@@ -212,6 +212,20 @@ describe("weekRecap", () => {
     ]);
   });
 
+  it("puts a dish with no category (Lainnya) after every named category", () => {
+    const day = dayOn("2026-10-07");
+    const dated = day.datedMenus!.find((m) => m.package_id === "p-rumahan")!;
+    dated.details.items = dated.details.items!.map((i) => (i.name === "Tempe orek" ? { ...i, groupId: "no-such-group" } : i));
+    const week = weekRecap([day]);
+    expect(week.byDish.map((d) => [d.category, d.name])).toEqual([
+      ["Lauk", "Ayam bakar madu"],
+      ["Lauk", "Telur balado"],
+      ["Nasi", "Nasi putih"],
+      ["Sayur", "Sayur asem"],
+      ["", "Tempe orek"],
+    ]);
+  });
+
   it("adds unfilled slots to unfilled and never lists them as dishes", () => {
     const filled = dayOn("2026-10-07");
     const bare = dayOn("2026-10-08");

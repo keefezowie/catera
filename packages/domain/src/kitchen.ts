@@ -136,7 +136,7 @@ export function cookingRecap(state: SellerOperationsState, meal: KitchenMeal): C
 export type WeekRecap = {
   /** Portions to cook across the days and both meals. */
   total: number;
-  /** Dishes merged by name and category, sorted by category then count, biggest first. */
+  /** Dishes merged by name and category, sorted by category (Indonesian order, no category last) then count, biggest first. */
   byDish: { name: string; category: string; count: number }[];
   /** Portions whose menu slot nobody has filled yet. They are not dishes: they never appear in `byDish`. */
   unfilled: number;
@@ -168,7 +168,12 @@ export function weekRecap(days: SellerOperationsState[]): WeekRecap {
   return {
     total,
     byDish: [...dishes.values()].sort(
-      (a, b) => a.category.localeCompare(b.category) || b.count - a.count || a.name.localeCompare(b.name),
+      (a, b) =>
+        // A dish with no category (shown as "Lainnya") comes after every named one.
+        Number(a.category === "") - Number(b.category === "") ||
+        a.category.localeCompare(b.category, "id") ||
+        b.count - a.count ||
+        a.name.localeCompare(b.name, "id"),
     ),
     unfilled,
     from: days[0]?.operationalDate ?? "",
