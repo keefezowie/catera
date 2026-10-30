@@ -432,7 +432,8 @@ describe("Hari ini by mood", () => {
   };
   const dinnerOnly = () => {
     const day = canvasDay();
-    for (const d of day.deliveries) d.meals = d.meals.map((m) => ({ ...m, meal: "dinner" }));
+    for (const d of day.deliveries)
+      d.meals = d.meals.map((m) => ({ ...m, meal: "dinner", status: "preparing", cooking_started_at: "2026-10-08T11:00:00Z" }) as typeof m);
     return day;
   };
   const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
@@ -1000,10 +1001,11 @@ describe("the compact rantang track and the regular one", () => {
 });
 
 describe("dark Malam", () => {
-  it("draws the figure strip on the dark surface and the compact track on the dark mood, in Malam", async () => {
+  it("draws the figure strip on the dark surface and the batch progress on the dark mood, in Malam", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const day = canvasDay();
-    for (const d of day.deliveries) d.meals = d.meals.map((m) => ({ ...m, meal: "dinner" }));
+    for (const d of day.deliveries)
+      d.meals = d.meals.map((m) => ({ ...m, meal: "dinner", status: "preparing", cooking_started_at: "2026-10-08T11:00:00Z" }) as typeof m);
     render(
       <ThemeProvider storageKey="t.theme">
         <MoodProvider now={() => new Date("2026-10-08T12:00:00Z")}>
@@ -1017,10 +1019,10 @@ describe("dark Malam", () => {
     expect(StyleSheet.flatten(strip.props.style).backgroundColor).toBe(nativeThemes.dark.surface);
     expect(nativeMood.dark.malam.hero).toBe(nativeThemes.dark.surface);
     expect(StyleSheet.flatten(within(strip).getByText("34").props.style).color).toBe(nativeThemes.dark.charcoal);
-    const rail = screen.getByTestId("rantang-track-rail", { includeHiddenElements: true });
-    expect(StyleSheet.flatten(rail.props.style).height).toBe(40);
-    expect(StyleSheet.flatten(screen.getByTestId("rantang-track-line", { includeHiddenElements: true }).props.style).backgroundColor).toBe(
-      nativeMood.dark.malam.heroMeta,
-    );
+    const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
+    const ink = nativeMood.dark.malam;
+    expect(flatOf("batch-progress-track").backgroundColor).toBe(ink.arcTrack);
+    expect(flatOf("batch-progress-segment-cooking").backgroundColor).toBe(ink.heroMeta);
+    expect(StyleSheet.flatten(screen.getByText("0 dari 4 sampai").props.style).color).toBe(ink.headerText);
   });
 });

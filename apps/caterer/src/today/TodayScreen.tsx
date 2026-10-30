@@ -4,7 +4,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   errorLabel,
   jakartaDay,
-  journeyCaption,
   kitchenDayDone,
   kitchenSession,
   mealLabel,
@@ -24,9 +23,6 @@ import {
   FigureStrip,
   MoodHeader,
   PressableScale,
-  RantangTrack,
-  trackCounts,
-  trackStage,
   Screen,
   StateArt,
   Text,
@@ -37,6 +33,7 @@ import {
   useMood,
   useMoodColors,
 } from "@catera/mobile-ui";
+import { BatchProgress } from "./BatchProgress";
 import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
 import { SelectionBar } from "./SelectionBar";
@@ -74,12 +71,13 @@ async function keptDay(actorId: string, catererId: string, date: string): Promis
 
 /**
  * The session's headline figures in the header, under the date: porsi (the lead), paket and alamat in one strip, with
- * when the first window opens as its subline, and the compact rantang track under it showing how far the meal has got.
+ * when the first window opens as its subline, and the batch progress under it (how many stops have arrived, are on the way
+ * or are cooking; nothing while every row is still scheduled).
  * The strip is the theme's surface, which is also the hero surface of both moods, so it needs no fill of its own and
  * does not cross-fade with the header. The mascot is not here (it stays on the done and empty cards).
  */
 function HeaderFigures({ ops, session }: { ops: SellerOperationsState; session: KitchenSession }) {
-  const { t, locale } = useMobile();
+  const { t } = useMobile();
   const { meal, portions, addresses } = session;
   // The window opens with the first row still being served: a failed or cancelled row's hours do not count.
   const served = new Set(session.stops.map((s) => s.deliveryId));
@@ -96,12 +94,7 @@ function HeaderFigures({ ops, session }: { ops: SellerOperationsState; session: 
         ]}
         subline={start ? t(`Antar ${start}`, `Delivery ${start}`) : undefined}
       />
-      <RantangTrack
-        size="compact"
-        stage={trackStage(session.journey)}
-        caption={journeyCaption(session.journey, locale, "kitchen") ?? undefined}
-        counts={trackCounts(session.counts)}
-      />
+      <BatchProgress session={session} />
     </View>
   );
 }

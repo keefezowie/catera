@@ -302,7 +302,7 @@ describe("the header holds no cooking mascot", () => {
     }
   });
 
-  it("keeps the strip and the track the same size before, during and after cooking", async () => {
+  it("keeps the strip the same size before, during and after cooking, and adds the progress under it once cooking began", async () => {
     // A 360dp phone at the default text size, where the strip has the least room in one row.
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
     // A lunch window the caterer set, so the strip carries "Antar 11.30" in every stage.
@@ -320,10 +320,9 @@ describe("the header holds no cooking mascot", () => {
       const shape = {
         card: StyleSheet.flatten(card.props.style),
         strip: flat("session-figures"),
-        rail: flat("rantang-track-rail"),
         subline: within(card).queryByText("Antar 11.30", hidden) !== null,
         grid: within(card).queryByTestId("session-figures-grid", hidden) !== null,
-        words: within(card).queryByTestId("rantang-track-caption", hidden) !== null,
+        progress: within(card).queryByTestId("batch-progress", hidden) !== null,
       };
       screen.unmount();
       return shape;
@@ -331,10 +330,13 @@ describe("the header holds no cooking mascot", () => {
     const before = await layout("scheduled");
     const during = await layout("preparing");
     const after = await layout("out_for_delivery");
-    expect(during).toEqual(before);
-    expect(after).toEqual(before);
-    expect(before).toMatchObject({ subline: true, grid: false, words: false });
-    expect(before.rail.height).toBe(40);
+    const { progress: _b, ...stripBefore } = before;
+    const { progress: _d, ...stripDuring } = during;
+    const { progress: _a, ...stripAfter } = after;
+    expect(stripDuring).toEqual(stripBefore);
+    expect(stripAfter).toEqual(stripBefore);
+    expect([before.progress, during.progress, after.progress]).toEqual([false, true, true]);
+    expect(before).toMatchObject({ subline: true, grid: false });
   });
 
   it("stacks the figures as a 2-column grid on a 360dp phone at font scale 1.3, the lead across both", async () => {
@@ -347,10 +349,12 @@ describe("the header holds no cooking mascot", () => {
     expect(within(card).getByText("porsi", hidden).props.numberOfLines).toBeUndefined();
   });
 
-  it("leaves a copy of the header's track to the screen reader: the words are in its accessibility value", async () => {
+  it("gives the screen reader the batch progress as one image whose label carries the legend", async () => {
     render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
-    const track = await screen.findByTestId("rantang-track", hidden);
-    expect((track.props.accessibilityValue.text as string).split(". ")[0]).toMatch(/^Dimasak/);
+    const bar = await screen.findByTestId("batch-progress-bar", hidden);
+    expect(bar.props.accessibilityRole).toBe("image");
+    expect(bar.props.accessibilityLabel).toMatch(/^0 sampai, 0 diantar, \d+ dimasak, dari \d+$/);
+    expect(screen.getByTestId("batch-progress-legend", hidden).props.accessibilityElementsHidden).toBe(true);
   });
 });
 

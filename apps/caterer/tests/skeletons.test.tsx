@@ -227,23 +227,17 @@ describe("Hari ini", () => {
     expect(skeletonNames()).toEqual([]);
   });
 
-  it("the count skeleton's track is as tall as the loaded rantang track, so the header keeps its height at the swap", async () => {
+  it("the count skeleton holds no room for the batch progress: it shows only once a row has left Terjadwal", async () => {
     const read = held<SellerOperationsState>();
     renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
-    const track = within(header).getByTestId("today-count-track", { includeHiddenElements: true });
-    // The stop labels' row sits under the rail, its blocks on the mood surface like the rest.
-    for (let i = 0; i < 4; i += 1)
-      expect(flat(within(track).getByTestId(`today-count-block-stop-${i}`, { includeHiddenElements: true })).backgroundColor).toBe(
-        nativeMood.light.siang.arcTrack,
-      );
-    const waiting = stackHeight(track);
+    const hiddenToo = { includeHiddenElements: true };
+    expect(within(header).queryByTestId("today-count-track", hiddenToo)).toBeNull();
+    expect(within(header).queryByTestId("today-count-rail", hiddenToo)).toBeNull();
     await act(async () => read.answer(today()));
-    const loaded = stackHeight(await screen.findByTestId("rantang-track"));
-    // The compact track: the 40 rail, then the stop labels' and counts' lines (18 each), 8dp apart. Its words line is
-    // not drawn, so there is no caption line above the rail.
-    expect(loaded).toBe(40 + 8 + 36);
-    expect(waiting).toBe(loaded);
+    // An all-scheduled day draws the strip only; the strip's own height is checked against the skeleton's below.
+    expect(await screen.findByTestId("session-count")).toBeTruthy();
+    expect(screen.queryByTestId("batch-progress")).toBeNull();
   });
 
   it("the count skeleton's strip is as tall as the loaded figure strip, and both sit 12 under the date and 12 apart", async () => {
@@ -267,22 +261,6 @@ describe("Hari ini", () => {
     expect(waitingStrip).toBe(106);
     expect(waitingFlow).toMatchObject({ gap: 12, marginTop: 8 });
     expect(loadedFlow).toMatchObject({ gap: 12, marginTop: 8 });
-  });
-
-  it("in English the stop labels hold two lines' room (On the way wraps), in the track and in its skeleton alike", async () => {
-    const read = held<SellerOperationsState>();
-    const runtime = runtimeWith(owner, { sellerOperations: read.fn });
-    secureStore.set(runtime.storageKey("locale"), "en");
-    renderWith(runtime, withDapurScale(<TodayScreen />));
-    const header = await screen.findByTestId("mood-header");
-    await waitFor(() => expect(within(header).getByLabelText(/, change day$/)).toBeTruthy());
-    const waiting = stackHeight(within(header).getByTestId("today-count-track", { includeHiddenElements: true }));
-    await act(async () => read.answer(today()));
-    const loaded = stackHeight(await screen.findByTestId("rantang-track"));
-    // The compact rail (40), two label lines (36) and the count line (18), 8dp apart.
-    expect(loaded).toBe(40 + 8 + 54);
-    expect(waiting).toBe(loaded);
-    secureStore.delete(runtime.storageKey("locale"));
   });
 
   it("Malam's skeleton sits on the Malam header, visible against its fill", async () => {
