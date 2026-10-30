@@ -10,6 +10,7 @@ import {
   routeMapsUrl,
   routeShareText,
   sessionStart,
+  weekRecap,
   whatsappUrl,
   type DeliveryIssue,
   type SellerOperationsState,
@@ -176,6 +177,58 @@ describe("cookingRecap", () => {
 
   it("no unfilled line when the menu is complete", () => {
     expect(cookingRecap(canvasState(), "lunch").unfilled).toEqual([]);
+  });
+});
+
+/** The canvas day moved to another date, its dated menus with it. */
+function dayOn(date: string): SellerOperationsState {
+  const state = canvasState();
+  state.operationalDate = date;
+  state.datedMenus = state.datedMenus!.map((m) => ({ ...m, service_date: date }));
+  return state;
+}
+
+describe("weekRecap", () => {
+  it("sums a dish served on two days into one row, and totals every day and meal", () => {
+    const week = weekRecap([dayOn("2026-10-07"), dayOn("2026-10-08")]);
+    expect(week.byDish.filter((d) => d.name === "Ayam bakar madu")).toEqual([
+      { name: "Ayam bakar madu", category: "Lauk", count: 56 },
+    ]);
+    // 34 lunch portions and 5 dinner portions a day.
+    expect(week.total).toBe(78);
+    expect(week.unfilled).toBe(0);
+    expect(week.from).toBe("2026-10-07");
+    expect(week.to).toBe("2026-10-08");
+  });
+
+  it("sorts by category, then by count, biggest first", () => {
+    const week = weekRecap([dayOn("2026-10-07")]);
+    expect(week.byDish.map((d) => [d.category, d.name, d.count])).toEqual([
+      ["Lauk", "Ayam bakar madu", 28],
+      ["Lauk", "Tempe orek", 28],
+      ["Lauk", "Telur balado", 6],
+      ["Nasi", "Nasi putih", 34],
+      ["Sayur", "Sayur asem", 34],
+    ]);
+  });
+
+  it("adds unfilled slots to unfilled and never lists them as dishes", () => {
+    const filled = dayOn("2026-10-07");
+    const bare = dayOn("2026-10-08");
+    bare.datedMenus = [];
+    const week = weekRecap([filled, bare]);
+    // The bare day: 28 x (1 nasi + 2 lauk + 1 sayur) and 6 x 3 for the second package.
+    expect(week.unfilled).toBe(28 * 4 + 6 * 3);
+    // Only the filled day's dishes are counted.
+    expect(week.byDish.find((d) => d.name === "Ayam bakar madu")?.count).toBe(28);
+    expect(week.byDish.map((d) => d.name)).not.toContain("");
+  });
+
+  it("is empty with no days or no deliveries", () => {
+    expect(weekRecap([])).toEqual({ total: 0, byDish: [], unfilled: 0, from: "", to: "" });
+    const quiet = dayOn("2026-10-07");
+    quiet.deliveries = [];
+    expect(weekRecap([quiet])).toMatchObject({ total: 0, byDish: [], unfilled: 0 });
   });
 });
 

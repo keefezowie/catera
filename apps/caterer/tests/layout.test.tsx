@@ -206,6 +206,7 @@ describe("stack headers", () => {
     expect(titleOf("aktifkan")).toBe("Aktifkan pembayaran");
     expect(titleOf("impor")).toBe("Impor pelanggan");
     expect(titleOf("uang")).toBe("Uang");
+    expect(titleOf("belanja")).toBe("Belanja 7 hari");
     expect(titleOf("laporan/[id]")).toBe("Laporan masalah");
     expect(titleOf("menu/[date]")).toMatch(/^Menu /);
   });

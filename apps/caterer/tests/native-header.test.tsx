@@ -109,6 +109,7 @@ const OWNER_PUSHES: [href: string, route: string, title: string][] = [
   ["/paket/p-1", "paket/[id]", "Paket"],
   ["/paket/baru", "paket/baru", "Paket baru"],
   ["/uang", "uang", "Uang"],
+  ["/belanja", "belanja", "Belanja 7 hari"],
 ];
 
 beforeEach(() => {
@@ -144,7 +145,8 @@ describe("native headers", () => {
       });
       expect({ route, title: header.props.title }).toEqual({
         route,
-        title: ["pelanggan/[id]", "paket/[id]", "laporan/[id]"].includes(route) ? "" : title,
+        // Content-titled routes (Android): the name is the first content line, and the bar takes it once it scrolls under.
+        title: ["pelanggan/[id]", "paket/[id]", "laporan/[id]", "belanja"].includes(route) ? "" : title,
       });
       expect(screen.queryByTestId("app-header")).toBeNull();
       await go(() => router.back());

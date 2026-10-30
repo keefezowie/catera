@@ -4,7 +4,7 @@ import { useColors } from "./theme";
 
 type Glyph = keyof typeof Ionicons.glyphMap;
 
-export type HeaderIcon = "close" | "chat" | "share" | "settings" | "more";
+export type HeaderIcon = "close" | "chat" | "share" | "print" | "settings" | "more";
 
 /**
  * iOS and Android draw share and "more" differently (iOS's horizontal ellipsis, Material's vertical overflow); close,
@@ -14,6 +14,7 @@ const glyphs: Record<HeaderIcon, { ios: Glyph; android: Glyph }> = {
   close: { ios: "close", android: "close" },
   chat: { ios: "chatbubble-outline", android: "chatbubble-outline" },
   share: { ios: "share-outline", android: "share-social-outline" },
+  print: { ios: "print-outline", android: "print-outline" },
   settings: { ios: "settings-outline", android: "settings-outline" },
   more: { ios: "ellipsis-horizontal", android: "ellipsis-vertical" },
 };
