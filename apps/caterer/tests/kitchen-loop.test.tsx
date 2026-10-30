@@ -1357,7 +1357,7 @@ describe("Hari ini on the Dapur scale", () => {
       expect(screen.getByText("Urutan antar")).toBeTruthy();
     });
 
-    it("starts Antar one row (48) and one gap (24) under where the cooking part began", async () => {
+    it("leads with Antar and folds the 48 cooked row under it, one 24 gap apart", async () => {
       const first = renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const card = await screen.findByTestId("session-card");
       // Before: the cooking list opens the session card, and the run is far below it.
@@ -1367,10 +1367,11 @@ describe("Hari ini on the Dapur scale", () => {
       first.unmount();
       renderToday(runtimeWith(async () => kitchenDay([out])));
       const after = await screen.findByTestId("session-card");
-      // After: the summary opens it, and Antar follows it directly: 48 + the 24 section gap, not a whole list further down.
+      // After: stops are out, so Antar opens the card and the folded 48 cooked row follows it across the 24 section gap.
       const parts = topOf(after, "");
-      expect(parts.map((n) => n.props.testID)).toEqual(["cooked-summary", "delivery-order"]);
-      expect((box(parts[0]).minHeight as number) + (box(after).gap as number)).toBe(72);
+      expect(parts.map((n) => n.props.testID)).toEqual(["delivery-order", "cooked-summary"]);
+      expect(box(parts[1]).minHeight).toBe(48);
+      expect(box(after).gap).toBe(24);
     });
   });
 

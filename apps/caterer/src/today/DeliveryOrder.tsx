@@ -20,6 +20,7 @@ import {
 } from "@catera/mobile-ui";
 import { ACTION, ActionPair, HEADING_GAP, LinkRow, TextAction } from "./rows";
 import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
+import { stopStatus } from "./stopStatus";
 import { areaRuns, selectableStops, stopChoices, type Selection } from "./selection";
 
 /** The stops shown before "Lihat {n} alamat lainnya": enough to start the route, short enough to see the buttons below. */
@@ -142,6 +143,7 @@ export function DeliveryOrder({
         portions={portions}
         packageName={s.packageName}
         note={s.note || undefined}
+        status={stopStatus(s, t) ?? undefined}
         address={[s.addressLine, s.area].filter(Boolean).join(", ")}
         mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
         onMap={() => void Linking.openURL(s.mapsUrl)}
@@ -209,7 +211,7 @@ export function DeliveryOrder({
           <View style={{ gap: HEADING_GAP }}>
             {(picking ? areaRuns(shown) : [{ area: "", stops: shown }]).map((run) => {
               const open = run.stops.filter((x) => stopChoices(x, t).selectable);
-              const every = open.length > 0 && open.every((x) => selection!.selected.has(x.deliveryId));
+              const every = open.length > 0 && open.every((x) => selection?.selected.has(x.deliveryId));
               return (
                 <View key={`${run.area}-${run.stops[0].deliveryId}`}>
                   {picking ? (
