@@ -34,7 +34,24 @@ function runtimeWith(day: () => Promise<unknown>): MobileRuntime {
 
 const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props.style as ReactNative.StyleProp<ReactNative.TextStyle>);
 
-afterEach(() => jest.restoreAllMocks());
+// The fixture day is a lunch day, and Hari ini opens on the meal of the wall clock (Malam from 15:00 Jakarta, which has
+// no stops here). Only the clock is pinned, to 10:00 Jakarta: timers and frames keep running for real.
+const NOW = "2026-10-08T03:00:00Z";
+beforeEach(() =>
+  jest.useFakeTimers({
+    now: new Date(NOW),
+    doNotFake: [
+      "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame",
+      "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "setImmediate",
+      "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout",
+    ],
+  }),
+);
+
+afterEach(() => {
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+});
 
 /**
  * Gate 2026-10-30 #10: a light-to-dark switch with Hari ini open left "Urutan antar" and "Per paket" empty on Android.
@@ -51,7 +68,7 @@ it("re-themes Urutan antar and Per paket when the system turns dark while Hari i
   const runtime = runtimeWith(async () => day);
   const ui = () => (
     <ThemeProvider storageKey="t.theme">
-      <MoodProvider>
+      <MoodProvider now={() => new Date(NOW)}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
           <TodayScreen />
         </MobileProvider>
