@@ -157,9 +157,6 @@ describe("BatchProgress", () => {
       ["batch-progress-segment-out", 1],
       ["batch-progress-rest", 3],
     ]);
-    const total = shares.reduce((sum, [, n]) => sum + (n as number), 0);
-    expect(total).toBe(4);
-    expect(1 / total).toBe(0.25);
     // The remainder draws nothing of its own: it is the track showing through.
     expect(flat("batch-progress-rest").backgroundColor).toBeUndefined();
   });
@@ -179,6 +176,24 @@ describe("BatchProgress", () => {
     const ink = nativeMood[scheme][mood];
     return { arrived: ink.toggleActive, out: ink.stopActive, cooking: scheme === "dark" ? ink.headerText : ink.markerIdle };
   };
+
+  it("outlines the whole 0..total extent in markerIdle, 3:1 on the mood header, in every theme and mood", async () => {
+    for (const scheme of ["light", "dark"] as const)
+      for (const mood of ["siang", "malam"] as const) {
+        const ink = nativeMood[scheme][mood];
+        // The line track alone is about 1:1 on the header, which is why the outline is there.
+        expect(contrastRatio(nativeThemes[scheme].line, ink.header)).toBeLessThan(3);
+        expect(contrastRatio(ink.markerIdle, ink.header)).toBeGreaterThanOrEqual(3);
+      }
+    for (const scheme of ["light", "dark"] as const) {
+      const spy = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+      const view = await show(sessionOf([out, ...many(3, scheduled)]));
+      const track = flat("batch-progress-track");
+      expect(track).toMatchObject({ borderWidth: 1, borderColor: nativeMood[scheme].siang.markerIdle, height: 10 });
+      view.unmount();
+      spy.mockRestore();
+    }
+  });
 
   it("draws each segment 3:1 on the track, apart in lightness, with the legend discs in the same colours", async () => {
     for (const scheme of ["light", "dark"] as const)

@@ -35,6 +35,7 @@ const BAR = 8;
 const DISC = 24;
 const GLYPH = 16;
 const GAP = 2;
+const OUTLINE = 1;
 
 /**
  * Hari ini's progress for the whole batch, under the figures: "{n} dari {total} sampai" with the newest time that
@@ -44,7 +45,8 @@ const GAP = 2;
  * The bar is one image for a screen reader, whose label carries the legend, so the legend is hidden from it.
  *
  * Colour: the track is the theme `line` step, which also shows through the 2dp gaps and holds the scheduled remainder.
- * Every segment is at least 3:1 on it, and the three differ in lightness, not hue alone: forest, then sunrise ink, then
+ * It is all but invisible on the mood header it sits on, so a 1dp `markerIdle` outline (3:1 or more on every header)
+ * draws the bar's whole 0..total extent. Every segment is at least 3:1 on the track, and the three differ in lightness, not hue alone: forest, then sunrise ink, then
  * the idle marker grey in light (darkest to lightest); forest, sunrise and cream in dark, where the floor above the
  * track leaves no grey step 1.5:1 off sunrise. Ratios are in the task report.
  */
@@ -101,7 +103,16 @@ export function BatchProgress({ session }: { session: KitchenSession }) {
       >
         <View
           testID="batch-progress-track"
-          style={{ flexDirection: "row", gap: GAP, height: BAR, borderRadius: BAR / 2, overflow: "hidden", backgroundColor: track }}
+          style={{
+            flexDirection: "row",
+            gap: GAP,
+            height: BAR + 2 * OUTLINE,
+            borderRadius: BAR / 2 + OUTLINE,
+            borderWidth: OUTLINE,
+            borderColor: ink.markerIdle,
+            overflow: "hidden",
+            backgroundColor: track,
+          }}
         >
           {parts.map((p) =>
             p.n > 0 ? (
