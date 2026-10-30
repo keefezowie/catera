@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-30",
+  "method": "Built-in image_gen; untouched transparent originals",
+  "assets": [
+    {
+      "number": 11,
+      "file": "spot/spot-pin-lid.png",
+      "check": "Reads as a location pin at 24px; cream inset contains lid.",
+      "prompt": "Generate a replacement Catera spot icon, spot-pin-lid.png, 1254x1254 transparent PNG. Spot icon: a classic map-pin silhouette, a perfect teardrop with a round head and a sharp point at the bottom, filled solid forest #163D2E with the thick forest outline. Inside the round head, a cream #FFF7E9 circle, and in that circle a small domed forest rantang lid seen from the side, with the cream sprout emblem on it. A small soft cream oval shadow under the tip. Front view, symmetrical, centred, with generous empty margin on all sides (at least 12%). The overall shape must read instantly as a location pin at 24 px. No cone, no spinning-top shape, no text. Warm hand-drawn glossy sticker style, thick rounded forest outline, restrained upper-left highlights. The external pin silhouette is a conventional flat map marker, NOT a 3D lid or cone. One asset only. Real alpha transparency.",
+      "source": "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-72a749bf-ed20-404b-8196-2b18f04b461e.png"
+    },
+    {
+      "number": 15,
+      "file": "spot/spot-plate-pause.png",
+      "check": "Pause bars readable at 24px; no cutlery.",
+      "prompt": "Generate replacement Catera asset spot-plate-pause.png, 1254x1254 transparent PNG. Spot icon: a round cream #FFF7E9 plate seen from straight above, with a forest #163D2E rim and the thick forest outline. In the centre of the plate, a large bold pause symbol: two thick vertical forest bars with fully rounded ends, side by side with a clear gap, taking up about half the plate's width. A tiny cream sprout leaf at the top edge of the rim. No fork, no spoon, no food. Flat front view, centred, with generous margin (at least 12% on all sides). It must read as pause at 24 px. Warm hand-drawn glossy sticker rendering with rounded forest outlines, restrained upper-left highlights. Circular symmetrical plate, identical parallel pause bars. No text, no background, no cast shadow. Real alpha transparency. One individual asset only.",
+      "source": "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-2bf32fbf-f348-4fe4-9f5a-5d13425d1a1a.png"
+    },
+    {
+      "number": 27,
+      "file": "moment/moment-rantang-meledak.png",
+      "check": "Three same-width food tiers, separate arch above, nothing below vegetable tier.",
+      "prompt": "Generate replacement Catera moment-rantang-meledak.png, 1254x1254 transparent PNG. Hero illustration, exploded view of a three-tier Catera rantang bursting open with joy. Front view, one vertical column, centred. From top to bottom: the domed forest #163D2E lid with the cream sprout emblem, tilted slightly and floating highest; the tall arched forest carrying handle, floating just under the lid, shown on its own as a clean arch; three identical round cream #FFF7E9 tiers with forest rims, each the same width, floating apart with even gaps, each filled and seen slightly from above so the food is visible: top tier fluffy white nasi with golden bawang goreng; middle tier exactly two pieces of ayam goreng and a slice of tempe; bottom tier green kangkung with a few red chili slices. A tiny cream saucer of red sambal floats off to the right of the middle tier. Two or three soft cream steam curls rise between the tiers. Two small sunrise-orange #F47B2A sparkle stars near the lid. Nothing underneath the bottom tier: no frame, no stand, no base. Thick forest outline, glossy highlights, generous empty margin around the whole column, at least 12% all sides. The tiers are the same width and clearly belong to one rantang. Food visible in every tier. Warm hand-drawn flat glossy sticker style, forest and cream with natural food colours, soft upper-left light. The separate handle is a clean inverted U arch without sidebars or bottom crossbar. Entire assembly compact enough to fit all margins. No text, no faces, no ground shadow, no background shapes. Real alpha transparency. One individual illustration only.\nCRITICAL FRAMING OVERRIDE: the complete illustration including stars MUST fit inside the central 70% of canvas height: empty transparent top band of 188 pixels and bottom band of 188 pixels on the 1254 square. Reduce the whole assembly, do not fill the canvas. Keep tiny clear equal gaps between tiers, not touching. All 3 tiers exactly identical outer width. Keep only 3 steam curls total. No objects below the vegetable tier.",
+      "source": "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-8d670be1-d3cb-466a-8c41-bb8d7f6099f0.png"
+    }
+  ]
+}

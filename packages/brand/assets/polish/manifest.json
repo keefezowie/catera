@@ -1,0 +1,1204 @@
+{
+  "generatedAt": "2026-10-30T12:26:14.675Z",
+  "assetCount": 45,
+  "transparentCount": 44,
+  "opaqueCount": 1,
+  "errors": [],
+  "assets": [
+    {
+      "number": 1,
+      "file": "spot/spot-rantang.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "51978f0b47723a2709643ca60a53ba9e87de8ab2a7b4799bb847e70093c080cb",
+      "bytes": 868130,
+      "transparentPixels": 909282,
+      "opaquePixels": 2058,
+      "partialAlphaPixels": 661176,
+      "visibleSubjectMarginsAtAlpha128": [
+        269,
+        80,
+        248,
+        88
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 2,
+      "file": "spot/spot-rantang-open.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "814c2756ce20c1a96076df81786214aac3b248a02996e4659a1ae9bf92c23917",
+      "bytes": 809922,
+      "transparentPixels": 1081871,
+      "opaquePixels": 1907,
+      "partialAlphaPixels": 488738,
+      "visibleSubjectMarginsAtAlpha128": [
+        43,
+        225,
+        46,
+        241
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 3,
+      "file": "spot/spot-menu-card-pencil.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "80323bb0b70604c0b2c798cf0f176db2ffed39e50217e8248fdb272cbb1996be",
+      "bytes": 661642,
+      "transparentPixels": 1004444,
+      "opaquePixels": 1204,
+      "partialAlphaPixels": 566868,
+      "visibleSubjectMarginsAtAlpha128": [
+        171,
+        244,
+        113,
+        239
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 4,
+      "file": "spot/spot-plate-empty-pencil.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "0d635345455bb000b119764476da887073759b5cdb8439084c089d5ed917235b",
+      "bytes": 776525,
+      "transparentPixels": 949080,
+      "opaquePixels": 1601,
+      "partialAlphaPixels": 621835,
+      "visibleSubjectMarginsAtAlpha128": [
+        97,
+        281,
+        47,
+        245
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 5,
+      "file": "spot/spot-rantang-clock.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "b612b30cb8db739d4389f6fec2c5ecda91b2e0d2ac294e8728b55abdc6c71d84",
+      "bytes": 799964,
+      "transparentPixels": 917103,
+      "opaquePixels": 2142,
+      "partialAlphaPixels": 653271,
+      "visibleSubjectMarginsAtAlpha128": [
+        212,
+        109,
+        152,
+        100
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 6,
+      "file": "spot/spot-scooter.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "7fcc30be49c554b833d7416a0f6642e54bb5030f9e180d52ec15cd8ca0f57493",
+      "bytes": 854206,
+      "transparentPixels": 1001704,
+      "opaquePixels": 2259,
+      "partialAlphaPixels": 568553,
+      "visibleSubjectMarginsAtAlpha128": [
+        70,
+        223,
+        70,
+        135
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 7,
+      "file": "spot/spot-wok.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "8ee7ab1317b5d07af74ae744ce5d2658e97addc7a79b16b0296ed22d2593b193",
+      "bytes": 745762,
+      "transparentPixels": 1080825,
+      "opaquePixels": 1731,
+      "partialAlphaPixels": 489960,
+      "visibleSubjectMarginsAtAlpha128": [
+        119,
+        256,
+        45,
+        191
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 8,
+      "file": "spot/spot-nota.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "9147fecf852d0982d604e6f09b9bf8ad2199b9641c6875befdb5779fa31988cd",
+      "bytes": 677407,
+      "transparentPixels": 970700,
+      "opaquePixels": 1125,
+      "partialAlphaPixels": 600691,
+      "visibleSubjectMarginsAtAlpha128": [
+        214,
+        221,
+        185,
+        174
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 9,
+      "file": "spot/spot-lid-heart.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "275ab862a069b7e5bae8f207e059140512c9f4ef83419169fd05669a1b761c64",
+      "bytes": 679051,
+      "transparentPixels": 1062824,
+      "opaquePixels": 1458,
+      "partialAlphaPixels": 508234,
+      "visibleSubjectMarginsAtAlpha128": [
+        104,
+        258,
+        105,
+        274
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 10,
+      "file": "spot/spot-calendar-tote.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "684231d30a041783d7641f47f412cf6a892486a131249dc29bd2458b53f73b46",
+      "bytes": 728179,
+      "transparentPixels": 916584,
+      "opaquePixels": 1567,
+      "partialAlphaPixels": 654365,
+      "visibleSubjectMarginsAtAlpha128": [
+        212,
+        112,
+        186,
+        114
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 11,
+      "file": "spot/spot-pin-lid.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "5d436cec0653ff74dfb0352c92739bb437de5b29d17b470861aebc8df02af839",
+      "bytes": 541468,
+      "transparentPixels": 1183257,
+      "opaquePixels": 715,
+      "partialAlphaPixels": 388544,
+      "visibleSubjectMarginsAtAlpha128": [
+        300,
+        197,
+        301,
+        184
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 12,
+      "file": "spot/spot-saringan.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "0beecc937a91bdc86e003653f0b53dea7422065f6f5c2391d3651d8778f9fbe0",
+      "bytes": 868386,
+      "transparentPixels": 1076508,
+      "opaquePixels": 853,
+      "partialAlphaPixels": 495155,
+      "visibleSubjectMarginsAtAlpha128": [
+        182,
+        220,
+        155,
+        199
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 13,
+      "file": "spot/spot-cabai.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "baccfb8e5cce1b7ab67896e41e702d0136e79b6eaa07174336d402113f839ad5",
+      "bytes": 505787,
+      "transparentPixels": 1223434,
+      "opaquePixels": 1511,
+      "partialAlphaPixels": 347571,
+      "visibleSubjectMarginsAtAlpha128": [
+        274,
+        244,
+        140,
+        256
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 14,
+      "file": "spot/spot-plate-leaf.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "e9270ea24b256ccb43c5edf904a83c2c42d52371af46d5218fc4737074a967d2",
+      "bytes": 778572,
+      "transparentPixels": 1067143,
+      "opaquePixels": 1283,
+      "partialAlphaPixels": 504090,
+      "visibleSubjectMarginsAtAlpha128": [
+        132,
+        221,
+        132,
+        199
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 15,
+      "file": "spot/spot-plate-pause.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "f0482394c1f3a06d454cd2705d83c78cdb07ac7d0553a2fa208ee5733c28686e",
+      "bytes": 871335,
+      "transparentPixels": 833351,
+      "opaquePixels": 1058,
+      "partialAlphaPixels": 738107,
+      "visibleSubjectMarginsAtAlpha128": [
+        149,
+        114,
+        150,
+        118
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 16,
+      "file": "spot/spot-rantang-gift.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "39ce2dcdb678cb9c0cb513d59b8c92611ec1e2fe82365f9d3dcd89f88e27ce0c",
+      "bytes": 889461,
+      "transparentPixels": 882168,
+      "opaquePixels": 2279,
+      "partialAlphaPixels": 688069,
+      "visibleSubjectMarginsAtAlpha128": [
+        244,
+        86,
+        243,
+        80
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 17,
+      "file": "empty/empty-area.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "647219e31cd644d7f2060103ccc297818f7784a1dc2f9057225b59f310549ef0",
+      "bytes": 742319,
+      "transparentPixels": 988477,
+      "opaquePixels": 944,
+      "partialAlphaPixels": 583095,
+      "visibleSubjectMarginsAtAlpha128": [
+        144,
+        259,
+        161,
+        209
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 18,
+      "file": "empty/empty-kentongan-lid.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "dab0b7eca1a063f47c505274bd235f6c04988e9d068d09277ea1adfcb6d71242",
+      "bytes": 530209,
+      "transparentPixels": 1200007,
+      "opaquePixels": 1743,
+      "partialAlphaPixels": 370766,
+      "visibleSubjectMarginsAtAlpha128": [
+        98,
+        112,
+        97,
+        240
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 19,
+      "file": "onboarding/welcome-meja.png",
+      "priority": "P1",
+      "width": 1024,
+      "height": 1536,
+      "requestedDimensions": [
+        1024,
+        1536
+      ],
+      "sha256": "c0db1a8963629635cd5219f8ba29a6a3e315231733914accc77994a1b2b87211",
+      "bytes": 3588827,
+      "transparentPixels": 0,
+      "opaquePixels": 1572864,
+      "partialAlphaPixels": 0,
+      "visibleSubjectMarginsAtAlpha128": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 20,
+      "file": "onboarding/plate-ayam.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "da6d7d5d662e335a4a67d2a92bdcb206519acc45975c9e88e91f3c27218453f8",
+      "bytes": 2766782,
+      "transparentPixels": 391860,
+      "opaquePixels": 430,
+      "partialAlphaPixels": 1180226,
+      "visibleSubjectMarginsAtAlpha128": [
+        10,
+        16,
+        11,
+        25
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 21,
+      "file": "onboarding/plate-ikan.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "1a75e218c30ef69cfdb84e00d721bf4760d815edb3f33099990595253012af0f",
+      "bytes": 2850099,
+      "transparentPixels": 374469,
+      "opaquePixels": 378,
+      "partialAlphaPixels": 1197669,
+      "visibleSubjectMarginsAtAlpha128": [
+        5,
+        13,
+        6,
+        23
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 22,
+      "file": "onboarding/plate-daging.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "ced111c0b31091826deb5f267f25e996901159428252609fe7ef1216356cad67",
+      "bytes": 2740618,
+      "transparentPixels": 403742,
+      "opaquePixels": 553,
+      "partialAlphaPixels": 1168221,
+      "visibleSubjectMarginsAtAlpha128": [
+        11,
+        13,
+        12,
+        40
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 23,
+      "file": "onboarding/plate-sayur.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "010c3f150aa56729202d9345dbcf89409e3f5cf4f7de70d7363fede8038661bf",
+      "bytes": 2807187,
+      "transparentPixels": 370635,
+      "opaquePixels": 398,
+      "partialAlphaPixels": 1201483,
+      "visibleSubjectMarginsAtAlpha128": [
+        3,
+        8,
+        3,
+        25
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 24,
+      "file": "onboarding/plate-pedas.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "3c3cb2d69ea6370c534e684745399e13df2e76f045a239b4d0eb592e8b3c0a38",
+      "bytes": 2776593,
+      "transparentPixels": 358593,
+      "opaquePixels": 303,
+      "partialAlphaPixels": 1213620,
+      "visibleSubjectMarginsAtAlpha128": [
+        6,
+        4,
+        5,
+        21
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 25,
+      "file": "onboarding/plate-tanpa-santan.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "05f87359f71190538a42804948116cf5f715c2f30b7fccf97b08b2704285534a",
+      "bytes": 2739075,
+      "transparentPixels": 376520,
+      "opaquePixels": 342,
+      "partialAlphaPixels": 1195654,
+      "visibleSubjectMarginsAtAlpha128": [
+        8,
+        10,
+        8,
+        23
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 26,
+      "file": "onboarding/primer-area.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "8ab9d43448d041493410479298bd64c9e42f3d84847cd3fdeeb17bd463cb810c",
+      "bytes": 733357,
+      "transparentPixels": 977230,
+      "opaquePixels": 821,
+      "partialAlphaPixels": 594465,
+      "visibleSubjectMarginsAtAlpha128": [
+        221,
+        293,
+        222,
+        219
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 27,
+      "file": "moment/moment-rantang-meledak.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "eb0f753bbd03884082d0b210092b93d5afc0369e6098d75def2e0307d6be1eaa",
+      "bytes": 562044,
+      "transparentPixels": 1334925,
+      "opaquePixels": 1218,
+      "partialAlphaPixels": 236373,
+      "visibleSubjectMarginsAtAlpha128": [
+        454,
+        198,
+        334,
+        177
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 28,
+      "file": "moment/moment-langganan-aktif.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "9d4e2dffb446ff338938e6684b3da00a71ea3ce956526b31a013c1adac336b74",
+      "bytes": 971199,
+      "transparentPixels": 797293,
+      "opaquePixels": 2599,
+      "partialAlphaPixels": 772624,
+      "visibleSubjectMarginsAtAlpha128": [
+        94,
+        111,
+        99,
+        107
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 29,
+      "file": "onboarding/primer-notifikasi.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "66ebef7dd49f89bc4d6c0777cd1a504276f8eb94d00f158b03eeeb100fdd9f36",
+      "bytes": 1112456,
+      "transparentPixels": 878106,
+      "opaquePixels": 1525,
+      "partialAlphaPixels": 692885,
+      "visibleSubjectMarginsAtAlpha128": [
+        63,
+        106,
+        40,
+        102
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 30,
+      "file": "spot/spot-rantang-dikemas.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "b1aef036202f3070f6b869fc48252513e80d66469048f1b096da2c241317b84f",
+      "bytes": 798329,
+      "transparentPixels": 1035409,
+      "opaquePixels": 2493,
+      "partialAlphaPixels": 534614,
+      "visibleSubjectMarginsAtAlpha128": [
+        299,
+        78,
+        130,
+        69
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 31,
+      "file": "spot/spot-rantang-sampai.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "f87af6d82f72aa581a39353e1edb3e2db3d9cded84474ed6585bc84e117cfe55",
+      "bytes": 858639,
+      "transparentPixels": 842254,
+      "opaquePixels": 1528,
+      "partialAlphaPixels": 728734,
+      "visibleSubjectMarginsAtAlpha128": [
+        214,
+        74,
+        212,
+        53
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 32,
+      "file": "token/token-nasi-kotak.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "eec5bbe3b6f52f0caab70d4525609e32ebf8db013b47b6c07c965d5966808a52",
+      "bytes": 2103230,
+      "transparentPixels": 558209,
+      "opaquePixels": 869,
+      "partialAlphaPixels": 1013438,
+      "visibleSubjectMarginsAtAlpha128": [
+        21,
+        14,
+        5,
+        6
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 33,
+      "file": "token/token-sate.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "ba49dcbdd8a96ad496e7e53a0bd4478cfabe114dad8f3a13e89559f1b2c46dbd",
+      "bytes": 2069771,
+      "transparentPixels": 752866,
+      "opaquePixels": 664,
+      "partialAlphaPixels": 818986,
+      "visibleSubjectMarginsAtAlpha128": [
+        13,
+        65,
+        12,
+        65
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 34,
+      "file": "token/token-gado-gado.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "e1faa80d364228a64c83fc1c0897859c81dd616d02d2732472d074fabac4afe2",
+      "bytes": 2346319,
+      "transparentPixels": 541319,
+      "opaquePixels": 559,
+      "partialAlphaPixels": 1030638,
+      "visibleSubjectMarginsAtAlpha128": [
+        10,
+        63,
+        4,
+        92
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 35,
+      "file": "token/token-pisang-goreng.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "e869ed3105edc21920fbf506d6b118035b850f1b63d9787486bdd197c9853be7",
+      "bytes": 2238788,
+      "transparentPixels": 679345,
+      "opaquePixels": 643,
+      "partialAlphaPixels": 892528,
+      "visibleSubjectMarginsAtAlpha128": [
+        15,
+        67,
+        20,
+        41
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 36,
+      "file": "token/token-es-teh.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1024,
+        1024
+      ],
+      "sha256": "7b0321d77ddb433bd764671390499c61b213a3418473ed020eb8c6d7334b63f6",
+      "bytes": 1634776,
+      "transparentPixels": 896512,
+      "opaquePixels": 270,
+      "partialAlphaPixels": 675734,
+      "visibleSubjectMarginsAtAlpha128": [
+        285,
+        22,
+        149,
+        41
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Native output 1254x1254; requested 1024x1024. Original retained without resizing."
+      ]
+    },
+    {
+      "number": 37,
+      "file": "category/category-nusantara.png",
+      "priority": "P3",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "d2e1a1b4172e73b63c370d65642954441fef471bd43ebfb7cef77ea5adbd1d84",
+      "bytes": 885607,
+      "transparentPixels": 996326,
+      "opaquePixels": 1259,
+      "partialAlphaPixels": 574931,
+      "visibleSubjectMarginsAtAlpha128": [
+        91,
+        196,
+        91,
+        192
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 38,
+      "file": "category/category-sehat.png",
+      "priority": "P3",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "faabcbe78392f596f2d9c6a30a281937b2dd6c094879bde1f0aa74f32edc4f77",
+      "bytes": 944435,
+      "transparentPixels": 910416,
+      "opaquePixels": 1279,
+      "partialAlphaPixels": 660821,
+      "visibleSubjectMarginsAtAlpha128": [
+        123,
+        225,
+        123,
+        197
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 39,
+      "file": "category/category-keluarga.png",
+      "priority": "P3",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "e70769abec2ea76b6f3191ef62ec1e61af2cef599d004de3186f13560502971b",
+      "bytes": 987005,
+      "transparentPixels": 806646,
+      "opaquePixels": 2482,
+      "partialAlphaPixels": 763388,
+      "visibleSubjectMarginsAtAlpha128": [
+        163,
+        64,
+        144,
+        55
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 40,
+      "file": "category/category-kantor.png",
+      "priority": "P3",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "f4d39ee6adbab5da188d86ffa571a6f11e2b1872dd6a66a62fd52128e8d71585",
+      "bytes": 952891,
+      "transparentPixels": 860254,
+      "opaquePixels": 1024,
+      "partialAlphaPixels": 711238,
+      "visibleSubjectMarginsAtAlpha128": [
+        184,
+        197,
+        173,
+        102
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 41,
+      "file": "compliment/compliment-hangat.png",
+      "priority": "P3",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "a22ac868d028caf29f90c7ae69be31d9ed9e540c31dcc63b46c3fb4df2c54387",
+      "bytes": 651754,
+      "transparentPixels": 1076083,
+      "opaquePixels": 1977,
+      "partialAlphaPixels": 494456,
+      "visibleSubjectMarginsAtAlpha128": [
+        213,
+        120,
+        213,
+        87
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 42,
+      "file": "compliment/compliment-porsi-pas.png",
+      "priority": "P3",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "9d9a2a7bd6844582536f17f9fd5d223fcf642800be6a95be5c0bb7439694a889",
+      "bytes": 1183664,
+      "transparentPixels": 806039,
+      "opaquePixels": 1326,
+      "partialAlphaPixels": 765151,
+      "visibleSubjectMarginsAtAlpha128": [
+        77,
+        221,
+        74,
+        178
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 43,
+      "file": "compliment/compliment-rumahan.png",
+      "priority": "P3",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "44d569feae60532360d4faf601a3a2d6d3fdb46e4ae4bcecd5c72e7859f00e27",
+      "bytes": 835393,
+      "transparentPixels": 957862,
+      "opaquePixels": 2221,
+      "partialAlphaPixels": 612433,
+      "visibleSubjectMarginsAtAlpha128": [
+        162,
+        121,
+        128,
+        128
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    },
+    {
+      "number": 44,
+      "file": "dapur/dapur-selesai.png",
+      "priority": "P3",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "a9a04a920208a9de1a2e022706f24258f46385e876181bf4c124fd7f2546f0d1",
+      "bytes": 795116,
+      "transparentPixels": 1008754,
+      "opaquePixels": 1389,
+      "partialAlphaPixels": 562373,
+      "visibleSubjectMarginsAtAlpha128": [
+        316,
+        132,
+        189,
+        131
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
+    },
+    {
+      "number": 45,
+      "file": "dapur/dapur-rak-kosong.png",
+      "priority": "P3",
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "fc3dc1d293d415552f21384ef63fb75e3d2bf82bc8b096610c937312b8a48798",
+      "bytes": 796601,
+      "transparentPixels": 986336,
+      "opaquePixels": 2733,
+      "partialAlphaPixels": 583447,
+      "visibleSubjectMarginsAtAlpha128": [
+        99,
+        202,
+        127,
+        138
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": [
+        "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
+      ]
+    }
+  ]
+}
