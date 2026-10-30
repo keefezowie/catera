@@ -1234,7 +1234,7 @@ For Dapur, these earlier statements no longer describe the app:
 
 Dapur sections are 24 apart, a heading is 12 above its content, and the parts of a group are 8 apart.
 
-`Text variant="figure"`: 32 / 40, weight 800 through `fontFor`, tabular figures, charcoal, not a header for screen readers. It is the lead number on Hari ini and Uang and nowhere else. Sibling figures are `section` at 800, tabular.
+`Text variant="figure"`: 32 / 40, weight 800 through `fontFor`, tabular figures, charcoal, not a header for screen readers. It is the lead number on Hari ini, Uang and Belanja 7 hari (the week's portion total, `BelanjaScreen.tsx:148`) and nowhere else. Sibling figures are `section` at 800, tabular.
 
 Dapur tests mount a screen under the scale with `withDapurScale(ui)` (`apps/caterer/tests/dapur-scale.tsx`) or the `render` in `apps/caterer/tests/render-dapur.tsx`. `apps/caterer/tests/layout-dapur.test.tsx`, formerly `layout-classic.test.tsx`, pins the opt-in values and keeps one case for the classic geometry a component has with no provider.
 
