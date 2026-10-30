@@ -51,7 +51,10 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
     `/api/v1/seller/10000000-0000-4000-8000-000000000001?date=${date}`,
   );
   const state = (await response.json()).data;
-  const delivery = state.deliveries[0];
+  // One of the fixture's selected rows: the day's list also carries the demo's set-aside (cancelled) history.
+  const delivery = state.deliveries.find(
+    (d: { address: { instructions: string } }) => d.address.instructions === "Fixture ID 0006",
+  );
   await page.request.post("/api/v1/commands", {
     data: {
       action: "delivery.status",
@@ -73,12 +76,9 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
   await confirmation
     .getByRole("button", { name: "Konfirmasi perubahan" })
     .click();
-  await expect(confirmation.getByRole("alert")).toContainText(
-    "Pesanan telah berubah",
-  );
-  await confirmation
-    .getByRole("button", { name: "Kembali tinjau pilihan" })
-    .click();
+  // Since 1af1b7d a conflict closes the confirmation and reports above the refreshed list, keeping the selection.
+  await expect(confirmation).toBeHidden();
+  await expect(main.getByRole("alert").filter({ hasText: "Pesanan telah berubah" })).toBeVisible();
   await expect(main.locator(".ops-bulk-toolbar")).toContainText(
     "pilihan tidak valid",
   );
