@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react-
 import * as ReactNative from "react-native";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import type { SellerOperationsState } from "@catera/domain";
@@ -102,6 +103,15 @@ function renderToday(runtime: MobileRuntime, { date, now = SIANG_NOW }: { date?:
 const strip = () => screen.getByTestId("week-strip");
 const dayTabs = () => within(strip()).getAllByRole("tab");
 const cell = (offset: number) => screen.getByTestId(`week-day-${offset}`);
+/** Every count line keeps its room but is unseen and unheard (queryByText would skip hidden text, so read the wrapper). */
+const expectCountLinesHidden = () => {
+  for (let offset = 0; offset < 7; offset += 1) {
+    const line = screen.getByTestId(`week-day-${offset}-count-line`, { includeHiddenElements: true });
+    expect(StyleSheet.flatten(line.props.style).opacity).toBe(0);
+    expect(line.props.accessibilityElementsHidden).toBe(true);
+    expect(line.props.importantForAccessibility).toBe("no-hide-descendants");
+  }
+};
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
 const selectedOffset = () => dayTabs().findIndex((t) => t.props.accessibilityState.selected);
 
@@ -143,7 +153,7 @@ describe("the title and the meta line", () => {
     const title = screen.getByText("Kamis 8 Okt");
     expect(title.props.accessibilityRole).toBe("header");
     expect(screen.queryByRole("button", { name: /ganti hari/ })).toBeNull();
-    expect(screen.UNSAFE_queryAllByType(require("@expo/vector-icons/Ionicons").default).some((i: { props: { name: string } }) => i.props.name === "chevron-down")).toBe(false);
+    expect(screen.UNSAFE_queryAllByType(Ionicons).some((i) => i.props.name === "chevron-down")).toBe(false);
   });
 
   it("says Besok for tomorrow and the weekday for the days after", async () => {
@@ -187,9 +197,9 @@ describe("the strip", () => {
       "Selasa 13 Oktober, tidak ada pengantaran",
       "Rabu 14 Oktober, tidak ada pengantaran",
     ]);
-    // A day with no orders shows a dash, not a zero.
-    expect(within(cell(0)).getByText("–")).toBeTruthy();
-    expect(within(cell(0)).queryByText("0")).toBeNull();
+    // A day with no orders shows "0" (the copy glossary retires a lone en dash) and says "tidak ada pengantaran".
+    expect(within(cell(0)).getByText("0")).toBeTruthy();
+    expect(within(cell(0)).queryByText("–")).toBeNull();
     // Today is selected to begin with.
     expect(selectedOffset()).toBe(0);
     expect(strip().props.accessibilityRole).toBe("tablist");
@@ -232,7 +242,7 @@ describe("the strip", () => {
     renderToday(runtimeWith(() => new Promise<never>(() => {})));
     await screen.findByText("Dapur Bu Rina · Hari ini");
     expect(dayTabs()).toHaveLength(7);
-    expect(screen.queryByText("–")).toBeNull();
+    expectCountLinesHidden();
     expect(dayTabs()[1].props.accessibilityLabel).toMatch(/^Jumat 9 Oktober/);
   });
 
@@ -245,7 +255,7 @@ describe("the strip", () => {
     await waitFor(() => expect(runtime.api.sellerCalendar).toHaveBeenCalled());
     await act(async () => undefined);
     expect(dayTabs()).toHaveLength(7);
-    expect(screen.queryByText("–")).toBeNull();
+    expectCountLinesHidden();
     expect(screen.queryByText(/Belum bisa memuat/)).toBeNull();
     expect(screen.queryByText("Coba lagi")).toBeNull();
     // The day itself still works.

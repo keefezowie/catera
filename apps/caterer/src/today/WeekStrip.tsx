@@ -25,7 +25,9 @@ export function weekOffset(target: string | undefined, now: Date): number {
  * Today is the only day the kitchen can act on; the others are for looking ahead, which the screen itself enforces.
  *
  * `counts` maps a date to its order count; null while the week is loading or could not be read, when the cells keep their
- * height and simply have no count line (an unreadable week is not an error banner, the day itself still works).
+ * height and simply have no count line (an unreadable week is not an error banner, the day itself still works). A day
+ * with no orders shows "0": the copy glossary retires the lone en dash as a placeholder, and the spoken label says
+ * "tidak ada pengantaran".
  *
  * Colour: the selected cell is the Siang / Malam toggle's own pair (`toggleActive` with `onToggleActive`), the others
  * sit on the hero surface that the figure strip below uses, with the 1dp `markerIdle` edge that reads against the header
@@ -105,6 +107,7 @@ export function WeekStrip({
             </Text>
             {/* The count line keeps its room while the week is unknown, unseen and unheard, so the cell never changes height. */}
             <View
+              testID={`week-day-${offset}-count-line`}
               accessibilityElementsHidden={orders === null}
               importantForAccessibility={orders === null ? "no-hide-descendants" : "auto"}
               style={{ opacity: orders === null ? 0 : 1 }}
@@ -115,7 +118,7 @@ export function WeekStrip({
                 {...fit}
                 style={{ color: rest, lineHeight: 16, fontVariant: ["tabular-nums"], textAlign: "center" }}
               >
-                {orders ? String(orders) : "–"}
+                {String(orders ?? 0)}
               </Text>
             </View>
           </PressableScale>
