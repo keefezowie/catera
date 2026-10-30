@@ -92,7 +92,6 @@ export function RecoverForm({
               "Kami kirim tautan ke emailmu. Buka tautannya di HP ini untuk membuat kata sandi baru.",
               "We'll email you a link. Open it on this phone to set a new password.",
             )}
-           
             pose={form.pose}
           />
           <View style={{ gap: 14 }}>

@@ -92,4 +92,3 @@ export function StepFooter({ links, children }: { links?: ReactNode; children: R
     </View>
   );
 }
-
