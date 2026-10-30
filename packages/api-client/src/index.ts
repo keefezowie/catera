@@ -42,7 +42,18 @@ export class ApiError extends Error {
 export function createApi(
   base = "",
   token?: () => Promise<string | null>,
-  { timeoutMs = 30_000 }: { timeoutMs?: number } = {},
+  {
+    timeoutMs = 30_000,
+    credentials = "include",
+  }: {
+    timeoutMs?: number;
+    /**
+     * Whether requests carry and keep cookies. The web session lives in cookies ("include"). A native client signs in
+     * with a bearer token only and passes "omit": React Native's fetch otherwise stores the API's cookies (the demo
+     * `catera_v1_demo`, Supabase's) in the phone's cookie store and keeps sending them after the token is gone.
+     */
+    credentials?: RequestCredentials;
+  } = {},
 ) {
   async function request<T>(path: string, body?: unknown): Promise<T> {
     const controller = new AbortController();
@@ -63,7 +74,7 @@ export function createApi(
           if (controller.signal.aborted) throw new ApiError("REQUEST_TIMEOUT");
           const response = await fetch(base + "/api/v1/" + path, {
             method: body ? "POST" : "GET",
-            credentials: "include",
+            credentials,
             signal: controller.signal,
             headers: {
               "Content-Type": "application/json",
