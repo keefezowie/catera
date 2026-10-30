@@ -1066,6 +1066,10 @@ describe("Beranda: Pilih menu", () => {
     while (new Date(`${d}T00:00:00Z`).getUTCDay() !== 1) d = addDays(d, 1);
     return d;
   })();
+  // The fixture clock is the real one, so the month is whatever month that Monday falls in.
+  const ID_MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+  const mondayDate = new Date(`${monday}T00:00:00Z`);
+  const menuRow = `Pilih menu Senin ${mondayDate.getUTCDate()} ${ID_MONTHS[mondayDate.getUTCMonth()]}`;
   const due: CustomerActionItem = {
     id: "menu-d-9-lunch",
     kind: "menu_choice_due",
@@ -1083,7 +1087,7 @@ describe("Beranda: Pilih menu", () => {
     const runtime = runtimeWith({}, { actions: [due] });
     renderWith(runtime, <Beranda />);
     // One due day reads with its date ("Pilih menu Senin 12 Okt"); the action word opens it.
-    fireEvent.press(await screen.findByText(/^Pilih menu Senin \d+ Okt$/));
+    fireEvent.press(await screen.findByText(menuRow));
     expect(router.push).toHaveBeenCalledWith(`/pilih-menu/s-1?date=${monday}&meal=lunch`);
   });
 
@@ -1101,11 +1105,11 @@ describe("Beranda: Pilih menu", () => {
   it("keeps the menu row, with no error line, when a later read of the action feed fails", async () => {
     const runtime = runtimeWith({}, { actions: [due] });
     renderWith(runtime, <Beranda />);
-    expect(await screen.findByText(/^Pilih menu Senin \d+ Okt$/)).toBeTruthy();
+    expect(await screen.findByText(menuRow)).toBeTruthy();
     (runtime.api.customerActions as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
     await act(async () => void screen.UNSAFE_getByType(ReactNative.RefreshControl).props.onRefresh());
     await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalledTimes(2));
-    expect(screen.getByText(/^Pilih menu Senin \d+ Okt$/)).toBeTruthy();
+    expect(screen.getByText(menuRow)).toBeTruthy();
     expect(screen.queryByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeNull();
   });
 
