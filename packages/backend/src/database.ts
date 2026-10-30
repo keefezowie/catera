@@ -690,7 +690,7 @@ export async function createDemoDatabase(inMemory = false) {
       "supabase/migrations/20261020100000_customer_live_address.sql"), "utf8") + "\ncommit;");
   }
   if (!(await db.query<{ done: boolean }>(
-    "select position('issue' in pg_get_functiondef('public.catera_v1_read_lifecycle_base(text,jsonb)'::regprocedure)) > 0 as done",
+    "select position('seller-calendar served meals' in pg_get_functiondef('public.catera_v1_read_lifecycle_base(text,jsonb)'::regprocedure)) > 0 as done",
   )).rows[0].done) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261030100000_seller_calendar_served_meals.sql"), "utf8") + "\ncommit;");

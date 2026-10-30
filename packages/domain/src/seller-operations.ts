@@ -108,6 +108,13 @@ export function destinationKey(address: SellerDelivery["address"]) {
     ),
   );
 }
+// The active day list and the seller-calendar strip agree: a delivery is listed for a meal only while that meal's
+// fulfilment is not cancelled (an issue meal, Gagal diantar, is still listed). meal "all" asks for any such meal.
+export function listsMeal(delivery: SellerDelivery, meal: string) {
+  return delivery.meals.some(
+    (m) => m.status !== "cancelled" && (meal === "all" || m.meal === meal),
+  );
+}
 export function scheduleSummary(
   rows: SellerDelivery[],
   meal: string,
