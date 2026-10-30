@@ -80,7 +80,7 @@ export function DeliveryOrder({
   meal: KitchenMeal;
   date: string;
   /** Which exceptions the day allows; null on a copy kept from before the connection dropped, which cannot be acted on. */
-  report: "today" | "tomorrow" | null;
+  report: "today" | "later" | null;
   caterer: string;
   /** "Pilih" mode, owned by the screen so its bottom bar can read it. Left out, the list has no selection. */
   selection?: Selection;

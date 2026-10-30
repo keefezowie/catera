@@ -70,7 +70,7 @@ export function SessionCard({
   ticks: Ticks;
   meal: KitchenMeal;
   date: string;
-  report: "today" | "tomorrow" | null;
+  report: "today" | "later" | null;
   caterer: string;
   /** "Pilih" mode for the delivery order, owned by the screen. */
   selection?: Selection;

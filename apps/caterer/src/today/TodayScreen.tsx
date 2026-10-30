@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { RefreshControl, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   errorLabel,
   jakartaDay,
   kitchenDayDone,
   kitchenSession,
-  mealLabel,
   sessionStart,
   shortDate,
+  weekdayName,
   type DeliveryIssue,
   type KitchenMeal,
   type KitchenSession,
@@ -22,7 +21,6 @@ import {
   FadeSwap,
   FigureStrip,
   MoodHeader,
-  PressableScale,
   Screen,
   StateArt,
   Text,
@@ -40,6 +38,7 @@ import { SelectionBar } from "./SelectionBar";
 import { useStopSelection } from "./selection";
 import { SessionCard } from "./SessionCard";
 import { useTicks } from "./ticks";
+import { WEEK_DAYS, WeekStrip, weekOffset } from "./WeekStrip";
 import { useRouteView } from "./DeliveryOrder";
 import { LiveSlot } from "./LiveSlot";
 import { CAPTION_RESERVE, FIGURE_GAP, FIGURE_TOP, SECTION_GAP } from "./rows";
@@ -287,24 +286,36 @@ function DoneCard({ ops, onTomorrow }: { ops: SellerOperationsState; onTomorrow:
 
 /**
  * Hari ini: the mood's meal as one session with what to cook and where to take it, plus only the exceptions to act on.
- * `date` (from a notification) opens Besok when it points to tomorrow.
+ * The strip under the title picks any of the next seven days; only today can be acted on. `date` (from a notification)
+ * opens that day when it is within the week, and today otherwise.
  */
 export function TodayScreen({ date: target }: { date?: string } = {}) {
   const { actor, runtime, t, locale } = useMobile();
   const c = useColors();
   const { mood, setMood } = useMood();
   const m = useMoodColors();
-  const [offset, setOffset] = useState<"0" | "1">(() => (target === jakartaDay(new Date(), 1) ? "1" : "0"));
+  const [offset, setOffset] = useState(() => weekOffset(target, new Date()));
   useEffect(() => {
-    if (target) setOffset(target === jakartaDay(new Date(), 1) ? "1" : "0");
+    if (target) setOffset(weekOffset(target, new Date()));
   }, [target]);
   const catererId = actor?.catererId ?? "";
   const actorId = actor?.id ?? "";
-  const date = jakartaDay(new Date(), Number(offset));
+  const date = jakartaDay(new Date(), offset);
   // A launch paints the day kept for this account first (`fromCache`); the fresh read replaces it.
   const day = useData(`ops:${catererId}:${date}`, () => loadDay(runtime, actorId, catererId, date), {
     cached: () => keptDay(actorId, catererId, date),
   });
+  // The week strip's counts: orders per day for the mood's meal, today through six days on. Its own read: a failure
+  // leaves the strip without counts and nothing else (the day itself is read separately).
+  const week = {
+    from: jakartaDay(new Date(), 0),
+    to: jakartaDay(new Date(), WEEK_DAYS - 1),
+    meal: mood === "siang" ? "lunch" : "dinner",
+  };
+  const calendar = useData(`cal:${catererId}:${week.from}:${week.meal}`, () =>
+    runtime.api.sellerCalendar(catererId, { ...week, status: "active" }),
+  );
+  const counts = calendar.data ? Object.fromEntries(calendar.data.days.map((d) => [d.date, d.orders])) : null;
   const attention = useData(`attention:${catererId}`, () =>
     runtime.api.sellerAttention(catererId, { scope: "future" }),
   );
@@ -314,6 +325,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     runtime.api.request<DeliveryIssue[]>(`delivery-issues?${new URLSearchParams({ id: catererId })}`),
   );
   const ops = day.data?.data;
+  const today = offset === 0;
 
   // A kitchen without packages has nothing to cook yet; only the owner can set it up.
   const newKitchen = !!ops && !ops.offers.length && actor?.role === "owner";
@@ -342,23 +354,25 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   const action = session && !day.data?.savedAt && (session.canCook || session.canDepart) ? session : null;
   // "Pilih": the order list and the bottom bar share one selection, reset when the day or the meal changes.
   const selection = useStopSelection(session?.stops ?? [], `${date}:${meal}`);
-  const picking = !!session && selection.active && offset === "0" && !day.data?.savedAt;
+  const picking = !!session && selection.active && today && !day.data?.savedAt;
   // The meta keeps the kitchen's name while the other day loads, instead of dropping it for a moment.
   const [catererName, setCatererName] = useState("");
   if (ops && ops.caterer.name !== catererName) setCatererName(ops.caterer.name);
   // Once the meal is out the header says so, in place of the day word: the track and the order below say the rest.
-  const out = offset === "0" && (session?.journey.stage === "out_for_delivery" || session?.journey.stage === "arrived");
+  const out = today && (session?.journey.stage === "out_for_delivery" || session?.journey.stage === "arrived");
   const dayWord = out
     ? t("Sedang diantar", "On the way")
-    : offset === "0"
+    : today
       ? t("Hari ini", "Today")
-      : t("Besok", "Tomorrow");
+      : offset === 1
+        ? t("Besok", "Tomorrow")
+        : weekdayName(date, locale);
   // The day is done when nothing is left to serve and no report is open. It needs the reports read (a failed read could
   // be hiding an open one), and a copy kept from before the connection dropped may be out of date. A meal whose rows
   // all failed keeps its own card saying so, which a "Semua beres" would otherwise cover.
   const done =
     !!ops &&
-    offset === "0" &&
+    today &&
     !day.data?.savedAt &&
     !!issues.data &&
     (session !== null || failedCount === 0) &&
@@ -382,7 +396,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     pulled.current = true;
     setPulling(true);
     try {
-      await Promise.all([day.reload(), issues.reload(), attention.reload()]);
+      await Promise.all([day.reload(), issues.reload(), attention.reload(), calendar.reload()]);
     } finally {
       setPulling(false);
     }
@@ -427,21 +441,12 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           toggle
           toggleSize="compact"
           title={
-            <PressableScale
-              accessibilityRole="button"
-              // The name starts with the visible date (WCAG 2.5.3, Label in Name); the meta line above says Hari ini or Besok.
-              accessibilityLabel={`${shortDate(date, locale)}, ${t("ganti hari", "change day")}`}
-              haptic="select"
-              onPress={() => setOffset(offset === "0" ? "1" : "0")}
-              style={{ minHeight: 48, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8 }}
-            >
-              <Text variant="heroTitle" style={{ color: m.headerText, flexShrink: 1 }}>
-                {shortDate(date, locale)}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={m.headerText} />
-            </PressableScale>
+            <Text variant="heroTitle" style={{ color: m.headerText }}>
+              {shortDate(date, locale)}
+            </Text>
           }
         >
+          <WeekStrip selected={offset} onSelect={setOffset} counts={counts} />
           {/* The figures enter from their skeleton as one block, in the same place on the header. They are keyed by
               day and meal, so the mood toggle and Hari ini/Besok mount the other session's track in place instead of
               sliding it (Decision A); only a stage change of the same session moves it. */}
@@ -484,14 +489,14 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           ) : null}
           {!ops && day.error ? <ReadError art message={day.error} onRetry={() => void day.reload()} /> : null}
           {loading ? <TodaySkeleton /> : null}
-          {offset === "0" && !issues.data && issues.error ? (
+          {today && !issues.data && issues.error ? (
             // A failed read must not look like "no reports".
             <ReadError
               message={t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
               onRetry={() => void issues.reload()}
             />
           ) : null}
-          {offset === "0" && !attention.data && attention.error ? (
+          {today && !attention.data && attention.error ? (
             // A failed read must not look like "nothing needs attention".
             <ReadError
               message={t("Hal yang perlu dicek belum bisa dimuat.", "Items that need a check could not be loaded.")}
@@ -501,11 +506,11 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           {/* The live slot: the first of the setup card, the reports and the attention items, the rest one tap away. */}
           <LiveSlot
             setup={newKitchen}
-            issues={offset === "0" ? (issues.data ?? []) : []}
-            attention={offset === "0" ? (attention.data?.items ?? []) : []}
+            issues={today ? (issues.data ?? []) : []}
+            attention={today ? (attention.data?.items ?? []) : []}
           />
           {ops && done ? (
-            <DoneCard ops={ops} onTomorrow={() => setOffset("1")} />
+            <DoneCard ops={ops} onTomorrow={() => setOffset(1)} />
           ) : ops && session ? (
             <SessionCard
               ops={ops}
@@ -513,7 +518,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               ticks={ticks}
               meal={meal}
               date={date}
-              report={day.data?.savedAt ? null : offset === "0" ? "today" : "tomorrow"}
+              report={day.data?.savedAt ? null : today ? "today" : "later"}
               caterer={ops.caterer.name}
               selection={selection}
               route={route}
@@ -559,9 +564,11 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <Card tone="sage">
               <StateArt pose="tidur" />
               <Text style={{ textAlign: "center" }}>
-                {offset === "0"
+                {today
                   ? t("Tidak ada yang dimasak hari ini.", "Nothing to cook today.")
-                  : t("Tidak ada yang dimasak besok.", "Nothing to cook tomorrow.")}
+                  : offset === 1
+                    ? t("Tidak ada yang dimasak besok.", "Nothing to cook tomorrow.")
+                    : t(`Tidak ada yang dimasak hari ${dayWord}.`, `Nothing to cook on ${dayWord}.`)}
               </Text>
               <Text variant="meta" style={{ textAlign: "center" }}>
                 {t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}

@@ -23,6 +23,7 @@ import * as offline from "../src/today/offline";
 import { canvasDay, report } from "./fixtures";
 import { withDapurScale } from "./dapur-scale";
 import { declared, lastActionSheet, lastConfirm, lastGuard, resetSheets, SheetHost, unsavedGuard, type Opened } from "./sheet-host";
+import { dayTab } from "./week-tabs";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
 jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
@@ -270,7 +271,7 @@ describe("stop exceptions", () => {
     expect(within(sheet).queryByText("Pindah tanggal")).toBeNull();
     act(() => router.back());
     // Besok: only a move, and only where the day can move.
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    fireEvent.press(dayTab(1));
     fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"));
     expect(router.push).toHaveBeenLastCalledWith(expect.stringMatching(new RegExp(`date=${TOMORROW}$`)));
     sheet = await stopSheet();

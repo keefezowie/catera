@@ -194,9 +194,9 @@ describe("Hari ini", () => {
   it("Hari ini loading shows the count card and checklist skeleton under the live header", async () => {
     const day = jest.fn(never);
     renderWith(runtimeWith(owner, { sellerOperations: day }), withDapurScale(<TodayScreen />));
-    // The header is live: its date button and the Siang / Malam toggle work while the day loads.
+    // The header is live: its week strip and the Siang / Malam toggle work while the day loads.
     const header = await screen.findByTestId("mood-header");
-    expect(within(header).getByLabelText(/, ganti hari$/)).toBeTruthy();
+    expect(within(header).getByTestId("week-strip")).toBeTruthy();
     expect(within(header).getByRole("tab", { name: "Malam" })).toBeTruthy();
     // The count card's numbers sit on the mood surface, in the header, hidden from screen readers (the body names the wait).
     const count = within(header).getByTestId("today-count-skeleton", { includeHiddenElements: true });

@@ -13,6 +13,7 @@ import { dishKey } from "../src/today/ticks";
 import { canvasDay, delivery, report } from "./fixtures";
 import { spyFades } from "./fade";
 import { confirm, lastConfirm, resetSheets, SheetHost } from "./sheet-host";
+import { dayTab } from "./week-tabs";
 
 // The clock is pinned to Thursday 8 Oct 2026, 10.00 Jakarta. Only the clock: timers and microtasks keep running.
 const pinToday = () =>
@@ -522,7 +523,7 @@ describe("other days and data", () => {
   it("shows the checklist for tomorrow and no footer action", async () => {
     renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     await screen.findByText("Mulai masak");
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    fireEvent.press(dayTab(1));
     expect(await screen.findByText("Daftar masak")).toBeTruthy();
     await waitFor(() => expect(screen.queryByText("Mulai masak")).toBeNull());
     expect(screen.queryByTestId("screen-footer")).toBeNull();
@@ -712,7 +713,7 @@ describe("Urutan antar", () => {
   it("offers only a move on tomorrow, and only where the day can move", async () => {
     renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     await screen.findByText("Mulai masak");
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    fireEvent.press(dayTab(1));
     // Tomorrow's day is read before its first stop shows; the checklist beside it reads its note too, so let that settle.
     expect(
       await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"),
@@ -850,7 +851,7 @@ describe("the order across the stages", () => {
     renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
     expect(screen.getByText(LINE)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    fireEvent.press(dayTab(1));
     // Wait for tomorrow's own day: the header names it before its stops are read.
     await screen.findByText("Dapur Bu Rina · Besok");
     await screen.findByLabelText(/^Pindah tanggal: /);
@@ -877,7 +878,7 @@ describe("the order across the stages", () => {
     // The stage moved the track and the footer in place; no block entered.
     expect(fades.mock.calls).toHaveLength(0);
     // A different day is different content: it fades.
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    fireEvent.press(dayTab(1));
     await screen.findByText("Dapur Bu Rina · Besok");
     await waitFor(() => expect(fades.mock.calls.length).toBeGreaterThan(0));
     fades.mockRestore();
@@ -997,7 +998,7 @@ describe("Semua beres", () => {
   it("is never done for a day other than today", async () => {
     renderToday(runtimeWith(async (_id, date) => kitchenDay([delivered], { date })));
     await screen.findByText("Semua beres hari ini");
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    fireEvent.press(dayTab(1));
     await waitFor(() => expect(screen.queryByText("Semua beres hari ini")).toBeNull());
   });
 });
@@ -1077,7 +1078,7 @@ describe("Hari ini on the Dapur scale", () => {
   };
 
   describe("the header", () => {
-    it("runs the meta row, the date button and the figure strip with its Antar line", async () => {
+    it("runs the meta row, the title, the week strip and the figure strip with its Antar line", async () => {
       const day = kitchenDay([scheduled]);
       for (const d of day.deliveries) {
         const windows = { lunch: "10.30–12.00", dinner: "18.00–19.30" };
@@ -1086,10 +1087,12 @@ describe("Hari ini on the Dapur scale", () => {
       renderToday(runtimeWith(async () => day));
       const header = await screen.findByTestId("mood-header");
       const row = within(header).getByTestId("mood-header-row");
-      const date = within(header).getByRole("button", { name: /, ganti hari$/ });
+      const date = within(header).getByRole("header");
+      const week = within(header).getByTestId("week-strip");
       const strip = await within(header).findByTestId("session-figures");
       expect(before(header, row, date)).toBe(true);
-      expect(before(header, date, strip)).toBe(true);
+      expect(before(header, date, week)).toBe(true);
+      expect(before(header, week, strip)).toBe(true);
       // Porsi leads, then paket and alamat, with "Antar" as the strip's own line.
       const cell = (i: number) => within(strip).getByTestId(`session-figures-cell-${i}`);
       expect(cell(0).props.accessibilityLabel).toBe("34 porsi");
@@ -1101,12 +1104,12 @@ describe("Hari ini on the Dapur scale", () => {
       expect(within(header).queryByTestId("session-count-fill-siang", hidden)).toBeNull();
     });
 
-    it("sets the date as a 24/30 button at least 48 tall, in a 36 meta row", async () => {
+    it("sets the date as a 24/30 title, the day cells at least 48 tall, in a 36 meta row", async () => {
       renderToday(runtimeWith(async () => kitchenDay([scheduled])));
-      const date = await screen.findByRole("button", { name: /, ganti hari$/ });
-      expect(box(date).minHeight).toBe(48);
-      const title = within(date).getByText(/^Kamis 8 Okt$/);
+      const title = await screen.findByText(/^Kamis 8 Okt$/);
       expect(box(title)).toMatchObject({ fontSize: 24, lineHeight: 30 });
+      expect(title.props.accessibilityRole).toBe("header");
+      for (let i = 0; i < 7; i += 1) expect(box(screen.getByTestId(`week-day-${i}`)).minHeight).toBeGreaterThanOrEqual(48);
       // The band's top row is 36, with the Siang / Malam toggle at its end.
       const header = screen.getByTestId("mood-header");
       expect(box(within(header).getByTestId("mood-header-row")).minHeight).toBe(36);
@@ -1135,7 +1138,7 @@ describe("Hari ini on the Dapur scale", () => {
       const header = screen.getByTestId("mood-header");
       expect(within(header).queryByTestId("session-figures")).toBeNull();
       expect(within(header).queryByTestId("batch-progress")).toBeNull();
-      expect(within(header).getByRole("button", { name: /, ganti hari$/ })).toBeTruthy();
+      expect(within(header).getByTestId("week-strip")).toBeTruthy();
     });
 
     it("words the figures in English", async () => {
