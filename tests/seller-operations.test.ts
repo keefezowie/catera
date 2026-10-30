@@ -229,6 +229,49 @@ it("filters calendar by package, meal and cancellation without counting cancelle
     ).portions,
   ).toBe(0);
 });
+it("counts a calendar day only while the asked meal is still served", async () => {
+  const cancelledDinner = addDays(localDay(), 300),
+    issueDinner = addDays(localDay(), 301),
+    cancelledBoth = addDays(localDay(), 302);
+  const kept = await fixture({ date: cancelledDinner });
+  await db.query("update v1.fulfillments set status='cancelled' where day_id=$1 and meal='dinner'", [kept.id]);
+  const issue = await fixture({ date: issueDinner });
+  await db.query("update v1.fulfillments set status='issue' where day_id=$1 and meal='dinner'", [issue.id]);
+  const both = await fixture({ date: cancelledBoth });
+  await db.query("update v1.fulfillments set status='cancelled' where day_id=$1", [both.id]);
+  const calendar = async (date: string, meal: string, status?: string) =>
+    (
+      await read<SellerCalendar>("seller-calendar", {
+        id: K[0],
+        from: date,
+        to: date,
+        packageId: P[0],
+        meal,
+        ...(status ? { status } : {}),
+      })
+    ).days;
+  // Lunch is kept, dinner is cancelled: Malam has no day, Siang and Semua still do.
+  expect(await calendar(cancelledDinner, "dinner")).toEqual([]);
+  expect(await calendar(cancelledDinner, "lunch")).toEqual([
+    { date: cancelledDinner, orders: 1, lunch: true, dinner: false },
+  ]);
+  expect(await calendar(cancelledDinner, "all")).toEqual([
+    { date: cancelledDinner, orders: 1, lunch: true, dinner: false },
+  ]);
+  // A meal marked Gagal diantar is not served either.
+  expect(await calendar(issueDinner, "dinner")).toEqual([]);
+  expect(await calendar(issueDinner, "all")).toEqual([
+    { date: issueDinner, orders: 1, lunch: true, dinner: false },
+  ]);
+  // Every meal cancelled: no day at all for any meal.
+  expect(await calendar(cancelledBoth, "all")).toEqual([]);
+  expect(await calendar(cancelledBoth, "lunch")).toEqual([]);
+  // The calendar agrees with the kitchen's own day read.
+  const kitchen = await read<SellerOperationsState>("seller", { id: K[0], date: cancelledDinner });
+  expect(kitchen.deliveries.filter((d) => d.meals.some((m) => m.meal === "dinner" && m.status !== "cancelled"))).toHaveLength(0);
+  // Seller still reaches cancelled production through the cancelled view.
+  expect(await calendar(cancelledDinner, "dinner", "cancelled")).toEqual([]);
+});
 it("does not promise an auto-confirm time the scheduler does not keep yet", async () => {
   const { readFile } = await import("node:fs/promises");
   const source = await readFile("apps/web/src/components/seller-operations.tsx", "utf8");
