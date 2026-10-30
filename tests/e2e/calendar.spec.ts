@@ -214,7 +214,8 @@ test("day cards layer all meal coverage states with today and selection", async 
     "color",
     "rgb(155, 67, 9)",
   );
-  await expect(selectedToday).toHaveCSS("min-height", "120px");
+  // From 1100px the landscape layout compacts the cards to 100px (docs/V1-LANDSCAPE-OPTIMIZATION.md, 1af1b7d).
+  await expect(selectedToday).toHaveCSS("min-height", "100px");
 
   mkdirSync(evidenceDir, { recursive: true });
   await page.screenshot({
@@ -396,6 +397,13 @@ test("desktop and phone are accessible, localized and free of page overflow", as
     });
     await page.locator(".calendar-month-button").click();
     await expect(page.locator("#calendar-date-picker")).toBeVisible();
+    // Audit the settled dialog: while it fades in, its muted weekday labels blend toward the cream and measure
+    // below 4.5:1 (#70766e at about 90% opacity instead of the --muted #60675f).
+    await page.locator("#calendar-date-picker").evaluate(async (dialog) => {
+      await Promise.all(
+        dialog.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
     const pickerAudit = await new AxeBuilder({ page })
       .include("#calendar-date-picker")
       .analyze();
