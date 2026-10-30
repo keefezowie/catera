@@ -94,88 +94,87 @@ export function SessionCard({
   );
   const cooking = (
     <Fragment key="cooking">
-        {departed ? (
-          <ListCard>
-            <View
-              testID="cooked-summary"
-              accessible
-              accessibilityLabel={t(`Sudah dimasak · ${session.portions} porsi`, `Cooked · ${plural(session.portions, "portion")}`)}
-              style={{ minHeight: SUMMARY_HEIGHT, flexDirection: "row", alignItems: "center", gap: 12 }}
-            >
-              <DecorativeIcon name="checkmark" size={20} color={c.forest} />
-              <Text variant="bodyL" style={{ flex: 1, fontVariant: ["tabular-nums"] }}>
-                {t(`Sudah dimasak · ${session.portions} porsi`, `Cooked · ${plural(session.portions, "portion")}`)}
-              </Text>
-            </View>
-          </ListCard>
-        ) : (
-          <>
-            <CookingList
-              session={session}
-              ticks={ticks}
-              actions={
-                <ActionPair>
-                  <IconAction
-                    icon="share-outline"
-                    flush
-                    label={t("Bagikan", "Share")}
-                    onPress={() => void Share.share({ message: `${caterer}
-  ${recapLines(recap, sharedTitle, missingForSharing)}` })}
-                  />
-                  <IconAction
-                    icon="print-outline"
-                    label={t("Cetak", "Print")}
-                    flush
-                    onPress={() =>
-                      void Print.printAsync({
-                        html: `<h2>${caterer} · ${sharedTitle}: ${recap.total} porsi</h2><ul>${recap.byDish
-                          .map((d) => `<li>${d.count} × ${d.name}</li>`)
-                          .join("")}</ul>${missingForSharing.map((l) => `<p>${l}</p>`).join("")}`,
-                      })
-                    }
-                  />
-                </ActionPair>
-              }
-              after={
-                missing.length ? (
-                  <View style={{ gap: 4 }}>
-                    {missing.map((m) => (
-                      <View key={m.packageId} style={{ alignItems: "flex-start" }}>
-                        {/* A to-do status, not an error: bold charcoal, never a bare danger caption (spec 5.2). */}
-                        <Text variant="bodyStrong">
-                          {`${t("Menu belum diisi", "Menu not filled in")} · ${m.packageName}: ${m.summary}`}
-                        </Text>
-                        {actor?.role === "owner" ? (
-                          <TextAction
-                            label={t("Isi menu", "Fill in menu")}
-                            accessibilityLabel={`${t("Isi menu", "Fill in menu")} ${m.packageName}`}
-                            flush="start"
-                            onPress={() => router.push(`/menu/${date}?pkg=${m.packageId}&meal=${meal}` as never)}
-                          />
-                        ) : null}
-                      </View>
-                    ))}
-                  </View>
-                ) : null
-              }
-            />
-            {recap.byPackage.length ? (
-              <View testID="per-package">
-                <SectionHeader title={t("Per paket", "By package")} />
-                <ListCard inset={0}>
-                  {recap.byPackage.map((p) => (
-                    <KeyValueRow
-                      key={p.packageId}
-                      testID={`per-package-${p.packageId}`}
-                      label={p.name}
-                      value={t(`${p.portions} porsi`, plural(p.portions, "portion"))}
-                    />
+      {departed ? (
+        <ListCard>
+          <View
+            testID="cooked-summary"
+            accessible
+            accessibilityLabel={t(`Sudah dimasak · ${session.portions} porsi`, `Cooked · ${plural(session.portions, "portion")}`)}
+            style={{ minHeight: SUMMARY_HEIGHT, flexDirection: "row", alignItems: "center", gap: 12 }}
+          >
+            <DecorativeIcon name="checkmark" size={20} color={c.forest} />
+            <Text variant="bodyL" style={{ flex: 1, fontVariant: ["tabular-nums"] }}>
+              {t(`Sudah dimasak · ${session.portions} porsi`, `Cooked · ${plural(session.portions, "portion")}`)}
+            </Text>
+          </View>
+        </ListCard>
+      ) : (
+        <>
+          <CookingList
+            session={session}
+            ticks={ticks}
+            actions={
+              <ActionPair>
+                <IconAction
+                  icon="share-outline"
+                  flush
+                  label={t("Bagikan", "Share")}
+                  onPress={() => void Share.share({ message: [caterer, recapLines(recap, sharedTitle, missingForSharing)].join("\n") })}
+                />
+                <IconAction
+                  icon="print-outline"
+                  label={t("Cetak", "Print")}
+                  flush
+                  onPress={() =>
+                    void Print.printAsync({
+                      html: `<h2>${caterer} · ${sharedTitle}: ${recap.total} porsi</h2><ul>${recap.byDish
+                        .map((d) => `<li>${d.count} × ${d.name}</li>`)
+                        .join("")}</ul>${missingForSharing.map((l) => `<p>${l}</p>`).join("")}`,
+                    })
+                  }
+                />
+              </ActionPair>
+            }
+            after={
+              missing.length ? (
+                <View style={{ gap: 4 }}>
+                  {missing.map((m) => (
+                    <View key={m.packageId} style={{ alignItems: "flex-start" }}>
+                      {/* A to-do status, not an error: bold charcoal, never a bare danger caption (spec 5.2). */}
+                      <Text variant="bodyStrong">
+                        {`${t("Menu belum diisi", "Menu not filled in")} · ${m.packageName}: ${m.summary}`}
+                      </Text>
+                      {actor?.role === "owner" ? (
+                        <TextAction
+                          label={t("Isi menu", "Fill in menu")}
+                          accessibilityLabel={`${t("Isi menu", "Fill in menu")} ${m.packageName}`}
+                          flush="start"
+                          onPress={() => router.push(`/menu/${date}?pkg=${m.packageId}&meal=${meal}` as never)}
+                        />
+                      ) : null}
+                    </View>
                   ))}
-                </ListCard>
-              </View>
-            ) : null}
-          </>
-        )}
+                </View>
+              ) : null
+            }
+          />
+          {recap.byPackage.length ? (
+            <View testID="per-package">
+              <SectionHeader title={t("Per paket", "By package")} />
+              <ListCard inset={0}>
+                {recap.byPackage.map((p) => (
+                  <KeyValueRow
+                    key={p.packageId}
+                    testID={`per-package-${p.packageId}`}
+                    label={p.name}
+                    value={t(`${p.portions} porsi`, plural(p.portions, "portion"))}
+                  />
+                ))}
+              </ListCard>
+            </View>
+          ) : null}
+        </>
+      )}
     </Fragment>
   );
   // Stops leave in subsets, so the session can hold several stages. Once any is out or past that, the order leads: it is the

@@ -300,7 +300,7 @@ function StopRowV2({
         </View>
       ) : null}
       {selection?.note ? (
-        // One line, cut at the end: a picking row is title, meta and this status (and the delivery note), never a fifth line.
+        // One line, cut at the end: the last line of a picking row, after the delivery note and the status pill.
         <Text testID={`${testID}-note`} variant="meta" numberOfLines={1}>
           {selection.note}
         </Text>

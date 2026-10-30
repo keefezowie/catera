@@ -1,9 +1,10 @@
 import {
+  fireEvent,
   render as plainRender,
   screen,
   within,
 } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { Share, StyleSheet } from "react-native";
 import type { ReactElement } from "react";
 import { render } from "./render-dapur";
 import { createMobileRuntime, MobileProvider } from "@catera/mobile-core";
@@ -226,6 +227,31 @@ describe("SessionCard before anything leaves", () => {
     expect(
       within(screen.getByTestId("stop-1")).getByText("Dimasak"),
     ).toBeTruthy();
+  });
+});
+
+describe("SessionCard Bagikan", () => {
+  it("shares the caterer on the first line and the recap from the second, with no indent", () => {
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+    render(
+      card([
+        ["scheduled", null],
+        ["scheduled", null],
+        ["scheduled", null],
+        ["scheduled", null],
+      ]),
+    );
+    fireEvent.press(screen.getByRole("button", { name: "Bagikan" }));
+    expect(share).toHaveBeenCalledTimes(1);
+    expect(share.mock.calls[0][0]).toEqual({
+      message: [
+        "Dapur Bu Rina",
+        "*Makan siang* (34 porsi)",
+        "Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur",
+        "Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur",
+      ].join("\n"),
+    });
+    share.mockRestore();
   });
 });
 
