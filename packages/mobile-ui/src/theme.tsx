@@ -11,6 +11,10 @@ export function cardEdgeWidth(p: NativePalette): number {
 /**
  * The light card edge: a 1px `cardBorder` hairline and a faint `boxShadow` (never the legacy shadow props). Empty in
  * dark. Spread it into a card style; take `cardEdgeWidth` off the padding where the card had none before.
+ *
+ * An `overflow: "hidden"` container must also set `borderWidth: cardEdgeWidth(p)` itself (before the spread). Without
+ * it the key only disappears on a live light-to-dark switch; Android resets a removed border width to NaN, the clip
+ * path from the border insets comes out empty, and the card's children are clipped away (gate 2026-10-30 #10).
  */
 export function cardEdge(p: NativePalette): { borderWidth?: number; borderColor?: string; boxShadow?: string } {
   return p.cardBorder ? { borderWidth: 1, borderColor: p.cardBorder, boxShadow: p.cardShadow } : {};
