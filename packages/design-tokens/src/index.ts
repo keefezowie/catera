@@ -63,6 +63,11 @@ export const nativeMotion = {
   settle: { damping: 36, stiffness: 320, mass: 1 },
   /** A celebratory pop after a tap (the save heart): ratio 0.6, response 0.35s, the only spring allowed to bounce. */
   pop: { damping: 21.5, stiffness: 320, mass: 1 },
+  /**
+   * A tapped switch's thumb (Dapur's Siang / Malam pill; the customer Siang / Malam door runs the same values): ratio
+   * 0.73, response 0.35s, Apple's "snappy" toggle, so a quick re-tap turns the thumb around with its speed kept.
+   */
+  toggle: { damping: 26, stiffness: 320, mass: 1 },
 } as const;
 export const focus = { color: "#B65B13", width: 3, offset: 3 } as const;
 export const webVariables = {

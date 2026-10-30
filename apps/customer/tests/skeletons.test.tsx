@@ -597,7 +597,7 @@ describe("finding 2 and 9: a kept copy refreshes in place", () => {
 describe("finding 4: nothing running", () => {
   const nothing: CustomerState = { subscriptions: [], deliveries: [], addresses: [], notifications: [], cases: [] };
 
-  it("the packages are read with the home read: one skeleton, then one fade into the invitation", async () => {
+  it("once the read says nothing runs, the invitation's own shape shows, never the hero skeleton", async () => {
     const home = deferred<CustomerState>();
     const packages = deferred<{ items: unknown[]; nextCursor: null }>();
     const runtime = runtimeWith({ customer: jest.fn(() => home.promise), catalog: jest.fn(() => packages.promise) });
@@ -606,25 +606,23 @@ describe("finding 4: nothing running", () => {
     // Both reads start together.
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     expect(runtime.api.catalog).toHaveBeenCalledWith("?limit=3");
-    const timing = spyFades();
-    const fades = () => timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content);
 
     await act(async () => home.resolve(nothing));
-    // The home read says nothing runs, but the packages are not in yet: still the one skeleton, no second loader.
-    expect(screen.getByTestId("beranda-skeleton")).toBeTruthy();
-    expect(screen.queryByTestId("offers-skeleton")).toBeNull();
+    // The home read says nothing runs, the packages are not in yet: the invitation's header and heading, the packages by
+    // their own skeleton, one loader.
+    expect(screen.queryByTestId("beranda-skeleton")).toBeNull();
+    expect(screen.getByTestId("beranda-header")).toBeTruthy();
+    expect(screen.getByText("Mau makan apa minggu ini?")).toBeTruthy();
+    expect(screen.getByTestId("offers-skeleton")).toBeTruthy();
     expect(screen.getAllByRole("progressbar")).toHaveLength(1);
-    expect(fades()).toHaveLength(0);
+    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("empty");
 
     await act(async () =>
       packages.resolve({ items: [offer({ id: "p-a", name: "Makan Siang Rumahan" })], nextCursor: null }),
     );
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
-    expect(screen.getByText("Mau makan apa minggu ini?")).toBeTruthy();
     expect(screen.queryByRole("progressbar")).toBeNull();
-    // One swap of the page's own FadeSwap; the packages arrive inside it, not in a fade of their own.
     expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("empty");
-    expect(fades()).toHaveLength(1);
     expect(runtime.api.catalog).toHaveBeenCalledTimes(1);
   });
 

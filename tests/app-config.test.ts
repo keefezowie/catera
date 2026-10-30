@@ -28,16 +28,15 @@ const exists = (appDir: string, file: string | undefined) => !!file && existsSyn
 const PHASE_F = '../../packages/brand/assets/phase-f';
 
 describe.each(apps)('%s app config', (_name, config, appDir) => {
-  it('both apps use the phase-f splash marks with light and dark backgrounds', () => {
+  it('both apps draw one splash in both themes: the icon forest with the icon mascot', () => {
     const s = splash(config);
     expect(s).toMatchObject({
-      backgroundColor: '#FFFFFF',
-      image: `${PHASE_F}/splash-mark-light.png`,
+      backgroundColor: '#163D2E',
+      image: `${PHASE_F}/adaptive-foreground.png`,
       imageWidth: 200,
-      dark: { backgroundColor: '#151514', image: `${PHASE_F}/splash-mark-dark.png` },
     });
+    expect(s.dark).toBeUndefined();
     expect(exists(appDir, s.image)).toBe(true);
-    expect(exists(appDir, s.dark?.image)).toBe(true);
   });
 
   it('both apps set the adaptive foreground, forest background and monochrome icon', () => {

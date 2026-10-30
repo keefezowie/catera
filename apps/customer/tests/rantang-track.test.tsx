@@ -143,7 +143,8 @@ describe("RantangTrack", () => {
       measure();
       screen.unmount();
     }
-    expect(timing).not.toHaveBeenCalled();
+    // The in-progress loop may start; the fill, the marker and the stops never animate on first paint.
+    expect(timing).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: nativeMotion.feature }));
   });
 
   it("a stage change animates the fill with transform only", () => {
@@ -162,7 +163,7 @@ describe("RantangTrack", () => {
     // A refresh with the same stage starts nothing.
     timing.mockClear();
     view.rerender(wrap(track("out_for_delivery", { caption: "Berangkat 11.00" })));
-    expect(timing).not.toHaveBeenCalled();
+    expect(timing).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: nativeMotion.feature }));
   });
 
   it("reduced motion makes the change instant", () => {
@@ -176,12 +177,38 @@ describe("RantangTrack", () => {
     expect(op("journey-stop-3-done")).toBe(1);
   });
 
-  it("the track never starts a loop", () => {
-    const repeat = jest.spyOn(Reanimated, "withRepeat");
-    const view = mount(track("scheduled"));
-    for (const stage of ["preparing", "out_for_delivery", "arrived_unconfirmed", "delivered", "issue"] as const) {
-      view.rerender(wrap(track(stage)));
+  it("the segment after the current stop loops while the meal is between stops", () => {
+    for (const [stage, left] of [
+      ["scheduled", "0%"],
+      ["preparing", `${100 / 3}%`],
+      ["out_for_delivery", `${200 / 3}%`],
+    ] as const) {
+      const repeat = jest.spyOn(Reanimated, "withRepeat");
+      mount(track(stage));
+      measure();
+      expect(repeat).toHaveBeenCalledWith(expect.anything(), -1);
+      expect(flat("journey-run").left).toBe(left);
+      expect(flat("journey-run").width).toBe(`${100 / 3}%`);
+      expect(flat("journey-run-bar").backgroundColor).toBe(ink.heroText);
+      expect(flat("journey-run-bar").transformOrigin).toBe("left center");
+      screen.unmount();
+      repeat.mockRestore();
     }
+  });
+
+  it("nothing loops once Sampai is reached, for a failed meal, under reduced motion or with counts", () => {
+    const repeat = jest.spyOn(Reanimated, "withRepeat");
+    for (const stage of ["arrived_unconfirmed", "delivered", "issue"] as const) {
+      mount(track(stage));
+      expect(has("journey-run")).toBe(false);
+      screen.unmount();
+    }
+    mount(track("preparing", { counts: { preparing: 2 } }));
+    expect(has("journey-run")).toBe(false);
+    screen.unmount();
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    mount(track("out_for_delivery"));
+    expect(has("journey-run")).toBe(false);
     expect(repeat).not.toHaveBeenCalled();
   });
 

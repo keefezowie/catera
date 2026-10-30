@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme, useNa
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { Appearance, View } from "react-native";
+import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMobile } from "@catera/mobile-core";
 import {
@@ -39,11 +39,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 /** True until the launch cover has played in this JS context; a root that mounts again later (a warm start) skips it. */
 let coldStart = true;
-/**
- * The scheme the native splash was drawn in: the system's, read before the theme provider hands a stored choice to
- * `Appearance`. The launch cover repeats the splash, so it uses this, not the app's theme.
- */
-const splashScheme = Appearance.getColorScheme() === "dark" ? "dark" : "light";
 
 /** Whether the native splash has lifted: the phone's own reads finished, or the 1500ms ceiling passed first. */
 const SplashReleased = createContext(false);
@@ -187,7 +182,7 @@ function Launch({ fontsDone, onReleased }: { fontsDone: boolean; onReleased: () 
   useEffect(() => {
     if (released) onReleased();
   }, [released, onReleased]);
-  return cover ? <LaunchCover scheme={splashScheme} hold={!released} onDone={() => setCover(false)} /> : null;
+  return cover ? <LaunchCover hold={!released} onDone={() => setCover(false)} /> : null;
 }
 
 export default function RootLayout() {

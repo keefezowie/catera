@@ -23,10 +23,10 @@ describe("native motion tokens", () => {
     damping / (2 * Math.sqrt(stiffness * mass));
   const response = ({ stiffness, mass }: { stiffness: number; mass: number }) => (2 * Math.PI) / Math.sqrt(stiffness / mass);
   it("every spring names mass 1", () => {
-    for (const s of [nativeMotion.spring, nativeMotion.pressIn, nativeMotion.pressOut, nativeMotion.settle, nativeMotion.pop])
+    for (const s of [nativeMotion.spring, nativeMotion.pressIn, nativeMotion.pressOut, nativeMotion.settle, nativeMotion.pop, nativeMotion.toggle])
       expect(s.mass).toBe(1);
   });
-  it("press, release and settle are critically damped at Apple's responses; only the pop bounces", () => {
+  it("press, release and settle are critically damped at Apple's responses; only the pop and the toggle overshoot", () => {
     const close = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThanOrEqual(0.02);
     close(ratio(nativeMotion.pressIn), 1);
     close(response(nativeMotion.pressIn), 0.15);
@@ -36,6 +36,8 @@ describe("native motion tokens", () => {
     close(response(nativeMotion.settle), 0.35);
     close(ratio(nativeMotion.pop), 0.6);
     close(response(nativeMotion.pop), 0.35);
+    close(ratio(nativeMotion.toggle), 0.73);
+    close(response(nativeMotion.toggle), 0.35);
   });
   it("durations are strictly increasing", () => {
     expect(nativeMotion.control).toBeLessThan(nativeMotion.selection);

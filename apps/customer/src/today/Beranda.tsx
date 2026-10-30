@@ -261,8 +261,8 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const { now, plates, days, plans } = day;
   // Nothing today, nothing coming and no running plan: Beranda invites the customer to pick a package instead.
   const empty = !!state && !plates.length && !days.length && !plans?.count;
-  // The suggested packages are read together with the first home read, so a customer with nothing running waits on one
-  // skeleton and the page arrives in one fade. Once a read shows something running, later reloads skip the network and
+  // The suggested packages are read together with the first home read, so a customer with nothing running is not kept
+  // waiting on a second round trip. Once a read shows something running, later reloads skip the network and
   // keep the packages already read, so a reload that empties the page (the last plan cancelled) has them at once.
   const wantsCatalog = useRef(true);
   wantsCatalog.current = !state || empty;
@@ -273,9 +273,6 @@ function SignedInHome({ actorId }: { actorId: string }) {
     keptCatalog.current = read;
     return read;
   });
-  // Whether this page has shown its content (loaded or nothing running). After that a reload never brings the
-  // skeleton back: the page changes in place, in one fade.
-  const painted = useRef(false);
   // A plan that ended since the last read empties the page after the catalog was skipped: read it now.
   const catalogMissing = empty && !catalog.data && !catalog.loading && !catalog.error;
   useEffect(() => {
@@ -295,10 +292,10 @@ function SignedInHome({ actorId }: { actorId: string }) {
   }, [updating]);
 
   // Before the first answer the data area is the skeleton, in the same `FadeSwap` that will hold the page, so the page
-  // enters as one block. The skeleton draws a hero, so the header leaves room for it as for a loaded one. On its first
-  // load a page with nothing running keeps the skeleton until its packages are read too; a page that has shown content
-  // goes straight to the invitation (its packages kept, or their own section waiting if none were ever read).
-  if (!state || (!painted.current && empty && !catalog.data && !catalog.error)) {
+  // enters as one block. The skeleton draws a hero, so the header leaves room for it as for a loaded one. Once a read
+  // (kept or fresh) says nothing runs, the invitation shows at once in its own shape, its packages by their skeleton
+  // until they land: the hero skeleton never stands in for a page that has no hero.
+  if (!state) {
     const failed = !state && !home.loading;
     return (
       <Screen header={failed ? <MoodHeader title={t("Beranda", "Home")} /> : <HomeHeader />}>
@@ -318,7 +315,6 @@ function SignedInHome({ actorId }: { actorId: string }) {
 
   // Plans that ended lately and were not renewed; the card itself checks whether its recap was already seen.
   const recap = day.recaps.length ? <RecapCardM candidates={day.recaps} onShownChange={setRecapShown} /> : null;
-  painted.current = true;
   if (empty)
     return (
       <Screen header={<EmptyHomeHeader />}>

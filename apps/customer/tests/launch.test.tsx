@@ -4,7 +4,7 @@ import * as Reanimated from "react-native-reanimated";
 import * as SplashScreen from "expo-splash-screen";
 import { nativeThemes } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { LaunchCover, ThemeProvider } from "@catera/mobile-ui";
+import { LaunchCover, SPLASH_CANVAS, ThemeProvider } from "@catera/mobile-ui";
 import { customerState, TODAY } from "./fixtures";
 import { goOffline, keptLine } from "./offline";
 
@@ -233,23 +233,23 @@ describe("the launch cover", () => {
   it("LaunchCover is skipped under reduced motion", () => {
     (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(true);
     const onDone = jest.fn();
-    render(<LaunchCover scheme="light" onDone={onDone} />);
+    render(<LaunchCover onDone={onDone} />);
     expect(screen.queryByTestId("launch-cover", hidden)).toBeNull();
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("the cover draws the splash mark at the splash's size on the theme canvas", () => {
-    render(<LaunchCover scheme="dark" onDone={() => undefined} hold />);
+  it("the cover draws the splash mark at the splash's size on the splash's forest, whatever the app theme", () => {
+    render(<LaunchCover onDone={() => undefined} hold />);
     expect(StyleSheet.flatten(screen.getByTestId("launch-cover-mark", hidden).props.style)).toMatchObject({ width: 200, height: 200 });
     expect(StyleSheet.flatten(screen.getByTestId("launch-cover-canvas", hidden).props.style).backgroundColor).toBe(
-      nativeThemes.dark.canvas,
+      SPLASH_CANVAS,
     );
     expect(screen.getAllByTestId("sparkle", hidden)).toHaveLength(3);
   });
 
   it("a mark that never decodes steps aside without playing", async () => {
     const onDone = jest.fn();
-    render(<LaunchCover scheme="light" onDone={onDone} />);
+    render(<LaunchCover onDone={onDone} />);
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
   });
 });

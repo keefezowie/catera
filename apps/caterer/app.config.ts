@@ -34,18 +34,14 @@ const config: ExpoConfig = {
     "expo-secure-store",
     ["expo-notifications", { color: "#163D2E" }],
     ["expo-image-picker", { photosPermission: "Catera Dapur memakai foto kamu untuk gambar paket, foto menu, dan halaman menu yang kamu impor.", microphonePermission: false, cameraPermission: "Catera Dapur memakai kamera untuk memotret bukti pengantaran yang sudah sampai." }],
-    // The theme canvas with the mascot mark, light and dark (spec 3.3). The marks are processed transparent
-    // derivatives drawn inside the Android 12+ circular safe zone; LaunchCover repeats them at the same 200dp.
+    // One splash in both themes (the system draws it before the app's stored theme is known): the forest of the app icon with
+    // the icon's mascot, a processed transparent derivative inside the Android 12+ circular safe zone. LaunchCover repeats it.
     [
       "expo-splash-screen",
       {
-        backgroundColor: "#FFFFFF",
-        image: "../../packages/brand/assets/phase-f/splash-mark-light.png",
+        backgroundColor: "#163D2E",
+        image: "../../packages/brand/assets/phase-f/adaptive-foreground.png",
         imageWidth: 200,
-        dark: {
-          backgroundColor: "#151514",
-          image: "../../packages/brand/assets/phase-f/splash-mark-dark.png",
-        },
       },
     ],
   ],

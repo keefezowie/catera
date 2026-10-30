@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { View, type LayoutChangeEvent } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
@@ -45,6 +47,10 @@ const INSET = `${100 / STOPS / 2}%` as const;
 const GLYPHS: StopGlyphName[] = ["calendar", "pot", "motorbike", "house"];
 const ORDER: Flow[] = ["scheduled", "preparing", "out_for_delivery", "arrived_unconfirmed", "delivered"];
 const REACHED_INDEX: Record<TrackReached, number> = { scheduled: 0, preparing: 1, out_for_delivery: 2 };
+/** One pass of the in-progress segment: it grows over the first 60%, holds, then fades over the last 20%. */
+const RUN_MS = 1800;
+const RUN_GROW = 0.6;
+const RUN_FADE = 0.8;
 
 /**
  * Where the fill and the marker stand, counted in stops (a third of the rail each), so the maths stays exact.
@@ -125,7 +131,10 @@ export function trackLabelLines(t: Translate): 1 | 2 {
  * - The stage comes from fulfilment status, never from the clock. The line fill is a full-width bar scaled from its left
  *   edge; a stage change after mount slides the marker and the fill and fades the stops over `nativeMotion.feature`
  *   (transform and opacity only). The first render, a refresh, a tab return and reduced motion put everything in place
- *   at once. It never loops.
+ *   at once.
+ * - While the meal is on its way to the next stop (Terjadwal, Dimasak, Diantar) the segment after the current stop
+ *   fills from its left edge in a loop, in `heroText`, so the order reads as moving. Not under reduced motion, not for
+ *   `issue`, not once Sampai is reached, and not with `counts` (Dapur).
  * - A screen reader gets one sentence for the whole track, "Pesanan: {stage}, langkah {n} dari 4", with the caption
  *   (and the counts) as its state; the stops and their labels are decoration for the eye. A failed meal's step is the
  *   stop it reached. Each label keeps to its column: two words wrap, one word shrinks a little to fit.
@@ -168,6 +177,16 @@ export function RantangTrack({
   const position = useSharedValue(target);
   const warn = useSharedValue(issue ? 1 : 0);
   const shown = useRef(`${target}:${issue}`);
+  const running = !reduced && !issue && !counts && at < LAST;
+  const run = useSharedValue(0);
+
+  useEffect(() => {
+    cancelAnimation(run);
+    run.value = 0;
+    if (!running) return;
+    run.value = withRepeat(withTiming(1, { duration: RUN_MS, easing: Easing.linear }), -1);
+    return () => cancelAnimation(run);
+  }, [running, here, run]);
 
   useEffect(() => {
     const key = `${target}:${issue}`;
@@ -191,6 +210,14 @@ export function RantangTrack({
   // A full-width bar grown from its left edge, so the progress is a transform and not a width.
   const progress = useAnimatedStyle(() => ({ transform: [{ scaleX: Math.max(Math.min(position.value, LAST) / LAST, 0.0001) }] }));
   const dash = useAnimatedStyle(() => ({ opacity: warn.value }));
+  const runner = useAnimatedStyle(() => {
+    const grow = clamp01(run.value / RUN_GROW);
+    return {
+      opacity: 1 - clamp01((run.value - RUN_FADE) / (1 - RUN_FADE)),
+      // A cubic ease-out (the Catera curve), so the bar starts quick and settles toward the next stop.
+      transform: [{ scaleX: Math.max(1 - (1 - grow) ** 3, 0.0001) }],
+    };
+  });
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
   // Until the rail has been measured the marker has no position to stand at, so it stays invisible instead of
   // flashing at the first stop and then jumping to a departed or delivered one.
@@ -295,6 +322,29 @@ export function RantangTrack({
                 progress,
               ]}
             />
+            {running ? (
+              <View
+                testID={`${testID}-run`}
+                style={{ position: "absolute", left: `${(here * 100) / LAST}%`, width: `${100 / LAST}%`, height: LINE }}
+              >
+                <Animated.View
+                  testID={`${testID}-run-bar`}
+                  style={[
+                    {
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      height: LINE,
+                      borderRadius: LINE / 2,
+                      backgroundColor: ink.heroText,
+                      transformOrigin: "left center",
+                      opacity: measured ? 1 : 0,
+                    },
+                    runner,
+                  ]}
+                />
+              </View>
+            ) : null}
             {issue ? (
               <Animated.View
                 testID={`${testID}-dash`}

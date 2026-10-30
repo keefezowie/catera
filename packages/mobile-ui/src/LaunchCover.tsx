@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { nativeMotion, nativeThemes, type ThemeName } from "@catera/design-tokens";
+import { nativeMotion, nativeThemes } from "@catera/design-tokens";
 import { decorative } from "./brand/decorative";
 import { Sparkle } from "./brand/Sparkle";
 import { useReduced } from "./motion";
 
 /**
- * The splash marks the native splash draws (app.config.ts `expo-splash-screen` `image` and `dark.image`): processed
- * transparent derivatives of the generated originals, 1024px square, used here at the splash's own size so the first
- * frame under the lifting splash is the same picture.
+ * The mark the native splash draws (app.config.ts `expo-splash-screen` `image`): the app icon's mascot, a processed
+ * transparent derivative, used here at the splash's own size so the first frame under the lifting splash is the same
+ * picture. The splash is one picture in both themes, because the system draws it before the stored theme is known.
  */
-const marks: Record<ThemeName, number> = {
-  light: require("../../brand/assets/phase-f/splash-mark-light.png"),
-  dark: require("../../brand/assets/phase-f/splash-mark-dark.png"),
-};
+const markImage = require("../../brand/assets/phase-f/adaptive-foreground.png");
 
-/** The native splash's `imageWidth` in both app configs, in dp. The marks are square, so this is also their height. */
+/** The splash's background: the forest of the app icon, read from the fixed light palette so it never follows the theme. */
+export const SPLASH_CANVAS = nativeThemes.light.forest;
+/** Sparkle inks that read on the forest: the sunrise orange twice and the cream of the mascot's outline. */
+const SPARKLE_INKS = [nativeThemes.light.sunrise, nativeThemes.light.sunrise, nativeThemes.light.cream];
+
+/** The native splash's `imageWidth` in both app configs, in dp. The mark is square, so this is also their height. */
 export const SPLASH_MARK_SIZE = 200;
 
 /** How long the cover waits for its mark to decode once the splash has lifted before it steps aside without playing. */
@@ -36,8 +38,7 @@ const SPARKLES = [
 ] as const;
 
 /**
- * The cold-start hand-off (spec 3.2). `scheme` is the scheme the native splash was drawn in (the system's at launch);
- * the cover shows that scheme's canvas with the splash mark at the native splash's size and position,
+ * The cold-start hand-off (spec 3.2). The cover shows the splash's forest canvas with the splash mark at the native splash's size and position,
  * laid over the first screen, which is already mounted underneath. While `hold` is true (the native splash is still
  * up) it stays still; once released it lets every touch through, scales the mark 1 to 1.04 and fades out over
  * `feature` 320ms while three sparkles drift outward and fade, then calls `onDone`. Under reduced motion it renders
@@ -45,11 +46,9 @@ const SPARKLES = [
  * playing. Decorative: hidden from screen readers.
  */
 export function LaunchCover({
-  scheme,
   onDone,
   hold = false,
 }: {
-  scheme: ThemeName;
   onDone: () => void;
   /** True while the native splash still covers the app; the beat starts when it turns false. */
   hold?: boolean;
@@ -94,11 +93,7 @@ export function LaunchCover({
   ];
 
   if (reduced) return null;
-  // The native splash is drawn by the system in its own scheme, which a stored app theme does not change, so the cover
-  // reads that scheme's palette rather than the active one: the hand-off must be the same picture as the splash.
-  const palette = nativeThemes[scheme];
-  // Sparkles in the palette's sunrise ink, sunrise and forest only (spec 7.1); in dark, forest is the light ink.
-  const inks = [palette.sunriseInk, palette.sunrise, palette.forest];
+  const inks = SPARKLE_INKS;
   return (
     <View
       testID="launch-cover"
@@ -106,11 +101,11 @@ export function LaunchCover({
       pointerEvents={hold ? "auto" : "none"}
       style={[StyleSheet.absoluteFill, styles.center]}
     >
-      <Animated.View testID="launch-cover-canvas" style={[StyleSheet.absoluteFill, styles.center, { backgroundColor: palette.canvas }, cover]}>
+      <Animated.View testID="launch-cover-canvas" style={[StyleSheet.absoluteFill, styles.center, { backgroundColor: SPLASH_CANVAS }, cover]}>
         <Animated.View style={mark}>
           <Image
             testID="launch-cover-mark"
-            source={marks[scheme]}
+            source={markImage}
             style={{ width: SPLASH_MARK_SIZE, height: SPLASH_MARK_SIZE }}
             resizeMode="contain"
             fadeDuration={0}

@@ -522,6 +522,16 @@ describe("Hari ini by mood", () => {
     expect(StyleSheet.flatten(screen.getByTestId("mood-toggle-pill").props.style)).toMatchObject({ top: 1, bottom: 1, left: 1 });
   });
 
+  it("springs the toggle's pill to the tapped tab on the toggle spring, so a re-tap turns it around with its speed", async () => {
+    const spring = jest.spyOn(Reanimated, "withSpring");
+    renderMood(runtimeWith(same(canvasDay())));
+    await screen.findByTestId("session-count");
+    spring.mockClear();
+    fireEvent.press(screen.getAllByRole("tab")[1]);
+    await waitFor(() => expect(spring).toHaveBeenCalledWith(1, { damping: 26, stiffness: 320, mass: 1 }));
+    spring.mockRestore();
+  });
+
   describe("the figure strip", () => {
     it("is the theme's surface under the date, leading with the mood's portions", async () => {
       renderMood(runtimeWith(async () => timedDay()));

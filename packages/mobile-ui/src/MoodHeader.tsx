@@ -1,17 +1,16 @@
-import { use, useState, type ReactNode } from "react";
+import { use, useEffect, useState, type ReactNode } from "react";
 import { Text as RNText, View, type LayoutChangeEvent } from "react-native";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { nativeLayout, nativeMotion } from "@catera/design-tokens";
 import { MoodArc, type MoodArcProps } from "./brand/MoodArc";
 import { DEMO_STRIP_HEIGHT } from "./DemoStrip";
-import { useMoodProgress } from "./brand/useMoodProgress";
 import { Text } from "./components";
 import { useLayoutScale, useScreenMargin, useTouchTarget } from "./layoutScale";
 import { MoodFill } from "./MoodFill";
 import { statusBarStyle, useMood, useMoodColors, useMoodLabels } from "./mood";
-import { PressableScale } from "./motion";
+import { PressableScale, useReduced } from "./motion";
 import { ScreenStatusBar } from "./ScreenStatusBar";
 import { moodHeaderTopInset, ScreenHeaderContext } from "./screenInsets";
 import { useColors, useThemePreference } from "./theme";
@@ -53,7 +52,14 @@ export function MoodToggle({ size = "regular" }: { size?: "regular" | "compact" 
   const { mood, setMood } = useMood();
   const labels = useMoodLabels();
   const palette = useMoodColors();
-  const { progress, target, reduced } = useMoodProgress(nativeMotion.selection);
+  // The pill is a tapped switch's thumb, so it springs (`nativeMotion.toggle`) and keeps its speed through a re-tap; the
+  // mood fills behind it keep their timed cross-fade.
+  const reduced = useReduced();
+  const target = mood === "malam" ? 1 : 0;
+  const progress = useSharedValue<number>(target);
+  useEffect(() => {
+    progress.value = reduced ? target : withSpring(target, nativeMotion.toggle);
+  }, [progress, target, reduced]);
   // The natural width of each tab's icon and label, measured inside the tab (the tab itself is sized from these).
   const [content, setContent] = useState<[number, number]>([0, 0]);
   const measure = (index: 0 | 1) => (e: LayoutChangeEvent) => {
