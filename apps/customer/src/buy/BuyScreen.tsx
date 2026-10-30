@@ -273,7 +273,7 @@ export function BuyScreen({
     !disabled || loadError
       ? ""
       : waiting
-        ? t("Menghitung total…", "Working out the total…")
+        ? t("Menghitung total…", "Calculating the total…")
         : !address
           ? addresses.length
             ? t("Pilih alamat dulu.", "Choose an address first.")
@@ -286,7 +286,7 @@ export function BuyScreen({
                 blocked ||
                 // Every other reason holds; a direct payment with no method left to pay by is the one that remains.
                 (!payable ? t("Pembayaran belum tersedia. Coba lagi nanti.", "Payment isn't available yet. Try again later.") : "");
-  const amountText = shown ? currency(shown.total, locale) : quote.pending ? t("Menghitung…", "Working out…") : "-";
+  const amountText = shown ? currency(shown.total, locale) : quote.pending ? t("Menghitung…", "Calculating…") : "-";
   const payLabel = quote.ready
     ? t(`Bayar ${currency(quote.ready.total, locale)}`, `Pay ${currency(quote.ready.total, locale)}`)
     : t("Bayar", "Pay");
@@ -384,8 +384,8 @@ export function BuyScreen({
                 testID="buy-row-portions"
                 leading={<FieldGlyph id="portions" icon="restaurant-outline" />}
                 label={t("Porsi per hari", "Portions per day")}
-                decreaseLabel={t("Kurangi Porsi per hari", "Decrease Portions per day")}
-                increaseLabel={t("Tambah Porsi per hari", "Increase Portions per day")}
+                decreaseLabel={t("Kurangi porsi", "Decrease portions")}
+                increaseLabel={t("Tambah porsi", "Increase portions")}
                 value={qty}
                 onChange={setPortions}
                 min={1}
@@ -398,7 +398,7 @@ export function BuyScreen({
                 trailing={
                   <Button
                     variant="text"
-                    label={address ? t("Ganti", "Change") : t("Tambah alamat", "Add address")}
+                    label={address ? t("Ganti alamat", "Change address") : t("Tambah alamat", "Add address")}
                     accessibilityLabel={address ? t("Ganti alamat", "Change address") : undefined}
                     onPress={() => (address ? void pickAddress() : router.push(FLOW_HREF.alamat as never))}
                   />

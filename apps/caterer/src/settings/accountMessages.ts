@@ -16,15 +16,15 @@ export function accountMessage(error: unknown, t: T, locale: "id" | "en", fallba
       "Nomor HP belum benar. Tulis nomor Indonesia, misalnya 0812...",
       "That phone number is not right. Write an Indonesian number, such as 0812...",
     ),
-    NOT_CONFIGURED: t("Perubahan ini belum tersedia di versi aplikasi ini.", "This change is not available in this version of the app."),
-    UNAUTHORIZED: t("Sesimu sudah berakhir. Masuk lagi, lalu coba lagi.", "Your session has ended. Sign in again, then try again."),
+    NOT_CONFIGURED: t("Ini belum tersedia di versi aplikasi ini.", "Not available in this app version."),
+    UNAUTHORIZED: t("Sesi kamu habis. Masuk lagi.", "Your session expired. Sign in again."),
     NO_EMAIL: t("Akun ini tidak punya email, jadi tidak punya kata sandi.", "This account has no email, so it has no password."),
     AUTH_RATE_LIMITED: t("Terlalu sering mencoba. Tunggu sebentar, lalu coba lagi.", "Too many tries. Wait a moment, then try again."),
     EMAIL_IN_USE: t("Email ini sudah dipakai akun lain.", "That email is used by another account."),
     INVALID_CREDENTIALS: t("Kata sandi saat ini salah.", "The current password is wrong."),
     ACCOUNT_MISMATCH: t("Kata sandi itu milik akun lain. Masuk lagi dengan akunmu.", "That password belongs to another account. Sign in again with your own."),
     PASSWORD_REJECTED: t("Kata sandi baru ditolak. Pilih yang lain, minimal 8 karakter.", "The new password was rejected. Pick another, at least 8 characters."),
-    EMAIL_CHANGE_FAILED: t("Tautan konfirmasi belum terkirim. Coba lagi.", "The confirmation link was not sent. Try again."),
+    EMAIL_CHANGE_FAILED: t("Tautan konfirmasi belum terkirim. Coba lagi.", "Couldn't send the confirmation link. Try again."),
   };
   return known[code as AccountErrorCode] ?? (errorLabel(code, locale) || fallback);
 }

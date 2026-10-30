@@ -116,7 +116,7 @@ const optionCopy = (t: (id: string, en: string) => string) => ({
   failed: {
     title: t("Gagal diantar", "Not delivered"),
     body: t(
-      "Makanan tidak sampai. Hari ini tidak dihitung sebagai pengantaran dan tidak dibayar ke kamu. Hubungi pelanggan untuk atur penggantinya.",
+      "Makanan tidak sampai. Hari ini tidak dihitung sebagai pengantaran dan tidak dibayar. Hubungi pelanggan untuk mengatur pengganti.",
       "The food didn't arrive. This day isn't counted as a delivery or paid to you. Contact the customer to arrange a replacement.",
     ),
   },
@@ -274,7 +274,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
       setFailure((f) => ({
         message:
           errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-          t("Laporan belum tersimpan. Coba lagi.", "The report was not saved. Try again."),
+          t("Laporan belum tersimpan. Coba lagi.", "Couldn't save the report. Try again."),
         key: (f?.key ?? 0) + 1,
       }));
     }

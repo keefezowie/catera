@@ -157,7 +157,7 @@ export function DishGallery({
           (failed ? (
             <p>
               {t(
-                "Foto belum dapat ditampilkan.",
+                "Foto belum bisa ditampilkan.",
                 "This photo could not be displayed.",
               )}
             </p>

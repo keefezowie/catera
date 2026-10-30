@@ -91,8 +91,8 @@ for (const role of ["owner", "staff"] as const) {
         await expect(navigation).toBeVisible();
         await expect(settings.locator("#account")).toContainText(
           role === "owner"
-            ? t("Pemilik katerer", "Caterer owner")
-            : t("Staf katerer", "Caterer staff"),
+            ? t("Pemilik katering", "Caterer owner")
+            : t("Staf katering", "Caterer staff"),
         );
         await expect(navigation.locator("a")).toHaveCount(
           role === "owner" ? 5 : 3,
@@ -289,7 +289,7 @@ for (const role of ["owner", "staff"] as const) {
       await expect(page).toHaveURL(/\/seller\/profile$/);
       await expect(
         page.getByRole("heading", {
-          name: t("Profil katerer", "Caterer profile"),
+          name: t("Profil katering", "Caterer profile"),
           exact: true,
         }),
       ).toBeVisible();

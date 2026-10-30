@@ -45,7 +45,7 @@ const SYNTHETIC_CUSTOMERS = [
     line: "Jl. Contoh Melati No. 4, Kebayoran Lama",
     area: "Jakarta Selatan",
     city: "Jakarta",
-    note: "Data sintetis. Titip di satpam.",
+    note: "Data contoh. Titip di satpam.",
   },
   {
     name: "Dimas Contoh",
@@ -53,7 +53,7 @@ const SYNTHETIC_CUSTOMERS = [
     line: "Gedung Contoh Lt. 3, Jl. Sintetis Raya No. 9, Tanah Abang",
     area: "Jakarta Pusat",
     city: "Jakarta",
-    note: "Data sintetis. Hubungi resepsionis di lantai dasar.",
+    note: "Data contoh. Hubungi resepsionis di lantai dasar.",
   },
   {
     name: "Sari Contoh",
@@ -61,7 +61,7 @@ const SYNTHETIC_CUSTOMERS = [
     line: "Jl. Contoh Anggrek No. 17, Serpong",
     area: "Tangerang Selatan",
     city: "Tangerang Selatan",
-    note: "Data sintetis. Letakkan di depan pagar.",
+    note: "Data contoh. Letakkan di depan pagar.",
   },
   {
     name: "Budi Contoh",
@@ -69,7 +69,7 @@ const SYNTHETIC_CUSTOMERS = [
     line: "Jl. Contoh Kenanga No. 21, Menteng",
     area: "Jakarta Pusat",
     city: "Jakarta",
-    note: "Data sintetis.",
+    note: "Data contoh.",
   },
   {
     name: "Maya Contoh",
@@ -77,7 +77,7 @@ const SYNTHETIC_CUSTOMERS = [
     line: "Apartemen Contoh Tower B/12, Pancoran",
     area: "Jakarta Selatan",
     city: "Jakarta",
-    note: "Data sintetis. Titip di lobi.",
+    note: "Data contoh. Titip di lobi.",
   },
 ];
 
@@ -214,7 +214,7 @@ begin
   perform set_config('request.jwt.claim.sub',nadia::text,true);
 
   -- Direct plans for Nadia: history that no command can buy.
-  insert into v1.addresses(id,user_id,label,line,area,city,instructions) values('${BANDUNG_ADDRESS}','${DEMO_ACTORS.customer}','Rumah Bandung','Jl. Contoh Dago No. 7, Coblong','Bandung','Bandung','Data sintetis. Alamat keluarga di Bandung.');
+  insert into v1.addresses(id,user_id,label,line,area,city,instructions) values('${BANDUNG_ADDRESS}','${DEMO_ACTORS.customer}','Rumah Bandung','Jl. Contoh Dago No. 7, Coblong','Bandung','Bandung','Data contoh. Alamat keluarga di Bandung.');
   ${plan(1, DEMO_ACTORS.customer, BANDUNG_ADDRESS, IKAN, false, dueDays, dueBy, "active")}
   ${plan(3, DEMO_ACTORS.customer, ADDRESS_ID, SAMBAL, false, recentDays, recentBy, "completed")}
   ${plan(4, DEMO_ACTORS.customer, ADDRESS_ID, AYAM, false, oldDays, oldBy, "completed")}

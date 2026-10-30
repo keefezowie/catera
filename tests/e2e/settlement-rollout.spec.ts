@@ -44,7 +44,7 @@ for (const locale of ["id", "en"])
       page.getByText(
         locale === "en"
           ? "Payouts are reviewed and approved by Catera. Disputed funds are held."
-          : "Pencairan ditinjau dan disetujui Catera. Dana dalam sengketa ditahan.",
+          : "Pencairan dicek dan disetujui Catera. Dana dalam sengketa ditahan.",
         { exact: true },
       ),
     ).toBeVisible();

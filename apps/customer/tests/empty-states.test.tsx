@@ -205,7 +205,7 @@ const STATES: State[] = [
     runtime: () => runtimeWith({}, null),
     ui: <Beranda />,
     copy: ["Mau makan apa minggu ini?", "Pilih paket katering rumahan, diantar sesuai jadwalmu."],
-    action: "Jelajah paket",
+    action: "Cari paket",
   },
   {
     name: "a signed-in Beranda with nothing running",
@@ -214,7 +214,7 @@ const STATES: State[] = [
     runtime: () => runtimeWith({ customer: jest.fn(async () => ({ ...customerState(null), subscriptions: [], deliveries: [] })) }),
     ui: <Beranda />,
     copy: ["Mau makan apa minggu ini?"],
-    action: "Jelajah paket",
+    action: "Cari paket",
   },
   // bingung: could not connect or load.
   {

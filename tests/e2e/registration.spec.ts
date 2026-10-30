@@ -111,11 +111,11 @@ test("phone login does not ask returning customers for a name and preserves OTP 
     route.fulfill({ status: 401, json: { error: { code: "UNAUTHORIZED" } } }),
   );
   await page.goto("/login");
-  await page.getByRole("tab", { name: "Kode ponsel", exact: true }).click();
+  await page.getByRole("tab", { name: "Kode HP", exact: true }).click();
   await expect(
-    page.getByRole("tab", { name: "Kode ponsel", exact: true }),
+    page.getByRole("tab", { name: "Kode HP", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
-  await page.getByLabel("Nomor WhatsApp / ponsel").fill("+6281234567890");
+  await page.getByLabel("Nomor WhatsApp atau HP").fill("+6281234567890");
   await page
     .getByRole("button", { name: "Kirim kode OTP", exact: true })
     .click();

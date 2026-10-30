@@ -202,11 +202,11 @@ export function Production({
                 ? t("Memeriksa perubahan…", "Checking for changes…")
                 : latest.changed
                   ? t(
-                      "Pesanan telah berubah. Simpan salinan terbaru sebelum digunakan.",
+                      "Pesanan sudah berubah. Simpan salinan terbaru sebelum digunakan.",
                       "Orders changed. Save the latest copy before using the list.",
                     )
                   : t(
-                      "Sesuai dengan pesanan saat terakhir diperiksa.",
+                      "Sesuai dengan pesanan saat terakhir dicek.",
                       "Matches orders at the last successful check.",
                     )}
             </p>

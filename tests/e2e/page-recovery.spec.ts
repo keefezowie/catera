@@ -146,13 +146,13 @@ for (const locale of ["id", "en"] as const) {
       await page.goto("/seller/settings");
       await expect(
         page.getByRole("heading", {
-          name: t("Ada yang belum berhasil dimuat.", "Something did not load."),
+          name: t("Ada yang belum bisa dimuat.", "Something didn't load."),
           exact: true,
         }),
       ).toBeVisible();
       await expect(page.locator("main.error-page")).toContainText(
         t(
-          "Data Anda tetap tersimpan. Silakan coba sekali lagi.",
+          "Datamu tetap tersimpan. Coba lagi.",
           "Your data is still saved. Please try once more.",
         ),
       );

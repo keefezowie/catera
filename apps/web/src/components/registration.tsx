@@ -108,14 +108,14 @@ export function EmailRegistration({ next }: { next: string }) {
       <section aria-label={t("Verifikasi email", "Verify email")}>
         <p ref={statusRef} tabIndex={-1} role="status" className="notice">
           {t(
-            "Periksa email Anda. Jika alamat ini dapat didaftarkan, tautan verifikasi akan dikirim ke",
+            "Cek emailmu. Kalau alamat ini bisa didaftarkan, tautan verifikasi akan dikirim ke",
             "Check your email. If this address can be registered, a verification link will be sent to",
           )}{" "}
           <strong>{email}</strong>.
         </p>
         <p>
           {t(
-            "Periksa juga folder spam. Jika sudah punya akun, silakan masuk atau pulihkan kata sandi.",
+            "Cek juga folder spam. Kalau sudah punya akun, masuk atau pulihkan kata sandi.",
             "Check your spam folder too. If you already have an account, sign in or recover your password.",
           )}
         </p>

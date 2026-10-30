@@ -64,7 +64,7 @@ test("customer purchase, schedule change, support review and renewal", async ({
   await page.getByLabel("Porsi perbandingan").fill("2");
   await page.goto("/checkout/20000000-0000-4000-8000-000000000003?portions=2");
   await pickDate(page, "Mulai tanggal", start);
-  await page.getByRole("button", { name: "Tinjau jadwal & harga" }).click();
+  await page.getByRole("button", { name: "Cek jadwal & harga" }).click();
   await expect(page.locator(".schedule-preview>div")).toHaveCount(10);
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Lanjutkan ke pembayaran" }).click();
@@ -105,7 +105,7 @@ test("customer purchase, schedule change, support review and renewal", async ({
   ).data;
   const target = dates.find((d: { available: boolean }) => d.available).date;
   await pickDate(page, "Tanggal pengganti", target);
-  await page.getByRole("button", { name: "Tinjau perubahan" }).click();
+  await page.getByRole("button", { name: "Cek perubahan" }).click();
   await expect(page.getByText("Menjadi", { exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: "Konfirmasi perubahan jadwal" })
@@ -269,7 +269,7 @@ test("customer and operational routes render, retain context and pass critical a
     page.getByRole("heading", { name: "Antrean verifikasi" }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Semua katerer", exact: true })
+    .getByRole("button", { name: "Semua katering", exact: true })
     .click();
   await page.getByRole("button", { name: /Dapur Senja/ }).click();
   await page.screenshot({

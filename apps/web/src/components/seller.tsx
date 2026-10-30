@@ -140,7 +140,7 @@ function SellerWorkspace({ view }: { view: string }) {
             support: t("Pesan & bantuan", "Messages & support"),
             transactions: t("Transaksi & pencairan", "Transactions & payouts"),
             settings: t("Pengaturan", "Settings"),
-            profile: t("Profil katerer", "Caterer profile"),
+            profile: t("Profil katering", "Caterer profile"),
           }[view] || view
         }
         description={s.caterer.name}
@@ -173,7 +173,7 @@ function SellerTransactions({ state: s }: { state: SellerState }) {
         <h2>{t("Akses khusus pemilik", "Owner access required")}</h2>
         <p>
           {t(
-            "Penjualan, rekening bank, dan pencairan hanya tersedia bagi pemilik katerer. Hubungi pemilik untuk informasi keuangan.",
+            "Penjualan, rekening bank, dan pencairan hanya tersedia bagi pemilik katering. Hubungi pemilik untuk informasi keuangan.",
             "Sales, bank accounts, and payouts are available only to the caterer owner. Contact your owner for financial information.",
           )}
         </p>
@@ -194,7 +194,7 @@ function SellerTransactions({ state: s }: { state: SellerState }) {
     <div className="legacy-payout-content">
       <p>
         {t(
-          "Pencairan ditinjau dan disetujui Catera. Dana dalam sengketa ditahan.",
+          "Pencairan dicek dan disetujui Catera. Dana dalam sengketa ditahan.",
           "Payouts are reviewed and approved by Catera. Disputed funds are held.",
         )}
       </p>
@@ -252,7 +252,7 @@ function Packages({ state: s }: { state: SellerState }) {
       <div className="section-heading">
         <p>
           {t(
-            "Harga dasar dan isi paket yang sudah tayang tetap. Pilihan durasi dan diskonnya dapat diatur untuk pembelian berikutnya.",
+            "Harga dasar dan isi paket yang sudah tayang tetap. Pilihan durasi dan diskonnya bisa diatur untuk pembelian berikutnya.",
             "Published base prices and contents stay fixed. You can update duration options and savings for future purchases.",
           )}
         </p>
@@ -268,11 +268,11 @@ function Packages({ state: s }: { state: SellerState }) {
           <p>
             {s.caterer.status === "approved"
               ? t(
-                  "Paket tersedia untuk pelanggan. Siapkan menu pengantaran saat Anda siap.",
+                  "Paket tersedia untuk pelanggan. Siapkan menu pengantaran saat kamu siap.",
                   "Package available to customers. Prepare delivery menus when you are ready.",
                 )
               : t(
-                  "Paket telah tayang dan menunggu persetujuan katerer. Menu pengantaran dapat disiapkan sekarang.",
+                  "Paket sudah tayang dan menunggu persetujuan katering. Menu pengantaran bisa disiapkan sekarang.",
                   "Package published and awaiting caterer approval. You can prepare delivery menus now.",
                 )}
           </p>
@@ -370,7 +370,7 @@ function Packages({ state: s }: { state: SellerState }) {
         size="editor"
         busy={editorBusy}
         description={t(
-          "Siapkan paket selangkah demi selangkah. Draf dapat dilanjutkan nanti.",
+          "Siapkan paket selangkah demi selangkah. Draf bisa dilanjutkan nanti.",
           "Set up your package step by step. Save a draft to continue later.",
         )}
         open={editing !== undefined}
@@ -492,7 +492,7 @@ function PackageLifecycle({ offer }: { offer: Offer }) {
           suspended
             ? offer.name
             : t(
-                "Penjualan baru berhenti, kewajiban yang ada tetap berjalan, dan paket ini tidak dapat dibuka kembali.",
+                "Penjualan baru berhenti, kewajiban yang ada tetap berjalan, dan paket ini tidak bisa dibuka kembali.",
                 "New sales stop, existing obligations continue, and this package cannot be reopened.",
               )
         }
@@ -529,14 +529,14 @@ function PackageLifecycle({ offer }: { offer: Offer }) {
         >
           <p>
             {t(
-              "Pembelian baru akan ditutup. Pengantaran dan ketentuan pembelian pelanggan yang sudah ada tetap berlaku. Paket tidak dapat dibuka kembali.",
+              "Pembelian baru akan ditutup. Pengantaran dan ketentuan pembelian pelanggan yang sudah ada tetap berlaku. Paket tidak bisa dibuka kembali.",
               "New purchases will be closed. Existing deliveries and purchased terms remain in effect. This package cannot be reopened.",
             )}
           </p>
           {suspended && (
             <p>
               {t(
-                "Kelayakan arsip diperiksa kembali saat konfirmasi. Riwayat tetap tersimpan.",
+                "Kelayakan arsip dicek kembali saat konfirmasi. Riwayat tetap tersimpan.",
                 "Archive eligibility is checked again on confirmation. History is preserved.",
               )}
             </p>
@@ -564,7 +564,7 @@ const blankOffer = {
     revision: 0,
     options: [{ cycles: 1, discountPercent: 0 }],
   },
-  windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
+  windows: { lunch: "11.00-13.00", dinner: "17.00-19.00" },
   tags: [],
   image: "",
   nutrition: null,
@@ -996,7 +996,7 @@ function OfferEditor({
                 } catch {
                   setSaveError(
                     t(
-                      "Draf belum tersimpan. Muat ulang jika data telah berubah, lalu coba lagi.",
+                      "Draf belum tersimpan. Muat ulang jika data sudah berubah, lalu coba lagi.",
                       "Draft could not be saved. Reload if data changed, then retry.",
                     ),
                   );
@@ -1200,7 +1200,7 @@ function OfferEditor({
                 </span>
                 <strong>
                   {previewPackageTotal === null
-                    ? "—"
+                    ? "-"
                     : currency(previewPackageTotal, locale)}
                 </strong>
                 <small>
@@ -1376,7 +1376,7 @@ function OfferEditor({
                         </>
                       )}
                       {t(
-                        "Satu kali coba per pelanggan per katerer.",
+                        "Satu kali coba per pelanggan per katering.",
                         "One trial per customer per caterer.",
                       )}
                     </>
@@ -1554,7 +1554,7 @@ function OfferEditor({
                     )}{" "}
                     {caterer.cutoff.slice(0, 5)} {caterer.timezone}{" "}
                     {t(
-                      "sehari sebelum pengantaran. Jam pengantaran mengikuti zona waktu katerer.",
+                      "sehari sebelum pengantaran. Jam pengantaran mengikuti zona waktu katering.",
                       "on the day before delivery. Delivery windows use the caterer's timezone.",
                     )}
                   </>
@@ -1572,7 +1572,7 @@ function OfferEditor({
                   </SelectOption>
                   <SelectOption value="false">
                     {t(
-                      "Paket tetap · tanggal tidak dapat dipindah",
+                      "Paket tetap · tanggal tidak bisa dipindah",
                       "Fixed package · dates cannot be changed",
                     )}
                   </SelectOption>
@@ -1583,7 +1583,7 @@ function OfferEditor({
             <>
               <p className="field-hint">
                 {t(
-                  "Contoh isi satu porsi: 1 nasi + 1 lauk + 1 sayur. Sesuaikan dengan makanan yang Anda jual.",
+                  "Contoh isi satu porsi: 1 nasi + 1 lauk + 1 sayur. Sesuaikan dengan makanan yang kamu jual.",
                   "Example portion: 1 rice + 1 main + 1 vegetable. Set the contents to match what you sell.",
                 )}
               </p>
@@ -1638,7 +1638,7 @@ function OfferEditor({
                         "Customers choose their dishes",
                       )
                     : t(
-                        "Katerer menentukan hidangan",
+                        "Katering menentukan hidangan",
                         "The caterer chooses the dishes",
                       )
                 }
@@ -1655,7 +1655,7 @@ function OfferEditor({
                     onValueChange={(mode) => set("menuSelectionMode", mode)}
                   >
                     <SelectOption value="caterer">
-                      {t("Katerer", "Caterer")}
+                      {t("Katering", "Caterer")}
                     </SelectOption>
                     <SelectOption value="customer">
                       {t(
@@ -1742,7 +1742,7 @@ function OfferEditor({
                   className="text-button"
                   onClick={() => set("image", "/assets/food/ayam-panggang.png")}
                 >
-                  {t("Gunakan foto sintetis demo", "Use synthetic demo photo")}
+                  {t("Gunakan foto contoh demo", "Use synthetic demo photo")}
                 </Button>
               )}
 
@@ -1889,7 +1889,7 @@ function OfferEditor({
                       "Customers may change dates before the cutoff",
                     )
                   : t(
-                      "Tanggal pengantaran tidak dapat diganti",
+                      "Tanggal pengantaran tidak bisa diganti",
                       "Delivery dates cannot be changed",
                     )}{" "}
                 · {caterer.cutoff}
@@ -1901,7 +1901,7 @@ function OfferEditor({
                       "Customers choose dishes after payment.",
                     )
                   : t(
-                      "Katerer menentukan hidangan. Menu bertanggal dapat disiapkan setelah paket tersimpan.",
+                      "Katering menentukan hidangan. Menu bertanggal bisa disiapkan setelah paket tersimpan.",
                       "The caterer chooses dishes. Dated menus can be prepared after saving the package.",
                     )}
               </p>
@@ -1937,7 +1937,7 @@ function OfferEditor({
                 )}{" "}
                 {caterer.status !== "approved" &&
                   t(
-                    "Pelanggan baru dapat membeli setelah profil katerer disetujui.",
+                    "Pelanggan baru bisa membeli setelah profil katering disetujui.",
                     "Customers can buy only after the caterer profile is approved.",
                   )}
               </p>
@@ -2217,7 +2217,7 @@ export function SupportQueue({
               </div>
               {admin && (
                 <div>
-                  <dt>{t("Katerer", "Caterer")}</dt>
+                  <dt>{t("Katering", "Caterer")}</dt>
                   <dd>
                     {caterer?.name ||
                       t("Nama belum tersedia", "Name unavailable")}
@@ -2300,7 +2300,7 @@ export function SupportQueue({
                   <Field label={t("Alasan keputusan", "Decision reason")}>
                     <TextArea name="reason" minLength={5} required />
                   </Field>
-                  <Field label={t("Jumlah refund (Rp)", "Refund amount (IDR)")}>
+                  <Field label={t("Jumlah pengembalian dana (Rp)", "Refund amount (IDR)")}>
                     <NumericInput
                       name="amount"
                       min={0}
@@ -2317,7 +2317,7 @@ export function SupportQueue({
                   </label>
                   <p className="notice">
                     {t(
-                      "Refund diproses terpisah dari keputusan. Biaya split memerlukan rekonsiliasi eksplisit.",
+                      "Pengembalian dana diproses terpisah dari keputusan. Biaya split memerlukan rekonsiliasi eksplisit.",
                       "Refunds are processed separately from the decision. Split fees require explicit reconciliation.",
                     )}
                   </p>
@@ -2336,7 +2336,7 @@ export function SupportQueue({
                       setReplies((previous) => ({ ...previous, [c.id]: "" }));
                     }}
                   >
-                    <Field label={t("Tanggapan katerer", "Caterer response")}>
+                    <Field label={t("Tanggapan katering", "Caterer response")}>
                       <TextArea
                         name="response"
                         required
@@ -2358,7 +2358,7 @@ export function SupportQueue({
                   >
                     <p>
                       {t(
-                        "Keputusan refund dan pembatalan keuangan dilakukan oleh Catera.",
+                        "Keputusan pengembalian dana dan pembatalan keuangan dilakukan oleh Catera.",
                         "Refund and financial cancellation decisions are handled by Catera.",
                       )}
                     </p>
@@ -2552,7 +2552,7 @@ function SellerProfile({ state: s }: { state: SellerState }) {
             setDraft(draftKey, undefined);
           }}
         >
-          <Field label={t("Nama katerer", "Caterer name")}>
+          <Field label={t("Nama katering", "Caterer name")}>
             <TextInput
               name="name"
               required
@@ -2563,7 +2563,7 @@ function SellerProfile({ state: s }: { state: SellerState }) {
               }
             />
           </Field>
-          <Field label={t("Tentang katerer", "About the caterer")}>
+          <Field label={t("Tentang katering", "About the caterer")}>
             <TextArea
               name="description"
               required
@@ -2644,12 +2644,12 @@ function SellerProfile({ state: s }: { state: SellerState }) {
         <p className="verification-help">
           {s.caterer.status === "approved"
             ? t(
-                "Profil disetujui. Kelola paket dan menu dari ruang katerer. Aktivasi pencairan diperiksa terpisah di Pengaturan.",
+                "Profil disetujui. Kelola paket dan menu dari Dapur. Aktivasi pencairan dicek terpisah di Pengaturan.",
                 "Your profile is approved. Manage packages and menus in your workspace. Payout activation is checked separately in Settings.",
               )
             : s.caterer.status === "submitted"
               ? t(
-                  "Profil sedang ditinjau Catera. Siapkan menu sambil menunggu hasil tinjauan.",
+                  "Profil sedang dicek Catera. Siapkan menu sambil menunggu hasil tinjauan.",
                   "Catera is reviewing your profile. Prepare menus while you wait for the review.",
                 )
               : s.caterer.status === "corrections"
@@ -2724,7 +2724,7 @@ export function Onboarding() {
   return (
     <div className="content narrow-wide">
       <Heading
-        title={t("Daftar sebagai katerer", "Register as a caterer")}
+        title={t("Daftar sebagai katering", "Register as a caterer")}
         description={t(
           "Lengkapi profil usaha dan area pengantaran untuk mengajukan verifikasi.",
           "Complete your business profile and delivery coverage to request verification.",
@@ -2741,19 +2741,19 @@ export function Onboarding() {
         <div className="panel">
           <h2>
             {t(
-              "Ruang katerermu sudah tersedia.",
+              "Dapurmu sudah tersedia.",
               "Your caterer workspace is ready.",
             )}
           </h2>
           <CatererEntry className="button">
-            {t("Kembali ke ruang katerer", "Return to your workspace")}{" "}
+            {t("Kembali ke Dapur", "Return to your workspace")}{" "}
             <ArrowRight size={18} />
           </CatererEntry>
         </div>
       ) : (
         <section className="panel">
           <ActionForm
-            submit={t("Buat profil katerer", "Create caterer profile")}
+            submit={t("Buat profil katering", "Create caterer profile")}
             validate={(f) =>
               !f.getAll("areas").length
                 ? t(
@@ -2772,7 +2772,7 @@ export function Onboarding() {
               location.assign("/seller/packages");
             }}
           >
-            <Field label={t("Nama katerer", "Caterer name")}>
+            <Field label={t("Nama katering", "Caterer name")}>
               <TextInput
                 name="name"
                 required
@@ -2791,7 +2791,7 @@ export function Onboarding() {
               />
             </Field>
             <Field
-              label={t("Alamat halaman katerer", "Caterer page address")}
+              label={t("Alamat halaman katering", "Caterer page address")}
               description={`${origin}/caterers/${slug || t("dapur-kamu", "your-kitchen")}`}
             >
               <TextInput

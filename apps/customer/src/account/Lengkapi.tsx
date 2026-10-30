@@ -128,7 +128,7 @@ export function Lengkapi({ info, onDone }: { info: LengkapiInfo; onDone: () => v
         footer={<Button label={t("Lanjut", "Continue")} onPress={() => nameChecks.submit(() => setStep(2))} />}
       >
         <StepHeader step={1} total={2} />
-        <AuthHeading title={t("Halo! Siapa namamu?", "Hi! What's your name?")} subtitle={t("Katering menulis nama ini di label antaranmu.", "Caterers write this name on your delivery label.")} />
+        <AuthHeading title={t("Siapa namamu?", "What's your name?")} subtitle={t("Katering menulis nama ini di label antaranmu.", "Caterers write this name on your delivery label.")} />
         <Field
           label={t("Nama", "Name")}
           {...authFields.name}

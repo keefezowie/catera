@@ -147,18 +147,18 @@ describe("Bayar dengan picker", () => {
       "QRIS",
     );
     expect(titles()).toEqual(["E-wallet", "Transfer bank", "Bayar di gerai", "Paylater"]);
-    const va = screen.getByRole("button", { name: /^Transfer bank \(VA\)/ });
+    const va = screen.getByRole("button", { name: /^Transfer bank \(Virtual Account\)/ });
     expect(va.props.accessibilityState.expanded).toBe(false);
     expect(within(va).getByText("BCA, Mandiri, BRI, BNI dan 1 lainnya")).toBeTruthy();
     expect(screen.queryByRole("radio", { name: /^BCA Virtual Account/ })).toBeNull();
     fireEvent.press(va);
-    expect(screen.getByRole("button", { name: /^Transfer bank \(VA\)/ }).props.accessibilityState.expanded).toBe(true);
+    expect(screen.getByRole("button", { name: /^Transfer bank \(Virtual Account\)/ }).props.accessibilityState.expanded).toBe(true);
     expect(screen.getAllByRole("radio", { name: /Virtual Account/ })).toHaveLength(5);
   });
 
   it("starts with the banks open when a bank is the chosen method", async () => {
     await openPicker(["QRIS", "EMONEY_OVO", "EMONEY_DANA", "VIRTUAL_ACCOUNT_BCA", "VIRTUAL_ACCOUNT_BRI", "ONLINE_TO_OFFLINE_ALFA"], "VIRTUAL_ACCOUNT_BRI");
-    expect(screen.getByRole("button", { name: /^Transfer bank \(VA\)/ }).props.accessibilityState.expanded).toBe(true);
+    expect(screen.getByRole("button", { name: /^Transfer bank \(Virtual Account\)/ }).props.accessibilityState.expanded).toBe(true);
     expect(screen.getByRole("radio", { name: /^BRI Virtual Account/ }).props.accessibilityState.checked).toBe(true);
   });
 

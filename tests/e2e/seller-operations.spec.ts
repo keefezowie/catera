@@ -74,7 +74,7 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
     .getByRole("button", { name: "Konfirmasi perubahan" })
     .click();
   await expect(confirmation.getByRole("alert")).toContainText(
-    "Pesanan telah berubah",
+    "Pesanan sudah berubah",
   );
   await confirmation
     .getByRole("button", { name: "Kembali tinjau pilihan" })

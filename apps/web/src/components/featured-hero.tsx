@@ -137,7 +137,7 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
     <section
       ref={root}
       className="featured-hero"
-      aria-label={t("Katerer pilihan", "Featured caterers")}
+      aria-label={t("Katering pilihan", "Featured caterers")}
       aria-roledescription={multiple ? "carousel" : undefined}
     >
       <div className="featured-viewport" ref={viewport}>
@@ -200,7 +200,7 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
             onClick={() =>
               navigate((selected - 1 + offers.length) % offers.length)
             }
-            aria-label={t("Katerer sebelumnya", "Previous caterer")}
+            aria-label={t("Katering sebelumnya", "Previous caterer")}
           >
             <ArrowLeft size={18} />
           </Button>
@@ -220,7 +220,7 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
           <Button
             type="button"
             onClick={() => navigate((selected + 1) % offers.length)}
-            aria-label={t("Katerer berikutnya", "Next caterer")}
+            aria-label={t("Katering berikutnya", "Next caterer")}
           >
             <ArrowRight size={18} />
           </Button>

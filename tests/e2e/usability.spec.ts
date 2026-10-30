@@ -226,7 +226,7 @@ test("readiness follows correction, submission and an admin decision", async ({ 
   async function decision(status: string) {
     await login(page, "platform_admin");
     await page.goto("/admin/sellers");
-    await page.getByRole("button", { name: "Semua katerer", exact: true }).click();
+    await page.getByRole("button", { name: "Semua katering", exact: true }).click();
     await page.getByRole("button", { name: /Dapur Senja/ }).click();
     await choose(page, "Keputusan", status);
     await page.getByLabel("Alasan / koreksi yang diperlukan").fill("Synthetic usability verification review.");
@@ -243,12 +243,12 @@ test("readiness follows correction, submission and an admin decision", async ({ 
     await page.getByRole("button", { name: "Ajukan verifikasi" }).click();
     const checklist = page.locator(".seller-readiness .disclosure");
     await checklist.locator(":scope > summary").click();
-    await expect(checklist.getByText("Verifikasi sedang ditinjau", { exact: true })).toBeVisible();
+    await expect(checklist.getByText("Verifikasi sedang dicek", { exact: true })).toBeVisible();
     const submittedState = (await (await page.request.get(`/api/v1/seller/${cid}`)).json()).data;
     expect(submittedState.caterer.status).toBe("submitted");
     await page.screenshot({ path: `${evidence}/readiness-390.png`, fullPage: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await decision("Setujui katerer");
+    await decision("Setujui katering");
     await login(page);
     await page.goto("/seller");
     await expect(page.locator(".seller-readiness")).toHaveCount(0);

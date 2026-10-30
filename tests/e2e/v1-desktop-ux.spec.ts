@@ -221,14 +221,14 @@ for (const [width, height] of sizes)
         })
         .click();
       const review = page.getByRole("button", {
-        name: t("Tinjau perubahan", "Review change"),
+        name: t("Cek perubahan", "Review change"),
         exact: true,
       });
       await review.focus();
       await page.keyboard.press("Enter");
       await expect(
         page.getByRole("heading", {
-          name: t("Tinjau jadwal baru", "Review the new schedule"),
+          name: t("Cek jadwal baru", "Review the new schedule"),
         }),
       ).toBeFocused();
       const dialog = page.getByRole("dialog");

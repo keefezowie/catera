@@ -34,15 +34,15 @@ export type NutritionForm = {
   fatG: string;
   /**
    * A gram range copied from the source package ("Salin jadi paket baru") and not edited since. It is saved as it came
-   * in; its field shows it as "29–30", and the first edit replaces it with one number (`editGram`).
+   * in; its field shows it as "29-30", and the first edit replaces it with one number (`editGram`).
    */
   carried?: Partial<Record<GramKey, { min: number; max: number }>>;
 };
 
 const gramKeys = ["proteinG", "carbsG", "fatG"] as const;
 
-/** "29–30": how a carried range reads in its field. */
-export const carriedText = (r: { min: number; max: number }) => `${r.min}–${r.max}`;
+/** "29-30": how a carried range reads in its field. */
+export const carriedText = (r: { min: number; max: number }) => `${r.min}-${r.max}`;
 
 /** What was inserted into `shown` to make `typed` (a pure insertion, the cursor inside the range); "" for any other edit. */
 function insertedInside(shown: string, typed: string): string {
@@ -56,7 +56,7 @@ function insertedInside(shown: string, typed: string): string {
 
 /**
  * The form after the caterer types into a gram field. A carried range is not editable as a range: the first edit drops
- * it. The field selects its text on focus, so a keystroke usually replaces "29–30" and is kept as typed; digits typed
+ * it. The field selects its text on focus, so a keystroke usually replaces "29-30" and is kept as typed; digits typed
  * after the shown range keep only the new digits; digits typed inside it keep just the inserted run; any other edit that
  * leaves the range's dash (a backspace into it) clears the field.
  */
@@ -65,7 +65,7 @@ export function editGram(n: NutritionForm, key: GramKey, typed: string): Nutriti
   if (!range) return { ...n, [key]: typed };
   const { [key]: _dropped, ...carried } = n.carried!;
   const shown = carriedText(range);
-  const next = typed.startsWith(shown) ? typed.slice(shown.length) : typed.includes("–") ? insertedInside(shown, typed) : typed;
+  const next = typed.startsWith(shown) ? typed.slice(shown.length) : typed.includes("-") ? insertedInside(shown, typed) : typed;
   return { ...n, [key]: next, carried };
 }
 
@@ -177,7 +177,7 @@ export function quickOffer(f: PackageForm) {
     capacity: Object.fromEntries(f.weekdays.map((d) => [String(d), capacity])),
     tiers: [] as never[],
     durationPricing: { revision: 0, options: [{ cycles: 1, discountPercent: 0 }] },
-    windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
+    windows: { lunch: "11.00-13.00", dinner: "17.00-19.00" },
     tags: [] as string[],
     image: f.image.trim(),
     nutrition: nutritionFromForm(f.nutrition),

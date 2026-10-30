@@ -51,7 +51,7 @@ export function PilotPanel({ catererId }: { catererId: string }) {
         <p>
           {data.readiness.syntheticPolicy
             ? t(
-                "Konfigurasi sintetis. Bukan persetujuan untuk menerima pembayaran nyata.",
+                "Konfigurasi contoh. Bukan persetujuan untuk menerima pembayaran nyata.",
                 "Synthetic configuration. This is not approval to accept real payments.",
               )
             : t(
@@ -165,11 +165,11 @@ export function PilotPanel({ catererId }: { catererId: string }) {
           <p className="notice">
             {m.dataMode === "synthetic"
               ? t(
-                  "Laporan transaksi sintetis. Tidak digabung dengan transaksi komersial.",
+                  "Laporan transaksi contoh. Tidak digabung dengan transaksi komersial.",
                   "Synthetic transaction report. Commercial transactions are excluded.",
                 )
               : t(
-                  "Laporan transaksi komersial. Transaksi sintetis dikecualikan.",
+                  "Laporan transaksi komersial. Transaksi contoh dikecualikan.",
                   "Commercial transaction report. Synthetic transactions are excluded.",
                 )}
           </p>
@@ -210,7 +210,7 @@ export function PilotPanel({ catererId }: { catererId: string }) {
           {m.missingCosts.length > 0 && (
             <p className="notice">
               {t(
-                "Kontribusi belum dapat dihitung. Biaya belum lengkap: ",
+                "Kontribusi belum bisa dihitung. Biaya belum lengkap: ",
                 "Contribution is unknown. Missing costs: ",
               )}
               {m.missingCosts.map((k) => costLabels[k] || k).join(", ")}.
@@ -240,7 +240,7 @@ export function PilotPanel({ catererId }: { catererId: string }) {
           {m.cohorts.map((c) => (
             <p key={c.origin}>
               {c.origin === "seller"
-                ? t("Pelanggan katerer", "Seller-origin")
+                ? t("Pelanggan katering", "Seller-origin")
                 : t("Marketplace", "Marketplace")}
               : {c.payments} {t("pembayaran", "payments")} · {money(c.gmv)} ·{" "}
               {t("biaya platform", "platform fees")} {money(c.fees)}
@@ -252,16 +252,16 @@ export function PilotPanel({ catererId }: { catererId: string }) {
               "Menit admin per hari, sebelum / sesudah",
               "Admin minutes per day, before / after",
             )}
-            : {m.baselineMinutesPerDay ?? "—"} / {m.currentMinutesPerDay ?? "—"}
+            : {m.baselineMinutesPerDay ?? "-"} / {m.currentMinutesPerDay ?? "-"}
           </p>
           <p>
             {t("Menit pendampingan Catera", "Catera assistance minutes")}:{" "}
-            {m.assistanceMinutes ?? "—"} ·{" "}
+            {m.assistanceMinutes ?? "-"} ·{" "}
             {t("Masalah pengantaran", "Delivery issues")}: {m.deliveryIssues}
           </p>
           {m.sellerRetention.length > 0 && (
             <>
-              <h3>{t("Retensi katerer berbayar", "Paid seller retention")}</h3>
+              <h3>{t("Retensi katering berbayar", "Paid seller retention")}</h3>
               {m.sellerRetention.map((r) => (
                 <p key={r.day}>
                   {t("Hari", "Day")} {r.day}:{" "}
@@ -282,7 +282,7 @@ export function PilotPanel({ catererId }: { catererId: string }) {
               ))}
               <p className="muted">
                 {t(
-                  "Pembayaran biaya bulanan atau komisi katerer dalam 30 hari sebelum titik pengamatan. Data sintetis tetap berlabel sintetis.",
+                  "Pembayaran biaya bulanan atau komisi katering dalam 30 hari sebelum titik pengamatan. Data contoh tetap berlabel contoh.",
                   "Monthly fee or seller commission payment in the 30 days before each checkpoint. Synthetic data remains labeled synthetic.",
                 )}
               </p>
@@ -326,14 +326,14 @@ export function PilotPanel({ catererId }: { catererId: string }) {
                 : t("Belum disetujui", "Not approved")}{" "}
               ·{" "}
               {p.synthetic
-                ? t("Data sintetis", "Synthetic")
+                ? t("Data contoh", "Synthetic")
                 : t("Komersial", "Commercial")}
             </p>
             <p>
               {t("Biaya pelanggan", "Customer fee")}: {money(p.service_fee)} ·{" "}
               {t("Komisi marketplace", "Marketplace commission")}:{" "}
               {p.marketplace_percent}% ·{" "}
-              {t("Komisi pelanggan katerer", "Seller-origin commission")}:{" "}
+              {t("Komisi pelanggan katering", "Seller-origin commission")}:{" "}
               {p.model === "monthly" ? 0 : p.invited_percent}% ·{" "}
               {t("Biaya bulanan", "Monthly fee")}: {money(p.monthly_fee)}
             </p>
@@ -394,7 +394,7 @@ export function PilotPanel({ catererId }: { catererId: string }) {
                 [
                   "invitedPercent",
                   t(
-                    "Komisi pelanggan katerer (%)",
+                    "Komisi pelanggan katering (%)",
                     "Seller-origin commission (%)",
                   ),
                 ],
@@ -414,13 +414,13 @@ export function PilotPanel({ catererId }: { catererId: string }) {
               <label className="check">
                 <Checkbox name="approved" />
                 {t(
-                  "Kesepakatan ini telah disetujui secara eksplisit",
+                  "Kesepakatan ini sudah disetujui secara eksplisit",
                   "This agreement has explicit approval",
                 )}
               </label>
               <label className="check">
                 <Checkbox name="synthetic" defaultChecked />
-                {t("Hanya untuk data sintetis", "Synthetic use only")}
+                {t("Hanya untuk data contoh", "Synthetic use only")}
               </label>
               <Field label={t("Dasar persetujuan", "Approval reason")}>
                 <TextInput name="reason" required minLength={5} />
@@ -632,7 +632,7 @@ export function PilotPanel({ catererId }: { catererId: string }) {
           {data.observations.map((o) => (
             <p key={o.id}>
               {o.observed_on} · {costLabels[o.kind]} ·{" "}
-              {o.amount === null ? "—" : money(o.amount)} · {o.minutes ?? "—"}{" "}
+              {o.amount === null ? "-" : money(o.amount)} · {o.minutes ?? "-"}{" "}
               {t("menit", "minutes")} · {o.reference}
             </p>
           ))}

@@ -77,7 +77,7 @@ function History() {
       <FadeSwap swapKey="ready" style={{ gap: 16 }}>
         {feed.error ? (
           <ReadError
-            message={t("Pembayaran yang menunggu belum bisa dimuat.", "Payments waiting could not be loaded.")}
+            message={t("Pembayaran yang menunggu belum bisa dimuat. Cek koneksi lalu coba lagi.", "Couldn't load pending payments.")}
             onRetry={() => void feed.reload()}
           />
         ) : null}
@@ -111,7 +111,7 @@ function History() {
             <Text variant="meta">
               {t(
                 "Jangan bayar lagi. Statusnya muncul di sini setelah selesai.",
-                "Don’t pay again. We’ll let you know when it’s done.",
+                "Don't pay again. The status shows up here once it's done.",
               )}
             </Text>
             {inProgress.map((item, i) => (

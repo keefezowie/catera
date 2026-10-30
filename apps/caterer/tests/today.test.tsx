@@ -210,7 +210,7 @@ describe("the setup card in the dark theme", () => {
     const row = (name: RegExp) => StyleSheet.flatten(screen.getByRole("button", { name }).props.style);
     // Direction K: forest fills only the first step (the one brand control here); the other rows sit on sage.
     expect(row(/Buat paket pertama/).backgroundColor).toBe(nativeThemes.dark.forest);
-    expect(row(/Pindahkan pelanggan lama/).backgroundColor).toBe(nativeThemes.dark.well);
+    expect(row(/Impor pelanggan lama/).backgroundColor).toBe(nativeThemes.dark.well);
     expect(StyleSheet.flatten(screen.getByText("Siapkan dapurmu").props.style).color).toBe(nativeThemes.dark.charcoal);
   });
 });
@@ -296,10 +296,10 @@ it("names the customer, day and meal on a problem report and opens it", async ()
     timezone: "Asia/Jakarta",
   });
   renderToday(runtime);
-  // One to-do shows (the report, which comes first); the question waits behind "1 hal lainnya" and opens in place.
+  // One to-do shows (the report, which comes first); the question waits behind "1 lainnya" and opens in place.
   expect(await screen.findByText("Nadia Putri melaporkan masalah")).toBeTruthy();
   expect(screen.queryByText("Pertanyaan pelanggan menunggu")).toBeNull();
-  fireEvent.press(screen.getByRole("button", { name: "1 hal lainnya" }));
+  fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
   expect(await screen.findByText("Pertanyaan pelanggan menunggu")).toBeTruthy();
   fireEvent.press(await screen.findByText("Nadia Putri melaporkan masalah"));
   expect(router.push).toHaveBeenCalledWith("/balas/i-1?title=Nadia%20Putri");
@@ -840,8 +840,8 @@ describe("attention cards", () => {
     });
     renderToday(runtime);
     expect(await within(await screen.findByTestId("attention-body-a-7")).findByText("Rabu 21 Okt · Makan siang · Paket Hemat")).toBeTruthy();
-    // The second item is behind "1 hal lainnya".
-    fireEvent.press(screen.getByRole("button", { name: "1 hal lainnya" }));
+    // The second item is behind "1 lainnya".
+    fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
     expect(within(screen.getByTestId("attention-body-a-8")).getByText("Rabu 21 Okt · Makan malam")).toBeTruthy();
   });
 
@@ -868,7 +868,7 @@ describe("attention cards", () => {
     const chevrons = within(link).UNSAFE_getAllByType(Ionicons).filter((i) => String(i.props.name).startsWith("chevron"));
     // The chevron is iOS only; Jest compiles the Android build (see dapur-d2.test.tsx).
     expect(chevrons).toHaveLength(0);
-    fireEvent.press(screen.getByRole("button", { name: "1 hal lainnya" }));
+    fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
     const plain = within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicons);
     expect(plain.filter((i) => String(i.props.name).startsWith("chevron"))).toHaveLength(0);
     // Both kinds are 64 rows: the title (rowTitle) and its context in the same text column.
@@ -906,14 +906,14 @@ describe("the live slot", () => {
     return runtime;
   };
 
-  it("shows one to-do and opens the other two in place from the 2 hal lainnya link", async () => {
+  it("shows one to-do and opens the other two in place from the 2 lainnya link", async () => {
     renderToday(busy());
     const slot = await screen.findByTestId("live-slot");
     // The first, in the existing order (reports, then attention items): the report; the rest wait.
     expect(within(slot).getByText("Nadia Putri melaporkan masalah")).toBeTruthy();
     expect(within(slot).queryByText("Pertanyaan pelanggan menunggu")).toBeNull();
     expect(within(slot).queryByText("Ada pembayaran yang perlu dicek")).toBeNull();
-    const more = within(slot).getByRole("button", { name: "2 hal lainnya" });
+    const more = within(slot).getByRole("button", { name: "2 lainnya" });
     expect(box(more).minHeight).toBe(48);
     expect(more.props.accessibilityState).toMatchObject({ expanded: false });
     const card = within(slot).getByTestId("live-card");
@@ -925,14 +925,14 @@ describe("the live slot", () => {
     const places = labels.map((label) => all.indexOf(within(card).getByText(label)));
     expect(places).toEqual([...places].sort((a, b) => a - b));
     // The link stays where it is and now reads expanded, so focus is never left on a control that vanished.
-    const open = within(slot).getByRole("button", { name: "2 hal lainnya" });
+    const open = within(slot).getByRole("button", { name: "2 lainnya" });
     expect(open.props.accessibilityState).toMatchObject({ expanded: true });
     expect(router.push).not.toHaveBeenCalled();
     // Pressing it again closes the two.
     fireEvent.press(open);
     expect(within(slot).queryByText("Pertanyaan pelanggan menunggu")).toBeNull();
-    expect(within(slot).getByRole("button", { name: "2 hal lainnya" }).props.accessibilityState).toMatchObject({ expanded: false });
-    fireEvent.press(within(slot).getByRole("button", { name: "2 hal lainnya" }));
+    expect(within(slot).getByRole("button", { name: "2 lainnya" }).props.accessibilityState).toMatchObject({ expanded: false });
+    fireEvent.press(within(slot).getByRole("button", { name: "2 lainnya" }));
     // Every row is a 64.
     for (const row of [within(card).getByRole("button", { name: "Buka laporan: Nadia Putri" }), within(card).getByTestId("attention-a-1")])
       expect(box(row).minHeight).toBe(64);
@@ -977,9 +977,9 @@ describe("the live slot", () => {
     expect(await screen.findByText("Siapkan dapurmu")).toBeTruthy();
     expect(screen.queryByText("Nadia Putri melaporkan masalah")).toBeNull();
     // The setup steps are 56 rows.
-    for (const name of [/Buat paket pertama/, /Pindahkan pelanggan lama/, /Aktifkan pembayaran/])
+    for (const name of [/Buat paket pertama/, /Impor pelanggan lama/, /Aktifkan pembayaran/])
       expect(box(screen.getByRole("button", { name })).minHeight).toBe(56);
-    fireEvent.press(screen.getByRole("button", { name: "1 hal lainnya" }));
+    fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
     expect(await screen.findByText("Nadia Putri melaporkan masalah")).toBeTruthy();
   });
 

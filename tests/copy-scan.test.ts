@@ -121,6 +121,29 @@ describe("native copy glossary", () => {
   });
 });
 
+describe("web and backend copy glossary", () => {
+  // Copy audit 001 (anti-slop/audit-001-2026-10-31.md): the web app and the backend seed speak the same register as
+  // the native apps. The scan covers the retired words, not the native-only rules above.
+  // import-assistant.ts holds the model prompt, which no one reads in the app.
+  const webFiles = ["apps/web/src", "packages/backend/src"]
+    .flatMap((d) => walk(join(root, d)))
+    .filter((f) => !rel(f).endsWith("packages/backend/src/import-assistant.ts"));
+  const webCode = webFiles.map((f) => ({ file: rel(f), lines: readFileSync(f, "utf8").split("\n") }));
+  const webScan = (pattern: RegExp): string[] =>
+    webCode.flatMap(({ file, lines }) =>
+      lines.flatMap((text, i) => (!isComment(text) && pattern.test(text) ? [`${file}:${i + 1} ${text.trim().slice(0, 140)}`] : [])),
+    );
+  test("no em dash, spaced en dash or lone dash placeholder", () => {
+    expect(webScan(/—| – |["'`]–["'`]/)).toEqual([]);
+  });
+  test("kamu, katering, HP and data contoh", () => {
+    expect(webScan(/\bAnda\b|katerer|ponsel|data sintetis/i)).toEqual([]);
+  });
+  test("no formal register", () => {
+    expect(webScan(/Silakan|tidak dapat\b|\btelah\b/)).toEqual([]);
+  });
+});
+
 describe("push copy migration", () => {
   const sql = existsSync(join(root, PUSH_MIGRATION)) ? readFileSync(join(root, PUSH_MIGRATION), "utf8") : "";
   // Everything before the first replacement list is the header; the bodies the customer and the caterer read follow it.

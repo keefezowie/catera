@@ -163,10 +163,10 @@ function Updates() {
           <View style={{ gap: 6 }}>
             <StateArt pose="tidur" style={{ marginBottom: 6 }} />
             <Text variant="heading" style={{ textAlign: "center" }}>
-              {t("Belum ada kabar baru.", "No new updates yet.")}
+              {t("Belum ada notifikasi baru.", "No new notifications yet.")}
             </Text>
             <Text style={{ color: c.muted, textAlign: "center" }}>
-              {t("Kabar soal makananmu dan permintaan bantuan muncul di sini.", "Updates on your meals and help requests show up here.")}
+              {t("Info soal makananmu dan permintaan bantuan muncul di sini.", "Updates on your meals and help requests show up here.")}
             </Text>
           </View>
         )}

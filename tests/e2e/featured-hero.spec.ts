@@ -17,7 +17,7 @@ test("keyboard focus stops autoplay and carousel remains accessible without a pl
   await active(page).getByRole("link").focus();
   await page.keyboard.press("Tab");
   await expect(
-    page.getByRole("button", { name: "Katerer sebelumnya" }),
+    page.getByRole("button", { name: "Katering sebelumnya" }),
   ).toBeFocused();
   const results = await new AxeBuilder({ page })
     .include(".featured-hero")
@@ -46,9 +46,9 @@ test("carousel autoplay, hover, manual controls, focus, visibility and links", a
   await waitCycle(page);
   await expect(active(page)).toContainText("Dapur Senja");
   await expect(page.locator(".featured-playback")).toHaveCount(0);
-  await page.getByRole("button", { name: "Katerer sebelumnya" }).click();
+  await page.getByRole("button", { name: "Katering sebelumnya" }).click();
   await expect(active(page)).toContainText("Hijau Kitchen");
-  await page.getByRole("button", { name: "Katerer berikutnya" }).click();
+  await page.getByRole("button", { name: "Katering berikutnya" }).click();
   await expect(active(page)).toContainText("Dapur Senja");
   await page.getByRole("searchbox", { name: "Cari katering" }).fill("salmon");
   await expect(page.locator(".featured-slide")).toHaveCount(3);
@@ -103,7 +103,7 @@ test("desktop and mobile spacing, stable height, swipe, long names and reduced m
       path: `output/featured-hero/${width}.png`,
       fullPage: true,
     });
-    await page.getByRole("button", { name: "Katerer berikutnya" }).click();
+    await page.getByRole("button", { name: "Katering berikutnya" }).click();
     expect((await page.locator(".featured-hero").boundingBox())!.height).toBe(
       hero!.height,
     );

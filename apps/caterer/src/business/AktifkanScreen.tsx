@@ -46,7 +46,7 @@ export function AktifkanScreen() {
   const [which, setWhich] = useState("");
   const { busy, failure, run: guarded } = useFormRun(
     locale,
-    t("Belum bisa dikirim. Coba lagi.", "Could not send it. Try again."),
+    t("Belum bisa dikirim. Coba lagi.", "Couldn't send it. Try again."),
   );
   const s = state.data;
   // Both states draw their body in the same FadeSwap, so the steps enter from their skeleton as one block.
@@ -100,7 +100,7 @@ export function AktifkanScreen() {
                 <Text variant="meta">{t("Buat paket dulu di Usaha › Paket.", "Create a package first in Business › Packages.")}</Text>
               )
             ) : review === "waiting" ? (
-              <Text variant="meta">{t("Tim Catera biasanya memeriksa dalam 1 sampai 2 hari kerja.", "The Catera team usually checks within 1 to 2 working days.")}</Text>
+              <Text variant="meta">{t("Tim Catera memeriksa data ini dulu sebelum dapurmu tayang.", "The Catera team checks this first before your kitchen goes live.")}</Text>
             ) : null}
           </Step>
           <Step n={2} title={t("Rekening pencairan", "Payout bank account")} state={payout}>

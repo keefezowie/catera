@@ -208,7 +208,7 @@ test("wizard reviews custom categories and counts before publishing the new comp
     .getByRole("button", { name: "2. Isi per porsi", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Gunakan foto sintetis demo" })
+    .getByRole("button", { name: "Gunakan foto contoh demo" })
     .click();
   await choose(page, "Tambah kategori ke paket", "Lauk");
   await page.getByLabel("Jumlah Lauk", { exact: true }).fill("2");

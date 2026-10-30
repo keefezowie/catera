@@ -150,7 +150,7 @@ export function PhotoUpload({
                   error instanceof Error &&
                     ["UNAUTHORIZED", "FORBIDDEN"].includes(error.message)
                     ? t(
-                        "Masuk kembali dengan akun pemilik katerer.",
+                        "Masuk kembali dengan akun pemilik katering.",
                         "Sign in again with the caterer owner account.",
                       )
                     : error instanceof Error && error.message === "INVALID_SIZE"
@@ -171,7 +171,7 @@ export function PhotoUpload({
                               "Upload session expired. Choose the file again.",
                             )
                           : t(
-                              "Foto belum berhasil diunggah. Pilih file untuk mencoba lagi.",
+                              "Foto belum bisa diunggah. Pilih file untuk mencoba lagi.",
                               "Upload failed. Choose a file to retry.",
                             ),
                 );
@@ -226,7 +226,7 @@ export function PhotoUpload({
         {previewFailed ? (
           <ErrorNotice
             message={t(
-              "Foto belum dapat ditampilkan.",
+              "Foto belum bisa ditampilkan.",
               "This photo could not be displayed.",
             )}
             retry={() => setPreviewFailed(false)}

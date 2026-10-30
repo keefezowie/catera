@@ -92,7 +92,7 @@ describe("Daftar dengan email", () => {
   it("registers with name, email and password, remembers where to return, and asks to check email", async () => {
     mockParams = { next: "/beli/p-1?portions=2" };
     renderWith(<Register />);
-    const send = await screen.findByRole("button", { name: "Daftar & verifikasi email" });
+    const send = await screen.findByRole("button", { name: "Daftar" });
     expect(send).toBeEnabled();
     fireEvent.changeText(screen.getByLabelText("Nama"), "Rani Contoh");
     fireEvent.changeText(screen.getByLabelText("Email"), " rani@example.test ");
@@ -130,7 +130,7 @@ describe("Daftar dengan email", () => {
     fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByText("Daftar & verifikasi email"));
+    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     expect(await screen.findByText(/sudah terdaftar/)).toBeTruthy();
     expect(screen.queryByText("Cek emailmu")).toBeNull();
   });
@@ -144,7 +144,7 @@ describe("Daftar dengan email", () => {
     fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     expect(await screen.findByTestId("identity-error")).toBeTruthy();
     expect(screen.queryByText("Cek emailmu")).toBeNull();
     // The password is what was refused, so it carries the danger outline and the email does not.
@@ -160,7 +160,7 @@ describe("Lupa kata sandi", () => {
     await screen.findByLabelText("Email");
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Pemulihan akun"]);
     expect(screen.queryByText("Pulihkan kata sandi")).toBeNull();
-    expect(screen.getByText(/Kami kirim tautan/)).toBeTruthy();
+    expect(screen.getByText(/kami kirim tautan/i)).toBeTruthy();
   });
 
   it("does not outline the email when the service fails, only says so", async () => {
@@ -196,7 +196,7 @@ describe("Cek emailmu", () => {
     fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani Contoh");
     fireEvent.changeText(screen.getByLabelText("Email"), " rani@example.test ");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     return screen.findByTestId("check-email");
   };
   const toRecoverSent = async () => {
@@ -328,7 +328,7 @@ describe("Masuk heading", () => {
     renderWith(<Masuk />);
     expect(await screen.findByRole("button", { name: "Lanjut dengan Google" })).toBeTruthy();
     expect(screen.getAllByText("Masuk ke Catera")).toHaveLength(1);
-    expect(screen.getByText(/Langsung dibuatkan/)).toBeTruthy();
+    expect(screen.getByText(/Masuk atau daftar dengan satu akun/)).toBeTruthy();
   });
 });
 

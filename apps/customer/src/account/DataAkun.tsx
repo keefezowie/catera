@@ -147,7 +147,7 @@ function Details() {
         ) : (
           <>
             <SettingsRow
-              label={t("Nomor HP", "Phone number")}
+              label={t("Nomor WhatsApp", "WhatsApp number")}
               value={phone ? localPhone(phone) : none}
               expanded={open === "hp"}
               onPress={() => toggle("hp")}
@@ -230,14 +230,14 @@ function PhoneEditor({ current, onDone }: { current: string; onDone: () => void 
       // An emptied field clears the number.
       await command("profile.update", { phone: number });
       await refresh();
-      toast.show({ message: t("Nomor HP disimpan", "Phone number saved"), tone: "success" });
+      toast.show({ message: t("Nomor WhatsApp disimpan", "WhatsApp number saved"), tone: "success" });
       onDone();
     });
   return (
     <Editor>
       <Field
         inputRef={first}
-        label={t("Nomor HP", "Phone number")}
+        label={t("Nomor WhatsApp", "WhatsApp number")}
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"

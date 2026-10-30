@@ -50,7 +50,7 @@ export async function generateMetadata({
         (english
           ? {
               discover: "Explore catering",
-              home: "My meals",
+              home: "Home",
               saved: "Saved packages",
               calendar: "Meal calendar",
               seller: "Caterer workspace",
@@ -62,10 +62,10 @@ export async function generateMetadata({
             }
           : {
               discover: "Jelajah katering",
-              home: "Makanan saya",
+              home: "Beranda",
               saved: "Paket tersimpan",
               calendar: "Jadwal makan",
-              seller: "Ruang katerer",
+              seller: "Dapur",
               admin: "Catera Admin",
               login: "Masuk",
               register: "Buat akun",

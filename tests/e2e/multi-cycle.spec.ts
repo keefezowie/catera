@@ -108,7 +108,7 @@ for (const locale of ["id", "en"])
       await page.keyboard.press("Escape");
       await page
         .getByRole("button", {
-          name: t("Tinjau jadwal & harga", "Review schedule & price"),
+          name: t("Cek jadwal & harga", "Review schedule & price"),
           exact: true,
         })
         .click();
@@ -139,7 +139,7 @@ for (const locale of ["id", "en"])
         .click();
       await page
         .getByRole("button", {
-          name: t("Tinjau jadwal & harga", "Review schedule & price"),
+          name: t("Cek jadwal & harga", "Review schedule & price"),
           exact: true,
         })
         .click();
@@ -307,7 +307,7 @@ for (const locale of ["id", "en"])
       );
       await page
         .getByRole("button", {
-          name: t("Tinjau jadwal & harga", "Review schedule & price"),
+          name: t("Cek jadwal & harga", "Review schedule & price"),
           exact: true,
         })
         .click();
@@ -398,7 +398,7 @@ for (const locale of ["id", "en"])
       await page
         .getByRole("button", {
           name: t(
-            "Gunakan alamat & tinjau pembelian",
+            "Pakai alamat & cek pesanan",
             "Use address & review purchase",
           ),
         })

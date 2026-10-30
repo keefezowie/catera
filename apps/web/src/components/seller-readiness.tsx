@@ -50,11 +50,11 @@ export function SellerReadiness({
   let message: string;
   if (suspended) {
     next = {
-      label: t("Lihat status katerer", "View caterer status"),
+      label: t("Lihat status katering", "View caterer status"),
       href: verificationHref,
     };
     message = t(
-      "Penjualan sedang ditangguhkan. Periksa catatan Catera pada profil Anda.",
+      "Penjualan sedang ditangguhkan. Periksa catatan Catera pada profilmu.",
       "Sales are paused. Check Catera's notes on your profile.",
     );
   } else if (corrections) {
@@ -81,7 +81,7 @@ export function SellerReadiness({
       href: draftHref,
     };
     message = t(
-      "Simpan paket pertama sebagai draf. Isian yang belum lengkap dapat dilanjutkan nanti.",
+      "Simpan paket pertama sebagai draf. Isian yang belum lengkap bisa dilanjutkan nanti.",
       "Save your first package as a draft. You can finish incomplete fields later.",
     );
   } else if (canRequestReview) {
@@ -90,7 +90,7 @@ export function SellerReadiness({
       href: verificationHref,
     };
     message = t(
-      "Profil dan paket sudah tersimpan. Anda dapat mengajukan verifikasi sekarang.",
+      "Profil dan paket sudah tersimpan. Kamu bisa mengajukan verifikasi sekarang.",
       "Your profile and package are saved. You can request verification now.",
     );
   } else if (!published) {
@@ -115,7 +115,7 @@ export function SellerReadiness({
       href: verificationHref,
     };
     message = t(
-      "Paket telah disiapkan untuk tayang. Pelanggan dapat membeli setelah Catera menyetujui profil Anda.",
+      "Paket sudah disiapkan untuk tayang. Pelanggan bisa membeli setelah Catera menyetujui profilmu.",
       "Your package is prepared for publication. Customers can buy after Catera approves your profile.",
     );
   } else {
@@ -137,11 +137,11 @@ export function SellerReadiness({
         ? t("Tersedia bagi pelanggan", "Available to customers")
         : published
           ? t(
-              "Paket tayang, menunggu persetujuan katerer",
+              "Paket tayang, menunggu persetujuan katering",
               "Published, awaiting caterer approval",
             )
           : submitted
-            ? t("Menunggu verifikasi katerer", "Awaiting caterer verification")
+            ? t("Menunggu verifikasi katering", "Awaiting caterer verification")
             : draft
               ? t("Draf paket tersimpan", "Package draft saved")
               : t("Belum ada paket tayang", "No published package");
@@ -160,8 +160,8 @@ export function SellerReadiness({
     },
     {
       title: submitted
-        ? t("Verifikasi sedang ditinjau", "Verification under review")
-        : t("Verifikasi katerer", "Caterer verification"),
+        ? t("Verifikasi sedang dicek", "Verification under review")
+        : t("Verifikasi katering", "Caterer verification"),
       done: approved,
       href: verificationHref,
       Icon: ShieldCheck,
@@ -228,7 +228,7 @@ export function SellerReadiness({
         )}
         <p className="field-hint">
           {t(
-            "Aktivasi pencairan diperiksa terpisah di Pengaturan.",
+            "Aktivasi pencairan dicek terpisah di Pengaturan.",
             "Payout activation is checked separately in Settings.",
           )}
         </p>

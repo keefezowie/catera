@@ -30,7 +30,7 @@ jest.mock("@catera/mobile-core", () => ({
   useTrack: () => () => undefined,
   useData: () => ({ data: { items: [] }, loading: false, error: "", reload: async () => undefined }),
 }));
-/** Beranda without a package: the real empty home, with its Jelajah paket button. */
+/** Beranda without a package: the real empty home, with its Cari paket button. */
 jest.mock("../src/today/Beranda", () => ({
   Beranda: () => require("react").createElement(jest.requireActual("../src/today/EmptyHome").EmptyHome),
 }));
@@ -569,12 +569,12 @@ describe("links to tab roots select the tab", () => {
     expect(stack("(jelajah)")).toEqual(["jelajah", "paket/[id]"]);
   });
 
-  it("Jelajah paket from an empty home selects Jelajah", () => {
+  it("Cari paket from an empty home selects Jelajah", () => {
     mount("/");
     act(() => goToTab("jelajah"));
     act(() => router.push("/paket/p1"));
     act(() => goToTab("index"));
-    press("Jelajah paket");
+    press("Cari paket");
     expect(tab()).toBe("(jelajah)");
     expect(stack("(jelajah)")).toEqual(["jelajah"]);
     expect(stack("(index)")).toEqual(["index"]);

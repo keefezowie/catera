@@ -23,8 +23,8 @@ export function HeroIntroduction() {
         <FoodImage
           src="/assets/food/ayam-panggang.png"
           alt={t(
-            "Ayam panggang, nasi hangat, dan sayuran segar",
-            "Roast chicken, warm rice and fresh vegetables",
+            "Ayam panggang dengan nasi dan sayur",
+            "Roast chicken with rice and vegetables",
           )}
           fetchPriority="high"
           loading="eager"

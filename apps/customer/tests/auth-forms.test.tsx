@@ -280,7 +280,7 @@ describe("Masuk validation and errors", () => {
     fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     const error = await screen.findByTestId("identity-error");
     expect(within(error).getByText("Masuk dengan email ini")).toBeTruthy();
     expect(within(error).queryByText("Coba lagi")).toBeNull();
@@ -308,7 +308,7 @@ describe("Masuk providers", () => {
     for (const link of screen.getAllByRole("link")) expect(StyleSheet.flatten(link.props.style).textDecorationLine).toBe("underline");
     expect(screen.getAllByRole("link")).toHaveLength(2);
     // No phone sign-in is left.
-    expect(screen.queryByLabelText("Nomor HP")).toBeNull();
+    expect(screen.queryByLabelText("Nomor WhatsApp")).toBeNull();
     expect(screen.queryByRole("tab")).toBeNull();
   });
 
@@ -395,7 +395,7 @@ describe("Lengkapi akun", () => {
     runtime.api = { ...runtime.api, command: jest.fn(async () => ({})) } as never;
     mockParams = { next: "/jadwal" };
     await signIn();
-    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+    expect(await screen.findByText("Siapa namamu?")).toBeTruthy();
     expect(screen.getByLabelText("Nama").props.value).toBe("Sari Wulandari");
     expect(screen.getByText("Dari akun Google-mu. Ubah kalau perlu.")).toBeTruthy();
     expect(screen.getByTestId("step-bar").props.accessibilityLabel).toBe("Langkah 1 dari 2");
@@ -430,7 +430,7 @@ describe("Lengkapi akun", () => {
     mockLeave.mockClear();
     await signIn();
     await waitFor(() => expect(mockLeave).toHaveBeenCalledWith("/"));
-    expect(screen.queryByText("Halo! Siapa namamu?")).toBeNull();
+    expect(screen.queryByText("Siapa namamu?")).toBeNull();
   });
 
   it("Nanti saja with the name unchanged sends nothing, so it works offline", async () => {
@@ -462,7 +462,7 @@ describe("Lengkapi akun", () => {
       handled = handlers[handlers.length - 1]();
     });
     expect(handled).toBe(true);
-    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+    expect(await screen.findByText("Siapa namamu?")).toBeTruthy();
   });
 
   it("a provider sign-in forgets a pending email link, whose PKCE verifier it replaced", async () => {
@@ -478,7 +478,7 @@ describe("Lengkapi akun", () => {
     await signIn();
     fireEvent.press(await screen.findByRole("button", { name: "Lanjut" }));
     fireEvent.press(await screen.findByRole("button", { name: "Kembali" }));
-    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+    expect(await screen.findByText("Siapa namamu?")).toBeTruthy();
   });
 
   it("is skipped when the account says it was done, or already has a name and a number", async () => {
@@ -502,7 +502,7 @@ describe("Lengkapi akun", () => {
     await emailTab();
     fill();
     submit();
-    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+    expect(await screen.findByText("Siapa namamu?")).toBeTruthy();
     expect(screen.getByLabelText("Nama").props.value).toBe("Rani");
     expect(screen.queryByText(/Dari akun/)).toBeNull();
   });
@@ -516,7 +516,7 @@ describe("Daftar validation and errors", () => {
     fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     fireEvent.press(await screen.findByText("Masuk dengan email ini"));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/beli/p-1", email: "rani@example.test" } });
   });
@@ -525,7 +525,7 @@ describe("Daftar validation and errors", () => {
     renderWith(<Register />);
     fireEvent.changeText(await screen.findByLabelText("Nama"), "R");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "short");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     expect(await screen.findByText("Tulis namamu, minimal 2 huruf.")).toBeTruthy();
     expect(screen.getByText("Isi emailmu dulu.")).toBeTruthy();
     expect(screen.getByText("Minimal 8 karakter")).toBeTruthy();
@@ -541,7 +541,7 @@ describe("Daftar password outline and pending intent", () => {
     fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
   };
 
   it("a short password gets the danger outline together with its red rule line", async () => {
@@ -575,14 +575,14 @@ describe("Daftar and Pemulihan rate wait", () => {
       fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
       fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
       fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-      fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
+      fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
       expect(await screen.findByRole("button", { name: "Coba lagi dalam 1:00" })).toBeDisabled();
       expect(screen.getByText("Terlalu banyak percobaan. Coba lagi dalam 1:00.")).toBeTruthy();
       expect(within(screen.getByTestId("identity-error")).queryByText("Coba lagi")).toBeNull();
       await act(async () => {
         jest.advanceTimersByTime(60_000);
       });
-      expect(screen.getByRole("button", { name: "Daftar & verifikasi email" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Daftar" })).toBeEnabled();
     } finally {
       jest.useRealTimers();
     }

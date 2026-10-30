@@ -128,7 +128,7 @@ export function PayMethodRoute({ os = process.env.EXPO_OS }: { os?: string } = {
                   <PickRow
                     os={os}
                     row={{
-                      label: t("Transfer bank (VA)", "Bank transfer (VA)"),
+                      label: t("Transfer bank (Virtual Account)", "Bank transfer (Virtual Account)"),
                       detail: picked
                         ? text(picked.name)
                         : names.length > 4

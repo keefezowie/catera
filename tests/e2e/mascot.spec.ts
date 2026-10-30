@@ -24,7 +24,7 @@ test("mascot loads, pauses, respects reduced motion and releases loading immedia
   await page.getByRole("button", { name: "Mulai memuat", exact: true }).click();
   await expect(page.getByRole("status")).toHaveAttribute(
     "aria-label",
-    "Menyiapkan Catera untuk Anda…",
+    "Menyiapkan Catera…",
   );
   await expect(page.locator(".mascot-loading-visual")).toBeVisible();
   await page.getByRole("button", { name: "Selesai", exact: true }).click();

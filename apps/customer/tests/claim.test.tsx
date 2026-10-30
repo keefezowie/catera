@@ -92,7 +92,7 @@ describe("signed out", () => {
     expect(screen.queryByRole("button", { name: "Lanjut dengan Apple" })).toBeNull();
     expect(screen.getByRole("button", { name: "Lanjut dengan Google" })).toBeTruthy();
     expect(screen.getByTestId("legal-line")).toBeTruthy();
-    expect(screen.queryByLabelText("Nomor HP")).toBeNull();
+    expect(screen.queryByLabelText("Nomor WhatsApp")).toBeNull();
   });
 
   it("Google signs in right here and turns the claim into the number step", async () => {
@@ -101,7 +101,7 @@ describe("signed out", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
     expect(await screen.findByText("Sambungkan langgananmu")).toBeTruthy();
     expect(signInWithGoogle).toHaveBeenCalledWith("catera://auth/callback", expect.any(String));
-    expect(screen.getByLabelText("Nomor HP")).toBeTruthy();
+    expect(screen.getByLabelText("Nomor WhatsApp")).toBeTruthy();
   });
 
   it("a closed Google page says nothing; a failure is said under the buttons", async () => {
@@ -132,7 +132,7 @@ describe("signed in", () => {
     expect(await screen.findByText("Sambungkan langgananmu")).toBeTruthy();
     expect(screen.getByText("Dapur Contoh mencatat nomor berakhiran ••• 0001.")).toBeTruthy();
     expect(screen.getByText("Masuk sebagai Andre Contoh")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Nomor HP"), "0812 3450 0001");
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3450 0001");
     fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
     expect(command).toHaveBeenCalledWith("customer.claim", { token: TOKEN, phone: "+6281234500001" }, expect.any(String));
@@ -141,23 +141,23 @@ describe("signed in", () => {
   it("prefills the number already on the account", async () => {
     const { runtime } = runtimeWith({ actor: { ...customer, phone: "+6281234500001" } });
     renderRoute(runtime);
-    expect((await screen.findByLabelText("Nomor HP")).props.value).toBe("0812 3450 0001");
+    expect((await screen.findByLabelText("Nomor WhatsApp")).props.value).toBe("0812 3450 0001");
   });
 
   it("a number that differs from the mask is refused before the server, and stays editable", async () => {
     const { runtime } = runtimeWith({ actor: customer });
     renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812 9999 0000");
+    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812 9999 0000");
     fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(await screen.findByText(MISMATCH)).toBeTruthy();
     expect(runtime.api.command).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Nomor HP").props.editable).not.toBe(false);
+    expect(screen.getByLabelText("Nomor WhatsApp").props.editable).not.toBe(false);
   });
 
   it("a malformed number is refused before the server", async () => {
     const { runtime } = runtimeWith({ actor: customer });
     renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "0812");
+    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812");
     fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(await screen.findByText("Nomornya belum benar. Contoh: 0812 3456 7890")).toBeTruthy();
     expect(runtime.api.command).not.toHaveBeenCalled();
@@ -169,14 +169,14 @@ describe("signed in", () => {
     });
     const { runtime } = runtimeWith({ command, actor: customer });
     renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "081234500001");
+    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
     fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(
       await screen.findByText(
-        "Nomornya belum cocok dengan catatan Dapur Contoh, atau tautannya sudah tidak berlaku. Periksa nomornya, atau minta tautan baru ke Dapur Contoh.",
+        "Nomor belum cocok atau tautan sudah tidak berlaku. Cek nomornya, atau minta tautan baru ke Dapur Contoh.",
       ),
     ).toBeTruthy();
-    expect(screen.getByLabelText("Nomor HP")).toBeTruthy();
+    expect(screen.getByLabelText("Nomor WhatsApp")).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
   });
 
@@ -186,7 +186,7 @@ describe("signed in", () => {
     });
     const { runtime } = runtimeWith({ command, actor: customer });
     renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "081234500001");
+    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
     fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(await screen.findByText("Tautan ini tidak bisa dipakai. Minta tautan baru ke kateringmu.")).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
@@ -197,7 +197,7 @@ describe("signed in", () => {
     const command = jest.fn(() => new Promise((resolve) => (release = resolve)));
     const { runtime } = runtimeWith({ command, actor: customer });
     renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "081234500001");
+    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
     const connect = screen.getByRole("button", { name: "Sambungkan" });
     await act(async () => {
       fireEvent.press(connect);
@@ -212,7 +212,7 @@ describe("signed in", () => {
     const command = jest.fn(async () => ({ status: "review" }));
     const { runtime } = runtimeWith({ command, actor: customer });
     renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor HP"), "081234500001");
+    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
     fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(await screen.findByText("Dapur Contoh perlu mengecek langganan ini dulu. Pengantaranmu tetap jalan.")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));

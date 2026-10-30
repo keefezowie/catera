@@ -52,7 +52,7 @@ export function LiveSlot({
   const expand = (
     <LinkRow
       testID="live-more"
-      label={t(`${more} hal lainnya`, `${more} more`)}
+      label={t(`${more} lainnya`, `${more} more`)}
       inset={first.kind === "row" ? TEXT_INSET : 0}
       expanded={open}
       trailing={<DecorativeIcon name={open ? "chevron-up" : "chevron-down"} size={18} color={c.forest} />}
@@ -180,7 +180,7 @@ function MulaiCard() {
   const c = useColors();
   const steps: [string, string, string][] = [
     [t("Buat paket pertama", "Create your first package"), t("Nama, foto, harga, hari antar", "Name, photo, price, days"), "/paket/baru"],
-    [t("Pindahkan pelanggan lama", "Bring in existing customers"), t("Kirim foto buku catatan atau chat WhatsApp", "Send a notebook photo or WhatsApp chat"), "/impor"],
+    [t("Impor pelanggan lama", "Import existing customers"), t("Kirim foto buku catatan atau chat WhatsApp", "Send a notebook photo or WhatsApp chat"), "/impor"],
     [t("Aktifkan pembayaran", "Turn on payments"), t("Perlu sebelum perpanjangan pertama", "Needed before the first renewal"), "/aktifkan"],
   ];
   return (

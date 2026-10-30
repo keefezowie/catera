@@ -272,7 +272,7 @@ describe.each(["in memory", "fresh stored"] as const)("demo states, %s", (mode) 
     );
     expect(addresses.rows).toHaveLength(profiles.rows.length);
     for (const a of addresses.rows) {
-      expect(a.instructions).toMatch(/^Data sintetis/);
+      expect(a.instructions).toMatch(/^Data contoh/);
       expect(a.line).toMatch(/Contoh/);
     }
     const records = await db.query<{ name: string; address: { instructions?: string } }>(
@@ -282,7 +282,7 @@ describe.each(["in memory", "fresh stored"] as const)("demo states, %s", (mode) 
     expect(records.rows).toHaveLength(profiles.rows.length);
     for (const r of records.rows) {
       expect(r.name).toMatch(/Contoh/);
-      expect(r.address.instructions).toMatch(/^Data sintetis/);
+      expect(r.address.instructions).toMatch(/^Data contoh/);
     }
     // Nadia's addresses: the seed's home, the operating fixture's office and the states' Bandung address.
     const own = await db.query<{ label: string; instructions: string }>(
@@ -290,7 +290,7 @@ describe.each(["in memory", "fresh stored"] as const)("demo states, %s", (mode) 
       [U.customer],
     );
     expect(own.rows.map((a) => a.label)).toEqual(["Kantor", "Rumah", "Rumah Bandung"]);
-    for (const a of own.rows) expect(a.instructions).toMatch(/^Data sintetis/);
+    for (const a of own.rows) expect(a.instructions).toMatch(/^Data contoh/);
     const added = await db.query<{ slug: string; caterer_id: string; offer: { description: string } }>(
       "select slug,caterer_id,offer from v1.packages where slug like 'contoh-%' order by slug",
     );

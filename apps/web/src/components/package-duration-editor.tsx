@@ -78,7 +78,7 @@ export function PackageDurationEditor({ offer }: { offer: SellerOffer }) {
           {open && revision < (offer.durationPricing?.revision ?? 0) && (
             <p role="alert" className="notice">
               {t(
-                "Harga telah diperbarui. Draf Anda tetap tersimpan di editor; salin perubahan sebelum membuang draf dan membuka versi terbaru.",
+                "Harga sudah diperbarui. Drafmu tetap tersimpan di editor; salin perubahan sebelum membuang draf dan membuka versi terbaru.",
                 "Pricing has changed. Your draft is retained in this editor; copy your changes before discarding and opening the latest version.",
               )}
             </p>
@@ -103,7 +103,7 @@ export function PackageDurationEditor({ offer }: { offer: SellerOffer }) {
             <p>
               1 {t("periode", "cycle")} = {offer.days}{" "}
               {t(
-                "hari pengantaran. Kedua diskon ditanggung katerer; diskon durasi dihitung setelah diskon porsi.",
+                "hari pengantaran. Kedua diskon ditanggung katering; diskon durasi dihitung setelah diskon porsi.",
                 "delivery days. Both discounts are seller-funded; multi-cycle savings apply after the portion discount.",
               )}
             </p>
@@ -113,7 +113,7 @@ export function PackageDurationEditor({ offer }: { offer: SellerOffer }) {
                 description={
                   offer.price === null
                     ? t(
-                        "Isi harga dasar paket untuk melihat contoh total. Pilihan durasi tetap dapat disimpan.",
+                        "Isi harga dasar paket untuk melihat contoh total. Pilihan durasi tetap bisa disimpan.",
                         "Enter the package base price to see example totals. Duration options can still be saved.",
                       )
                     : undefined
@@ -199,7 +199,7 @@ export function PackageDurationEditor({ offer }: { offer: SellerOffer }) {
                       <output>
                         <small>{t("Total paket", "Package total")}</small>
                         <span>
-                          {preview ? currency(preview.packageNet, locale) : "—"}
+                          {preview ? currency(preview.packageNet, locale) : "-"}
                         </span>
                       </output>
                     </>
@@ -238,7 +238,7 @@ export function DurationOptionsFields({
       <p>
         1 {t("periode", "cycle")} = {days}{" "}
         {t(
-          "hari pengantaran. Diskon durasi ditanggung katerer dan dihitung setelah diskon porsi.",
+          "hari pengantaran. Diskon durasi ditanggung katering dan dihitung setelah diskon porsi.",
           "delivery days. Multi-cycle discounts are seller-funded and apply after portion discounts.",
         )}
       </p>

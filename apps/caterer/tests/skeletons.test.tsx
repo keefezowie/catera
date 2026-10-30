@@ -641,7 +641,7 @@ describe("Pelanggan", () => {
     expect(rows.length).toBeGreaterThanOrEqual(8);
     for (const row of rows) expect(flat(row).height).toBe(64);
     expect(screen.getAllByTestId("list-card", { includeHiddenElements: true })).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "+ Pelanggan lama" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "+ Impor pelanggan" })).toBeTruthy();
     expect(screen.queryByText("Memuat pelanggan…")).toBeNull();
     const timing = spyFades();
     await act(async () => read.answer({ customers: [customer, { ...customer, id: "c-02", name: "Dewi" }], total: 2, packages: [] }));

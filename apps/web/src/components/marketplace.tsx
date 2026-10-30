@@ -104,11 +104,11 @@ function DeliveryCoverage({
             ? t("Di luar area pengantaran.", "Outside delivery area.")
             : detail
               ? t(
-                  "Jangkauan pengantaran akan diperiksa setelah Anda memilih alamat saat checkout.",
+                  "Jangkauan pengantaran dicek setelah kamu memilih alamat saat checkout.",
                   "Delivery coverage will be checked after you choose an address at checkout.",
                 )
               : t(
-                  "Pilih area untuk memeriksa jangkauan.",
+                  "Pilih area untuk cek jangkauan.",
                   "Choose an area to check delivery coverage.",
                 )}
       </span>
@@ -469,7 +469,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
                 aria-label={t("Area pengantaran", "Delivery area")}
               >
                 <SelectOption value="">
-                  {t("Pilih area Anda", "Choose your area")}
+                  {t("Pilih areamu", "Choose your area")}
                 </SelectOption>
                 {areaOptions.map((a) => (
                   <SelectOption key={a}>{a}</SelectOption>
@@ -484,7 +484,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
               type="search"
               maxLength={200}
               placeholder={t(
-                "Cari paket, menu, atau katerer…",
+                "Cari paket, menu, atau katering…",
                 "Search packages, meals, or caterers…",
               )}
               aria-label={t("Cari katering", "Search caterers")}
@@ -728,30 +728,30 @@ export function Catalog({ caterer }: { caterer?: string }) {
               <strong>{t("Pilih paket", "Choose a package")}</strong>
               <p>
                 {t(
-                  "Bandingkan menu, porsi, dan jadwal dari katerer pilihanmu.",
+                  "Bandingkan menu, porsi, dan jadwal dari katering pilihanmu.",
                   "Compare meals, portions, and schedules from different caterers.",
                 )}
               </p>
             </li>
             <li>
               <strong>
-                {t("Tentukan porsi & jadwal", "Choose portions & dates")}
+                {t("Atur porsi & jadwal", "Set portions & dates")}
               </strong>
               <p>
                 {t(
-                  "Tentukan jumlah porsi dan tanggal mulai. Kami susun jadwalnya.",
-                  "Choose portions and a start date. We arrange the calendar.",
+                  "Pilih jumlah porsi dan tanggal mulai. Kami susun jadwalnya.",
+                  "Pick portions and a start date. We build the calendar.",
                 )}
               </p>
             </li>
             <li>
               <strong>
-                {t("Terima pengantaran", "Receive your deliveries")}
+                {t("Makanan datang sendiri", "Food arrives on its own")}
               </strong>
               <p>
                 {t(
-                  "Makanan diantar oleh katerer. Perpanjang hanya ketika kamu mau.",
-                  "Your caterer delivers. Renew only when you want to.",
+                  "Katering mengantar makananmu. Perpanjang kalau kamu mau.",
+                  "Your caterer delivers. Renew when you want to.",
                 )}
               </p>
             </li>
@@ -946,7 +946,7 @@ export function PackagePage({
             ) : (
               <p>
                 {t(
-                  "Menu disediakan katerer. Semua porsi menerima menu yang sama.",
+                  "Menu disiapkan katering. Semua porsi dapat menu yang sama.",
                   "Menus are supplied by the caterer. All portions receive the same menu.",
                 )}
               </p>
@@ -995,14 +995,14 @@ export function PackagePage({
                         "Move eligible days before cutoff. No meal entitlement is lost.",
                       )
                     : t(
-                        "Tanggal tetap, tidak dapat dilewati atau diganti.",
+                        "Tanggal tetap, tidak bisa dilewati atau diganti.",
                         "Fixed dates cannot be skipped or rescheduled.",
                       ),
                 ],
                 [
-                  t("Pembatalan & refund", "Cancellation & refunds"),
+                  t("Pembatalan & pengembalian dana", "Cancellation & refunds"),
                   t(
-                    "Semua permintaan ditinjau melalui bantuan Catera.",
+                    "Semua permintaan dicek lewat bantuan Catera.",
                     "All requests are reviewed through Catera support.",
                   ),
                 ],
@@ -1403,7 +1403,7 @@ export function Compare() {
                   ],
                   [
                     t(
-                      "Gizi per porsi · estimasi katerer",
+                      "Gizi per porsi · estimasi katering",
                       "Nutrition per portion · caterer estimate",
                     ),
                     ...selected.map(
@@ -1471,7 +1471,7 @@ export function CatererPage({ slug }: { slug: string }) {
   const list = offers.filter((p) => p.catererSlug === slug);
   const p = list[0];
   if (!p)
-    return <Empty title={t("Katerer tidak ditemukan", "Caterer not found")} />;
+    return <Empty title={t("Katering tidak ditemukan", "Caterer not found")} />;
   return (
     <div className="content">
       <section className="caterer-cover">
@@ -1485,8 +1485,8 @@ export function CatererPage({ slug }: { slug: string }) {
           <span className="badge">
             <Check size={14} />
             {t(
-              "Informasi usaha ditinjau Catera",
-              "Business information reviewed by Catera",
+              "Profil sudah disetujui Catera",
+              "Profile approved by Catera",
             )}
           </span>
         </div>
@@ -1500,7 +1500,7 @@ export function CatererPage({ slug }: { slug: string }) {
           className="button secondary"
         >
           <MessageCircle size={17} />
-          {t("Tanya katerer", "Ask the caterer")}
+          {t("Tanya katering", "Ask the caterer")}
         </Link>
       </section>
       <Heading title={t("Paket katering", "Catering packages")} />

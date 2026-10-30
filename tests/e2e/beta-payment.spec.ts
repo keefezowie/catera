@@ -102,7 +102,7 @@ const countdownCases: {
     name: "unresolved booking",
     state: "payment_exception",
     title: [
-      "Pembayaran diterima, jadwal sedang ditinjau",
+      "Pembayaran diterima, jadwal sedang dicek",
       "Payment received, booking under review",
     ],
     countdown: false,
@@ -218,7 +218,7 @@ for (const locale of ["id", "en"] as const)
         await expect(page.locator(".direct-payment")).toHaveCount(0);
         await expect(
           page.getByRole("link", {
-            name: t("Buka pembayaran aman", "Open secure payment"),
+            name: t("Buka halaman pembayaran", "Open payment page"),
           }),
         ).toHaveCount(0);
       }
@@ -232,7 +232,7 @@ for (const locale of ["id", "en"] as const)
         await expect(
           page.getByRole("status").filter({
             hasText: t(
-              "Pembayaran telah diterima. Kami sedang mengonfirmasi jadwal pengantaran. Jangan melakukan pembayaran kedua.",
+              "Pembayaranmu sudah masuk. Kami sedang mengonfirmasi jadwalmu. Jangan bayar lagi.",
               "Payment was received. We are confirming the delivery schedule. Do not make another payment.",
             ),
           }),

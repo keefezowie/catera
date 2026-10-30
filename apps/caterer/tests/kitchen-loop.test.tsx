@@ -590,7 +590,7 @@ function readingOrder(ids: string[]) {
 const departed: MealState = { status: "out_for_delivery", departed_at: "2026-10-08T02:30:00Z" };
 const delivered: MealState = { status: "delivered" };
 const failed: MealState = { status: "issue" };
-const LINE = "Tandai Sampai dengan foto bukti. Pelanggan lalu mengonfirmasi, dan tanpa laporan pengantaran ditandai sampai otomatis.";
+const LINE = "Tandai Sampai pakai foto bukti. Pelanggan lalu konfirmasi. Kalau tidak ada laporan, pengantaran otomatis dianggap sampai.";
 
 describe("Urutan antar", () => {
   it("shows the first three stops as numbered rows and reveals the rest on Lihat alamat lainnya", async () => {
@@ -1347,7 +1347,7 @@ describe("Hari ini on the Dapur scale", () => {
       expect(box(maps).backgroundColor).toEqual(box(share).backgroundColor);
       expect(box(maps).flex).toBeUndefined();
       expect(box(share).flex).toBeUndefined();
-      const caption = screen.getByText(/^Tandai Sampai dengan foto bukti/);
+      const caption = screen.getByText(/^Tandai Sampai pakai foto bukti/);
       expect(before(screen.getByTestId("delivery-order"), share, caption)).toBe(true);
     });
   });

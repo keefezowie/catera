@@ -121,7 +121,7 @@ export function Breakdown({
           value={minus(quote.durationDiscount)}
         />
       ) : null}
-      {quote.promotion > 0 ? <Row label={t("Promo", "Promotion")} value={minus(quote.promotion)} /> : null}
+      {quote.promotion > 0 ? <Row label={t("Promo", "Promo")} value={minus(quote.promotion)} /> : null}
       <Row label={t("Biaya layanan", "Service fee")} value={currency(quote.serviceFee, locale)} />
       <Row label={t("Pengantaran", "Delivery")} value={t("Termasuk", "Included")} />
     </View>
@@ -224,7 +224,7 @@ export function StartLine({
       minHeight={nativeLayout.row.media}
       trailing={
         onChange ? (
-          <Button variant="text" label={t("Ubah", "Change")} accessibilityLabel={t("Ubah tanggal mulai", "Change start date")} onPress={onChange} />
+          <Button variant="text" label={t("Ubah tanggal", "Change date")} accessibilityLabel={t("Ubah tanggal mulai", "Change start date")} onPress={onChange} />
         ) : null
       }
     >

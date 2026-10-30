@@ -224,7 +224,7 @@ function SettlementScreen({
         </p>
         <p className="small muted">
           {t(
-            "Pencairan diproses setiap Senin pukul 09.00 WIB setelah diaktifkan. Saldo ini tidak dapat digunakan untuk berbelanja.",
+            "Pencairan diproses setiap Senin pukul 09.00 WIB setelah diaktifkan. Saldo ini tidak bisa digunakan untuk berbelanja.",
             "Payouts are processed on Mondays at 09:00 WIB once enabled. This balance cannot be spent on purchases.",
           )}
         </p>
@@ -344,7 +344,7 @@ function BalanceOverview({
           {ready && (
             <small>
               {t(
-                "Waktu dana masuk rekening dapat berbeda.",
+                "Waktu dana masuk rekening bisa berbeda.",
                 "Bank arrival time may differ.",
               )}
             </small>

@@ -26,7 +26,7 @@ export function ChatKatering({
   return (
     <Button
       variant={variant}
-      label={label ?? t("Chat katering", "Chat caterer")}
+      label={label ?? t("Chat katering", "Message the caterer")}
       onPress={() => openCatererChat(phone)}
     />
   );

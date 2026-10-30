@@ -317,7 +317,7 @@ describe("Daftar, the same layout", () => {
     renderWith(<Register />);
     expect(await screen.findByRole("header", { name: "Daftar" })).toBeTruthy();
     const page = order();
-    expect(page.indexOf("button:Masuk")).toBeGreaterThan(page.indexOf("button:Daftar & verifikasi email"));
+    expect(page.indexOf("button:Masuk")).toBeGreaterThan(page.indexOf("button:Daftar"));
     expect(screen.getByText("Sudah punya akun?")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/" } });

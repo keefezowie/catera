@@ -60,7 +60,7 @@ test("ID 0036 removes the non-demo gap and keeps the polished sidebar accessible
   const sidebar = page.locator(".ops-sidebar");
   const head = sidebar.locator(".ops-sidebar-head");
   const brand = head.getByRole("link", {
-    name: "Catera — Good Food on Repeat",
+    name: "Catera: katering langganan",
   });
   const workspaceName = head.getByText(longName, { exact: true });
   await expect(head).toBeVisible();

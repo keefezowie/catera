@@ -116,7 +116,7 @@ export function PayWith({
         {methods.length > 1 ? (
           <Button
             variant="text"
-            label={t("Ubah", "Change")}
+            label={t("Ubah cara bayar", "Change method")}
             accessibilityLabel={t("Ubah cara bayar", "Change payment method")}
             onPress={() => void pick({ codes: methods, selected: chosen }).then((code) => code && onChoose(code as DirectPaymentMethod))}
           />

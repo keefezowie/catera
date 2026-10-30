@@ -84,7 +84,7 @@ for (const locale of ["id", "en"] as const) {
         expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       }
       const catererEntry = navigation.getByRole("button", {
-        name: t("Ruang katerer", "Caterer workspace"),
+        name: t("Dapur", "Caterer workspace"),
         exact: true,
       });
       await expect(catererEntry).toBeVisible();
@@ -204,7 +204,7 @@ for (const locale of ["id", "en"] as const) {
     ).toBeVisible();
     await expect(
       page.locator(".account-navigation").getByRole("button", {
-        name: t("Ruang katerer", "Caterer workspace"),
+        name: t("Dapur", "Caterer workspace"),
         exact: true,
       }),
     ).toHaveCount(0);
@@ -259,7 +259,7 @@ for (const locale of ["id", "en"] as const) {
       await page.goto("/account");
       await expect(page.locator(".mobile-bottom")).toBeVisible();
       const entry = page.locator(".account-navigation").getByRole("button", {
-        name: t("Ruang katerer", "Caterer workspace"),
+        name: t("Dapur", "Caterer workspace"),
         exact: true,
       });
       await expect(entry).toBeVisible();
@@ -276,7 +276,7 @@ for (const locale of ["id", "en"] as const) {
       await expect(page).toHaveURL(baseURL! + "/seller");
       await expect(
         page.getByRole("navigation", {
-          name: t("Navigasi katerer", "Caterer navigation"),
+          name: t("Navigasi Dapur", "Caterer navigation"),
           exact: true,
         }),
       ).toBeVisible();
@@ -341,7 +341,7 @@ for (const locale of ["id", "en"] as const) {
       });
     });
     const entry = page.locator(".account-navigation").getByRole("button", {
-      name: t("Ruang katerer", "Caterer workspace"),
+      name: t("Dapur", "Caterer workspace"),
       exact: true,
     });
     await entry.click();
@@ -351,7 +351,7 @@ for (const locale of ["id", "en"] as const) {
     await expect(
       page.getByRole("status").filter({
         hasText: t(
-          "Ruang kerja belum berhasil diganti. Coba lagi.",
+          "Belum bisa pindah. Coba lagi.",
           "The workspace could not be changed. Try again.",
         ),
       }),

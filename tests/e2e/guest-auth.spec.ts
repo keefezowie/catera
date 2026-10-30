@@ -139,7 +139,7 @@ for (const trial of [false, true]) {
       .click();
     await expect(page).toHaveURL(destination);
     await expect(
-      page.getByRole("button", { name: "Tinjau jadwal & harga" }),
+      page.getByRole("button", { name: "Cek jadwal & harga" }),
     ).toBeVisible();
     await expect(page.locator(".mobile-bottom")).toBeVisible();
   });
@@ -171,7 +171,7 @@ test("caterer messaging resumes after login", async ({ page }) => {
     .first()
     .getAttribute("href");
   await page.goto(catererHref!);
-  const action = page.getByRole("link", { name: "Tanya katerer" });
+  const action = page.getByRole("link", { name: "Tanya katering" });
   const loginUrl = new URL(
     (await action.getAttribute("href"))!,
     "http://localhost",

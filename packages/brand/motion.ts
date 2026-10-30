@@ -8,5 +8,5 @@ export const mascotMotion = {
   blink: [0.4625, 0.4875, 0.5125, 0.5375],
   halfOpacityTimes: [0, 0.45, 0.4625, 0.525, 0.5375, 1],
   closedOpacityTimes: [0, 0.475, 0.4875, 0.5, 0.5125, 1],
-  label: "Menyiapkan Catera untuk Anda…",
+  label: "Menyiapkan Catera…",
 } as const;

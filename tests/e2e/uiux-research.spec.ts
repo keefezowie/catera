@@ -163,7 +163,7 @@ for (const width of [320, 360, 390, 430, 768, 1280, 1440])
       );
       await page
         .getByRole("button", {
-          name: t("Tinjau jadwal & harga", "Review schedule & price"),
+          name: t("Cek jadwal & harga", "Review schedule & price"),
           exact: true,
         })
         .click();
@@ -187,7 +187,7 @@ for (const width of [320, 360, 390, 430, 768, 1280, 1440])
       );
       await expect(
         page.locator('.checkout-steps [aria-current="step"]'),
-      ).toHaveText("2. " + t("Tinjau paket", "Review package"));
+      ).toHaveText("2. " + t("Cek paket", "Review package"));
       await page
         .getByRole("checkbox", {
           name: t(

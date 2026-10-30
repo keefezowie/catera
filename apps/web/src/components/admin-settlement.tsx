@@ -77,7 +77,7 @@ function PolicyEditor({ seller }: { seller: string }) {
         </Field>
         <p className="small muted">
           {t(
-            "Sesuaikan batas dengan rekening dan kanal pembayaran yang telah diverifikasi.",
+            "Sesuaikan batas dengan rekening dan kanal pembayaran yang sudah diverifikasi.",
             "Match these limits to the verified recipient and payout channel.",
           )}
         </p>
@@ -88,7 +88,7 @@ function PolicyEditor({ seller }: { seller: string }) {
       <Disclosure
         className="spaced"
         title={t(
-          "Catat pengembalian dana dari katerer",
+          "Catat pengembalian dana dari katering",
           "Record funds recovered from caterer",
         )}
       >
@@ -150,10 +150,10 @@ export function AdminSettlement() {
         )}
       />
       <section className="panel">
-        <Field label={t("Katerer", "Caterer")}>
+        <Field label={t("Katering", "Caterer")}>
           <Select value={seller} onValueChange={setSeller}>
             <SelectOption value="">
-              {t("Pilih katerer", "Choose caterer")}
+              {t("Pilih katering", "Choose caterer")}
             </SelectOption>
             {state.data.caterers.map((c) => (
               <SelectOption key={c.id} value={c.id}>

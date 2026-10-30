@@ -267,7 +267,7 @@ describe("Hapus akun", () => {
     const command = jest.fn(async () => ({ id: "d-1", status: "open" }));
     const { runtime } = runtimeFor({ command });
     renderWith(runtime, <HapusAkun />);
-    expect(await screen.findByText(/diselesaikan dulu bersama tim/)).toBeTruthy();
+    expect(await screen.findByText(/kami selesaikan dulu bersamamu/)).toBeTruthy();
     expect(screen.queryByText(/hari|jam|menit/)).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Baca kebijakan privasi" }));
     expect(open).toHaveBeenCalledWith("https://api.example.test/syarat-dan-privasi#privasi");

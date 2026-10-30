@@ -210,7 +210,7 @@ it("clears saved choices with resetBatch after confirming", async () => {
   expect(mockConfirm).toHaveBeenCalledWith({
     title: "Hapus pilihan menu?",
     message:
-      "Pilihan di tanggal-tanggal ini akan dihapus. Kalau kamu tidak memilih lagi sebelum batas waktu, katering yang memilihkan.",
+      "Pilihan di tanggal-tanggal ini akan dihapus. Kalau kamu tidak memilih lagi sebelum batas pilih, katering yang memilihkan.",
     confirmLabel: "Hapus pilihan",
     cancelLabel: "Batal",
     tone: "danger",
@@ -262,7 +262,7 @@ it("after the cutoff the caterer chooses and nothing can be edited", async () =>
     month([day({ cutoffAt: "2020-01-01T10:00:00Z", editable: false })]),
   );
   renderMenu();
-  expect(await screen.findByText(/katering yang memilihkan menunya/)).toBeTruthy();
+  expect(await screen.findByText(/katering yang pilihkan/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Pilih hidangan" })).toBeNull();
 });
 
@@ -446,7 +446,7 @@ describe("Pilih menu as photo cards (R4)", () => {
       act(() => {
         jest.advanceTimersByTime(31_000);
       });
-      expect(await screen.findByText(/Batas memilih sudah lewat/)).toBeTruthy();
+      expect(await screen.findByText(/Batas pilih sudah lewat/)).toBeTruthy();
       expect(card("option").props.accessibilityState).toMatchObject({ disabled: true });
       fireEvent.press(card("option"));
       expect(card("option").props.accessibilityState).toMatchObject({ selected: false });

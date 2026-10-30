@@ -169,7 +169,7 @@ describe("Aktifkan on the Dapur scale", () => {
       }),
     );
     expect(await screen.findByText("Sedang ditinjau")).toBeTruthy();
-    expect(screen.getByText("Tim Catera biasanya memeriksa dalam 1 sampai 2 hari kerja.")).toBeTruthy();
+    expect(screen.getByText("Tim Catera memeriksa data ini dulu sebelum dapurmu tayang.")).toBeTruthy();
     expect(screen.getByText("Selesai")).toBeTruthy();
     expect(flatStyle(screen.getByText("BCA · 1234 · Rina"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
     expect(within(screen.getByTestId("aktifkan-steps")).queryAllByRole("button")).toHaveLength(0);

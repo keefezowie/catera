@@ -68,7 +68,7 @@ function Navigation() {
         {statusBar}
         <View style={{ flex: 1, backgroundColor: palette.canvas }}>
           {booted || released ? (
-            <MascotLoading label={t("Menyiapkan dapur kamu…", "Getting your kitchen ready…")} />
+            <MascotLoading label={t("Menyiapkan dapurmu…", "Getting your kitchen ready…")} />
           ) : null}
         </View>
       </>
@@ -144,7 +144,7 @@ function FontError() {
 /** Past the splash's ceiling with the fonts still loading: the mascot, its words in the system face. */
 function FontWait() {
   const { t } = useMobile();
-  return <MascotLoading startup label={t("Menyiapkan dapur kamu…", "Getting your kitchen ready…")} />;
+  return <MascotLoading startup label={t("Menyiapkan dapurmu…", "Getting your kitchen ready…")} />;
 }
 
 /**

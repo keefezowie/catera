@@ -378,16 +378,16 @@ describe("Plan detail states", () => {
   it("the sticky action keeps its place and conditions under the new hero (renewal due)", async () => {
     renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) })));
     const action = await screen.findByTestId("sticky-action");
-    expect(within(action).getByRole("button", { name: "Lanjutkan paket" })).toBeTruthy();
+    expect(within(action).getByRole("button", { name: "Perpanjang" })).toBeTruthy();
     // The hero carries no second renew button: the one primary control is the footer.
     expect(within(screen.getByTestId("plan-hero")).queryByRole("button")).toBeNull();
   });
 
-  it("an active plan due for renewal: Lanjutkan paket opens Perpanjang and counts renew_started", async () => {
+  it("an active plan due for renewal: Perpanjang opens Perpanjang and counts renew_started", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) }), usage));
     const action = await screen.findByTestId("sticky-action");
-    fireEvent.press(within(action).getByRole("button", { name: "Lanjutkan paket" }));
+    fireEvent.press(within(action).getByRole("button", { name: "Perpanjang" }));
     expect(router.push).toHaveBeenCalledWith("/renew/s-1");
     expect(usageNames(usage).filter((n) => n === "renew_started")).toHaveLength(1);
   });
@@ -397,7 +397,7 @@ describe("Plan detail states", () => {
     renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) }, { subscriptions: [next] })));
     expect(await screen.findByText("Sudah diperpanjang")).toBeTruthy();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
-    expect(screen.queryByText("Lanjutkan paket")).toBeNull();
+    expect(screen.queryByText("Perpanjang")).toBeNull();
   });
 
   it("a trial invites the full package and counts no renewal", async () => {
@@ -405,7 +405,7 @@ describe("Plan detail states", () => {
     const trial = { offer: offer(), total: 30000, trial: true } as unknown as Subscription["snapshot"];
     renderPlan(runtimeWith(async () => planState({ snapshot: trial, remaining: 1, ends_on: at(1) }), usage));
     const action = await screen.findByTestId("sticky-action");
-    fireEvent.press(within(action).getByRole("button", { name: "Lanjutkan dengan paket penuh" }));
+    fireEvent.press(within(action).getByRole("button", { name: "Perpanjang paket penuh" }));
     // Paket opens named after the package, never "Paket", while it loads.
     expect(router.push).toHaveBeenCalledWith(`/paket/p-rumahan?title=${encodeURIComponent(offer().name)}`);
     expect(usageNames(usage)).not.toContain("renew_started");
@@ -421,7 +421,7 @@ describe("Plan detail states", () => {
     expect(within(hero).getByText("Paket selesai")).toBeTruthy();
     expect(within(hero).getByText(`${shortDate(at(-7), "id")} sampai ${shortDate(at(-3), "id")}`)).toBeTruthy();
     expect(screen.getByText("Belum ada pengantaran berikutnya.")).toBeTruthy();
-    expect(within(screen.getByTestId("sticky-action")).getByRole("button", { name: "Lanjutkan paket" })).toBeTruthy();
+    expect(within(screen.getByTestId("sticky-action")).getByRole("button", { name: "Perpanjang" })).toBeTruthy();
   });
 
   it.each([
@@ -473,7 +473,7 @@ describe("Plan detail states", () => {
     expect(screen.getByText(keptLine("2026-10-07T23:12:00Z"))).toBeTruthy();
     expect(screen.queryByText(/Terakhir diperbarui/)).toBeNull();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
-    expect(screen.queryByText("Lanjutkan paket")).toBeNull();
+    expect(screen.queryByText("Perpanjang")).toBeNull();
     expect(offline.loadCachedCustomer).toHaveBeenCalledWith("u-c1");
   });
 

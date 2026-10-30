@@ -48,13 +48,13 @@ export function Admin({ view }: { view: string }) {
       <Heading
         title={
           {
-            sellers: t("Verifikasi katerer", "Caterer verification"),
+            sellers: t("Verifikasi katering", "Caterer verification"),
             transactions: t(
               "Transaksi marketplace",
               "Marketplace transactions",
             ),
             support: t("Bantuan & pengembalian dana", "Support & refunds"),
-            payouts: t("Pencairan dana katerer", "Caterer payouts"),
+            payouts: t("Pencairan dana katering", "Caterer payouts"),
             promotions: t("Promosi historis", "Historical promotions"),
             reviews: t("Ulasan pelanggan", "Customer reviews"),
             audit: t("Riwayat audit", "Audit history"),
@@ -72,7 +72,7 @@ export function Admin({ view }: { view: string }) {
               ],
               [
                 ShieldCheck,
-                t("Katerer aktif", "Active caterers"),
+                t("Katering aktif", "Active caterers"),
                 a.caterers.filter((c) => c.status === "approved").length,
               ],
               [
@@ -122,14 +122,14 @@ export function Admin({ view }: { view: string }) {
                   disabled={decisionPending}
                   onClick={() => setFilter("all")}
                 >
-                  {t("Semua katerer", "All caterers")}
+                  {t("Semua katering", "All caterers")}
                 </Button>
               </div>
               {filter === "submitted" &&
                 !a.caterers.some((c) => c.status === "submitted") && (
                   <p className="quiet-empty">
                     {t(
-                      "Tidak ada pengajuan yang menunggu tinjauan. Buka Semua katerer untuk melihat mitra dan statusnya.",
+                      "Tidak ada pengajuan yang menunggu tinjauan. Buka Semua katering untuk melihat mitra dan statusnya.",
                       "No applications are awaiting review. Open All caterers to see partners and their status.",
                     )}
                   </p>
@@ -200,7 +200,7 @@ export function Admin({ view }: { view: string }) {
                   <Field label={t("Keputusan", "Decision")}>
                     <Select name="status" defaultValue={seller.status}>
                       <SelectOption value="approved">
-                        {t("Setujui katerer", "Approve caterer")}
+                        {t("Setujui katering", "Approve caterer")}
                       </SelectOption>
                       <SelectOption value="corrections">
                         {t("Minta perbaikan", "Request changes")}
@@ -274,14 +274,14 @@ export function Admin({ view }: { view: string }) {
             initialSelected={requestedCase}
           />
           <section className="panel spaced">
-            <h2>{t("Proses refund", "Refund processing")}</h2>
+            <h2>{t("Proses pengembalian dana", "Refund processing")}</h2>
             <div className="table-wrap">
               <table className="record-table">
                 <thead>
                   <tr>
                     <th>{t("Kasus", "Case")}</th>
                     <th>{t("Jumlah", "Amount")}</th>
-                    <th>{t("Status refund", "Refund status")}</th>
+                    <th>{t("Status pengembalian dana", "Refund status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -302,18 +302,18 @@ export function Admin({ view }: { view: string }) {
                       <td data-label={t("Jumlah", "Amount")}>
                         {currency(r.amount, locale)}
                       </td>
-                      <td data-label={t("Status refund", "Refund status")}>
+                      <td data-label={t("Status pengembalian dana", "Refund status")}>
                         <Status status={r.state} />
                         {r.attention_reason && (
                           <p className="notice">
                             {r.attention_reason ===
                             "DOKU_REFUND_AMOUNT_UNSUPPORTED"
                               ? t(
-                                  "Jumlah di luar batas refund DOKU. Kewajiban pengembalian tetap tercatat; perlu penanganan admin.",
+                                  "Jumlah di luar batas pengembalian dana DOKU. Kewajiban pengembalian tetap tercatat; perlu penanganan admin.",
                                   "Outside DOKU refund limits. The refund obligation remains recorded and needs admin attention.",
                                 )
                               : t(
-                                  "Layanan refund DOKU belum diaktifkan dan diverifikasi. Dana belum dikembalikan.",
+                                  "Layanan pengembalian dana DOKU belum diaktifkan dan diverifikasi. Dana belum dikembalikan.",
                                   "DOKU Refund Service activation and verification are pending. Funds have not been returned.",
                                 )}
                           </p>
@@ -321,7 +321,7 @@ export function Admin({ view }: { view: string }) {
                         {r.state === "succeeded" && !r.reconciliation && (
                           <Disclosure
                             title={t(
-                              "Rekonsiliasi refund",
+                              "Rekonsiliasi pengembalian dana",
                               "Refund reconciliation",
                             )}
                           >
@@ -343,7 +343,7 @@ export function Admin({ view }: { view: string }) {
                             >
                               <Field
                                 label={t(
-                                  "Potongan alokasi katerer (Rp)",
+                                  "Potongan alokasi katering (Rp)",
                                   "Caterer allocation deduction (IDR)",
                                 )}
                               >
@@ -390,7 +390,7 @@ export function Admin({ view }: { view: string }) {
             {!a.refunds.length && (
               <p className="quiet-empty">
                 {t(
-                  "Belum ada refund yang disetujui.",
+                  "Belum ada pengembalian dana yang disetujui.",
                   "No approved refunds yet.",
                 )}
               </p>
@@ -414,7 +414,7 @@ export function Admin({ view }: { view: string }) {
                 });
               }}
             >
-              <Field label={t("Katerer", "Caterer")}>
+              <Field label={t("Katering", "Caterer")}>
                 <Select name="catererId">
                   {a.caterers.map((c) => (
                     <SelectOption key={c.id} value={c.id}>
@@ -429,13 +429,13 @@ export function Admin({ view }: { view: string }) {
               <label className="checkbox">
                 <Checkbox required />
                 {t(
-                  "Transaksi, pengembalian dana, dan saldo sengketa telah diperiksa.",
+                  "Transaksi, pengembalian dana, dan saldo sengketa sudah dicek.",
                   "Transactions, refunds, and disputed balances have been reviewed.",
                 )}
               </label>
               <p className="notice">
                 {t(
-                  "Server menghitung saldo yang dapat dilepas. Dana dalam sengketa dikecualikan. Status berhasil hanya dicatat setelah konfirmasi penyelesaian.",
+                  "Server menghitung saldo yang bisa dilepas. Dana dalam sengketa dikecualikan. Status berhasil hanya dicatat setelah konfirmasi penyelesaian.",
                   "The server calculates the releasable balance. Disputed funds are excluded. Success is recorded only after settlement is confirmed.",
                 )}
               </p>
@@ -510,7 +510,7 @@ export function Admin({ view }: { view: string }) {
           <h2>{t("Promosi historis", "Historical promotions")}</h2>
           <p>
             {t(
-              "Kode promosi tidak tersedia untuk pembelian baru. Diskon porsi dan durasi ditanggung katerer.",
+              "Kode promosi tidak tersedia untuk pembelian baru. Diskon porsi dan durasi ditanggung katering.",
               "Promotion codes are disabled for new purchases. Portion and multi-cycle discounts are seller-funded.",
             )}
           </p>
@@ -561,7 +561,7 @@ export function Admin({ view }: { view: string }) {
           <h2>{t("Riwayat audit", "Audit history")}</h2>
           <p>
             {t(
-              "Riwayat bersifat permanen dan tidak dapat diedit. Menampilkan 100 kejadian terbaru.",
+              "Riwayat bersifat permanen dan tidak bisa diedit. Menampilkan 100 kejadian terbaru.",
               "This history is permanent and cannot be edited. Showing the 100 most recent events.",
             )}
           </p>
@@ -640,11 +640,11 @@ function auditAction(action: string, t: (id: string, en: string) => string) {
     "menu.save": ["Menu disimpan", "Menu saved"],
     "menu.saveBatch": ["Menu disimpan", "Menus saved"],
     "production.freeze": ["Daftar pengantaran disimpan", "Delivery list saved"],
-    "import.preview": ["Impor diperiksa", "Import previewed"],
+    "import.preview": ["Impor dicek", "Import previewed"],
     "import.commit": ["Langganan diimpor", "Subscriptions imported"],
     "checkout.create": ["Pembelian dibuat", "Purchase created"],
     "payout.approve": ["Pencairan disetujui", "Payout approved"],
-    "reconcile.refund": ["Refund direkonsiliasi", "Refund reconciled"],
+    "reconcile.refund": ["Pengembalian dana direkonsiliasi", "Refund reconciled"],
     "reconcile.payout": ["Pencairan direkonsiliasi", "Payout reconciled"],
     "promotion.save": ["Promosi disimpan", "Promotion saved"],
     "review.moderate": ["Ulasan dimoderasi", "Review moderated"],

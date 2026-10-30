@@ -450,7 +450,7 @@ describe("Akun", () => {
 describe("Notifikasi", () => {
   it("lists the updates without a push card: the switch lives in Pengaturan", async () => {
     renderWith(runtimeWith({}), <NotificationsScreen />);
-    expect(await screen.findByText("Belum ada kabar baru.")).toBeTruthy();
+    expect(await screen.findByText("Belum ada notifikasi baru.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Aktifkan" })).toBeNull();
     expect(screen.queryByText("Nonaktif")).toBeNull();
     expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
@@ -492,7 +492,7 @@ describe("Notifikasi", () => {
 
   it("says plainly when there is nothing yet", async () => {
     renderWith(runtimeWith({}), <NotificationsScreen />);
-    expect(await screen.findByText("Belum ada kabar baru.")).toBeTruthy();
+    expect(await screen.findByText("Belum ada notifikasi baru.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Tandai semua dibaca" })).toBeNull();
   });
 

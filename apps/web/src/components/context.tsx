@@ -25,11 +25,11 @@ const actionMessages: Record<string, [string, string]> = {
     "Package options updated.",
   ],
   "customerMenu.saveBatch": [
-    "Menu pilihan Anda tersimpan.",
+    "Menu pilihanmu tersimpan.",
     "Your menu choices are saved.",
   ],
   "customerMenu.resetBatch": [
-    "Menu diserahkan ke katerer.",
+    "Menu diserahkan ke katering.",
     "The caterer will choose the menu.",
   ],
   "package.save": ["Paket tersimpan.", "Package saved."],
@@ -38,9 +38,9 @@ const actionMessages: Record<string, [string, string]> = {
     "Package sales permanently closed.",
   ],
   "package.archive": ["Paket diarsipkan.", "Package archived."],
-  "seller.save": ["Profil katerer tersimpan.", "Caterer profile saved."],
+  "seller.save": ["Profil katering tersimpan.", "Caterer profile saved."],
   "seller.submit": [
-    "Verifikasi diajukan. Catera akan meninjau profilmu.",
+    "Verifikasi diajukan. Catera akan mengecek profilmu.",
     "Verification requested. Catera will review your profile.",
   ],
   "menu.save": ["Menu tersimpan.", "Menu saved."],
@@ -455,7 +455,7 @@ export function useResource<T>(
       ? errorLabel(result.error, locale) ||
         (locale === "en"
           ? "Data could not be loaded. Try again."
-          : "Data belum berhasil dimuat. Coba lagi.")
+          : "Data belum bisa dimuat. Coba lagi.")
       : "";
   const data = current || keepPreviousData ? result.data : null;
   const hasData = data !== null;

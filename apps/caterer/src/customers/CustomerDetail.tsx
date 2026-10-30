@@ -78,7 +78,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
         key: (f?.key ?? 0) + 1,
         message:
           errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-          t("Tautan perpanjang belum terkirim. Coba lagi.", "The renewal link was not sent. Try again."),
+          t("Tautan perpanjang belum terkirim. Coba lagi.", "Couldn't send the renewal link. Try again."),
       }));
     }
   });
@@ -124,7 +124,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
       <FadeSwap swapKey="loaded" style={{ gap: 16 }}>
         <Text variant="meta">{`${status} · ${origin}`}</Text>
         {shown.map((s, index) => {
-          // Moved deliveries can keep a package running past its booked last day; a past "Selesai" would read as ended.
+          // Moved deliveries can keep a package running past its booked last day; a past "Berakhir" would read as ended.
           const pastEnd = s.status === "active" && s.ends_on < today;
           const chat = index === 0 && !!c.phone;
           const renewable = action !== "none";
@@ -133,7 +133,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
               <ListCard inset={0}>
                 <KeyValueRow label={t("Paket", "Package")} value={s.package_name} valueWraps />
                 <KeyValueRow label={t("Mulai", "Starts")} value={shortDate(s.starts_on, locale)} />
-                {pastEnd ? null : <KeyValueRow label={t("Selesai", "Ends")} value={shortDate(s.ends_on, locale)} />}
+                {pastEnd ? null : <KeyValueRow label={t("Berakhir", "Ends")} value={shortDate(s.ends_on, locale)} />}
                 {s.remaining > 0 ? (
                   <KeyValueRow label={t("Sisa", "Left")} value={t(`${s.remaining} hari`, s.remaining === 1 ? "1 day" : `${s.remaining} days`)} />
                 ) : null}

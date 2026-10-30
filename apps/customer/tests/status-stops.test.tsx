@@ -263,7 +263,7 @@ describe("the words for each Plate state", () => {
     ["cooking", "Sedang dimasak", "Makan siang sedang dimasak.", "Being cooked", "Lunch is being cooked."],
     ["on_the_way", "Sedang diantar", "Makan siang sedang diantar.", "On the way", "Lunch is on the way."],
     ["due", "Belum sampai", "Makan siang belum sampai.", "Not here yet", "Lunch hasn't arrived yet."],
-    ["arrived_unconfirmed", "Sudah diterima?", "Dapur menandai makan siang sudah sampai.", "Has it reached you?", "The kitchen marked lunch as arrived."],
+    ["arrived_unconfirmed", "Sudah diterima?", "Dapur menandai makan siang sudah sampai.", "Did it arrive?", "The kitchen marked lunch as arrived."],
     ["arrived", "Sudah sampai", "Makan siang sudah sampai.", "Arrived", "Lunch has arrived."],
     ["failed", "Gagal diantar", "Makan siang gagal diantar.", "Not delivered", "Lunch wasn't delivered."],
     ["reported", "Laporan terkirim", "Laporan makan siang terkirim.", "Report sent", "Your lunch report was sent."],

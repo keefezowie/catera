@@ -130,11 +130,11 @@ describe("Paket without a photo to lead with", () => {
     expect(read.mock.calls.length).toBeGreaterThan(before);
   });
 
-  it("keeps its title when the package is not found and still offers Jelajah paket", async () => {
+  it("keeps its title when the package is not found and still offers Cari paket", async () => {
     wrap(runtimeWith(async () => ({ offer: null })));
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
     expect((await nativeTitle()).getByText("Paket")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Jelajah paket" }));
+    fireEvent.press(screen.getByRole("button", { name: "Cari paket" }));
     expect(goToTab).toHaveBeenCalledWith("jelajah");
   });
 });

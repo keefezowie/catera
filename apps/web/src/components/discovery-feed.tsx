@@ -462,7 +462,7 @@ export function DiscoveryFeed({
                               "Outside delivery area",
                             )
                         : t(
-                            "Pilih area untuk memeriksa jangkauan.",
+                            "Pilih area untuk cek jangkauan.",
                             "Choose an area to check delivery coverage.",
                           )}
                     </p>

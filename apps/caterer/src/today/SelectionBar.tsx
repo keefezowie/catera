@@ -65,7 +65,7 @@ export function SelectionBar({
         tone: "error",
         action: { label: t("Coba lagi", "Try again"), onPress: () => void leave(ids) },
         message:
-          errorLabel(code, locale) || t("Belum bisa menandai berangkat. Coba lagi.", "Could not mark them as out for delivery. Try again."),
+          errorLabel(code, locale) || t("Belum bisa menandai berangkat. Coba lagi.", "Couldn't mark them as out for delivery. Try again."),
       });
       onFailed();
     }

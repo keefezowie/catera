@@ -307,11 +307,11 @@ it("the launch gate shows the mascot once the splash lets go, even while the pho
   try {
     const root = render(<RootLayout />);
     await act(async () => {});
-    expect(screen.queryByLabelText("Menyiapkan dapur kamu…")).toBeNull();
+    expect(screen.queryByLabelText("Menyiapkan dapurmu…")).toBeNull();
     await act(async () => {
       jest.advanceTimersByTime(1500);
     });
-    expect(screen.getByLabelText("Menyiapkan dapur kamu…")).toBeTruthy();
+    expect(screen.getByLabelText("Menyiapkan dapurmu…")).toBeTruthy();
     root.unmount();
   } finally {
     secure.getItemAsync.mockImplementation(async (k: string) => (store.has(k) ? store.get(k) : null));

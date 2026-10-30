@@ -165,14 +165,14 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
       <Heading
         title={
           view === "home"
-            ? t("Makanan saya", "My meals")
+            ? t("Beranda", "Home")
             : t("Jadwal makan", "Meal calendar")
         }
         description={
           view === "home"
             ? undefined
             : t(
-                "Semua paket dan katerer, dalam satu jadwal.",
+                "Semua paket dan katering, dalam satu jadwal.",
                 "Every package and caterer, in one calendar.",
               )
         }
@@ -203,7 +203,7 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
             </div>
             <aside
               className="home-package-column"
-              aria-label={t("Paket Anda", "Your packages")}
+              aria-label={t("Paketmu", "Your packages")}
             >
               <section className="active-packages home-subscriptions">
                 <div className="section-heading">
@@ -289,22 +289,22 @@ function CustomerActions({
   if (!items.length) return null;
   const customerOwned = group === "urgent" || group === "later";
   const title = {
-    review: t("Pemesanan perlu ditinjau", "Booking needs review"),
-    urgent: t("Perlu tindakan Anda", "Action needed"),
+    review: t("Pesanan perlu dicek", "Order needs review"),
+    urgent: t("Perlu kamu urus", "Action needed"),
     updates: t("Status pembayaran & kendala", "Payment and issue updates"),
     later: t("Pilihan menu berikutnya", "Upcoming menu choices"),
   }[group];
   const description = {
     review: t(
-      "Catera perlu meninjau pemesanan Anda. Lihat pesanan untuk perkembangannya.",
-      "Catera needs to review your booking. View the order for updates.",
+      "Catera perlu mengecek pesananmu. Lihat pesanan untuk perkembangannya.",
+      "Catera needs to review your order. View the order for updates.",
     ),
     urgent: t(
-      "Selesaikan pembayaran, tinjau tanggapan, atau pilih menu sebelum batas waktu.",
+      "Selesaikan pembayaran, cek tanggapan, atau pilih menu sebelum batas waktu.",
       "Complete payment, review a response, or choose your menu before cutoff.",
     ),
     updates: t(
-      "Menunggu pemeriksaan atau tanggapan. Pembaruan ini belum memerlukan tindakan Anda.",
+      "Menunggu pengecekan atau tanggapan. Kamu belum perlu berbuat apa-apa.",
       "Awaiting a check or response. These updates need no action from you for now.",
     ),
     later: t(
@@ -329,7 +329,7 @@ function CustomerActions({
             customerOwned
               ? t("Jumlah tindakan", "Action count")
               : group === "review"
-                ? t("Jumlah pemesanan ditinjau", "Booking review count")
+                ? t("Jumlah pesanan dicek", "Order review count")
                 : t("Jumlah pembaruan", "Update count")
           }
         >
@@ -665,7 +665,7 @@ function SubscriptionDetail({
           [t("Porsi tetap", "Fixed portions"), s.portions],
           [
             t("Mulai / selesai", "Start / end"),
-            s.starts_on + " — " + s.ends_on,
+            s.starts_on + " sampai " + s.ends_on,
           ],
           [
             t("Nilai pembelian", "Purchase total"),
@@ -720,7 +720,7 @@ function SubscriptionDetail({
       </div>
       <p className="notice">
         {t(
-          "Pembelian berikutnya memakai harga dan aturan terbaru. Tinjau semuanya sebelum membayar.",
+          "Pembelian berikutnya memakai harga dan aturan terbaru. Cek semuanya sebelum membayar.",
           "The next purchase uses current prices and terms. Review them before paying.",
         )}
       </p>
@@ -879,21 +879,21 @@ export function DeliveryPage({ id }: { id: string }) {
           <p className="notice delivery-change-reason">
             {!d.offer.flexible
               ? t(
-                  "Paket ini memiliki jadwal tetap. Hubungi katerer jika membutuhkan bantuan.",
+                  "Paket ini memiliki jadwal tetap. Hubungi katering kalau perlu bantuan.",
                   "This package has fixed dates. Contact your caterer if you need help.",
                 )
               : Date.parse(d.cutoff_at) <= now
                 ? t(
-                    `Batas perubahan telah lewat: ${cutoff} (${d.offer.timezone}). Hubungi katerer untuk bantuan.`,
+                    `Batas perubahan sudah lewat: ${cutoff} (${d.offer.timezone}). Hubungi katering untuk bantuan.`,
                     `Changes closed at ${cutoff} (${d.offer.timezone}). Contact your caterer for help.`,
                   )
                 : d.status !== "scheduled"
                   ? t(
-                      `Perubahan tidak tersedia pada status ${statusLabel(d.status, locale)}. Hubungi katerer untuk bantuan.`,
+                      `Perubahan tidak tersedia pada status ${statusLabel(d.status, locale)}. Hubungi katering untuk bantuan.`,
                       `Changes aren't available for this delivery (status: ${statusLabel(d.status, locale)}). Contact your caterer for help.`,
                     )
                   : t(
-                      "Perubahan jadwal tidak tersedia untuk pengantaran ini. Hubungi katerer untuk bantuan.",
+                      "Perubahan jadwal tidak tersedia untuk pengantaran ini. Hubungi katering untuk bantuan.",
                       "Schedule changes are unavailable for this delivery. Contact your caterer for help.",
                     )}
           </p>
@@ -925,7 +925,7 @@ export function DeliveryPage({ id }: { id: string }) {
               d.service_date
             }
           >
-            {t("Menu pilihan Anda", "Your menu choices")}
+            {t("Menu pilihanmu", "Your menu choices")}
           </Link>
         )}
         {canAddress && (
@@ -961,7 +961,7 @@ export function DeliveryPage({ id }: { id: string }) {
           href={"/messages?caterer=" + d.offer.catererId}
         >
           <MessageCircle size={17} />
-          {t("Hubungi katerer", "Contact caterer")}
+          {t("Hubungi katering", "Contact caterer")}
         </Link>
         <Link className="text-button" href={"/support?delivery=" + d.id}>
           {t("Laporkan masalah", "Report an issue")}
@@ -1001,7 +1001,7 @@ export function DeliveryPage({ id }: { id: string }) {
             ],
             [
               t("Catatan pengantaran", "Delivery instructions"),
-              d.address.instructions || "—",
+              d.address.instructions || "-",
             ],
             [t("Porsi", "Portions"), d.portions],
             [
@@ -1043,7 +1043,7 @@ export function DeliveryPage({ id }: { id: string }) {
           <p className="notice" role="alert" tabIndex={-1} ref={recoveryNotice}>
             {Date.parse(d.cutoff_at) <= now
               ? t(
-                  "Batas perubahan telah lewat. Tutup jendela ini untuk melihat jadwal terbaru.",
+                  "Batas perubahan sudah lewat. Tutup jendela ini untuk melihat jadwal terbaru.",
                   "The change cutoff has passed. Close this window to review the current schedule.",
                 )
               : t(
@@ -1068,12 +1068,12 @@ export function DeliveryPage({ id }: { id: string }) {
                 )
               : state.stale
                 ? t(
-                    "Perubahan belum dapat dikonfirmasi, dan status terbaru gagal dimuat. Muat ulang status dan tanggal sebelum meninjau lagi. Pilihan tanggal Anda tetap tersimpan.",
+                    "Perubahan belum bisa dikonfirmasi, dan status terbaru gagal dimuat. Muat ulang status dan tanggal sebelum mengecek lagi. Pilihan tanggalmu tetap tersimpan.",
                     "The change could not be confirmed, and current details could not be loaded. Reload status and dates before reviewing again. Your selected date is retained.",
                   )
                 : availability.error && dialog === "schedule"
                   ? t(
-                      "Status pengantaran sudah dimuat ulang, tetapi tanggal pengganti gagal dimuat. Muat ulang tanggal sebelum meninjau lagi.",
+                      "Status pengantaran sudah dimuat ulang, tapi tanggal pengganti gagal dimuat. Muat ulang tanggal sebelum mengecek lagi.",
                       "Delivery status refreshed, but replacement dates could not load. Reload dates before reviewing again.",
                     )
                   : t(
@@ -1136,7 +1136,7 @@ export function DeliveryPage({ id }: { id: string }) {
               >
                 {state.data.addresses.map((a) => (
                   <SelectOption key={a.id} value={a.id}>
-                    {a.label} — {a.line}
+                    {a.label} · {a.line}
                   </SelectOption>
                 ))}
               </Select>
@@ -1158,7 +1158,7 @@ export function DeliveryPage({ id }: { id: string }) {
             submit={
               review
                 ? t("Konfirmasi perubahan jadwal", "Confirm schedule change")
-                : t("Tinjau perubahan", "Review change")
+                : t("Cek perubahan", "Review change")
             }
             onSubmit={async () => {
               if (!canChange) throw new Error("CUTOFF_PASSED");
@@ -1281,7 +1281,7 @@ export function DeliveryPage({ id }: { id: string }) {
                   ref={reviewHeading}
                   tabIndex={-1}
                 >
-                  {t("Tinjau jadwal baru", "Review the new schedule")}
+                  {t("Cek jadwal baru", "Review the new schedule")}
                 </h3>
                 <Button
                   type="button"
@@ -1306,7 +1306,7 @@ export function DeliveryPage({ id }: { id: string }) {
                     [t("Porsi", "Portions"), d.portions],
                     [
                       t("Alamat", "Address"),
-                      `${d.address.label} — ${d.address.line}, ${d.address.area}`,
+                      `${d.address.label} · ${d.address.line}, ${d.address.area}`,
                     ],
                     [
                       t("Pilihan menu", "Menu choice"),
@@ -1326,8 +1326,8 @@ export function DeliveryPage({ id }: { id: string }) {
             )}
             <p className="notice">
               {t(
-                "Tanggal lama tetap aman apabila tanggal baru penuh. Pengantaran tidak hangus.",
-                "Your original date remains safe if the new date is full. No delivery is lost.",
+                "Kalau tanggal baru penuh, tanggal lamamu tetap jalan. Pengantaran tidak hangus.",
+                "If the new date is full, your old date stays. No delivery is lost.",
               )}
             </p>
           </ActionForm>
@@ -1379,7 +1379,7 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
         <Heading
           title={t("Pesan", "Messages")}
           description={t(
-            "Tanya menu, atur pengantaran, atau sampaikan sesuatu ke katerermu.",
+            "Tanya menu, atur pengantaran, atau sampaikan sesuatu ke kateringmu.",
             "Ask about meals, coordinate a delivery, or talk to your caterer.",
           )}
         />
@@ -1448,7 +1448,7 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
                           "Coordinate with your customer",
                         )
                       : t(
-                          "Koordinasi langsung dengan katerer",
+                          "Koordinasi langsung dengan katering",
                           "Coordinate directly with your caterer",
                         )}
                   </p>
@@ -1537,11 +1537,11 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
               description={
                 embedded
                   ? t(
-                      "Pilih ‘Mulai percakapan’ untuk menghubungi pelanggan yang sudah terhubung. Pelanggan belum terhubung dapat diundang dari halaman Pelanggan.",
+                      "Pilih ‘Mulai percakapan’ untuk menghubungi pelanggan yang sudah terhubung. Pelanggan yang belum terhubung bisa diundang dari halaman Pelanggan.",
                       "Choose ‘Start conversation’ to contact a linked customer. Customers who are not linked can be invited from Customers.",
                     )
                   : t(
-                      "Buka profil katerer untuk mulai bertanya.",
+                      "Buka profil katering untuk mulai bertanya.",
                       "Open a caterer profile to start a conversation.",
                     )
               }
@@ -1549,7 +1549,7 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
               label={
                 embedded
                   ? t("Lihat pelanggan", "View customers")
-                  : t("Jelajah katerer", "Explore caterers")
+                  : t("Cari katering", "Explore caterers")
               }
             />
           )}
@@ -1620,7 +1620,7 @@ export function Account({ view }: { view: string }) {
               className="account-navigation"
               aria-label={t("Navigasi akun", "Account navigation")}
             >
-              <h3>{t("Makanan saya", "My meals")}</h3>
+              <h3>{t("Beranda", "Home")}</h3>
               {[
                 [
                   "/subscriptions",
@@ -1653,7 +1653,7 @@ export function Account({ view }: { view: string }) {
                   <h3>{t("Usaha katering", "Catering business")}</h3>
                   <CatererEntry>
                     <Settings size={18} aria-hidden="true" />
-                    <span>{t("Ruang katerer", "Caterer workspace")}</span>
+                    <span>{t("Dapur", "Caterer workspace")}</span>
                     <ChevronRight size={16} aria-hidden="true" />
                   </CatererEntry>
                 </>
@@ -1774,7 +1774,7 @@ export function Account({ view }: { view: string }) {
             : t("Tambah alamat", "Add address")
         }
         description={t(
-          "Alamat pengantaran yang sudah dijadwalkan hanya berubah jika Anda mengubahnya dari detail pengantaran.",
+          "Alamat pengantaran yang sudah dijadwalkan hanya berubah kalau kamu mengubahnya dari detail pengantaran.",
           "A scheduled delivery address can only be changed from its delivery details.",
         )}
       >
@@ -1863,8 +1863,8 @@ export function Support() {
       <Heading
         title={t("Bantuan & pembatalan", "Support & cancellation")}
         description={t(
-          "Ceritakan kendalamu. Katerer merespons lebih dulu, dan Catera siap membantu jika perlu.",
-          "Tell us what happened. Your caterer responds first, with Catera available to help.",
+          "Ceritakan kendalamu. Katering merespons lebih dulu, lalu Catera ikut membantu kalau perlu.",
+          "Tell us what happened. Your caterer responds first, and Catera steps in if needed.",
         )}
       >
         <Button className="button" onClick={() => setOpen(true)}>
@@ -1875,8 +1875,8 @@ export function Support() {
       <RefreshNotice error={state.error} reload={state.reload} />
       <p className="notice">
         {t(
-          "Permintaan pembatalan dan refund ditinjau satu per satu. Jadwal tetap berjalan sampai ada keputusan yang dikonfirmasi.",
-          "Cancellation and refund requests are individually reviewed. Your schedule remains active until a confirmed decision.",
+          "Permintaan pembatalan dan pengembalian dana dicek satu per satu. Jadwal tetap berjalan sampai ada keputusan yang dikonfirmasi.",
+          "Cancellation and refund requests are reviewed one by one. Your schedule remains active until a confirmed decision.",
         )}
       </p>
       {params.get("delivery") && (
@@ -1928,7 +1928,7 @@ export function Support() {
             )}
             {c.status === "responded" && (
               <ActionForm
-                submit={t("Minta Catera meninjau", "Ask Catera to review")}
+                submit={t("Minta Catera cek", "Ask Catera to review")}
                 onSubmit={async () => {
                   await perform("support.escalate", { id: c.id });
                 }}

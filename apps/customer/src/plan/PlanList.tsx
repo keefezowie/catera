@@ -91,7 +91,7 @@ function PlanSections({
             <Text variant="bodyL" style={{ color: c.muted }}>
               {t("Belum ada paket aktif.", "No active plans.")}
             </Text>
-            <Button variant="secondary" label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
+            <Button variant="secondary" label={t("Cari paket", "Find a package")} onPress={() => goToTab("jelajah")} />
           </View>
         )}
       </View>

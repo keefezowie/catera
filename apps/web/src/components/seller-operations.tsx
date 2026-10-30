@@ -128,7 +128,7 @@ function OperationsLoader({
       {state.error && (
         <ErrorNotice
           message={t(
-            "Pesanan belum berhasil dimuat ulang.",
+            "Pesanan belum bisa dimuat ulang.",
             "Orders could not be refreshed.",
           )}
           retry={state.reload}
@@ -851,7 +851,7 @@ function OperationsPage({
           <ol>
             <li>
               {t(
-                "Pilih tanggal dan waktu makan. Jumlah layanan mencakup semua paket; tabel mengikuti filter Anda.",
+                "Pilih tanggal dan waktu makan. Jumlah layanan mencakup semua paket; tabel mengikuti filtermu.",
                 "Choose the date and meal. Service totals cover all packages; the table follows your filters.",
               )}
             </li>
@@ -863,7 +863,7 @@ function OperationsPage({
             </li>
             <li>
               {t(
-                "Jika pesanan telah berubah, muat ulang dan tinjau status terbaru. Daftar dapur dan pengantaran selalu mencakup sehari penuh.",
+                "Jika pesanan sudah berubah, muat ulang dan tinjau status terbaru. Daftar dapur dan pengantaran selalu mencakup sehari penuh.",
                 "If orders changed, refresh and review their latest statuses. Kitchen and delivery lists always cover the whole day.",
               )}
             </li>
@@ -903,7 +903,7 @@ function OperationsPage({
         >
           <p>
             {t(
-              "Batas dari ketentuan pembelian. Kelayakan perubahan tetap diperiksa per pesanan; batas ini tidak mengunci pembaruan status dapur/pengantaran.",
+              "Batas dari ketentuan pembelian. Kelayakan perubahan tetap dicek per pesanan; batas ini tidak mengunci pembaruan status dapur/pengantaran.",
               "Deadlines from purchased terms. Change eligibility is still checked per order; these deadlines do not lock kitchen/delivery status updates.",
             )}
           </p>
@@ -1034,7 +1034,7 @@ function ScheduleCalendar({
       {state.error && (
         <ErrorNotice
           message={t(
-            "Kalender belum berhasil dimuat.",
+            "Kalender belum bisa dimuat.",
             "Could not load the calendar.",
           )}
           retry={state.reload}
@@ -1104,7 +1104,7 @@ function ScheduleCalendar({
                     {state.loading
                       ? "…"
                       : state.error
-                        ? "—"
+                        ? "-"
                         : `${d?.orders || 0} ${t("pesanan", d?.orders === 1 ? "order" : "orders")}`}
                   </small>
                 </span>
@@ -1354,7 +1354,7 @@ function OrderTable({
       setError(
         code === "CONFLICT"
           ? t(
-              "Pesanan telah berubah. Tidak ada perubahan pada batch ini. Tinjau status terbaru sebelum mencoba lagi.",
+              "Pesanan sudah berubah. Tidak ada perubahan pada batch ini. Tinjau status terbaru sebelum mencoba lagi.",
               "Orders changed. This batch made no changes. Review the latest statuses before retrying.",
             )
           : code === "INVALID_STATE"
@@ -1435,7 +1435,7 @@ function OrderTable({
         {!schedule && date > today && (
           <p className="notice">
             {t(
-              "Status dapat diperbarui pada hari pengantaran.",
+              "Status bisa diperbarui pada hari pengantaran.",
               "Statuses can be updated on the delivery day.",
             )}
           </p>
@@ -1598,7 +1598,7 @@ function OrderTable({
                               {!schedule && (
                                 <small>
                                   {group.menu ||
-                                    t("Katerer memilih", "Caterer chooses")}
+                                    t("Katering memilih", "Caterer chooses")}
                                 </small>
                               )}
                             </div>
@@ -1936,7 +1936,7 @@ function OrderTable({
               <p className="notice">
                 {confirmation.invalidCount}{" "}
                 {t(
-                  "pilihan sudah berubah atau tidak cocok dengan tahap ini. Pilihan tersebut tetap terlihat untuk ditinjau, tetapi tidak akan dikirim.",
+                  "pilihan sudah berubah atau tidak cocok dengan tahap ini. Pilihan tersebut tetap terlihat untuk dicek, tetapi tidak akan dikirim.",
                   "selections changed or no longer match this stage. They remain visible for review but will not be submitted.",
                 )}
               </p>
@@ -2017,7 +2017,7 @@ function OrderTable({
                 }).format(new Date(d.service_date + "T12:00:00Z")),
               ],
               [t("Alamat", "Address"), d.address.line + ", " + d.address.area],
-              [t("Catatan", "Instructions"), d.address.instructions || "—"],
+              [t("Catatan", "Instructions"), d.address.instructions || "-"],
               [t("Porsi per waktu makan", "Portions per meal"), d.portions],
               [
                 t("Batas perubahan", "Change cutoff"),

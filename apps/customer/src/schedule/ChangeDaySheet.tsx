@@ -365,7 +365,7 @@ export function ChangeDaySheet({
               {noneToChoose ? (
                 <Text testID="address-none" variant="meta">
                   {t(
-                    "Belum ada alamat lain di area antar. Tambah di Akun, Alamat.",
+                    "Belum ada alamat lain di area antar. Tambah alamat lewat Akun > Alamat.",
                     "No other address in the delivery area yet. Add one in Account, Addresses.",
                   )}
                 </Text>

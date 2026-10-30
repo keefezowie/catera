@@ -113,8 +113,8 @@ export function Register() {
         <CheckEmail
           email={email.trim()}
           intro={t(
-            "Kalau email ini bisa didaftarkan, tautan verifikasi sudah kami kirim ke",
-            "If this email can be registered, we've sent a verification link to",
+            "Kalau emailnya bisa dipakai, kami kirim tautan verifikasi ke",
+            "If this email can be used, we'll send a verification link to",
           )}
           resent={resent}
           resendBusy={action.busy}
@@ -173,7 +173,7 @@ export function Register() {
               <PasswordRule value={password} failed={!!checks.messages.password} />
             </View>
             {failed}
-            <Button label={action.label(t("Daftar & verifikasi email", "Sign up & verify email"))} busy={action.busy} disabled={action.wait > 0} onPress={press} />
+            <Button label={action.label(t("Daftar", "Sign up"))} busy={action.busy} disabled={action.wait > 0} onPress={press} />
           </View>
         </>
       )}

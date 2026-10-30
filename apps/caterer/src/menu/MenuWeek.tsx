@@ -316,7 +316,7 @@ export function MenuWeek() {
       }
       setNote(copyNote(copied, skipped));
     } catch (e) {
-      setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Menu minggu lalu belum tersalin. Coba lagi.", "Last week's menu was not copied. Try again."));
+      setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Menu minggu lalu belum tersalin. Coba lagi.", "Couldn't copy last week's menu. Try again."));
     }
   });
 
@@ -370,7 +370,7 @@ export function MenuWeek() {
         // The save refreshes the week by itself; the pills stay off until that read carries the photo.
         setAwaiting({ key: `${offer.id}:${meal}`, date: day.date, dishId: dish.id, url, version: current.version, started: false });
       } catch (e) {
-        setPhotoError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Foto belum tersimpan. Coba lagi.", "The photo was not saved. Try again."));
+        setPhotoError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Foto belum tersimpan. Coba lagi.", "Couldn't save the photo. Try again."));
         // A failed save may mean the day moved on (a conflict): read it again so the next try has the right version.
         await days.reload();
       }

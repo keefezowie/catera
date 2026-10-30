@@ -221,7 +221,7 @@ export function SavedProvider({ children }: { children: ReactNode }) {
                   locale,
                 ) ||
                   t(
-                    "Paket belum berhasil diperbarui. Coba lagi.",
+                    "Paket belum bisa diperbarui. Coba lagi.",
                     "Saved could not be updated. Try again.",
                   ),
               );
@@ -312,7 +312,7 @@ export function SavedProvider({ children }: { children: ReactNode }) {
         <div className="saved-intent-notice" role="alert">
           <span>
             {t(
-              "Paket belum berhasil disimpan.",
+              "Paket belum bisa disimpan.",
               "The package could not be saved.",
             )}
           </span>

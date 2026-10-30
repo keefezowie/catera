@@ -126,7 +126,7 @@ export const sentences = (p: PlateData, t: (id: string, en: string) => string): 
     case "arrived_unconfirmed":
       return [
         t("Dapur menandai pesananmu sudah sampai", "The kitchen marked your order as arrived"),
-        t("Sudah diterima?", "Has it reached you?"),
+        t("Sudah diterima?", "Did it arrive?"),
       ];
     case "arrived": {
       const at = jakartaClock(p.confirmedAt);
@@ -227,7 +227,7 @@ export function stateLabel(p: PlateData, t: Translate): string {
     case "due":
       return t("Belum sampai", "Not here yet");
     case "arrived_unconfirmed":
-      return t("Sudah diterima?", "Has it reached you?");
+      return t("Sudah diterima?", "Did it arrive?");
     case "arrived":
       return t("Sudah sampai", "Arrived");
     case "failed":
@@ -497,7 +497,7 @@ function PlateContent({
         {!offline && plate.state === "arrived" ? (
           <View style={{ gap: 8 }}>
             <Text variant="caption" style={hero ? { color: quiet } : undefined}>
-              {t("Bagaimana rasanya? Cuma katering yang bisa melihat jawabanmu.", "How was it? Only the caterer sees your answer.")}
+              {t("Gimana rasanya? Cuma katering yang bisa melihat jawabanmu.", "How was it? Only the caterer sees your answer.")}
             </Text>
             <View style={styles.row}>
               {(
@@ -536,7 +536,7 @@ function PlateContent({
             {plate.catererPhone ? (
               <Button
                 variant="secondary"
-                label={t("Chat katering", "Chat caterer")}
+                label={plate.catererName ? t(`Chat ${plate.catererName}`, `Message ${plate.catererName}`) : t("Chat katering", "Message the caterer")}
                 ink={ink}
                 edge={edge}
                 onPress={() => void Linking.openURL(whatsappUrl("", plate.catererPhone ?? "")).catch(() => undefined)}

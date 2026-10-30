@@ -147,8 +147,8 @@ export function AuthCallback() {
           email={email}
           intro={
             purpose === "signup"
-              ? t("Kalau email ini bisa didaftarkan, tautan verifikasi sudah kami kirim ke", "If this email can be registered, we've sent a verification link to")
-              : t("Kalau email ini terdaftar, tautan pemulihan sudah kami kirim ke", "If this email has an account, we've sent a recovery link to")
+              ? t("Kalau emailnya bisa dipakai, kami kirim tautan verifikasi ke", "If this email can be used, we'll send a verification link to")
+              : t("Kalau emailnya terdaftar, kami kirim tautan pemulihan ke", "If this email has an account, we'll send a recovery link to")
           }
           resent={resent}
           resendBusy={run.busy}
@@ -156,7 +156,7 @@ export function AuthCallback() {
           onResend={() => void resend()}
           onChangeEmail={enterEmail}
         />
-        <Button variant="text" label={t("Kembali ke Masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={toSignIn} />
+        <Button variant="text" label={t("Kembali ke halaman masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={toSignIn} />
       </AuthScreen>
     );
   return (

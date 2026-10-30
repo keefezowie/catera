@@ -509,7 +509,7 @@ describe("Beli / Perpanjang", () => {
     wrap(runtime, <BuyScreen packageId="p-rumahan" initial={{ portions: "2", cycles: "2" }} />);
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalledWith(expect.objectContaining({ portions: 2, cycles: 2 })));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: "Tambah Porsi per hari" }));
+    fireEvent.press(screen.getByRole("button", { name: "Tambah porsi" }));
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ portions: 3, cycles: 2 })));
     await bayarReady();
@@ -908,13 +908,13 @@ describe("Bayar", () => {
     expect(screen.getByText("Bayar dalam 15:00")).toBeTruthy();
     expect(screen.getAllByText(totalOf()).length).toBeGreaterThan(0);
     expect(
-      screen.getByText("Kami tahan 20 hari antarmu selama 15 menit. Lewat dari itu, jadwalnya kami cek ulang sebelum kamu bayar."),
+      screen.getByText("Jadwalmu kami tahan 15 menit. Lewat dari itu, kami cek ulang dulu."),
     ).toBeTruthy();
     first.unmount();
 
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
@@ -929,7 +929,7 @@ describe("Bayar", () => {
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     expect(screen.queryByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     expect(await screen.findByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeTruthy();
     expect(refresh).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
     expect(screen.getByLabelText(QR_LABEL)).toBeTruthy();
@@ -940,7 +940,7 @@ describe("Bayar", () => {
     (runtime.api.command as jest.Mock).mockImplementation(async () => ({}));
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     await screen.findByTestId("payment-notice");
     const regions = screen.UNSAFE_getAllByProps({ accessibilityLiveRegion: "polite" });
     expect(regions.some((r) => within(r).queryByTestId("payment-notice"))).toBe(true);
@@ -989,9 +989,9 @@ describe("Bayar", () => {
       wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
       expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
       (runtime.api.checkout as jest.Mock).mockRejectedValue(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
-      fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+      fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
       await waitFor(() => expect(refresh).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String)));
-      await waitFor(() => expect(screen.getByRole("button", { name: "Saya sudah bayar, cek status" })).toBeEnabled());
+      await waitFor(() => expect(screen.getByRole("button", { name: "Sudah bayar? Cek status" })).toBeEnabled());
       await act(async () => {});
       expect(screen.queryByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeNull();
     });
@@ -1001,7 +1001,7 @@ describe("Bayar", () => {
     const runtime = server({ demo: true, checkout: hosted });
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     await screen.findByRole("button", { name: "Bayar (demo)" });
-    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     expect(await screen.findByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeTruthy();
     // The first read, the one cek status judged by, and the screen's reload.
     expect(runtime.api.checkout).toHaveBeenCalledTimes(3);
@@ -1010,7 +1010,7 @@ describe("Bayar", () => {
   it("expired payment offers Bayar lagi", async () => {
     const runtime = server({ checkout: pendingCheckout({ state: "expired" }, { status: "expired" }) });
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    expect(await screen.findByText("Waktu bayar habis. Kalau bayar lagi, kami cek ulang jadwalnya dulu.")).toBeTruthy();
+    expect(await screen.findByText("Waktu bayar habis")).toBeTruthy();
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
     expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=1&cycles=1&addressId=a-1");
@@ -1045,7 +1045,7 @@ describe("Bayar", () => {
         checkout: pendingCheckout({ expires_at: past }, { status, expiresAt: past, instructions: null, ...extra }),
       });
       wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-      expect(await screen.findByText("Waktu bayar habis. Kalau bayar lagi, kami cek ulang jadwalnya dulu.")).toBeTruthy();
+      expect(await screen.findByText("Waktu bayar habis")).toBeTruthy();
       expect(screen.queryByRole("progressbar", { name: "Memeriksa pembayaran…" })).toBeNull();
       fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
       expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=1&cycles=1&addressId=a-1");
@@ -1427,7 +1427,7 @@ describe("Pembayaran diterima", () => {
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     // While paying, the swipe keeps its normal meaning.
     expect(gesture().at(-1)).toBe(true);
-    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     await screen.findByTestId("paid-hero");
     expect(gesture().at(-1)).toBe(false);
   });
@@ -1506,7 +1506,7 @@ describe("Pembayaran diterima", () => {
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     expect(successes()).toHaveLength(0);
-    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     expect(await screen.findByTestId("paid-hero")).toBeTruthy();
     await waitFor(() => expect(screen.getByRole("button", { name: "Lihat jadwal" })).toBeEnabled());
     await act(async () => {});
@@ -1577,7 +1577,7 @@ describe("Pembayaran diterima", () => {
       expect(removeBy(CLOSE)).toBe(false);
       expect(removeBy(NATIVE_BACK)).toBe(false);
       expect(goToTab).not.toHaveBeenCalled();
-      fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+      fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
       await screen.findByTestId("paid-hero");
       expect(back.count()).toBe(1);
       expect(back.press()).toEqual([true]);
@@ -1702,8 +1702,8 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(row.getByText("Mulai"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
     expect(flat(row.getByText("Kamis 8 Okt"))).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: fonts.semibold });
     expect(flat(row.getByText(/^20 hari antar, Senin–Jumat, sampai /))).toMatchObject({ fontSize: 13 });
-    // The visible word is Ubah; a screen reader still hears what it changes.
-    expect(row.getByText("Ubah")).toBeTruthy();
+    // The visible label is Ubah tanggal; a screen reader still hears what it changes.
+    expect(row.getByText("Ubah tanggal")).toBeTruthy();
     expect(row.getByRole("button", { name: "Ubah tanggal mulai" })).toBeTruthy();
     expect(row.queryByRole("button", { name: "Ganti tanggal mulai" })).toBeNull();
   });
@@ -1740,9 +1740,9 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     const runtime = await open();
     const row = within(screen.getByTestId("buy-row-portions"));
     expect(flat(row.getByText("Porsi per hari"))).toMatchObject({ fontSize: 15, fontFamily: fonts.semibold });
-    for (const name of ["Kurangi Porsi per hari", "Tambah Porsi per hari"])
+    for (const name of ["Kurangi porsi", "Tambah porsi"])
       expect(flat(row.getByRole("button", { name }))).toMatchObject({ width: 44, height: 44 });
-    fireEvent.press(row.getByRole("button", { name: "Tambah Porsi per hari" }));
+    fireEvent.press(row.getByRole("button", { name: "Tambah porsi" }));
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ portions: 2 })));
   });
 
@@ -1752,7 +1752,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(row.getByText("Diantar ke"))).toMatchObject({ fontSize: 13 });
     expect(flat(row.getByText("Kantor"))).toMatchObject({ fontSize: 15, fontFamily: fonts.semibold });
     expect(flat(row.getByText("Jl. Contoh No. 1"))).toMatchObject({ fontSize: 13 });
-    expect(row.getByText("Ganti")).toBeTruthy();
+    expect(row.getByText("Ganti alamat")).toBeTruthy();
     expect(row.getByRole("button", { name: "Ganti alamat" })).toBeTruthy();
   });
 
@@ -2120,7 +2120,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     expect(within(row).getByText("Pindai dari aplikasi bank atau e-wallet apa pun.")).toBeTruthy();
     // No logo files yet, so the mark is the group glyph on its tile.
     expect(within(row).getByTestId("pay-mark")).toBeTruthy();
-    expect(within(row).getByText("Ubah")).toBeTruthy();
+    expect(within(row).getByText("Ubah cara bayar")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Pakai transfer bank (VA)" })).toBeNull();
     fireEvent.press(within(row).getByRole("button", { name: "Ubah cara bayar" }));
     fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));

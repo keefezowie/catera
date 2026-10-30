@@ -105,7 +105,7 @@ it("reads a claim preview by its escaped token without a session", async () => {
     packageName: "Rantang Nusantara",
     remainingDays: 3,
     nextDate: "2026-10-12",
-    nextWindow: "11.00–13.00",
+    nextWindow: "11.00-13.00",
     addressLabel: "Rumah",
     maskedPhone: "0812-•••-0001",
   };

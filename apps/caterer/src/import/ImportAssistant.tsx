@@ -82,7 +82,7 @@ export function ImportAssistant() {
       QUOTA: t("Jatah baca hari ini sudah habis. Coba lagi besok.", "You've used today's reading limit. Try again tomorrow."),
       IMPORT_ASSISTANT_DISABLED: t("Asisten impor belum aktif. Kamu tetap bisa memasukkan pelanggan satu per satu.", "The import assistant isn't switched on yet. You can still add customers one by one."),
       IMPORT_UNAVAILABLE: t("Asisten impor sedang tidak tersedia. Coba lagi nanti.", "The import assistant is unavailable. Try again later."),
-    })[code] ?? (errorLabel(code, locale) || t("Catatan belum bisa diproses. Coba lagi.", "The notes could not be processed. Try again."));
+    })[code] ?? (errorLabel(code, locale) || t("Catatan belum bisa diproses. Coba lagi.", "Couldn't process the notes. Try again."));
 
   /** One empty row for typing a customer in by hand; it goes through the same review and save as the assistant's rows. */
   function addRow() {
@@ -287,7 +287,7 @@ export function ImportAssistant() {
     >
       {saved ? (
         <SuccessBeat key={saves} title={t(`${saved} pelanggan tersimpan`, `${plural(saved, "customer")} saved`)} play>
-          <Button variant="secondary" label={t("Lihat Pelanggan", "View customers")} onPress={() => goToTab("pelanggan")} />
+          <Button variant="secondary" label={t("Lihat pelanggan", "View customers")} onPress={() => goToTab("pelanggan")} />
         </SuccessBeat>
       ) : null}
       {rows === null ? (

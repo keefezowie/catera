@@ -20,7 +20,7 @@ const workspaceOptions: {
   id: string;
   en: string;
 }[] = [
-  { value: "caterer", id: "Katerer", en: "Caterer" },
+  { value: "caterer", id: "Katering", en: "Caterer" },
   { value: "customer", id: "Pelanggan", en: "Customer" },
 ];
 
@@ -55,7 +55,7 @@ export function CatererEntry({
           setPending(false);
           notify(
             t(
-              "Ruang kerja belum berhasil diganti. Coba lagi.",
+              "Belum bisa pindah. Coba lagi.",
               "The workspace could not be changed. Try again.",
             ),
           );
@@ -150,7 +150,7 @@ export function ProfileMenu() {
       setPending(false);
       setError(
         t(
-          "Ruang kerja belum berhasil diganti. Coba lagi.",
+          "Belum bisa pindah. Coba lagi.",
           "The workspace could not be changed. Try again.",
         ),
       );
@@ -167,7 +167,7 @@ export function ProfileMenu() {
       setPending(false);
       setError(
         t(
-          "Belum berhasil keluar. Coba lagi.",
+          "Belum bisa keluar. Coba lagi.",
           "Could not sign out. Try again.",
         ),
       );
@@ -182,8 +182,8 @@ export function ProfileMenu() {
     workspace === "admin"
       ? "Catera Admin"
       : activeWorkspace === "caterer"
-        ? t("Ruang katerer", "Caterer workspace")
-        : t("Ruang pelanggan", "Customer workspace");
+        ? t("Dapur", "Caterer workspace")
+        : t("Akun pelanggan", "Customer workspace");
   const canSwitch = canSwitchWorkspace(actor);
 
   return (
@@ -244,7 +244,7 @@ export function ProfileMenu() {
           </div>
           {canSwitch && (
             <fieldset className="profile-menu-workspaces">
-              <legend>{t("Ruang kerja", "Workspace")}</legend>
+              <legend>{t("Pakai sebagai", "Use as")}</legend>
               {workspaceOptions.map((option) => {
                 const selected = activeWorkspace === option.value;
                 return (

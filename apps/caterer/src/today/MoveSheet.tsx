@@ -211,7 +211,7 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
         } catch (e) {
           throw new Error(
             errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-              t("Tanggal belum bisa dipindah. Coba lagi.", "The date could not be moved. Try again."),
+              t("Tanggal belum bisa dipindah. Coba lagi.", "Couldn't move the date. Try again."),
           );
         }
         if (draftKey) reasonDrafts.delete(draftKey);

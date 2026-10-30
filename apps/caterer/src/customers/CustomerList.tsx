@@ -141,7 +141,7 @@ export function CustomerList() {
       toast.show({ message: t("Belum bisa memperbarui. Tarik lagi untuk mencoba.", "Couldn't refresh. Pull again to try."), tone: "error" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list.error]);
-  const addLabel = t("+ Pelanggan lama", "+ Existing customer");
+  const addLabel = t("+ Impor pelanggan", "+ Import customers");
   return (
     <Screen
       plainHeader

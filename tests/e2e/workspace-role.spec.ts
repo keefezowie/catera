@@ -41,7 +41,7 @@ test("seller accounts default to seller and can switch workspaces", async ({
     const menu = page.getByRole("menu", { name: "Menu akun", exact: true });
     await expect(menu).toBeVisible();
     await expect(
-      menu.getByRole("menuitemradio", { name: /Katerer/ }),
+      menu.getByRole("menuitemradio", { name: /Katering/ }),
     ).toHaveAttribute("aria-checked", "true");
     await expect(
       menu.getByRole("menuitemradio", { name: /Pelanggan/ }),
@@ -55,7 +55,7 @@ test("seller accounts default to seller and can switch workspaces", async ({
     await trigger.press("ArrowDown");
     await expect(menu).toBeVisible();
     await expect(
-      menu.getByRole("menuitemradio", { name: /Katerer/ }),
+      menu.getByRole("menuitemradio", { name: /Katering/ }),
     ).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(trigger).toBeFocused();
@@ -118,7 +118,7 @@ test("seller accounts default to seller and can switch workspaces", async ({
     }
     await page.goto("/");
     await page.getByRole("button", { name: "Buka menu akun" }).click();
-    await page.getByRole("menuitemradio", { name: /Katerer/ }).click();
+    await page.getByRole("menuitemradio", { name: /Katering/ }).click();
     await expect(page).toHaveURL(/\/seller$/);
     await expect(page.locator(".ops-layout")).toBeVisible();
   }
@@ -182,7 +182,7 @@ for (const locale of ["id", "en"] as const) {
     });
     await page.goto("/");
     const entry = page.getByRole("button", {
-      name: locale === "id" ? "Untuk katerer" : "For caterers",
+      name: locale === "id" ? "Untuk katering" : "For caterers",
       exact: true,
     });
     let releaseFailure!: () => void;
@@ -206,7 +206,7 @@ for (const locale of ["id", "en"] as const) {
     await expect(
       page.getByText(
         locale === "id"
-          ? "Ruang kerja belum berhasil diganti. Coba lagi."
+          ? "Belum bisa pindah. Coba lagi."
           : "The workspace could not be changed. Try again.",
         { exact: true },
       ),
@@ -228,7 +228,7 @@ for (const locale of ["id", "en"] as const) {
       .click();
     await expect(
       page.getByRole("menuitemradio", {
-        name: locale === "id" ? /Katerer/ : /Caterer/,
+        name: locale === "id" ? /Katering/ : /Caterer/,
       }),
     ).toHaveAttribute("aria-checked", "true");
     await page.screenshot({
@@ -242,7 +242,7 @@ for (const locale of ["id", "en"] as const) {
       .getByRole("button", {
         name:
           locale === "id"
-            ? /Kembali ke ruang katerer/
+            ? /Kembali ke Dapur/
             : /Return to your workspace/,
       })
       .click();
@@ -266,7 +266,7 @@ test("staff customer mode blocks seller routes until explicitly switched", async
   await expect(page).toHaveURL("/");
   await expect(page.locator(".ops-layout")).toHaveCount(0);
   await page.getByRole("button", { name: "Buka menu akun" }).click();
-  await page.getByRole("menuitemradio", { name: /Katerer/ }).click();
+  await page.getByRole("menuitemradio", { name: /Katering/ }).click();
   await expect(page).toHaveURL(/\/seller$/);
   await expect(page.locator(".ops-layout")).toBeVisible();
 });

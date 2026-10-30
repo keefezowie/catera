@@ -43,7 +43,7 @@ export function PackageContents({
           {nutritionSummary(nutrition, locale) && (
             <small>
               {t(
-                "Per porsi makan · estimasi katerer",
+                "Per porsi makan · estimasi katering",
                 "Per meal portion · caterer estimate",
               )}
             </small>

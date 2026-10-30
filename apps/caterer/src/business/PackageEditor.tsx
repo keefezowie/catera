@@ -100,8 +100,8 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
         failed(
           e,
           stage === "pick"
-            ? t("Foto belum bisa dipilih. Coba lagi.", "The photo could not be chosen. Try again.")
-            : t("Foto belum terunggah. Coba lagi.", "The photo was not uploaded. Try again."),
+            ? t("Foto belum bisa dipilih. Coba lagi.", "Couldn't choose the photo. Try again.")
+            : t("Foto belum terunggah. Coba lagi.", "Couldn't upload the photo. Try again."),
         ),
       );
     } finally {
@@ -127,7 +127,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
       if (first) setPublished(true);
       else setSaved(true);
     } catch (e) {
-      setError(failed(e, t("Paket belum tersimpan. Coba lagi.", "The package was not saved. Try again.")));
+      setError(failed(e, t("Paket belum tersimpan. Coba lagi.", "Couldn't save the package. Try again.")));
     }
   });
 

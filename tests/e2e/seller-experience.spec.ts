@@ -38,12 +38,12 @@ for (const locale of ["id", "en"])
       await page.goto("/seller/profile");
       await expect(
         page.getByRole("heading", {
-          name: t("Profil katerer", "Caterer profile"),
+          name: t("Profil katering", "Caterer profile"),
           exact: true,
         }),
       ).toBeVisible();
       await expect(
-        page.getByLabel(t("Nama katerer", "Caterer name"), { exact: true }),
+        page.getByLabel(t("Nama katering", "Caterer name"), { exact: true }),
       ).toHaveValue("Dapur Senja");
       await layout(page);
       await page.screenshot({

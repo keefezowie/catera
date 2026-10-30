@@ -81,7 +81,7 @@ export function PayoutSetupCard({
       {s.latest?.status === "submitted" && (
         <p className="notice">
           {t(
-            "Rekening diajukan dan sedang ditinjau. Rekening yang sudah disetujui tetap digunakan sampai penggantinya disetujui.",
+            "Rekening diajukan dan sedang dicek. Rekening yang sudah disetujui tetap digunakan sampai penggantinya disetujui.",
             "Bank details are awaiting review. Any approved destination remains in use until its replacement is approved.",
           )}
         </p>
@@ -183,7 +183,7 @@ export function PayoutSetupCard({
         title={t("Ajukan rekening pencairan", "Submit payout bank account")}
       >
         <ActionForm
-          submit={t("Ajukan untuk ditinjau", "Submit for review")}
+          submit={t("Ajukan untuk dicek", "Submit for review")}
           onSubmit={async (f) => {
             await perform("payoutDestination.submit", {
               catererId,
@@ -380,7 +380,7 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
     },
     {
       id: "business",
-      label: t("Profil katerer", "Caterer profile"),
+      label: t("Profil katering", "Caterer profile"),
       icon: Store,
     },
     ...(actor?.role === "owner"
@@ -390,7 +390,7 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
             label: t("Rekening & pencairan", "Bank account & payouts"),
             icon: Landmark,
           },
-          { id: "team", label: t("Tim katerer", "Caterer team"), icon: Users },
+          { id: "team", label: t("Tim katering", "Caterer team"), icon: Users },
         ]
       : []),
     { id: "help", label: t("Bantuan akun", "Account help"), icon: LifeBuoy },
@@ -444,8 +444,8 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
                 <dt>{t("Akses", "Access")}</dt>
                 <dd>
                   {actor?.role === "owner"
-                    ? t("Pemilik katerer", "Caterer owner")
-                    : t("Staf katerer", "Caterer staff")}
+                    ? t("Pemilik katering", "Caterer owner")
+                    : t("Staf katering", "Caterer staff")}
                 </dd>
               </div>
               <div className={styles.accountRow}>
@@ -474,7 +474,7 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
             </dl>
           </section>
           <section className="panel" id="business">
-            <h2>{t("Profil katerer", "Caterer profile")}</h2>
+            <h2>{t("Profil katering", "Caterer profile")}</h2>
             <Link href="/seller/profile" className={styles.profileLink}>
               <span>
                 <strong>{s.caterer.name}</strong>
@@ -492,7 +492,7 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
             <>
               <PayoutSetupCard catererId={s.caterer.id} editable />
               <section className="panel" id="team">
-                <h2>{t("Tim katerer", "Caterer team")}</h2>
+                <h2>{t("Tim katering", "Caterer team")}</h2>
                 <ul className={styles.teamList}>
                   {s.staff.map((st) => (
                     <li key={st.user_id}>
@@ -730,7 +730,7 @@ export function PayoutDestinationQueue() {
                 <label className="checkbox">
                   <Checkbox required />
                   {t(
-                    "Kepemilikan, nomor rekening, dan dukungan bank telah diverifikasi.",
+                    "Kepemilikan, nomor rekening, dan dukungan bank sudah diverifikasi.",
                     "Account ownership, number, and bank support have been verified.",
                   )}
                 </label>

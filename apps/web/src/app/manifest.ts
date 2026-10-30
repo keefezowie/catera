@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const english = (await cookies()).get("catera_locale")?.value === "en";
   return {
-    name: "Catera — Good Food on Repeat",
+    name: "Catera: katering langganan",
     short_name: "Catera",
     description: english
       ? "Compare catering packages and manage your delivery schedule."

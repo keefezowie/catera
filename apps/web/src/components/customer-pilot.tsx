@@ -62,7 +62,7 @@ export function ClaimCustomer({ token }: { token: string }) {
       <section className="claim narrow">
         <p className="notice" role="alert">
           {t(
-            "Tautan ini tidak bisa dipakai. Minta tautan baru ke katering Anda.",
+            "Tautan ini tidak bisa dipakai. Minta tautan baru ke kateringmu.",
             "This link can’t be used. Ask your caterer for a new one.",
           )}
         </p>
@@ -109,7 +109,7 @@ export function ClaimCustomer({ token }: { token: string }) {
           <CircleAlert size={20} aria-hidden="true" />
           <p>
             {t(
-              `${katering} perlu memeriksa langganan ini dulu. Pengantaran Anda tetap berjalan.`,
+              `${katering} perlu mengecek langganan ini dulu. Pengantaranmu tetap berjalan.`,
               `${katering} needs to check this subscription first. Your deliveries continue.`,
             )}
           </p>
@@ -178,7 +178,7 @@ export function ClaimCustomer({ token }: { token: string }) {
     return (
       <section className="claim narrow">
         <div className="claim-intro">
-          <h1>{t("Nomor HP Anda", "Your phone number")}</h1>
+          <h1>{t("Nomor HP-mu", "Your phone number")}</h1>
           <p>
             {t(
               `Tulis nomor yang dicatat ${katering} (${preview.maskedPhone}).`,
@@ -194,7 +194,7 @@ export function ClaimCustomer({ token }: { token: string }) {
               {submitButton}
               <p className="claim-hint">
                 {t(
-                  "Dengan melanjutkan, Anda setuju dengan Ketentuan dan Kebijakan Privasi Catera.",
+                  "Dengan lanjut, kamu setuju dengan Ketentuan dan Kebijakan Privasi Catera.",
                   "By continuing, you agree to Catera’s Terms and Privacy Policy.",
                 )}
               </p>
@@ -213,7 +213,7 @@ export function ClaimCustomer({ token }: { token: string }) {
             // Another number could never claim this link (and each wrong try counts against it): say so first.
             if (!phoneMatchesMask(normalized, preview.maskedPhone))
               return t(
-                `Nomor ini berbeda dengan yang dicatat ${katering}. Pakai nomor yang Anda berikan ke ${katering}, atau minta ${katering} memperbarui nomor Anda.`,
+                `Nomor ini berbeda dengan yang dicatat ${katering}. Pakai nomor yang kamu berikan ke ${katering}, atau minta ${katering} memperbarui nomormu.`,
                 `This number differs from the one ${katering} has. Use the number you gave ${katering}, or ask ${katering} to update it.`,
               );
           }}
@@ -242,18 +242,18 @@ export function ClaimCustomer({ token }: { token: string }) {
         <p className="claim-from">{t(`Dari ${katering}`, `From ${katering}`)}</p>
         <h1>
           {t(
-            "Langganan Anda sekarang ada di Catera",
+            "Langgananmu sekarang ada di Catera",
             "Your subscription is now on Catera",
           )}
         </h1>
         <p>
           {t(
-            `Sudah dibayar ke ${katering}, tidak ada tagihan baru. Di sini Anda bisa melihat menu, tahu kapan makanan berangkat, dan memindah hari.`,
+            `Sudah dibayar ke ${katering}, tidak ada tagihan baru. Di sini kamu bisa lihat menu, tahu kapan makanan berangkat, dan memindah hari.`,
             `Already paid to ${katering}, no new bill. Here you can see the menu, know when your food leaves, and move days.`,
           )}
         </p>
       </div>
-      <section className="claim-card" aria-label={t("Paket Anda", "Your package")}>
+      <section className="claim-card" aria-label={t("Paketmu", "Your package")}>
         <strong>{preview.packageName}</strong>
         <dl>
           <dt>{t("Sisa", "Left")}</dt>
@@ -284,7 +284,7 @@ export function ClaimCustomer({ token }: { token: string }) {
             {submitButton}
             <p className="claim-hint">
               {t(
-                `Bukan nomor Anda? Minta ${katering} mengirim tautan baru.`,
+                `Bukan nomormu? Minta ${katering} mengirim tautan baru.`,
                 `Not your number? Ask ${katering} to send a new link.`,
               )}
             </p>
@@ -339,14 +339,14 @@ export function RenewCustomer({ id }: { id: string }) {
       <Heading
         title={t("Siapkan paket berikutnya", "Prepare your next package")}
         description={t(
-          "Porsi dan alamat sebelumnya sudah disiapkan. Harga dan ketentuan terbaru ditinjau sebelum pembayaran.",
+          "Porsi dan alamat sebelumnya sudah disiapkan. Harga dan ketentuan terbaru dicek sebelum pembayaran.",
           "Your previous portions and address are prepared. Review current prices and terms before payment.",
         )}
       />
       {r.replacementRequired && (
         <p className="notice">
           {t(
-            "Paket lama tidak dijual. Pilih pengganti dari katerer ini.",
+            "Paket lama tidak dijual. Pilih pengganti dari katering ini.",
             "Your previous package is unavailable. Choose a replacement from this caterer.",
           )}
         </p>
@@ -429,7 +429,7 @@ export function RenewCustomer({ id }: { id: string }) {
       {!r.available && (
         <p className="notice" role="status">
           {t(
-            "Belum ada jadwal lengkap yang tersedia. Pilih paket lain atau hubungi katerer.",
+            "Belum ada jadwal lengkap yang tersedia. Pilih paket lain atau hubungi katering.",
             "No complete schedule is available. Choose another package or contact the caterer.",
           )}
         </p>
@@ -437,7 +437,7 @@ export function RenewCustomer({ id }: { id: string }) {
       <ActionForm
         disabled={navigating || r.replacementRequired || !r.available}
         submit={t(
-          "Gunakan alamat & tinjau pembelian",
+          "Pakai alamat & cek pesanan",
           "Use address & review purchase",
         )}
         onSubmit={async () => {

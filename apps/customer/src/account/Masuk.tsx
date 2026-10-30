@@ -225,7 +225,7 @@ export function Masuk() {
         <AuthHeading
           title={t("Masuk ke Catera", "Sign in to Catera")}
           subtitle={t(
-            "Satu akun untuk langganan, jadwal antar dan pembayaranmu. Belum punya akun? Langsung dibuatkan.",
+            "Masuk atau daftar dengan satu akun untuk langganan, jadwal, dan pembayaranmu.",
             "One account for your subscriptions, deliveries and payments. No account yet? We'll make one.",
           )}
           pose={form.pose}

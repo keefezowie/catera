@@ -171,7 +171,7 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
             "lauk",
             "Ayam panggang bumbu rempah",
             "150 g",
-            "Ayam panggang berbumbu dengan rasa gurih dan hangat.",
+            "Ayam panggang berbumbu.",
             "lauk",
           ),
           dish(
@@ -185,7 +185,7 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
             "pelengkap",
             "Sambal dan lalapan",
             "30 g",
-            "Sambal rumahan dan lalapan segar.",
+            "Sambal rumahan dan lalapan.",
             "pelengkap",
           ),
         ],
@@ -196,7 +196,7 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
   {
     name: "Salmon Teriyaki",
     description:
-      "Paket makan malam 5 hari dengan salmon teriyaki dan pelengkap sederhana untuk porsi malam yang praktis.",
+      "Paket makan malam 5 hari dengan salmon teriyaki dan pelengkap sederhana untuk makan malam.",
     price: 59000,
     days: 5,
     meal: "dinner",
@@ -237,7 +237,7 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
             "nasi",
             "Nasi putih",
             "180 g",
-            "Nasi pulen yang disajikan hangat.",
+            "Nasi pulen.",
           ),
           dish(
             "sayur",
@@ -345,7 +345,7 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
             "pelengkap",
             "Acar timun",
             "50 g",
-            "Acar timun dan wortel yang segar.",
+            "Acar timun dan wortel.",
             "pelengkap",
           ),
         ],
@@ -473,7 +473,7 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
             "ayam",
             "Ayam sambal rumahan",
             "150 g",
-            "Ayam dengan sambal merah yang dibuat segar.",
+            "Ayam dengan sambal merah.",
           ),
           dish(
             "tempe",
@@ -485,9 +485,9 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
             "nasi",
             "Nasi putih",
             "180 g",
-            "Nasi pulen yang disajikan hangat.",
+            "Nasi pulen.",
           ),
-          dish("lalapan", "Lalapan segar", "50 g", "Timun dan daun kemangi."),
+          dish("lalapan", "Lalapan", "50 g", "Timun dan daun kemangi."),
         ],
         null,
       ),
@@ -496,7 +496,7 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
   {
     name: "Ikan Bumbu Kuning",
     description:
-      "Paket makan siang 5 hari dengan ikan berbumbu kuning, sayur, dan pelengkap segar ala Rumah Rasa.",
+      "Paket makan siang 5 hari dengan ikan berbumbu kuning, sayur, dan pelengkap ala Rumah Rasa.",
     price: 39000,
     days: 5,
     meal: "lunch",
@@ -531,14 +531,14 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
             "nasi",
             "Nasi putih",
             "180 g",
-            "Nasi pulen yang disajikan hangat.",
+            "Nasi pulen.",
             "nasi",
           ),
           dish(
             "lauk",
             "Ikan bumbu kuning",
             "140 g",
-            "Ikan dengan bumbu kunyit dan rempah segar.",
+            "Ikan dengan bumbu kunyit dan rempah.",
             "lauk",
           ),
           dish(
@@ -552,7 +552,7 @@ const DEMO_OFFER_RECIPES: DemoOffer[] = [
             "pelengkap",
             "Acar timun wortel",
             "50 g",
-            "Acar segar sebagai penyeimbang rasa.",
+            "Acar sebagai penyeimbang rasa.",
             "pelengkap",
           ),
         ],
@@ -577,10 +577,10 @@ export function seedSQL() {
     "ayam-sambal",
     "ikan-kuning",
   ];
-  let sql = `insert into v1.profiles values('${DEMO_ACTORS.customer}','Nadia Putri','customer'),('${DEMO_ACTORS.owner}','Arini — Dapur Senja','owner'),('${DEMO_ACTORS.staff}','Bima — Operasional','staff'),('${DEMO_ACTORS.platform_admin}','Tim Catera','platform_admin');
- insert into v1.caterers(id,slug,name,description,areas,status) values('${CATERER_IDS[0]}','dapur-senja','Dapur Senja','Masakan rumahan yang bikin jam makan selalu ditunggu.',array['Jakarta Selatan','Jakarta Pusat','Tangerang Selatan'],'approved'),('${CATERER_IDS[1]}','hijau-kitchen','Hijau Kitchen','Menu seimbang dengan bahan segar, disiapkan setiap hari.',array['Jakarta Selatan','Jakarta Barat'],'approved'),('${CATERER_IDS[2]}','rumah-rasa','Rumah Rasa','Cita rasa Nusantara untuk keseharian Anda.',array['Bandung'],'approved');
+  let sql = `insert into v1.profiles values('${DEMO_ACTORS.customer}','Nadia Putri','customer'),('${DEMO_ACTORS.owner}','Arini (Dapur Senja)','owner'),('${DEMO_ACTORS.staff}','Bima (Operasional)','staff'),('${DEMO_ACTORS.platform_admin}','Tim Catera','platform_admin');
+ insert into v1.caterers(id,slug,name,description,areas,status) values('${CATERER_IDS[0]}','dapur-senja','Dapur Senja','Masakan rumahan yang bikin jam makan selalu ditunggu.',array['Jakarta Selatan','Jakarta Pusat','Tangerang Selatan'],'approved'),('${CATERER_IDS[1]}','hijau-kitchen','Hijau Kitchen','Menu seimbang, dimasak setiap hari.',array['Jakarta Selatan','Jakarta Barat'],'approved'),('${CATERER_IDS[2]}','rumah-rasa','Rumah Rasa','Masakan Nusantara untuk makan sehari-hari.',array['Bandung'],'approved');
  insert into v1.staff values('${CATERER_IDS[0]}','${DEMO_ACTORS.owner}','owner'),('${CATERER_IDS[0]}','${DEMO_ACTORS.staff}','staff');
- insert into v1.addresses(id,user_id,label,line,area,city,instructions) values('${ADDRESS_ID}','${DEMO_ACTORS.customer}','Rumah','Jl. Contoh No. 12, Kebayoran Baru','Jakarta Selatan','Jakarta','Data sintetis. Titip di resepsionis.');
+ insert into v1.addresses(id,user_id,label,line,area,city,instructions) values('${ADDRESS_ID}','${DEMO_ACTORS.customer}','Rumah','Jl. Contoh No. 12, Kebayoran Baru','Jakarta Selatan','Jakarta','Data contoh. Titip di resepsionis.');
  insert into v1.policies values(true,2500,8,3,true,true);insert into v1.promotions(code,percent) values('MAKANBAIK',10);
  insert into v1.invites(caterer_id,code,role) values('${CATERER_IDS[0]}','DEMO-DAPUR-SENJA','customer');`;
   DEMO_OFFERS.forEach((offer, i) => {
@@ -590,7 +590,7 @@ export function seedSQL() {
   sql += `select set_config('request.jwt.claim.sub','${DEMO_ACTORS.customer}',false);select set_config('catera.demo','true',false);`;
   for (const i of [0, 1])
     sql += `do $$ declare c jsonb;begin c:=public.catera_v1_command('checkout.create',${q({ packageId: PACKAGE_IDS[i], addressId: ADDRESS_ID, portions: 1, startDate: start, trial: false, promo: "", invite: "" })},gen_random_uuid());perform public.catera_v1_command('checkout.demo_pay',jsonb_build_object('id',c->>'id'),gen_random_uuid());end $$;`;
-  sql += `insert into v1.conversations(customer_id,caterer_id) values('${DEMO_ACTORS.customer}','${CATERER_IDS[0]}');insert into v1.messages(conversation_id,sender_id,body) select id,'${DEMO_ACTORS.owner}','Halo Kak Nadia! Selamat datang di Dapur Senja. Silakan kabari kami kalau ada pertanyaan tentang jadwal pengantaran.' from v1.conversations;`;
+  sql += `insert into v1.conversations(customer_id,caterer_id) values('${DEMO_ACTORS.customer}','${CATERER_IDS[0]}');insert into v1.messages(conversation_id,sender_id,body) select id,'${DEMO_ACTORS.owner}','Halo Kak Nadia! Selamat datang di Dapur Senja. Kabari kami kalau ada pertanyaan tentang jadwal pengantaran.' from v1.conversations;`;
   return sql;
 }
 

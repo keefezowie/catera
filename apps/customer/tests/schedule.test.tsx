@@ -1194,7 +1194,7 @@ describe("Ubah hari sheet", () => {
     );
     const button = await screen.findByRole("button", { name: "Pilih alamat" });
     expect(button.props.accessibilityState.disabled).toBe(true);
-    expect(screen.getByTestId("address-none")).toHaveTextContent("Belum ada alamat lain di area antar. Tambah di Akun, Alamat.");
+    expect(screen.getByTestId("address-none")).toHaveTextContent("Belum ada alamat lain di area antar. Tambah alamat lewat Akun > Alamat.");
   });
 
   it("explains an empty address choice only when no saved address can be chosen", async () => {

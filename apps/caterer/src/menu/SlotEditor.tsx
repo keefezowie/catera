@@ -133,7 +133,7 @@ function GroupLine({
       setCreateError((f) => ({
         message:
           errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-          t("Hidangan belum tersimpan. Coba lagi.", "The dish was not saved. Try again."),
+          t("Hidangan belum tersimpan. Coba lagi.", "Couldn't save the dish. Try again."),
         key: (f?.key ?? 0) + 1,
       }));
     }

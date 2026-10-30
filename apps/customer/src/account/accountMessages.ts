@@ -13,7 +13,7 @@ export function accountMessage(e: unknown, locale: "id" | "en", t: T): string {
     case "INVALID_INPUT":
       return t("Isiannya belum benar. Periksa lagi.", "That entry isn't right. Check it and try again.");
     case "INVALID_PHONE":
-      return t("Nomor HP belum benar. Periksa lagi.", "That phone number isn't right. Check it and try again.");
+      return t("Nomor WhatsApp belum benar. Cek lagi.", "That WhatsApp number isn't right. Check it and try again.");
     case "AUTH_RATE_LIMITED":
       return t("Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.", "Too many tries. Wait a moment, then try again.");
     case "EMAIL_IN_USE":

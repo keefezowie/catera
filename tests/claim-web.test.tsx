@@ -23,7 +23,7 @@ const preview: ClaimPreview = {
   maskedPhone: "0812-•••-0001",
 };
 const TOKEN = "t".repeat(64);
-const DEAD = "Tautan ini tidak bisa dipakai. Minta tautan baru ke katering Anda.";
+const DEAD = "Tautan ini tidak bisa dipakai. Minta tautan baru ke kateringmu.";
 
 type Reply = { status?: number; data?: unknown; code?: string };
 let routes: Record<string, (body: unknown) => Reply>;
@@ -119,15 +119,15 @@ async function type(label: string, value: string) {
 it("claim shows the package before asking for the phone", async () => {
   await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
   expect(text()).toContain("Dari Dapur Contoh");
-  expect(container.querySelector("h1")?.textContent).toBe("Langganan Anda sekarang ada di Catera");
+  expect(container.querySelector("h1")?.textContent).toBe("Langgananmu sekarang ada di Catera");
   expect(text()).toContain(
-    "Sudah dibayar ke Dapur Contoh, tidak ada tagihan baru. Di sini Anda bisa melihat menu, tahu kapan makanan berangkat, dan memindah hari.",
+    "Sudah dibayar ke Dapur Contoh, tidak ada tagihan baru. Di sini kamu bisa lihat menu, tahu kapan makanan berangkat, dan memindah hari.",
   );
   expect(text()).toContain("Makan Siang Rumahan");
   expect(text()).toContain("9 hari");
   expect(text()).toContain("Kamis 8 Okt, 11.00–13.00");
   expect(text()).toContain("Kantor Sudirman");
-  expect(text()).toContain("Bukan nomor Anda? Minta Dapur Contoh mengirim tautan baru.");
+  expect(text()).toContain("Bukan nomormu? Minta Dapur Contoh mengirim tautan baru.");
   expect(container.querySelector("input")).toBeNull();
   expect(calls.map((c) => c.path)).toEqual(["claim-preview/" + TOKEN]);
 
@@ -201,7 +201,7 @@ it("a number that differs from the recorded one is not sent and gets a plain exp
   await type("Nomor HP", "0812 9999 0000");
   await press("Sambungkan langganan");
   expect(text()).toContain(
-    "Nomor ini berbeda dengan yang dicatat Dapur Contoh. Pakai nomor yang Anda berikan ke Dapur Contoh, atau minta Dapur Contoh memperbarui nomor Anda.",
+    "Nomor ini berbeda dengan yang dicatat Dapur Contoh. Pakai nomor yang kamu berikan ke Dapur Contoh, atau minta Dapur Contoh memperbarui nomormu.",
   );
   expect(calls.some((c) => c.path === "commands")).toBe(false);
   expect(field("Nomor HP").disabled).toBe(false);
@@ -215,7 +215,7 @@ it("a claim sent for review never says it connected", async () => {
   routes["commands:customer.claim"] = () => ({ data: { status: "review" } });
   await show({ id: "u-1", role: "customer", name: "Andre Contoh", phone: "+6281234500001" } as Actor);
   await press(/^Lanjut dengan/);
-  expect(text()).toContain("Dapur Contoh perlu memeriksa langganan ini dulu.");
+  expect(text()).toContain("Dapur Contoh perlu mengecek langganan ini dulu.");
   expect(toast()).not.toContain("tersambung");
 
   routes["commands:customer.claim"] = () => ({ data: { status: "claimed" } });

@@ -301,7 +301,7 @@ it("a move held back only by an open payment says so", async () => {
   expect(mockConfirm.mock.calls[1][0]).toEqual({
     title: "12 pengantaran dipindahkan",
     message:
-      "Alamat lama masih dipakai untuk pembayaran yang belum selesai, jadi belum terhapus. Hapus lagi setelah pembayaran itu selesai atau kedaluwarsa.",
+      "Alamat lama belum terhapus karena masih dipakai pembayaran yang belum selesai. Hapus lagi setelah pembayaran selesai atau kedaluwarsa.",
     confirmLabel: "Lihat jadwal",
     cancelLabel: "Tutup",
   });

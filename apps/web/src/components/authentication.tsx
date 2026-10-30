@@ -50,8 +50,8 @@ export function Login({
         {q.get("reset") === "success" && (
           <p role="status" className="notice">
             {t(
-              "Kata sandi diperbarui. Silakan masuk kembali.",
-              "Password updated. Please sign in again.",
+              "Kata sandi diperbarui. Masuk lagi.",
+              "Password updated. Sign in again.",
             )}
           </p>
         )}
@@ -61,7 +61,7 @@ export function Login({
           <>
             <div className="notice">
               {t(
-                "Pilih peran untuk menjelajahi demo. Semua akun menggunakan data sintetis.",
+                "Pilih peran untuk menjelajahi demo. Semua akun memakai data contoh.",
                 "Choose a role to explore. All accounts use synthetic data.",
               )}
             </div>
@@ -122,7 +122,7 @@ export function Login({
                 aria-pressed={method === "phone"}
                 onClick={() => setMethod("phone")}
               >
-                {t("Kode ponsel", "Phone code")}
+                {t("Kode HP", "Phone code")}
               </Button>
             </div>
             {method === "email" && registering ? (
@@ -191,7 +191,7 @@ export function Login({
                   }
                 }}
               >
-                <Field label={t("Nomor WhatsApp / ponsel", "Mobile number")}>
+                <Field label={t("Nomor WhatsApp atau HP", "Mobile number")}>
                   <TextInput
                     type="tel"
                     name="phone"

@@ -342,8 +342,8 @@ function Report({ issue: i, reload, draftKey, page = false }: { issue: DeliveryI
         message:
           errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
           (action === "deliveryIssue.respond"
-            ? t("Balasan belum terkirim. Coba lagi.", "The reply was not sent. Try again.")
-            : t("Laporan belum bisa ditandai selesai. Coba lagi.", "The report could not be marked as done. Try again.")),
+            ? t("Balasan belum terkirim. Coba lagi.", "Couldn't send the reply. Try again.")
+            : t("Laporan belum bisa ditandai selesai. Coba lagi.", "Couldn't mark the report as done. Try again.")),
         key: (f?.key ?? 0) + 1,
       }));
       // A refused action usually means the report changed (a reply elsewhere, or the customer asked
@@ -412,7 +412,7 @@ function Report({ issue: i, reload, draftKey, page = false }: { issue: DeliveryI
             error={tooShort ? t("Tulis minimal 5 karakter.", "Write at least 5 characters.") : undefined}
           />
           {!reply ? (
-            <Text variant="meta">{`${t("Pelanggan akan menerima", "The customer will receive")}: “${RESOLVE_NOTE}”`}</Text>
+            <Text variant="meta">{`${t("Pelanggan akan menerima", "The customer will receive, in Indonesian")}: “${RESOLVE_NOTE}”`}</Text>
           ) : null}
         </>
       ) : (

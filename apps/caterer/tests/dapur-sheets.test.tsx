@@ -246,7 +246,7 @@ describe("stop exceptions", () => {
     expect(within(sheet).getByText("2 porsi · Makan Siang Rumahan")).toBeTruthy();
     expect(within(sheet).getByText("Gagal diantar")).toBeTruthy();
     expect(within(sheet).getByText("Pindah tanggal")).toBeTruthy();
-    expect(within(sheet).getByText(/tidak dibayar ke kamu/)).toBeTruthy();
+    expect(within(sheet).getByText(/tidak dibayar. Hubungi/)).toBeTruthy();
     fireEvent.press(within(sheet).getByText("Tandai gagal diantar"));
     await lastConfirm().press("Tandai gagal");
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
@@ -792,7 +792,7 @@ describe("the action sheets on the Dapur scale", () => {
       }
       expect(card.getAllByTestId("list-card-separator")).toHaveLength(1);
       // The consequence copy shows whole: nothing is cut to a line.
-      expect(card.getByText(/tidak dibayar ke kamu/).props.numberOfLines).toBeUndefined();
+      expect(card.getByText(/tidak dibayar. Hubungi/).props.numberOfLines).toBeUndefined();
       // The primary waits in the pinned footer, not in the scrolling body.
       expect((await footerOf()).getByRole("button", { name: "Tandai gagal diantar" })).toBeTruthy();
       expect(bodyOf().queryByText("Tandai gagal diantar")).toBeNull();

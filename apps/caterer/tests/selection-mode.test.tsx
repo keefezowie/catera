@@ -301,14 +301,14 @@ describe("Sampai (n): camera permission and kept photos", () => {
     await screen.findByText("Foto bukti sampai");
   };
 
-  it("a denied camera that cannot be asked again offers Buka Pengaturan and no send retry", async () => {
+  it("a denied camera that cannot be asked again offers Buka pengaturan and no send retry", async () => {
     const settings = jest.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
     permission.mockResolvedValueOnce({ granted: false, canAskAgain: false });
     await open();
     fireEvent.press(sheet().getByLabelText(/^Ambil foto: Bu Sari/));
     const error = await screen.findByTestId("form-error");
     expect(within(error).queryByRole("button", { name: "Coba lagi" })).toBeNull();
-    fireEvent.press(sheet().getByRole("button", { name: "Buka Pengaturan" }));
+    fireEvent.press(sheet().getByRole("button", { name: "Buka pengaturan" }));
     expect(settings).toHaveBeenCalled();
   });
 
@@ -318,7 +318,7 @@ describe("Sampai (n): camera permission and kept photos", () => {
     fireEvent.press(sheet().getByLabelText(/^Ambil foto: Bu Sari/));
     const error = await screen.findByTestId("form-error");
     expect(within(error).getByText("Izinkan kamera supaya bisa memotret bukti.")).toBeTruthy();
-    expect(sheet().queryByRole("button", { name: "Buka Pengaturan" })).toBeNull();
+    expect(sheet().queryByRole("button", { name: "Buka pengaturan" })).toBeNull();
     shot("file:///sari.jpg");
     fireEvent.press(within(error).getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(sheet().getAllByText("Foto siap")).toHaveLength(1));

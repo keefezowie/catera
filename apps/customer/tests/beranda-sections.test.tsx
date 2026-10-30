@@ -395,7 +395,7 @@ describe("Perlu kamu urus (the full list)", () => {
     const list = within(await screen.findByTestId("waiting-list"));
     expect(within(screen.getByTestId("screen-native-title")).getByText("Perlu kamu urus")).toBeTruthy();
     // The review row appears once its dismissal mark has been read.
-    await list.findByText("Bagaimana Dapur Hijau selama ini?");
+    await list.findByText("Gimana Dapur Hijau selama ini?");
     const rows = list.getAllByTestId("waiting-row");
     expect(rows.map((r) => r.props.accessibilityLabel)).toEqual([
       "Pilih menu Selasa 13 Okt, Makan Siang Kantor · sebelum Senin 17.00, Pilih",
@@ -404,7 +404,7 @@ describe("Perlu kamu urus (the full list)", () => {
       `Paket Sehat, sisa 2 hari, Dapur Hijau · harga terakhir ${currency(30000, "id")} per porsi, Perpanjang`,
       "Coba Nasi Bakar selesai hari ini, Dapur Arang · paket coba, Beli paket",
       "Coba Bento selesai besok, Dapur Kecil · paket coba, Beli paket",
-      "Bagaimana Dapur Hijau selama ini?, Bintang saja cukup, ulasan tertulis boleh dilewati, Nilai",
+      "Gimana Dapur Hijau selama ini?, Bintang saja cukup, ulasan tertulis boleh dilewati, Nilai",
     ]);
     // One action word per row; only Perpanjang is charcoal (the urgent one), the rest forest.
     const actions = list.getAllByTestId("waiting-action");
@@ -462,7 +462,7 @@ describe("Perlu kamu urus (the full list)", () => {
   it("each kind of row carries its own icon: the trial takes the packages bag, not the renewal's arrow", async () => {
     mountList(demo().runtime);
     const list = within(await screen.findByTestId("waiting-list"));
-    await list.findByText("Bagaimana Dapur Hijau selama ini?");
+    await list.findByText("Gimana Dapur Hijau selama ini?");
     const icons = list.getAllByTestId("waiting-row").map((row) => within(row).UNSAFE_getByType(Ionicons).props.name);
     expect(icons).toEqual([
       "reorder-three-outline",
@@ -503,7 +503,7 @@ describe("Perlu kamu urus (the full list)", () => {
       "Coba Bento ends tomorrow, Dapur Kecil · trial, Buy package",
       "How has Dapur Hijau been so far?, Stars are enough; words are optional, Rate",
     ]);
-    expect(within(screen.getByTestId("screen-native-title")).getByText("Needs you")).toBeTruthy();
+    expect(within(screen.getByTestId("screen-native-title")).getByText("Needs your attention")).toBeTruthy();
   });
 
   it("nothing waiting says so instead of leaving the screen blank", async () => {
@@ -576,7 +576,7 @@ describe("Perlu kamu urus (the full list)", () => {
     );
     mountList(runtime);
     const list = within(await screen.findByTestId("waiting-list"));
-    expect(await list.findByText("Bagaimana Dapur Hijau selama ini?")).toBeTruthy();
+    expect(await list.findByText("Gimana Dapur Hijau selama ini?")).toBeTruthy();
     expect(list.queryByText(/^Pilih menu/)).toBeNull();
     expect(list.getByText("Paket Sehat, sisa 2 hari")).toBeTruthy();
   });
@@ -584,7 +584,7 @@ describe("Perlu kamu urus (the full list)", () => {
   it("review opens its form in a sheet", async () => {
     const { runtime } = demo();
     mountList(runtime);
-    fireEvent.press(await screen.findByRole("button", { name: /^Bagaimana Dapur Hijau selama ini\?/ }));
+    fireEvent.press(await screen.findByRole("button", { name: /^Gimana Dapur Hijau selama ini\?/ }));
     // A native form sheet over Beranda (`/ulasan/{id}`), not a sheet inside the list.
     expect(router.push).toHaveBeenCalledWith("/ulasan/s-sehat");
     const sheet = within(await screen.findByTestId("review-sheet"));
@@ -601,16 +601,16 @@ describe("Perlu kamu urus (the full list)", () => {
         expect.any(String),
       ),
     );
-    await waitFor(() => expect(screen.queryByText("Bagaimana Dapur Hijau selama ini?")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Gimana Dapur Hijau selama ini?")).toBeNull());
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-sehat", "done");
   });
 
   it("Nanti saja in the sheet hides the review row for good", async () => {
     mountList(demo().runtime);
-    fireEvent.press(await screen.findByRole("button", { name: /^Bagaimana Dapur Hijau selama ini\?/ }));
+    fireEvent.press(await screen.findByRole("button", { name: /^Gimana Dapur Hijau selama ini\?/ }));
     await screen.findByTestId("review-sheet");
     fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
-    await waitFor(() => expect(screen.queryByText("Bagaimana Dapur Hijau selama ini?")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Gimana Dapur Hijau selama ini?")).toBeNull());
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-sehat", "dismissed");
   });
 
@@ -618,14 +618,14 @@ describe("Perlu kamu urus (the full list)", () => {
     const { runtime } = demo();
     (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("NOPE"), { code: "NOPE" }));
     mountList(runtime);
-    fireEvent.press(await screen.findByRole("button", { name: /^Bagaimana Dapur Hijau selama ini\?/ }));
+    fireEvent.press(await screen.findByRole("button", { name: /^Gimana Dapur Hijau selama ini\?/ }));
     await screen.findByTestId("review-sheet");
     fireEvent.press(screen.getByRole("button", { name: "5 bintang" }));
     fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
     expect(await screen.findByText("Ulasannya belum terkirim. Coba lagi.")).toBeTruthy();
     // The stars stay as they were, so trying again is one tap.
     expect(screen.getByRole("button", { name: "5 bintang" }).props.accessibilityState.selected).toBe(true);
-    expect(screen.getByText("Bagaimana Dapur Hijau selama ini?")).toBeTruthy();
+    expect(screen.getByText("Gimana Dapur Hijau selama ini?")).toBeTruthy();
   });
 });
 

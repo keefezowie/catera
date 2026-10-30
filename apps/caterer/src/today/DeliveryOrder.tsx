@@ -277,8 +277,8 @@ export function DeliveryOrder({
           {report === "today" && !picking ? (
             <Text variant="meta" style={{ marginTop: HEADING_GAP }}>
               {t(
-                "Tandai Sampai dengan foto bukti. Pelanggan lalu mengonfirmasi, dan tanpa laporan pengantaran ditandai sampai otomatis.",
-                "Mark Arrived with a proof photo. The customer then confirms, and with no report the delivery is marked as arrived automatically.",
+                "Tandai Sampai pakai foto bukti. Pelanggan lalu konfirmasi. Kalau tidak ada laporan, pengantaran otomatis dianggap sampai.",
+                "Mark Arrived with a proof photo. The customer then confirms. With no report, it counts as arrived automatically.",
               )}
             </Text>
           ) : null}

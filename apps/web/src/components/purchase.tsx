@@ -190,7 +190,7 @@ export function CheckoutPage({ id }: { id: string }) {
     !!selectedAddress && !!p?.areas.includes(selectedAddress.area);
   const addressMessage = !state.data?.addresses.length
     ? t(
-        "Tambahkan alamat agar kami dapat memeriksa area pengantaran.",
+        "Tambahkan alamat supaya kami bisa cek area pengantaran.",
         "Add an address so we can check delivery coverage.",
       )
     : !selectedAddress
@@ -200,7 +200,7 @@ export function CheckoutPage({ id }: { id: string }) {
         )
       : !addressAvailable
         ? t(
-            "Alamat ini di luar area pengantaran katerer. Pilih atau tambahkan alamat lain.",
+            "Alamat ini di luar area pengantaran katering. Pilih atau tambahkan alamat lain.",
             "This address is outside the caterer's delivery area. Choose or add another address.",
           )
         : "";
@@ -276,7 +276,7 @@ export function CheckoutPage({ id }: { id: string }) {
       />
       <ol
         className="checkout-steps"
-        aria-label={t("Tahap pemesanan", "Checkout progress")}
+        aria-label={t("Tahap pesanan", "Checkout progress")}
       >
         <li
           className={step === 1 ? "current" : "complete"}
@@ -288,7 +288,7 @@ export function CheckoutPage({ id }: { id: string }) {
           className={step === 2 ? "current" : ""}
           aria-current={step === 2 ? "step" : undefined}
         >
-          2. {t("Tinjau paket", "Review package")}
+          2. {t("Cek paket", "Review package")}
         </li>
         <li>3. {t("Pembayaran", "Payment")}</li>
       </ol>
@@ -341,7 +341,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     "Includes delivery and service fee.",
                   )
                 : t(
-                    "Pengantaran termasuk. Biaya layanan dan total akhir ditampilkan setelah alamat dan jadwal ditinjau.",
+                    "Pengantaran termasuk. Biaya layanan dan total akhir ditampilkan setelah alamat dan jadwal dicek.",
                     "Delivery is included. The service fee and final total appear after address and schedule review.",
                   )}
             </p>
@@ -357,7 +357,7 @@ export function CheckoutPage({ id }: { id: string }) {
                       "The selected address is outside this package's delivery area.",
                     )
                   : t(
-                      "Pilih alamat untuk memeriksa kelayakan pengantaran.",
+                      "Pilih alamat untuk cek apakah bisa diantar.",
                       "Choose an address to check delivery eligibility.",
                     )}
             </p>
@@ -381,7 +381,7 @@ export function CheckoutPage({ id }: { id: string }) {
         <section className="checkout-fields">
           {step === 1 ? (
             <ActionForm
-              submit={t("Tinjau jadwal & harga", "Review schedule & price")}
+              submit={t("Cek jadwal & harga", "Review schedule & price")}
               disabled={
                 !restored ||
                 state.loading ||
@@ -430,7 +430,7 @@ export function CheckoutPage({ id }: { id: string }) {
                   </strong>
                   <p>
                     {t(
-                      "Gunakan perpanjangan untuk meninjau jadwal setelah paket sebelumnya. Ketersediaan dan harga diperiksa kembali.",
+                      "Pakai perpanjangan untuk cek jadwal setelah paket sebelumnya. Ketersediaan dan harga dicek lagi.",
                       "Use renewal to review a schedule after your previous package. Availability and prices are checked again.",
                     )}
                   </p>
@@ -445,14 +445,14 @@ export function CheckoutPage({ id }: { id: string }) {
                       <p key={subscription.id}>
                         <strong>{subscription.snapshot.offer.name}</strong>
                         <br />
-                        {formatPeriodDate(subscription.starts_on)} –{" "}
+                        {formatPeriodDate(subscription.starts_on)} sampai{" "}
                         {formatPeriodDate(subscription.ends_on)}
                         <br />
                         <Link
                           className="text-button"
                           href={"/renew/" + subscription.id}
                         >
-                          {t("Tinjau perpanjangan", "Review renewal")}{" "}
+                          {t("Cek perpanjangan", "Review renewal")}{" "}
                           <ArrowRight size={16} aria-hidden="true" />
                         </Link>
                       </p>
@@ -502,7 +502,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     !startAvailable && (
                       <span role="status">
                         {t(
-                          "Pilih tanggal pengantaran yang belum melewati batas pemesanan katerer.",
+                          "Pilih tanggal pengantaran yang belum melewati batas pemesanan katering.",
                           "Choose a delivery date before the caterer's purchase cutoff.",
                         )}
                       </span>
@@ -532,7 +532,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     </SelectOption>
                     {state.data?.addresses.map((a) => (
                       <SelectOption key={a.id} value={a.id}>
-                        {a.label} — {a.line}, {a.area}
+                        {a.label} · {a.line}, {a.area}
                       </SelectOption>
                     ))}
                   </Select>
@@ -688,7 +688,7 @@ export function CheckoutPage({ id }: { id: string }) {
                         {t("Alamat pengantaran", "Delivery address")}
                       </strong>
                       <p>
-                        {selectedAddress?.label} — {selectedAddress?.line},{" "}
+                        {selectedAddress?.label} · {selectedAddress?.line},{" "}
                         {selectedAddress?.area}
                       </p>
                     </div>
@@ -708,7 +708,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     <p>
                       {p.flexible
                         ? t(
-                            "Tanggal dapat diganti sebelum batas waktu, selama kapasitas tersedia.",
+                            "Tanggal bisa diganti sebelum batas waktu, selama kapasitas tersedia.",
                             "Dates can be changed before cutoff, subject to capacity.",
                           )
                         : t(
@@ -716,7 +716,7 @@ export function CheckoutPage({ id }: { id: string }) {
                             "This package uses fixed dates.",
                           )}{" "}
                       {t(
-                        "Permintaan pembatalan dan refund selalu ditinjau tim bantuan.",
+                        "Permintaan pembatalan dan pengembalian dana selalu dicek tim bantuan.",
                         "Cancellation and refund requests are always reviewed by support.",
                       )}
                     </p>
@@ -764,7 +764,7 @@ export function CheckoutPage({ id }: { id: string }) {
                           <strong>
                             {availability.error
                               ? t(
-                                  "Pembayaran belum dapat diperiksa",
+                                  "Pembayaran belum bisa dicek",
                                   "Payment availability could not be checked",
                                 )
                               : t(
@@ -779,7 +779,7 @@ export function CheckoutPage({ id }: { id: string }) {
                                   "Your selections are kept. Check again to continue.",
                                 )
                               : t(
-                                  "Belum ada metode pembayaran yang tersedia. Kamu dapat memeriksa lagi tanpa mengubah pilihan paket.",
+                                  "Belum ada metode pembayaran yang tersedia. Kamu bisa cek lagi tanpa mengubah pilihan paket.",
                                   "No payment methods are available right now. You can check again without changing your package selections.",
                                 )}
                           </p>
@@ -800,7 +800,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     ) : paymentRechecked ? (
                       <p>
                         {t(
-                          "Pembayaran tersedia. Lanjutkan setelah memeriksa pesananmu.",
+                          "Pembayaran tersedia. Lanjut setelah cek pesananmu.",
                           "Payment is available. Continue when you have reviewed your order.",
                         )}
                       </p>
@@ -915,7 +915,7 @@ export function PaymentPage({ id }: { id: string }) {
         />
         <p>
           {t(
-            "Lihat keputusan bantuan untuk rincian refund. Jadwal pengantaran mengikuti keputusan yang dikonfirmasi.",
+            "Lihat keputusan bantuan untuk rincian pengembalian dana. Jadwal pengantaran mengikuti keputusan yang dikonfirmasi.",
             "See the support decision for refund details. Delivery schedules follow the confirmed decision.",
           )}
         </p>
@@ -953,8 +953,8 @@ export function PaymentPage({ id }: { id: string }) {
         title={
           payment.phase === "booking_unresolved"
             ? t(
-                "Pembayaran diterima, jadwal sedang ditinjau",
-                "Payment received, booking under review",
+                "Pembayaran diterima, jadwal sedang dicek",
+                "Payment received, order being checked",
               )
             : payment.phase === "checking"
               ? c.state === "paid"
@@ -1001,16 +1001,16 @@ export function PaymentPage({ id }: { id: string }) {
       {c.provider === "doku" && c.provider_environment === "sandbox" && (
         <p className="notice" role="status">
           {t(
-            "DOKU Sandbox — pembayaran uji coba, tanpa uang sungguhan.",
-            "DOKU Sandbox — test payments, no real money.",
+            "DOKU Sandbox: pembayaran uji coba, tanpa uang sungguhan.",
+            "DOKU Sandbox: test payments, no real money.",
           )}
         </p>
       )}
       {payment.phase === "booking_unresolved" && (
         <p className="notice" role="status">
           {t(
-            "Uang telah diterima, tetapi jadwal belum berhasil dibuat. Tim Catera sedang meninjau penyelesaiannya. Jangan melakukan pembayaran kedua.",
-            "Money was received, but the booking is not resolved yet. Catera is reviewing it. Do not make another payment.",
+            "Uangmu sudah masuk, tapi jadwal belum bisa dibuat. Tim Catera sedang mengeceknya. Jangan bayar lagi.",
+            "Your money arrived, but we could not set up the schedule yet. Catera is checking it. Do not pay again.",
           )}
         </p>
       )}
@@ -1018,17 +1018,17 @@ export function PaymentPage({ id }: { id: string }) {
         <p className="notice" role="status">
           {c.state === "paid"
             ? t(
-                "Pembayaran telah diterima. Kami sedang mengonfirmasi jadwal pengantaran. Jangan melakukan pembayaran kedua.",
-                "Payment was received. We are confirming the delivery schedule. Do not make another payment.",
+                "Pembayaranmu sudah masuk. Kami sedang mengonfirmasi jadwalmu. Jangan bayar lagi.",
+                "Your payment arrived. We are confirming your schedule. Do not pay again.",
               )
             : seconds === 0
               ? t(
-                  "Batas pembayaran telah lewat. Jangan bayar menggunakan instruksi lama. Jika sudah membayar, kami masih memeriksa konfirmasinya.",
+                  "Batas pembayaran sudah lewat. Jangan bayar pakai instruksi lama. Kalau sudah bayar, kami masih mengecek konfirmasinya.",
                   "The payment deadline has passed. Do not pay using old instructions. If you already paid, we are still checking confirmation.",
                 )
               : t(
-                  "Kami sedang memeriksa pembayaran. Jangan membuat pembayaran lain atau memakai instruksi lama.",
-                  "We are checking the payment. Do not make another payment or reuse old instructions.",
+                  "Kami sedang mengecek pembayaran. Jangan bayar lagi atau pakai instruksi lama.",
+                  "We are checking your payment. Do not pay again or use the old instructions.",
                 )}
         </p>
       )}
@@ -1068,7 +1068,7 @@ export function PaymentPage({ id }: { id: string }) {
             }}
             href={c.payment_url}
           >
-            {t("Buka pembayaran aman", "Open secure payment")}
+            {t("Buka halaman pembayaran", "Open payment page")}
             <ExternalLink size={16} />
           </a>
         ) : (
@@ -1092,7 +1092,7 @@ export function PaymentPage({ id }: { id: string }) {
       {checkError && (
         <p role="alert">
           {t(
-            "Status belum berhasil diperiksa. Coba lagi.",
+            "Status belum bisa dicek. Coba lagi.",
             "Status could not be checked. Please try again.",
           )}
         </p>

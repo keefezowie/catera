@@ -235,7 +235,7 @@ for (const locale of ["id", "en"] as const) {
         await expect(
           panel.getByRole("button", {
             name: t(
-              "Gunakan alamat & tinjau pembelian",
+              "Pakai alamat & cek pesanan",
               "Use address & review purchase",
             ),
             exact: true,
@@ -265,7 +265,7 @@ for (const locale of ["id", "en"] as const) {
         await expect(
           panel.getByRole("button", {
             name: t(
-              "Gunakan alamat & tinjau pembelian",
+              "Pakai alamat & cek pesanan",
               "Use address & review purchase",
             ),
             exact: true,

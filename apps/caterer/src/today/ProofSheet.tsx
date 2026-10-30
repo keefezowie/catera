@@ -216,7 +216,7 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
       setPhotos((p) => ({ ...p, [stop.deliveryId]: { uri: small.uri, path: null } }));
       setFailedIds((f) => f.filter((id) => id !== stop.deliveryId));
     } catch {
-      fail(t("Foto belum bisa diambil. Coba lagi.", "The photo could not be taken. Try again."), { camera: stop });
+      fail(t("Foto belum bisa diambil. Coba lagi.", "Couldn't take the photo. Try again."), { camera: stop });
     } finally {
       cameraOpen.current = false;
       setTaking(null);
@@ -269,7 +269,7 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
     } catch (e) {
       fail(
         errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-          t("Belum bisa menandai sampai. Coba lagi.", "Could not mark them as arrived. Try again."),
+          t("Belum bisa menandai sampai. Coba lagi.", "Couldn't mark them as arrived. Try again."),
       );
     }
   });
@@ -328,7 +328,7 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
           />
         ) : null}
         {failure?.settings ? (
-          <Button variant="text" label={t("Buka Pengaturan", "Open Settings")} onPress={() => void Linking.openSettings()} />
+          <Button variant="text" label={t("Buka pengaturan", "Open Settings")} onPress={() => void Linking.openSettings()} />
         ) : null}
         <Button
           label={label}

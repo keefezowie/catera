@@ -347,7 +347,7 @@ for (const locale of ["en", "id"]) {
       .click();
     await page
       .getByRole("button", {
-        name: locale === "en" ? "Review change" : "Tinjau perubahan",
+        name: locale === "en" ? "Review change" : "Cek perubahan",
         exact: true,
       })
       .click();
@@ -366,7 +366,7 @@ for (const locale of ["en", "id"]) {
     ).toContainText(locale === "en" ? "Arrived" : "Sampai");
     await expect(
       page.getByRole("button", {
-        name: locale === "en" ? "Review change" : "Tinjau perubahan",
+        name: locale === "en" ? "Review change" : "Cek perubahan",
         exact: true,
       }),
     ).toHaveCount(0);

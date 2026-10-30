@@ -201,7 +201,7 @@ for (const locale of ["id", "en"] as const) {
         .getByRole("button", {
           name: copy(
             locale,
-            "Gunakan foto sintetis demo",
+            "Gunakan foto contoh demo",
             "Use synthetic demo photo",
           ),
           exact: true,
@@ -295,11 +295,11 @@ for (const locale of ["id", "en"] as const) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/seller/onboarding");
       const name = page.getByRole("textbox", {
-        name: copy(locale, "Nama katerer", "Caterer name"),
+        name: copy(locale, "Nama katering", "Caterer name"),
         exact: true,
       });
       const slug = page.getByRole("textbox", {
-        name: copy(locale, "Alamat halaman katerer", "Caterer page address"),
+        name: copy(locale, "Alamat halaman katering", "Caterer page address"),
         exact: true,
       });
       const description = page.getByRole("textbox", {
@@ -330,7 +330,7 @@ for (const locale of ["id", "en"] as const) {
       });
       await page
         .getByRole("button", {
-          name: copy(locale, "Buat profil katerer", "Create caterer profile"),
+          name: copy(locale, "Buat profil katering", "Create caterer profile"),
           exact: true,
         })
         .click();
@@ -913,7 +913,7 @@ for (const locale of ["id", "en"] as const) {
         href: `/seller/packages?edit=${partial.id}`,
         state: copy(
           locale,
-          "Menunggu verifikasi katerer",
+          "Menunggu verifikasi katering",
           "Awaiting caterer verification",
         ),
       },
@@ -939,14 +939,14 @@ for (const locale of ["id", "en"] as const) {
         href: "/seller/profile#verification",
         state: copy(
           locale,
-          "Paket tayang, menunggu persetujuan katerer",
+          "Paket tayang, menunggu persetujuan katering",
           "Published, awaiting caterer approval",
         ),
       },
       {
         status: "suspended",
         offers: [template],
-        action: copy(locale, "Lihat status katerer", "View caterer status"),
+        action: copy(locale, "Lihat status katering", "View caterer status"),
         href: "/seller/profile#verification",
         state: copy(locale, "Penjualan ditangguhkan", "Sales paused"),
       },
@@ -994,7 +994,7 @@ for (const locale of ["id", "en"] as const) {
       await expect(readiness).toContainText(
         copy(
           locale,
-          "Aktivasi pencairan diperiksa terpisah di Pengaturan.",
+          "Aktivasi pencairan dicek terpisah di Pengaturan.",
           "Payout activation is checked separately in Settings.",
         ),
       );

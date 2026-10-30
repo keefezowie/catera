@@ -47,7 +47,7 @@ export function NutritionStrip({
       </dl>
       <p>
         {t(
-          "Estimasi katerer · per porsi makan",
+          "Estimasi katering · per porsi makan",
           "Caterer estimate · per meal portion",
         )}
       </p>

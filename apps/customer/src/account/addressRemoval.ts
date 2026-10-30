@@ -87,8 +87,8 @@ export function useAddressRemoval(newAddressHref: string, onNewAddress?: () => v
               "The old address stays in your list. Delete it again once those deliveries are done.",
             )}`
           : t(
-              "Alamat lama masih dipakai untuk pembayaran yang belum selesai, jadi belum terhapus. Hapus lagi setelah pembayaran itu selesai atau kedaluwarsa.",
-              "The old address is still used by a payment that has not finished, so it was not deleted. Delete it again once that payment is done or has expired.",
+              "Alamat lama belum terhapus karena masih dipakai pembayaran yang belum selesai. Hapus lagi setelah pembayaran selesai atau kedaluwarsa.",
+              "The old address wasn't deleted because an unfinished payment still uses it. Delete it again once that payment is done or expired.",
             );
         const schedule = await confirm({
           title: result.moved

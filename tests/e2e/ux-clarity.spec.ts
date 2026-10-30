@@ -151,7 +151,7 @@ for (const locale of ["id", "en"] as const) {
       );
       await page.goto("/home");
       const urgent = page.getByRole("region", {
-        name: t("Perlu tindakan Anda", "Action needed"),
+        name: t("Perlu kamu urus", "Action needed"),
         exact: true,
       });
       const updates = page.getByRole("region", {
@@ -159,7 +159,7 @@ for (const locale of ["id", "en"] as const) {
         exact: true,
       });
       const review = page.getByRole("region", {
-        name: t("Pemesanan perlu ditinjau", "Booking needs review"),
+        name: t("Pesanan perlu dicek", "Order needs review"),
         exact: true,
       });
       const later = page.locator(".customer-actions.later");
@@ -171,7 +171,7 @@ for (const locale of ["id", "en"] as const) {
       ).toHaveText("3");
       await expect(
         review.getByLabel(
-          t("Jumlah pemesanan ditinjau", "Booking review count"),
+          t("Jumlah pesanan dicek", "Order review count"),
         ),
       ).toHaveText("1");
       await expect(updates.locator(".action-count")).toHaveCount(0);
@@ -291,7 +291,7 @@ for (const locale of ["id", "en"] as const) {
               ? supported
               : coverage === "outside"
                 ? unsupported
-                : t("Pilih area Anda", "Choose your area"),
+                : t("Pilih areamu", "Choose your area"),
           );
         const message =
           coverage === "eligible"
@@ -320,7 +320,7 @@ for (const locale of ["id", "en"] as const) {
         await expect(booking.locator(".delivery-coverage")).toHaveText(
           coverage === "unknown" || coverage === "cleared"
             ? t(
-                "Jangkauan pengantaran akan diperiksa setelah Anda memilih alamat saat checkout.",
+                "Jangkauan pengantaran dicek setelah kamu memilih alamat saat checkout.",
                 "Delivery coverage will be checked after you choose an address at checkout.",
               )
             : message,

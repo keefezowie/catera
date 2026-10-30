@@ -91,7 +91,7 @@ export function Notifications({ seller = false }: { seller?: boolean }) {
             {failed.includes(n.id) && (
               <ErrorNotice
                 message={t(
-                  "Status baca belum tersimpan. Coba lagi; tautan tetap dapat dibuka.",
+                  "Status baca belum tersimpan. Coba lagi; tautan tetap bisa dibuka.",
                   "Read status was not saved. Try again; the task link remains available.",
                 )}
                 retry={() => void markRead(n.id)}

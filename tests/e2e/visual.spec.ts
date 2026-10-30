@@ -7,7 +7,7 @@ test("marketplace desktop and phone render with food, filters and navigation", a
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
   await expect(
-    page.getByRole("region", { name: "Katerer pilihan" }),
+    page.getByRole("region", { name: "Katering pilihan" }),
   ).toBeVisible();
   const catalog = (
     await (await page.request.get("/api/v1/catalog?limit=100")).json()

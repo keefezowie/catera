@@ -15,7 +15,7 @@ import { WaitingList } from "./WaitingList";
  */
 export function PerluDiurus() {
   const { actor, ready, t } = useMobile();
-  const title = t("Perlu kamu urus", "Needs you");
+  const title = t("Perlu kamu urus", "Needs your attention");
   // Before the session is known the page is already the list's shape under its title.
   if (!ready)
     return (

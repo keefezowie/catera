@@ -117,6 +117,6 @@ describe("EmptyHome mood header", () => {
     const header = await screen.findByTestId("beranda-header");
     expect(within(header).getByText("Beranda")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Masuk" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Cari paket" })).toBeTruthy();
   });
 });

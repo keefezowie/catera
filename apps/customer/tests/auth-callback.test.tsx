@@ -200,7 +200,7 @@ describe("verified", () => {
       request_id: expect.any(String),
     });
     expect(store.has("catera.auth.pending")).toBe(false);
-    fireEvent.press(screen.getByRole("button", { name: "Mulai" }));
+    fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/checkout/package?cycles=3"));
   });
 
@@ -336,7 +336,7 @@ describe("a Google code that arrives as a deep link", () => {
     googleCode();
     actorRpc({ id: "g-user", role: "customer", name: "Pelanggan", phone: null });
     renderCallback();
-    expect(await screen.findByText("Halo! Siapa namamu?")).toBeTruthy();
+    expect(await screen.findByText("Siapa namamu?")).toBeTruthy();
     expect(screen.getByLabelText("Nama").props.value).toBe("Sari Wulandari");
     expect(router.replace).not.toHaveBeenCalled();
   });

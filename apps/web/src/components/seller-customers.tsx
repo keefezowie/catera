@@ -55,7 +55,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
     setActionError(
       errorLabel(e instanceof Error ? e.message : "", locale) ||
         t(
-          "Tidak dapat menyelesaikan tindakan. Coba lagi.",
+          "Tidak bisa menyelesaikan tindakan. Coba lagi.",
           "Could not complete this action. Try again.",
         ),
     );
@@ -250,7 +250,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
           message={
             changed
               ? t(
-                  "Perubahan tersimpan, tetapi jadwal belum berhasil dimuat ulang.",
+                  "Perubahan tersimpan, tetapi jadwal belum bisa dimuat ulang.",
                   "Change saved, but the schedule could not be refreshed.",
                 )
               : state.error
@@ -274,7 +274,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                   "Try another search or clear the filters to see other customers.",
                 )
               : t(
-                  "Pelanggan muncul otomatis setelah membeli langganan paket Anda.",
+                  "Pelanggan muncul otomatis setelah membeli langganan paketmu.",
                   "Customers appear automatically after purchasing one of your packages.",
                 )
           }
@@ -323,11 +323,11 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                       <span>
                         {c.user_id
                           ? t("Akun terhubung", "Account connected")
-                          : t("Dikelola katerer", "Seller managed")}
+                          : t("Dikelola katering", "Seller managed")}
                       </span>
                       <span>
                         {c.origin === "seller"
-                          ? t("Pelanggan katerer", "Seller customer")
+                          ? t("Pelanggan katering", "Seller customer")
                           : t("Melalui marketplace", "Marketplace customer")}
                       </span>
                     </div>
@@ -348,7 +348,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                         ? shortDate.format(
                             new Date(`${nextDelivery}T12:00:00Z`),
                           )
-                        : "—"}
+                        : "-"}
                     </strong>
                     <small>{t("Berikutnya", "Next delivery")}</small>
                   </span>
@@ -385,8 +385,8 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                             url: location.origin + r.path,
                             phone: r.phone,
                             message: t(
-                              "Kelola jadwal katering Anda di Catera. Verifikasi nomor telepon untuk menghubungkan langganan:",
-                              "Manage your catering schedule on Catera. Verify your phone to connect your subscription:",
+                              "Atur jadwal kateringmu di Catera. Verifikasi nomor HP supaya langgananmu tersambung:",
+                              "Manage your catering schedule on Catera. Verify your phone number so your subscription connects:",
                             ),
                           });
                         } catch (e) {
@@ -403,7 +403,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
               {c.claim_review && (
                 <p role="status" className="notice">
                   {t(
-                    "Pengaitan akun perlu ditinjau. Periksa kepemilikan dan jadwal sebelum pelanggan mencoba lagi.",
+                    "Pengaitan akun perlu dicek. Periksa kepemilikan dan jadwal sebelum pelanggan mencoba lagi.",
                     "Account linking needs review. Check ownership and schedules before the customer retries.",
                   )}
                 </p>
@@ -478,7 +478,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                                 ? shortDate.format(
                                     new Date(`${s.next_delivery}T12:00:00Z`),
                                   )
-                                : "—"}
+                                : "-"}
                             </dd>
                           </div>
                         </dl>
@@ -486,7 +486,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                           {s.payment_route === "catera"
                             ? t("Dibayar melalui Catera", "Paid through Catera")
                             : t(
-                                "Pembayaran eksternal dilaporkan katerer",
+                                "Pembayaran eksternal dilaporkan katering",
                                 "External payment reported by seller",
                               )}
                           {" · "}
@@ -523,8 +523,8 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                                         url: location.origin + r.path,
                                         phone: c.phone!,
                                         message: t(
-                                          "Paket katering Anda hampir selesai. Tinjau jadwal dan harga pembelian berikutnya:",
-                                          "Your catering package is nearly finished. Review the schedule and price for your next purchase:",
+                                          "Paketmu hampir selesai. Cek jadwal dan harga pembelian berikutnya:",
+                                          "Your package is almost finished. Check the schedule and price for your next purchase:",
                                         ),
                                       });
                                     } catch (e) {
@@ -581,7 +581,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
             {t("Sebelumnya", "Previous")}
           </Button>
           <span>
-            {offset + 1}–{Math.min(offset + 100, data.total)} / {data.total}
+            {offset + 1}-{Math.min(offset + 100, data.total)} {t("dari", "of")} {data.total}
           </span>
           <Button
             disabled={offset + 100 >= data.total}
@@ -669,7 +669,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
             <p>{share.message}</p>
             <p className="notice">
               {t(
-                "Anda memilih kapan mengirim. Catera tidak dapat memastikan pesan WhatsApp terkirim atau dibaca.",
+                "Kamu memilih kapan mengirim. Catera tidak bisa memastikan pesan WhatsApp terkirim atau dibaca.",
                 "You choose when to send. Catera cannot confirm WhatsApp delivery or reading.",
               )}
             </p>

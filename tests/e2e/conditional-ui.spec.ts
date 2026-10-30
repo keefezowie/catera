@@ -133,7 +133,7 @@ test("optional nutrition reveals invalid ranges and retains values across collap
     .fill("Synthetic optional-field validation.");
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page
-    .getByRole("button", { name: "Gunakan foto sintetis demo", exact: true })
+    .getByRole("button", { name: "Gunakan foto contoh demo", exact: true })
     .click();
   const section = page
     .locator(".optional-section")
@@ -326,7 +326,7 @@ for (const width of [390, 1440]) {
       .fill("Synthetic preview verification.");
     await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
     await page
-      .getByRole("button", { name: "Gunakan foto sintetis demo", exact: true })
+      .getByRole("button", { name: "Gunakan foto contoh demo", exact: true })
       .click();
     const trigger = page.getByRole("button", {
       name: "Lihat foto: Foto paket",
@@ -541,7 +541,7 @@ for (const width of [390, 1440]) {
       route.fulfill({ status: 409, json: { error: { code: "CONFLICT" } } }),
     );
     for (const [path, label] of [
-      ["support", "Rekonsiliasi refund"],
+      ["support", "Rekonsiliasi pengembalian dana"],
       ["payouts", "Rekonsiliasi pencairan"],
     ]) {
       await page.goto("/admin/" + path);

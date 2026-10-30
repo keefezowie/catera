@@ -198,7 +198,7 @@ it("says a meal the caterer could not deliver is not coming, with chat and a rep
   expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Belum" })).toBeNull();
   // The plate's own chat, the only one on Beranda.
-  fireEvent.press(screen.getByRole("button", { name: "Chat katering" }));
+  fireEvent.press(screen.getByRole("button", { name: "Chat Dapur Contoh" }));
   expect(openUrl).toHaveBeenCalledWith("https://wa.me/6281200000001?text=");
   fireEvent.press(screen.getByRole("button", { name: "Ada masalah" }));
   expect(router.push).toHaveBeenCalledWith("/masalah/d-today?meal=lunch");
@@ -229,12 +229,12 @@ it("EmptyHome shows loading then error with Coba lagi", async () => {
   // The three suggested packages wait as their skeleton (one progress bar), the rest of the page is already there.
   expect(await screen.findByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
   expect(screen.getByTestId("offers-skeleton")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Cari paket" })).toBeTruthy();
   release();
   const message = await screen.findByText(/Belum bisa memuat|Cek koneksi/);
   expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
   expect(screen.queryByTestId("offers-skeleton")).toBeNull();
-  expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Cari paket" })).toBeTruthy();
   fail = false;
   fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
   expect(await screen.findByText("Nasi Ayam Bakar")).toBeTruthy();
@@ -264,7 +264,7 @@ it("EmptyHome says so when the catalog has no packages", async () => {
   renderHome(runtimeWith(async () => customerState(null), null));
   expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
   expect(screen.queryByTestId("offers-skeleton")).toBeNull();
-  expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Cari paket" })).toBeTruthy();
 });
 
 it("EmptyHome prices a combined package per meal, not per day", async () => {
@@ -350,10 +350,10 @@ it("asks for a review once near the end", async () => {
   );
   renderList(runtime);
   // The row opens the form as a sheet route over Beranda, where "Nanti saja" puts it off for good.
-  fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
+  fireEvent.press(await screen.findByText("Gimana Dapur Contoh selama ini?"));
   expect(router.push).toHaveBeenCalledWith("/ulasan/s-1");
   fireEvent.press(await screen.findByRole("button", { name: "Nanti saja" }));
-  await waitFor(() => expect(screen.queryByText("Bagaimana Dapur Contoh selama ini?")).toBeNull());
+  await waitFor(() => expect(screen.queryByText("Gimana Dapur Contoh selama ini?")).toBeNull());
   expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-1", "dismissed");
 });
 
@@ -363,7 +363,7 @@ it("sends the review with the existing review.save payload", async () => {
     customerState(null, { subscription: { remaining: 2 }, past: [past] }),
   );
   renderList(runtime);
-  fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
+  fireEvent.press(await screen.findByText("Gimana Dapur Contoh selama ini?"));
   fireEvent.press(await screen.findByRole("button", { name: "4 bintang" }));
   fireEvent.changeText(screen.getByLabelText("Cerita singkat (opsional)"), "Enak dan tepat waktu");
   fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
@@ -374,7 +374,7 @@ it("sends the review with the existing review.save payload", async () => {
       expect.any(String),
     ),
   );
-  await waitFor(() => expect(screen.queryByText("Bagaimana Dapur Contoh selama ini?")).toBeNull());
+  await waitFor(() => expect(screen.queryByText("Gimana Dapur Contoh selama ini?")).toBeNull());
 });
 
 it("signed out shows Mau makan apa minggu ini?", async () => {
@@ -551,7 +551,7 @@ describe("design tokens", () => {
   it("unselected star is outlined and muted", async () => {
     const past = delivery("d-past", addDays(TODAY, -1), { status: "delivered" }, { status: "delivered" });
     renderList(runtimeWith(async () => customerState(null, { subscription: { remaining: 2 }, past: [past] })));
-    fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
+    fireEvent.press(await screen.findByText("Gimana Dapur Contoh selama ini?"));
     fireEvent.press(await screen.findByRole("button", { name: "3 bintang" }));
     const glyph = (n: number) => {
       const star = screen.getByRole("button", { name: `${n} bintang` });

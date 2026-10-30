@@ -97,7 +97,7 @@ export function RecapCard({
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
         <Button
-          label={t("Lanjutkan paket", "Continue this plan")}
+          label={t("Perpanjang", "Renew")}
           onPress={() => {
             track("renew_started");
             router.push(`/renew/${encodeURIComponent(sub.id)}` as never);

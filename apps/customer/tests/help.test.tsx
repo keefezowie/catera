@@ -471,12 +471,12 @@ describe("Bantuan dan laporan", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Minta Catera meninjau" }));
     // The form is a native sheet over the list, opened for this report.
     expect(router.push).toHaveBeenCalledWith("/bantuan-form?kind=review&issue=i-1");
-    const send = await screen.findByRole("button", { name: "Kirim ke Catera" });
+    const send = await screen.findByRole("button", { name: "Kirim" });
     // The primary action is pinned in the sheet's footer, not in the scrolling content.
-    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim ke Catera" })).toBeTruthy();
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim" })).toBeTruthy();
     expect(send.props.accessibilityState.disabled).toBe(true);
     fireEvent.changeText(screen.getByLabelText("Apa yang belum beres?"), "Makanan tetap tidak datang");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim ke Catera" }));
+    fireEvent.press(screen.getByRole("button", { name: "Kirim" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
         "deliveryIssue.escalate",
@@ -591,16 +591,16 @@ describe("Bantuan: asking Catera to review an ignored report", () => {
   afterAll(() => jest.useRealTimers());
   beforeEach(() => jest.setSystemTime(new Date("2026-10-07T03:00:00Z")));
 
-  it("says why Kirim ke Catera is off until five characters are written", async () => {
+  it("says why Kirim is off until five characters are written", async () => {
     jest.setSystemTime(new Date("2026-10-07T05:01:00Z"));
     renderWith(runtimeWith({ issues: [issue({ status: "open", created_at: "2026-10-06T16:30:00Z" })] }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta Catera meninjau" }));
     const reason = "Tulis minimal 5 karakter.";
     expect(await screen.findByText(reason)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Kirim ke Catera" }).props.accessibilityHint).toBe(reason);
+    expect(screen.getByRole("button", { name: "Kirim" }).props.accessibilityHint).toBe(reason);
     fireEvent.changeText(screen.getByLabelText("Apa yang belum beres?"), "Belum beres");
     expect(screen.queryByText(reason)).toBeNull();
-    expect(screen.getByRole("button", { name: "Kirim ke Catera" }).props.accessibilityHint).toBeUndefined();
+    expect(screen.getByRole("button", { name: "Kirim" }).props.accessibilityHint).toBeUndefined();
     fireEvent.changeText(screen.getByLabelText("Apa yang belum beres?"), "");
   });
 
@@ -629,7 +629,7 @@ describe("Bantuan: asking Catera to review an ignored report", () => {
     );
     fireEvent.press(await screen.findByRole("button", { name: "Minta Catera meninjau" }));
     fireEvent.changeText(await screen.findByLabelText("Apa yang belum beres?"), "Belum ada balasan sama sekali");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim ke Catera" }));
+    fireEvent.press(screen.getByRole("button", { name: "Kirim" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
         "deliveryIssue.escalate",
@@ -665,11 +665,11 @@ describe("Bantuan: Minta bantuan", () => {
     const reason = "Pilih paket dan topik, lalu tulis minimal 5 karakter.";
     expect(await screen.findByText(reason)).toBeTruthy();
     expect(flat(screen.getByText(reason)).fontSize).toBe(13);
-    expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityHint).toBe(reason);
+    expect(screen.getByRole("button", { name: "Kirim" }).props.accessibilityHint).toBe(reason);
     fireEvent.press(await topic("Pembatalan"));
     fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota");
     expect(screen.queryByText(reason)).toBeNull();
-    expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityHint).toBeUndefined();
+    expect(screen.getByRole("button", { name: "Kirim" }).props.accessibilityHint).toBeUndefined();
     // The form keeps its draft between renders; leave none for the next test.
     fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "");
   });
@@ -695,10 +695,10 @@ describe("Bantuan: Minta bantuan", () => {
     expect(router.push).toHaveBeenCalledWith("/bantuan-form?kind=help");
     fireEvent.press(await topic("Pembatalan"));
     // The primary action is pinned in the sheet's footer, not in the scrolling content.
-    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim permintaan" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityState.disabled).toBe(true);
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Kirim" }).props.accessibilityState.disabled).toBe(true);
     fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota, mohon dibatalkan");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
+    fireEvent.press(screen.getByRole("button", { name: "Kirim" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
         "support.create",
@@ -721,7 +721,7 @@ describe("Bantuan: Minta bantuan", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
     fireEvent.press(await topic("Lainnya"));
     fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Pertanyaan soal paket");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
+    fireEvent.press(screen.getByRole("button", { name: "Kirim" }));
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
     expect(await screen.findByLabelText("Ceritakan masalahnya")).toBeTruthy();
   });
@@ -735,7 +735,7 @@ describe("Bantuan: Minta bantuan", () => {
     fireEvent.press(screen.getByRole("radio", { name: "Makan Malam Sehat" }));
     fireEvent.press(await topic("Pembayaran"));
     fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Sudah bayar tapi belum aktif");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
+    fireEvent.press(screen.getByRole("button", { name: "Kirim" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
         "support.create",
@@ -789,7 +789,7 @@ describe("Bantuan: Minta bantuan", () => {
     expect(screen.queryByRole("button", { name: "Makan Siang Rumahan" })).toBeNull();
     fireEvent.press(await topic("Lainnya"));
     fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Bisa ganti alamat?");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
+    fireEvent.press(screen.getByRole("button", { name: "Kirim" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
         "support.create",

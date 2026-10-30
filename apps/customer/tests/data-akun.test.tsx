@@ -103,7 +103,7 @@ describe("Data akun", () => {
   it("Data akun hides the password row for phone accounts", async () => {
     const { runtime } = runtimeWith({ user: phoneUser });
     renderWith(runtime, <DataAkun />);
-    expect(await screen.findByRole("button", { name: /^Nomor HP, 0812-3456-7890/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-3456-7890/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Nama, Rani Contoh/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Email/ })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Kata sandi" })).toBeNull();
@@ -148,8 +148,8 @@ describe("Data akun", () => {
   it("saves the number as a plain field through profile.update, with no SMS code", async () => {
     const { runtime, auth } = runtimeWith({ user: phoneUser });
     renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Nomor HP, 0812-3456-7890/ }));
-    const field = screen.getByLabelText("Nomor HP");
+    fireEvent.press(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-3456-7890/ }));
+    const field = screen.getByLabelText("Nomor WhatsApp");
     expect(field.props.value).toBe("0812-3456-7890");
     expect(screen.getByRole("button", { name: "Simpan nomor" }).props.accessibilityState.disabled).toBe(true);
     fireEvent.changeText(field, "0812 5555 0000");
@@ -157,7 +157,7 @@ describe("Data akun", () => {
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith("profile.update", { phone: "+6281255550000" }, expect.any(String)),
     );
-    expect(await screen.findByText("Nomor HP disimpan")).toBeTruthy();
+    expect(await screen.findByText("Nomor WhatsApp disimpan")).toBeTruthy();
     expect(auth.updateUser).not.toHaveBeenCalled();
     expect(auth.verifyOtp).not.toHaveBeenCalled();
     expect(screen.queryByLabelText(/Kode/)).toBeNull();
@@ -166,12 +166,12 @@ describe("Data akun", () => {
   it("refuses a malformed number before the server, and an emptied field clears it", async () => {
     const { runtime } = runtimeWith({ user: phoneUser });
     renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Nomor HP, / }));
-    fireEvent.changeText(screen.getByLabelText("Nomor HP"), "0812");
+    fireEvent.press(await screen.findByRole("button", { name: /^Nomor WhatsApp, / }));
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812");
     fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
-    expect(await screen.findByText("Nomor HP belum benar. Periksa lagi.")).toBeTruthy();
+    expect(await screen.findByText("Nomor WhatsApp belum benar. Cek lagi.")).toBeTruthy();
     expect(runtime.api.command).not.toHaveBeenCalledWith("profile.update", expect.anything(), expect.any(String));
-    fireEvent.changeText(screen.getByLabelText("Nomor HP"), "");
+    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "");
     fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledWith("profile.update", { phone: null }, expect.any(String)));
   });
@@ -180,7 +180,7 @@ describe("Data akun", () => {
     const { runtime } = runtimeWith({ user: emailUser });
     (runtime.api.me as jest.Mock).mockResolvedValue({ actor: { ...actor, phone: "+6281299990001" }, demo: false });
     renderWith(runtime, <DataAkun />);
-    expect(await screen.findByRole("button", { name: /^Nomor HP, 0812-9999-0001/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-9999-0001/ })).toBeTruthy();
   });
 
   it("asks for the email change by link and says nothing has changed yet", async () => {
@@ -435,7 +435,7 @@ describe("Data akun reads", () => {
     expect(screen.getByLabelText("Memuat data akun")).toBeTruthy();
     expect(screen.getAllByTestId("list-skeleton-row")).toHaveLength(2);
     expect(screen.queryByText("Belum ada")).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Nomor HP/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Nomor WhatsApp/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Hapus akun" })).toBeTruthy();
   });
 
@@ -447,7 +447,7 @@ describe("Data akun reads", () => {
     expect(screen.queryByText("Belum ada")).toBeNull();
     expect(screen.queryByTestId("list-skeleton")).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
-    expect(await screen.findByRole("button", { name: /^Nomor HP, 0812-3456-7890/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-3456-7890/ })).toBeTruthy();
     expect(screen.queryByText(/^Belum bisa memuat nomor HP/)).toBeNull();
   });
 
@@ -458,13 +458,13 @@ describe("Data akun reads", () => {
     expect(await screen.findByText(/^Belum bisa memuat nomor HP dan email/)).toBeTruthy();
     expect(screen.queryByText("Belum ada")).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
-    expect(await screen.findByRole("button", { name: /^Nomor HP, 0812-3456-7890/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-3456-7890/ })).toBeTruthy();
   });
 
   it("a person with no phone or email still reads 'Belum ada' once the session answered", async () => {
     const { runtime } = runtimeWith({ user: { id: "u-c1", app_metadata: { provider: "email" } } });
     renderWith(runtime, <DataAkun />);
-    expect(await screen.findByRole("button", { name: /^Nomor HP, Belum ada/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, Belum ada/ })).toBeTruthy();
   });
 
   it("a failed read of the deletion request offers a retry for that section only", async () => {
@@ -472,7 +472,7 @@ describe("Data akun reads", () => {
     (runtime.api.request as jest.Mock).mockRejectedValueOnce(new Error("REQUEST_TIMEOUT"));
     renderWith(runtime, <DataAkun />);
     expect(await screen.findByText(/^Belum bisa memeriksa permintaan hapus akun/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^Nomor HP, 0812/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Nomor WhatsApp, 0812/ })).toBeTruthy();
     (runtime.api.request as jest.Mock).mockResolvedValueOnce([{ id: "r1", kind: "deletion", status: "open" }]);
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Permintaan sudah terkirim")).toBeTruthy();

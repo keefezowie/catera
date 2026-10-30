@@ -206,7 +206,7 @@ export function MenuCalendar({
         );
       case "caterer_choice":
         return t(
-          "Batas lewat · katerer memilih",
+          "Batas lewat · katering memilih",
           "Cutoff passed · caterer chooses",
         );
       default:
@@ -508,12 +508,12 @@ export function MenuCalendar({
       setError(
         (e as { code?: string }).code === "OPTION_CHANGED"
           ? t(
-              "Pilihan hidangan telah diperbarui. Draf Anda tetap ada; muat ulang tanggal dan pilih hidangan yang tersedia.",
+              "Pilihan hidangan sudah diperbarui. Drafmu tetap ada; muat ulang tanggal dan pilih hidangan yang tersedia.",
               "Dish options changed. Your draft is retained; reload the dates and choose available dishes.",
             )
           : (e as { code?: string }).code === "CONFLICT"
             ? t(
-                "Menu berubah sejak dibuka. Draft Anda tetap ada; muat ulang tanggal sebelum mencoba lagi.",
+                "Menu berubah sejak dibuka. Draftmu tetap ada; muat ulang tanggal sebelum mencoba lagi.",
                 "Menus changed since opening. Your draft is retained; reload the dates before retrying.",
               )
             : t(
@@ -564,7 +564,7 @@ export function MenuCalendar({
     } catch {
       setError(
         t(
-          "Menu berubah atau batas waktu telah lewat. Muat ulang tanggal.",
+          "Menu berubah atau batas waktu sudah lewat. Muat ulang tanggal.",
           "Menu changed or cutoff passed. Reload the dates.",
         ),
       );
@@ -578,10 +578,10 @@ export function MenuCalendar({
         <p>
           {t(
             query.get("package")
-              ? "Paket atau isi tersimpan ini tidak tersedia untuk ruang katerer Anda."
+              ? "Paket atau isi tersimpan ini tidak tersedia untuk dapurmu."
               : actor?.role === "owner"
                 ? "Siapkan paket untuk mulai menyusun menu."
-                : "Pemilik katerer perlu menyiapkan paket sebelum menu dapat disusun.",
+                : "Pemilik katering perlu menyiapkan paket sebelum menu bisa disusun.",
             query.get("package")
               ? "This package or saved content is not available in your workspace."
               : actor?.role === "owner"
@@ -676,7 +676,7 @@ export function MenuCalendar({
         busy={busy}
         open={resetConfirm}
         onOpenChange={setResetConfirm}
-        title={t("Serahkan menu ke katerer?", "Let the caterer choose?")}
+        title={t("Serahkan menu ke katering?", "Let the caterer choose?")}
         description={t(
           "Pilihan tersimpan untuk tanggal ini akan dihapus. Pengantaran tetap berjalan.",
           "Saved choices for these dates will be cleared. Deliveries continue.",
@@ -689,7 +689,7 @@ export function MenuCalendar({
             void resetCustomerMenu();
           }}
         >
-          {t("Ya, serahkan ke katerer", "Yes, let caterer choose")}
+          {t("Ya, serahkan ke katering", "Yes, let caterer choose")}
         </Button>
         <Button
           data-dialog-safe
@@ -704,7 +704,7 @@ export function MenuCalendar({
       {subscription && (
         <p className="notice">
           {t(
-            "Semua pilihan termasuk harga paket. Simpan sebelum batas waktu; jika belum memilih, katerer menentukan hidangan. Satu menu untuk semua porsi.",
+            "Semua pilihan termasuk harga paket. Simpan sebelum batas waktu; kalau belum memilih, katering menentukan hidangan. Satu menu untuk semua porsi.",
             "All choices are included. Save before cutoff; otherwise the caterer chooses. One menu applies to all portions.",
           )}
         </p>
@@ -848,7 +848,7 @@ export function MenuCalendar({
                 <p className="menu-calendar-legend">
                   <LockKeyhole size={14} aria-hidden="true" />
                   {t(
-                    "Tanggal terkunci hanya dapat dibaca · Pilih tanggal mendatang untuk mengedit",
+                    "Tanggal terkunci hanya bisa dibaca · Pilih tanggal mendatang untuk mengedit",
                     "Locked dates are read only · Choose a future date to edit",
                   )}
                 </p>
@@ -1095,7 +1095,7 @@ export function MenuCalendar({
                   <>
                     <p>
                       {t(
-                        "Menu tanggal ini hanya dapat dilihat.",
+                        "Menu tanggal ini hanya bisa dilihat.",
                         "This date's menu is read only.",
                       )}
                     </p>
@@ -1163,7 +1163,7 @@ export function MenuCalendar({
                           disabled={busy}
                           onClick={() => setResetConfirm(true)}
                         >
-                          {t("Serahkan ke katerer", "Let caterer choose")}
+                          {t("Serahkan ke katering", "Let caterer choose")}
                         </Button>
                       )}
                       <span>

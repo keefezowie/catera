@@ -328,7 +328,7 @@ function Form({
       <Text variant="caption">
         {t(
           "Mengubah alamat ini tidak mengubah pengantaran yang sudah terjadwal. Untuk itu, pakai Ubah hari di Jadwal.",
-          "A delivery already scheduled changes its address only through Change day in Schedule.",
+          "Changing this address doesn't change deliveries already scheduled. To do that, use Change day in Schedule.",
         )}
       </Text>
       {address ? (

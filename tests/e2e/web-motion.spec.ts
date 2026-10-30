@@ -114,7 +114,7 @@ for (const locale of ["id", "en"])
       await page.goto(checkoutPath);
       const review = () =>
         page.getByRole("button", {
-          name: t("Tinjau jadwal & harga", "Review schedule & price"),
+          name: t("Cek jadwal & harga", "Review schedule & price"),
           exact: true,
         });
       await review().click();

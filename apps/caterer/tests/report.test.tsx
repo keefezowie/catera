@@ -175,7 +175,7 @@ describe("Tandai selesai says what the customer will read", () => {
         <EnglishReport />
       </MobileProvider>,
     );
-    expect(await screen.findByText(`The customer will receive: “${note}”`)).toBeTruthy();
+    expect(await screen.findByText(`The customer will receive, in Indonesian: “${note}”`)).toBeTruthy();
     fireEvent.press(screen.getByText("Mark as done"));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(

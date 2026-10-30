@@ -346,7 +346,7 @@ for (const locale of ["id", "en"] as const) {
       const value = await date.getAttribute("data-value");
       expect(value).toBe(startDate);
       const review = page.getByRole("button", {
-        name: t("Tinjau jadwal & harga", "Review schedule & price"),
+        name: t("Cek jadwal & harga", "Review schedule & price"),
         exact: true,
       });
       await expect(review).toBeEnabled();
@@ -355,7 +355,7 @@ for (const locale of ["id", "en"] as const) {
       await expect(recovery).toBeVisible();
       await expect(date).toHaveAttribute("data-value", value!);
       const renewal = recovery
-        .getByRole("link", { name: t("Tinjau perpanjangan", "Review renewal") })
+        .getByRole("link", { name: t("Cek perpanjangan", "Review renewal") })
         .first();
       await expect(renewal).toHaveAttribute(
         "href",

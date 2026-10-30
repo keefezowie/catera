@@ -181,7 +181,7 @@ function HistoryRow({
           <>
             <small>
               {item.allocation_hold &&
-                t("Dana ditahan untuk peninjauan. ", "Funds held for review. ")}
+                t("Dana ditahan untuk dicek. ", "Funds held for review. ")}
               {item.refund_review &&
                 t(
                   "Pengembalian sedang direkonsiliasi. ",
@@ -376,7 +376,7 @@ function PayoutPage({
                   "This payout was cancelled before completion. Check your balance and held funds.",
                 )
               : t(
-                  "Pencairan tidak berhasil. Hubungi Catera dengan referensi ini untuk peninjauan.",
+                  "Pencairan tidak berhasil. Hubungi Catera dengan referensi ini.",
                   "This payout did not succeed. Contact Catera with this reference for review.",
                 )}
         </p>

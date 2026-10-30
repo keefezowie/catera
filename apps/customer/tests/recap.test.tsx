@@ -166,7 +166,7 @@ describe("the Paket selesai recap", () => {
     expect(card.getByText("Senin 21 Sep sampai Rabu 7 Okt")).toBeTruthy();
     // The photo is decoration for screen readers: the plan's name is in the text beside it.
     expect(card.getByTestId("recap-photo", { includeHiddenElements: true }).props.source).toEqual({ uri: "https://images.example.test/keluarga.jpg" });
-    expect(card.getByRole("button", { name: "Lanjutkan paket" })).toBeTruthy();
+    expect(card.getByRole("button", { name: "Perpanjang" })).toBeTruthy();
     expect(card.getByRole("button", { name: "Tutup" })).toBeTruthy();
     // No meal count: the read cannot count an old plan's meals truthfully (Ruling D5).
     expect(card.queryByText(/porsi|kali makan|hari antar/)).toBeNull();
@@ -250,10 +250,10 @@ describe("the Paket selesai recap", () => {
     expect(screen.getByTestId("plan-row-s-1")).toBeTruthy();
   });
 
-  it("Lanjutkan paket opens the renewal and counts renew_started on each tap", async () => {
+  it("Perpanjang opens the renewal and counts renew_started on each tap", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()]), usage));
-    const renew = screen.getByRole("button", { name: "Lanjutkan paket" });
+    const renew = screen.getByRole("button", { name: "Perpanjang" });
     fireEvent.press(renew);
     expect(router.push).toHaveBeenCalledWith("/renew/s-old");
     fireEvent.press(renew);
@@ -267,7 +267,7 @@ describe("the Paket selesai recap", () => {
 
   it("keeps both buttons at 48dp or taller", async () => {
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
-    for (const name of ["Lanjutkan paket", "Tutup"]) {
+    for (const name of ["Perpanjang", "Tutup"]) {
       const button = screen.getByRole("button", { name });
       expect(StyleSheet.flatten(button.props.style).minHeight).toBeGreaterThanOrEqual(48);
     }
@@ -296,7 +296,7 @@ describe("the Paket selesai recap", () => {
     expect(screen.getByTestId("recap-card")).toBeTruthy();
   });
 
-  it("shows from the offline copy, and Lanjutkan paket still opens the renewal", async () => {
+  it("shows from the offline copy, and Perpanjang still opens the renewal", async () => {
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValueOnce({
       savedAt: "2026-10-08T02:00:00Z",
       data: stateWith([livePlan(), endedPlan()]),
@@ -308,7 +308,7 @@ describe("the Paket selesai recap", () => {
       }),
     );
     expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
-    fireEvent.press(within(screen.getByTestId("recap-card")).getByRole("button", { name: "Lanjutkan paket" }));
+    fireEvent.press(within(screen.getByTestId("recap-card")).getByRole("button", { name: "Perpanjang" }));
     expect(router.push).toHaveBeenCalledWith("/renew/s-old");
   });
 
@@ -341,7 +341,7 @@ describe("the Paket selesai recap", () => {
     const card = within(await screen.findByTestId("recap-card"));
     expect(card.getByText("Plan finished")).toBeTruthy();
     expect(card.getByText("Mon 21 Sep to Wed 7 Oct")).toBeTruthy();
-    expect(card.getByRole("button", { name: "Continue this plan" })).toBeTruthy();
+    expect(card.getByRole("button", { name: "Renew" })).toBeTruthy();
     expect(card.getByRole("button", { name: "Close" })).toBeTruthy();
     expect(within(screen.getByTestId(PLANS)).getByText("Your plans")).toBeTruthy();
     await settle();

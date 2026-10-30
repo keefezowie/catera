@@ -123,7 +123,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
               <HeaderIconButton
                 icon="chat"
                 slot="trailing"
-                label={caterer ? t(`Chat ${caterer}`, `Chat ${caterer}`) : t("Chat katering", "Chat caterer")}
+                label={caterer ? t(`Chat ${caterer}`, `Message ${caterer}`) : t("Chat katering", "Message the caterer")}
                 onPress={() => openCatererChat(phone)}
               />
             )
@@ -166,7 +166,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
   // A cancelled plan offers nothing either: it names what happened and its dates.
   const footer = offline || cancelled ? null : action.kind === "renew" ? (
     <StickyAction
-      label={t("Lanjutkan paket", "Continue this plan")}
+      label={t("Perpanjang", "Renew")}
       onPress={() => {
         track("renew_started");
         router.push(action.href as never);
@@ -174,7 +174,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
     />
   ) : action.kind === "trial" ? (
     <StickyAction
-      label={t("Lanjutkan dengan paket penuh", "Continue with the full plan")}
+      label={t("Perpanjang paket penuh", "Renew the full plan")}
       onPress={() => router.push(action.href as never)}
     />
   ) : null;

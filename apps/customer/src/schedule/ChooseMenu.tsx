@@ -166,7 +166,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
     return (
       <Screen>
         <FadeSwap swapKey="missing" style={{ gap: 16 }}>
-          <Text variant="heading">{t("Paket tidak ditemukan.", "Package not found.")}</Text>
+          <Text variant="heading">{t("Paket tidak ditemukan.", "Plan not found.")}</Text>
           <Button label={t("Ke Jadwal", "Go to Schedule")} onPress={() => goToTab("jadwal")} />
         </FadeSwap>
       </Screen>
@@ -333,7 +333,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
           <Text variant="title">{offer.name}</Text>
           <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
             {t(
-              `Satu pilihan untuk semua ${subscription.portions} porsi. Tanpa biaya tambahan.`,
+              subscription.portions === 1 ? "Satu pilihan untuk porsimu. Tanpa biaya tambahan." : `Satu pilihan untuk semua ${subscription.portions} porsi. Tanpa biaya tambahan.`,
               subscription.portions === 1 ? "Your portion gets this choice. No extra charge." : `One choice for all ${subscription.portions} portions. No extra charge.`,
             )}
           </Text>
@@ -410,7 +410,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
               <Card>
                 <Text variant="heading">{longDay(selected.date, locale)}</Text>
                 <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-                  {stateLabel(selected)} · {t("batas pilihan", "choose by")} {cutoff(selected)}
+                  {stateLabel(selected)} · {t("batas pilih", "choose by")} {cutoff(selected)}
                 </Text>
                 {selected.details ? <Text>{menuSummary(selected.details, locale)}</Text> : null}
                 {editable(selected) && options.length ? (
@@ -421,7 +421,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 ) : (
                   <Text>
                     {t(
-                      "Kalau kamu belum menyimpan pilihan sebelum batas waktu, katering yang memilihkan menunya.",
+                      "Kalau belum kamu simpan sebelum batas pilih, katering yang pilihkan.",
                       "If you don't save a choice before the cutoff, the caterer picks for you.",
                     )}
                   </Text>
@@ -451,7 +451,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
             {!open ? (
               <FormError
                 message={t(
-                  "Batas memilih sudah lewat, jadi pilihan ini tidak bisa disimpan. Katering yang memilihkan.",
+                  "Batas pilih sudah lewat, jadi pilihan ini tidak bisa disimpan. Katering yang memilihkan.",
                   "The cutoff has passed, so this choice can't be saved. The caterer will pick.",
                 )}
               />
@@ -536,7 +536,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                   void confirm({
                     title: t("Hapus pilihan menu?", "Clear menu choice?"),
                     message: t(
-                      "Pilihan di tanggal-tanggal ini akan dihapus. Kalau kamu tidak memilih lagi sebelum batas waktu, katering yang memilihkan.",
+                      "Pilihan di tanggal-tanggal ini akan dihapus. Kalau kamu tidak memilih lagi sebelum batas pilih, katering yang memilihkan.",
                       "Your choices on these dates will be removed. If you don't choose again before the cutoff, the caterer picks.",
                     ),
                     confirmLabel: t("Hapus pilihan", "Clear choice"),

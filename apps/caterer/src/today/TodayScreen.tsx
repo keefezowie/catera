@@ -168,8 +168,8 @@ function KitchenAction({
             ? t("Hanya bisa untuk hari ini.", "Only possible for today.")
             : errorLabel(code, locale) ||
               (cook
-                ? t("Belum bisa menandai Dimasak. Coba lagi.", "Could not mark it as cooking. Try again.")
-                : t("Belum bisa menandai berangkat. Coba lagi.", "Could not mark it as out for delivery. Try again.")),
+                ? t("Belum bisa menandai Dimasak. Coba lagi.", "Couldn't mark it as cooking. Try again.")
+                : t("Belum bisa menandai berangkat. Coba lagi.", "Couldn't mark it as out for delivery. Try again.")),
       });
       onFailed();
     } finally {
@@ -484,7 +484,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           ) : day.data?.savedAt ? (
             <Text testID="day-kept" variant="meta">
               {t(
-                "Ini data terakhir yang tersimpan. Mulai masak dan Berangkat kembali setelah data diperbarui.",
+                "Ini data terakhir yang tersimpan. Tombol Mulai masak dan Berangkat muncul lagi setelah data diperbarui.",
                 "This is the last data saved. The Start cooking and Head out buttons come back once the data is refreshed.",
               )}
             </Text>

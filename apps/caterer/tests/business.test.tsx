@@ -219,7 +219,7 @@ const liveOffer = {
   trialMax: 2,
   capacity: { "1": 40, "2": 40, "3": 40, "4": 40, "5": 40 },
   tiers: [{ min: 10, percent: 5 }],
-  windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
+  windows: { lunch: "11.00-13.00", dinner: "17.00-19.00" },
   tags: [],
   image: "https://cdn.example.test/k-1/a.jpg",
   status: "published",

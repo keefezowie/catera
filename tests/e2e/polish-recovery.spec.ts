@@ -297,7 +297,7 @@ for (const locale of ["id", "en"]) {
     await page.goto("/admin");
     await page
       .getByRole("button", {
-        name: locale === "id" ? "Semua katerer" : "All caterers",
+        name: locale === "id" ? "Semua katering" : "All caterers",
         exact: true,
       })
       .click();
@@ -355,7 +355,7 @@ for (const locale of ["id", "en"]) {
     await page.goto("/admin");
     await page
       .getByRole("button", {
-        name: locale === "id" ? "Semua katerer" : "All caterers",
+        name: locale === "id" ? "Semua katering" : "All caterers",
         exact: true,
       })
       .click();
@@ -390,7 +390,7 @@ for (const locale of ["id", "en"]) {
       .filter({ hasText: "Synthetic case 0" })
       .click();
     const amount = page.getByLabel(
-      locale === "id" ? "Jumlah refund (Rp)" : "Refund amount (IDR)",
+      locale === "id" ? "Jumlah pengembalian dana (Rp)" : "Refund amount (IDR)",
       { exact: true },
     );
     const decision = page.getByLabel(
@@ -442,7 +442,7 @@ for (const locale of ["id", "en"]) {
     await page.goto("/admin");
     await page
       .getByRole("button", {
-        name: locale === "id" ? "Semua katerer" : "All caterers",
+        name: locale === "id" ? "Semua katering" : "All caterers",
         exact: true,
       })
       .click();

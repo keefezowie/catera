@@ -70,12 +70,12 @@ for (const locale of ["id", "en"] as const) {
         ).toBeTruthy();
         const headings: Record<string, [string, string]> = {
           login: ["Masuk", "Sign in"],
-          home: ["Makanan saya", "My meals"],
+          home: ["Beranda", "Home"],
           calendar: ["Jadwal makan", "Meal calendar"],
           account: ["Akun", "Account"],
           menus: ["Menu", "Menus"],
           packages: ["Paket", "Packages"],
-          admin: ["Verifikasi katerer", "Caterer verification"],
+          admin: ["Verifikasi katering", "Caterer verification"],
         };
         if (headings[name])
           await expect(page.locator("main h1").first()).toHaveText(

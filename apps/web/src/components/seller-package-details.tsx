@@ -59,7 +59,7 @@ export function SellerPackageDetails({ offer: o }: { offer: SellerOffer }) {
           <dd>
             {o.menuSelectionMode === "customer"
               ? t("Pelanggan memilih", "Customer chooses")
-              : t("Katerer memilih", "Caterer chooses")}
+              : t("Katering memilih", "Caterer chooses")}
           </dd>
         </div>
         <div>
@@ -114,7 +114,7 @@ export function SellerPackageDetails({ offer: o }: { offer: SellerOffer }) {
       </p>
       <p>
         {t(
-          "Setelah tayang, harga dasar, isi, dan mode pilihan menu tetap. Durasi dan diskon dapat diperbarui untuk pembelian baru saja. Menu bertanggal dapat disiapkan setelah publikasi.",
+          "Setelah tayang, harga dasar, isi, dan mode pilihan menu tetap. Durasi dan diskon bisa diperbarui untuk pembelian baru saja. Menu bertanggal bisa disiapkan setelah publikasi.",
           "After publication, base price, contents, and menu selection mode are fixed. Duration options and discounts can change for new purchases only. Dated menus can be prepared after publication.",
         )}
       </p>

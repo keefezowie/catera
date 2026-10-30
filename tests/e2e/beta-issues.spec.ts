@@ -41,7 +41,7 @@ for (const locale of ["id","en"]) test(`delivery issue -> seller attention -> re
  await page.request.post("/api/v1/auth/demo",{data:{role:"customer"}});
  await page.goto("/support?issue="+issue.id);
  await expect(region).toContainText("Synthetic replacement was received");
- await region.getByText(/Minta Catera meninjau|Ask Catera to review/,{exact:true}).click();
+ await region.getByText(/Minta Catera cek|Ask Catera to review/,{exact:true}).click();
  await region.getByRole("textbox",{name:/Alasan eskalasi|Escalation reason/}).fill("Synthetic unresolved monetary question");
  await region.getByRole("button",{name:/Eskalasi ke Catera|Escalate to Catera/}).click();
  await expect(region).toContainText(/Diteruskan ke Catera|Sent to Catera/);

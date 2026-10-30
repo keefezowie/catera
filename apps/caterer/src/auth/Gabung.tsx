@@ -110,7 +110,7 @@ export function Gabung() {
       <AuthScreen revealKey={run.failures}>
         <CheckEmail
           email={email.trim()}
-          intro={t("Kalau email ini bisa didaftarkan, tautan verifikasi sudah kami kirim ke", "If this email can be registered, we've sent a verification link to")}
+          intro={t("Kalau emailnya bisa dipakai, kami kirim tautan verifikasi ke", "If this email can be used, we'll send a verification link to")}
           resent={resent}
           resendBusy={run.busy}
           error={failed}
@@ -120,7 +120,7 @@ export function Gabung() {
             setSent(false);
           }}
         />
-        <Button variant="text" label={t("Kembali ke Masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={toMasuk} />
+        <Button variant="text" label={t("Kembali ke halaman masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={toMasuk} />
       </AuthScreen>
     );
 

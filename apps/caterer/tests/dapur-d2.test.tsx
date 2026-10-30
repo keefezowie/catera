@@ -152,7 +152,7 @@ describe("Hari ini", () => {
     ["dark", true],
   ] as const)("steps the second and third setup tiles off their card in %s, with continuous corners", async (name, dark) => {
     show(runtimeWith({ sellerOperations: jest.fn(async () => emptyDay()) }), <TodayScreen />, { dark });
-    const tile = await screen.findByRole("button", { name: /Pindahkan pelanggan lama/ });
+    const tile = await screen.findByRole("button", { name: /Impor pelanggan lama/ });
     const palette = nativeThemes[name];
     expect(flat(tile).backgroundColor).toBe(palette.well);
     expect(flat(tile).backgroundColor).not.toBe(palette.surface);

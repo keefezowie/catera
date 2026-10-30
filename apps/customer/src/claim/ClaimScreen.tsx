@@ -135,8 +135,8 @@ export function ClaimScreen() {
       if (c === "CLAIM_UNAVAILABLE")
         return fail(
           t(
-            `Nomornya belum cocok dengan catatan ${katering}, atau tautannya sudah tidak berlaku. Periksa nomornya, atau minta tautan baru ke ${katering}.`,
-            `The number doesn't match ${katering}'s record, or the link no longer works. Check the number, or ask ${katering} for a new link.`,
+            `Nomor belum cocok atau tautan sudah tidak berlaku. Cek nomornya, atau minta tautan baru ke ${katering}.`,
+            `The number doesn't match or the link has expired. Check the number, or ask ${katering} for a new link.`,
           ),
         );
       if (c === "INVALID_INPUT") throw e;
@@ -193,7 +193,7 @@ export function ClaimScreen() {
         <Text>
           {t(
             `${katering} perlu mengecek langganan ini dulu. Pengantaranmu tetap jalan.`,
-            `${katering} needs to check this subscription first. Your deliveries carry on.`,
+            `${katering} needs to check this subscription first. Your deliveries continue as planned.`,
           )}
         </Text>
         <Button label={t("Ke Beranda", "Go to Home")} onPress={() => goToTab("index")} />
@@ -245,7 +245,7 @@ export function ClaimScreen() {
       />
       <PackageCard preview={preview} />
       <Field
-        label={t("Nomor HP", "Phone number")}
+        label={t("Nomor WhatsApp", "WhatsApp number")}
         {...authFields.phone}
         value={phone}
         onChangeText={setPhone}

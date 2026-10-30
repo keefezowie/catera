@@ -7,11 +7,11 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
   useEffect(() => setEnglish(document.documentElement.lang === "en"), []);
   return (
     <main className="error-page">
-      <h1>{english ? "Something did not load." : "Ada yang belum berhasil dimuat."}</h1>
+      <h1>{english ? "Something didn't load." : "Ada yang belum bisa dimuat."}</h1>
       <p>
         {english
-          ? "Your data is still saved. Please try once more."
-          : "Data Anda tetap tersimpan. Silakan coba sekali lagi."}
+          ? "Your data is still saved. Try again."
+          : "Datamu tetap tersimpan. Coba lagi."}
       </p>
       <Button variant="primary" onClick={reset}>
         {english ? "Try again" : "Coba lagi"}

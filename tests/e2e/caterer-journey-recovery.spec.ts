@@ -83,7 +83,7 @@ for (const locale of ["id", "en"])
       }),
     ).toBeVisible();
     await expect(
-      page.getByText(/Explore caterers|Jelajah katerer/),
+      page.getByText(/Explore caterers|Cari katering/),
     ).toHaveCount(0);
     await page.unrouteAll();
     await page.route("**/api/v1/seller-customers/**", (route) =>

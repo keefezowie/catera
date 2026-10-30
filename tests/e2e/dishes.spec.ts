@@ -74,7 +74,7 @@ test("uses one shared recurring capacity for every selected operating day", asyn
     .fill("Paket sintetis untuk menguji kapasitas harian bersama.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
   await page
-    .getByRole("button", { name: "Gunakan foto sintetis demo", exact: true })
+    .getByRole("button", { name: "Gunakan foto contoh demo", exact: true })
     .click();
   await choose(page, "Tambah kategori ke paket", "Nasi");
   await page.getByRole("button", { name: /3\. Harga & lama paket/ }).click();
@@ -192,7 +192,7 @@ test("upload failure preserves the old photo and pending uploads block navigatio
     .fill("Data sintetis unggah foto.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
   await page
-    .getByRole("button", { name: "Gunakan foto sintetis demo", exact: true })
+    .getByRole("button", { name: "Gunakan foto contoh demo", exact: true })
     .click();
   let release!: () => void;
   const wait = new Promise<void>((r) => (release = r));
@@ -210,7 +210,7 @@ test("upload failure preserves the old photo and pending uploads block navigatio
   release();
   await expect(
     page.getByText(
-      "Foto belum berhasil diunggah. Pilih file untuk mencoba lagi.",
+      "Foto belum bisa diunggah. Pilih file untuk mencoba lagi.",
       { exact: true },
     ),
   ).toBeVisible();

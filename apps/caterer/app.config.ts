@@ -33,7 +33,7 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-secure-store",
     ["expo-notifications", { color: "#163D2E" }],
-    ["expo-image-picker", { photosPermission: "Catera Dapur memakai foto kamu untuk gambar paket, foto menu, dan halaman menu yang kamu impor.", microphonePermission: false, cameraPermission: "Catera Dapur memakai kamera untuk memotret bukti pengantaran yang sudah sampai." }],
+    ["expo-image-picker", { photosPermission: "Catera Dapur memakai fotomu untuk gambar paket, foto menu, dan menu yang kamu impor.", microphonePermission: false, cameraPermission: "Catera Dapur memakai kamera untuk memotret bukti pengantaran yang sudah sampai." }],
     // One splash in both themes (the system draws it before the app's stored theme is known): the forest of the app icon with
     // the icon's mascot, a processed transparent derivative inside the Android 12+ circular safe zone. LaunchCover repeats it.
     [

@@ -57,8 +57,8 @@ export function DirectPayment({
           if (active)
             setError(
               t(
-                "Pembayaran belum berhasil disiapkan. Coba lagi atau hubungi bantuan.",
-                "Unable to prepare payment. Please try again or contact support.",
+                "Pembayaran belum bisa disiapkan. Coba lagi atau hubungi bantuan.",
+                "Couldn't prepare payment. Try again or contact support.",
               ),
             );
         });
@@ -77,8 +77,8 @@ export function DirectPayment({
       setError(
         errorLabel((e as { code?: string }).code || "", locale) ||
           t(
-            "Pembayaran belum berhasil disiapkan. Coba lagi atau hubungi bantuan.",
-            "Unable to prepare payment. Please try again or contact support.",
+            "Pembayaran belum bisa disiapkan. Coba lagi atau hubungi bantuan.",
+            "Couldn't prepare payment. Try again or contact support.",
           ),
       );
       reload();
@@ -150,14 +150,14 @@ export function DirectPayment({
           ) : (
             <p role="status" className="notice">
               {t(
-                "Pembayaran sedang tidak tersedia. Silakan coba lagi nanti.",
-                "Payment is currently unavailable. Please try again later.",
+                "Pembayaran sedang tidak tersedia. Coba lagi nanti.",
+                "Payment is currently unavailable. Try again later.",
               )}
             </p>
           )}
           <p className="small muted">
             {t(
-              "Metode tidak dapat diganti setelah instruksi pembayaran diminta.",
+              "Metode tidak bisa diganti setelah instruksi pembayaran diminta.",
               "The method cannot be changed after requesting payment instructions.",
             )}
           </p>
@@ -186,7 +186,7 @@ export function DirectPayment({
                     } catch (e) {
                       setError(
                         t(
-                          "Nomor belum berhasil disalin. Pilih nomor lalu salin secara manual.",
+                          "Nomor belum bisa disalin. Pilih nomor lalu salin secara manual.",
                           "Could not copy the number. Select it and copy manually.",
                         ),
                       );
@@ -217,7 +217,7 @@ export function DirectPayment({
                 </li>
                 <li>
                   {t(
-                    "Periksa nama penerima dan pastikan jumlahnya sama dengan total pesanan sebelum membayar.",
+                    "Cek nama penerima dan pastikan jumlahnya sama dengan total pesanan sebelum membayar.",
                     "Check the recipient name and confirm the amount matches your order total before paying.",
                   )}
                 </li>
@@ -281,13 +281,13 @@ export function DirectPayment({
               )}
               <p>
                 {t(
-                  "Pindai kode dengan aplikasi bank atau dompet digital di perangkat lain. Di ponsel yang sama, unduh kode lalu gunakan fitur unggah QR jika aplikasi pembayaran mendukungnya.",
+                  "Pindai kode dengan aplikasi bank atau dompet digital di perangkat lain. Di HP yang sama, unduh kode lalu gunakan fitur unggah QR jika aplikasi pembayaran mendukungnya.",
                   "Scan with a banking or wallet app on another device. On the same phone, download the code and use your payment app’s QR upload feature if supported.",
                 )}
               </p>
               <p>
                 {t(
-                  "Periksa nama penerima dan jumlah pembayaran, lalu kembali ke Catera setelah membayar.",
+                  "Cek nama penerima dan jumlah pembayaran, lalu kembali ke Catera setelah membayar.",
                   "Check the recipient and payment amount, then return to Catera after paying.",
                 )}
               </p>
@@ -305,7 +305,7 @@ export function DirectPayment({
                       "Payment preparation failed. Contact support before trying another payment.",
                     )
                   : t(
-                      "Kami sedang memeriksa pembayaran. Jangan membuat pembayaran lain; halaman ini diperbarui otomatis.",
+                      "Kami sedang mengecek pembayaran. Jangan membuat pembayaran lain; halaman ini diperbarui otomatis.",
                       "We are checking your payment. Do not create another payment; this page updates automatically.",
                     )}
               {payment.status === "preparing" && (

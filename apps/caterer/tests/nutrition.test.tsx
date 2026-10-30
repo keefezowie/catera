@@ -60,7 +60,7 @@ const liveOffer = {
   trialMax: null,
   capacity: { "1": 40, "2": 40, "3": 40, "4": 40, "5": 40 },
   tiers: [],
-  windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
+  windows: { lunch: "11.00-13.00", dinner: "17.00-19.00" },
   tags: [],
   image: "https://cdn.example.test/k-1/a.jpg",
   status: "published",
@@ -201,9 +201,9 @@ describe("Gizi per porsi in the editor", () => {
     // Copied and saved without edits: all four ranges go out as they came in.
     let command = jest.fn(async () => ({ id: "p-new" }));
     let view = mount(runtimeWith({ command }), <PackageEditor from={rantang} />);
-    expect((await screen.findByLabelText("Protein (g)")).props.value).toBe("29–30");
-    expect(screen.getByLabelText("Karbo (g)").props.value).toBe("76–82");
-    expect(screen.getByLabelText("Lemak (g)").props.value).toBe("19–21");
+    expect((await screen.findByLabelText("Protein (g)")).props.value).toBe("29-30");
+    expect(screen.getByLabelText("Karbo (g)").props.value).toBe("76-82");
+    expect(screen.getByLabelText("Lemak (g)").props.value).toBe("19-21");
     // The range is selected on focus, so the first keystroke replaces it.
     expect(screen.getByLabelText("Protein (g)").props.selectTextOnFocus).toBe(true);
     fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
@@ -226,27 +226,27 @@ describe("Gizi per porsi in the editor", () => {
 
   it("the first keystroke into a carried range starts a single number", () => {
     const n = formFromOffer(rantang).nutrition;
-    // Typed after the shown "29–30" (the cursor at its end): only the new digits stay.
-    expect(editGram(n, "proteinG", "29–303")).toMatchObject({ proteinG: "3", carried: { carbsG: { min: 76, max: 82 } } });
-    expect(editGram(n, "proteinG", "29–303").carried?.proteinG).toBeUndefined();
-    // The field selects "29–30" on focus, so the first digit replaces it.
+    // Typed after the shown "29-30" (the cursor at its end): only the new digits stay.
+    expect(editGram(n, "proteinG", "29-303")).toMatchObject({ proteinG: "3", carried: { carbsG: { min: 76, max: 82 } } });
+    expect(editGram(n, "proteinG", "29-303").carried?.proteinG).toBeUndefined();
+    // The field selects "29-30" on focus, so the first digit replaces it.
     expect(editGram(n, "proteinG", "2").proteinG).toBe("2");
     // A backspace into the range clears the field.
-    expect(editGram(n, "proteinG", "29–3").proteinG).toBe("");
+    expect(editGram(n, "proteinG", "29-3").proteinG).toBe("");
     // A field without a carried range takes the text as typed.
     expect(editGram(editGram(n, "proteinG", "31"), "proteinG", "312").proteinG).toBe("312");
   });
 
   it("a keystroke typed inside a carried range keeps the new digit instead of clearing the field", () => {
     const n = { ...formFromOffer(rantang).nutrition, carried: { proteinG: { min: 29, max: 30 } } };
-    // The cursor sat between the 2 and the 9: "2|9–30" plus a 5.
-    expect(editGram(n, "proteinG", "259–30").proteinG).toBe("5");
-    expect(editGram(n, "proteinG", "259–30").carried?.proteinG).toBeUndefined();
+    // The cursor sat between the 2 and the 9: "2|9-30" plus a 5.
+    expect(editGram(n, "proteinG", "259-30").proteinG).toBe("5");
+    expect(editGram(n, "proteinG", "259-30").carried?.proteinG).toBeUndefined();
     // Inside the dash side too, and at the very start.
-    expect(editGram(n, "proteinG", "29–530").proteinG).toBe("5");
-    expect(editGram(n, "proteinG", "529–30").proteinG).toBe("5");
+    expect(editGram(n, "proteinG", "29-530").proteinG).toBe("5");
+    expect(editGram(n, "proteinG", "529-30").proteinG).toBe("5");
     // A deletion into the dash still clears, as before.
-    expect(editGram(n, "proteinG", "29–3").proteinG).toBe("");
+    expect(editGram(n, "proteinG", "29-3").proteinG).toBe("");
   });
 
   it("the calorie and gram fields line up at the top, so an error under one does not lift it", async () => {

@@ -298,7 +298,7 @@ export function PackageDetail() {
                   <Text variant="heading" style={{ color: c.charcoal }}>
                     {t("Paket tidak ditemukan.", "Package not found.")}
                   </Text>
-                  <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
+                  <Button label={t("Cari paket", "Find a package")} onPress={() => goToTab("jelajah")} />
                 </>
               )}
             </View>

@@ -148,7 +148,7 @@ describe("Riwayat pembayaran", () => {
     const runtime = runtimeWith({ subscriptions: [] });
     (runtime.api.customerActions as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
     renderWith(runtime, <Payments />);
-    expect(await screen.findByText("Pembayaran yang menunggu belum bisa dimuat.")).toBeTruthy();
+    expect(await screen.findByText("Pembayaran yang menunggu belum bisa dimuat. Cek koneksi lalu coba lagi.")).toBeTruthy();
     expect(screen.queryByText("Belum ada pembayaran.")).toBeNull();
   });
 

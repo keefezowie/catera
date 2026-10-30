@@ -22,7 +22,7 @@ export function TimScreen() {
   const [code, setCode] = useState("");
   const { busy, failure, run } = useFormRun(
     locale,
-    t("Undangan belum bisa dibuat. Coba lagi.", "The invite could not be made. Try again."),
+    t("Undangan belum bisa dibuat. Coba lagi.", "Couldn't create the invite. Try again."),
   );
   // The sheet's own side padding, the same in both apps.
   const inset = sheetSidePadding();

@@ -38,7 +38,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
       });
     } catch (e) {
       setFailure((f) => ({
-        message: errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Menu belum tersimpan. Coba lagi.", "The menu was not saved. Try again."),
+        message: errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Menu belum tersimpan. Coba lagi.", "Couldn't save the menu. Try again."),
         key: (f?.key ?? 0) + 1,
       }));
     }

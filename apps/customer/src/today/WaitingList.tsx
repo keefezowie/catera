@@ -139,7 +139,7 @@ export function useWaitingRows({
           action: t("Perpanjang", "Renew"),
           urgent: true,
           onPress: () => {
-            // Every way into a renewal counts, as Lanjutkan paket does on the recap and the plan page.
+            // Every way into a renewal counts, as Perpanjang does on the recap and the plan page.
             track("renew_started");
             router.push(`/renew/${encodeURIComponent(s.id)}` as never);
           },
@@ -163,7 +163,7 @@ export function useWaitingRows({
         return {
           key: `review:${item.subscription.id}`,
           icon: "star-outline",
-          title: t(`Bagaimana ${caterer} selama ini?`, `How has ${caterer} been so far?`),
+          title: t(`Gimana ${caterer} selama ini?`, `How has ${caterer} been so far?`),
           detail: t("Bintang saja cukup, ulasan tertulis boleh dilewati", "Stars are enough; words are optional"),
           action: t("Nilai", "Rate"),
           onPress: () => pushSheet(`/ulasan/${encodeURIComponent(item.subscription.id)}` as never),

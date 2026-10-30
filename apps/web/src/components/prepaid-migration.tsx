@@ -74,7 +74,7 @@ function ImportForm({
     return (
       <p className="notice">
         {t(
-          "Tayangkan paket setelah verifikasi katerer sebelum mengimpor.",
+          "Tayangkan paket setelah verifikasi katering sebelum mengimpor.",
           "Publish a package after caterer verification before importing.",
         )}
       </p>
@@ -83,7 +83,7 @@ function ImportForm({
     <>
       <p className="notice">
         {t(
-          "Hanya untuk sisa pengantaran yang sudah dibayar di luar Catera. Tidak ada tagihan atau pencairan baru. Pelanggan dapat membuat akun nanti.",
+          "Hanya untuk sisa pengantaran yang sudah dibayar di luar Catera. Tidak ada tagihan atau pencairan baru. Pelanggan bisa membuat akun nanti.",
           "Only for remaining deliveries already paid outside Catera. No new charge or payout. Customers can create an account later.",
         )}
       </p>
@@ -127,7 +127,7 @@ function ImportForm({
         >
           <p>
             {t(
-              "Belum ada pengantaran dipesan. Kapasitas dan batas waktu diperiksa lagi saat konfirmasi.",
+              "Belum ada pengantaran dipesan. Kapasitas dan batas waktu dicek lagi saat konfirmasi.",
               "No deliveries reserved yet. Capacity and cutoff are checked again on confirmation.",
             )}
           </p>
@@ -160,7 +160,7 @@ function ImportForm({
           <label className="checkbox">
             <Checkbox required />
             {t(
-              "Saya telah memverifikasi pembayaran dan sisa pengantaran ini.",
+              "Saya sudah memverifikasi pembayaran dan sisa pengantaran ini.",
               "I have verified this payment and remaining deliveries.",
             )}
           </label>

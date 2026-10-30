@@ -16,7 +16,7 @@ export function SavedPackagesPage() {
       <Heading
         title={t("Paket tersimpan", "Saved packages")}
         description={t(
-          "Pilih lagi saat Anda siap. Harga dan ketersediaan diperiksa saat checkout.",
+          "Pilih lagi saat kamu siap. Harga dan ketersediaan dicek saat checkout.",
           "Come back when you are ready. Prices and availability are checked at checkout.",
         )}
       >
@@ -29,7 +29,7 @@ export function SavedPackagesPage() {
           message={
             errorLabel(error, locale) ||
             t(
-              "Paket tersimpan belum berhasil dimuat.",
+              "Paket tersimpan belum bisa dimuat.",
               "Saved packages could not be loaded.",
             )
           }
@@ -41,7 +41,7 @@ export function SavedPackagesPage() {
         <Empty
           title={t("Belum ada paket tersimpan", "No saved packages yet")}
           description={t(
-            "Tekan Simpan pada paket yang menarik untuk Anda.",
+            "Tekan Simpan pada paket yang kamu suka.",
             "Save a package you would like to try.",
           )}
           href="/#packages"

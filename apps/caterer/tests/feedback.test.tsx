@@ -86,7 +86,7 @@ const pkg = (id: string, status: SellerOffer["status"]) =>
     trialMax: null,
     capacity: { "1": 40, "2": 40, "3": 40, "4": 40, "5": 40 },
     tiers: [],
-    windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
+    windows: { lunch: "11.00-13.00", dinner: "17.00-19.00" },
     tags: [],
     image: "https://cdn.example.test/k-1/a.jpg",
     status,
@@ -279,7 +279,7 @@ describe("import", () => {
     const left = screen.getAllByTestId("import-row");
     expect(left).toHaveLength(1);
     expect(left[0].props.exiting).toBeDefined();
-    fireEvent.press(beat.getByRole("button", { name: "Lihat Pelanggan" }));
+    fireEvent.press(beat.getByRole("button", { name: "Lihat pelanggan" }));
     expect(goToTab).toHaveBeenCalledWith("pelanggan");
   });
 });

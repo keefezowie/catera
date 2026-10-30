@@ -45,7 +45,7 @@ export function ReportDeliveryIssue({ id }: { id: string }) {
         </p>
         <p className="notice">
           {t(
-            "Laporan ini tidak membatalkan jadwal atau memproses refund. Katerer akan menanggapi; Anda dapat meminta Catera meninjau jika belum selesai.",
+            "Laporan ini tidak membatalkan jadwal atau memproses pengembalian dana. Katering akan menanggapi. Kalau belum selesai, kamu bisa minta Catera ikut mengecek.",
             "This report does not cancel deliveries or process a refund. Your caterer will respond; you can ask Catera to review unresolved issues.",
           )}
         </p>
@@ -227,14 +227,14 @@ export function DeliveryIssues({ catererId }: { catererId?: string }) {
                   </Field>
                   <p className="field-hint">
                     {t(
-                      "Tidak mengubah pembayaran atau jadwal. Untuk refund atau kasus belum selesai, gunakan eskalasi.",
+                      "Tidak mengubah pembayaran atau jadwal. Untuk pengembalian dana atau kasus yang belum selesai, pakai eskalasi.",
                       "Does not change payment or delivery schedules. Escalate refunds or unresolved cases.",
                     )}
                   </p>
                 </ActionForm>
               )}
               <Disclosure
-                title={t("Minta Catera meninjau", "Ask Catera to review")}
+                title={t("Minta Catera cek", "Ask Catera to review")}
               >
                 <ActionForm
                   submit={t("Eskalasi ke Catera", "Escalate to Catera")}
@@ -267,7 +267,7 @@ export function DeliveryIssues({ catererId }: { catererId?: string }) {
                   </Field>
                   <p>
                     {t(
-                      "Catera meninjau permintaan sesuai aturan bantuan dan penahanan dana yang berlaku. Tidak ada refund otomatis.",
+                      "Catera mengecek permintaan sesuai aturan bantuan dan penahanan dana yang berlaku. Tidak ada pengembalian dana otomatis.",
                       "Catera reviews the request under the existing support and funds-hold rules. No automatic refund.",
                     )}
                   </p>

@@ -110,7 +110,7 @@ export function DataAkun() {
       await refresh();
       toast.show({ message: t("Nama tersimpan", "Name saved"), tone: "success" });
     } catch (e) {
-      setNameFailure((f) => ({ message: messageFor(e, t("Nama belum tersimpan. Coba lagi.", "The name was not saved. Try again.")), key: bump(f) }));
+      setNameFailure((f) => ({ message: messageFor(e, t("Nama belum tersimpan. Coba lagi.", "Couldn't save the name. Try again.")), key: bump(f) }));
     }
   });
 
@@ -131,7 +131,7 @@ export function DataAkun() {
       setWhatsapp(null);
       toast.show({ message: t("Nomor tersimpan", "Number saved"), tone: "success" });
     } catch (e) {
-      setWaFailure((f) => ({ message: messageFor(e, t("Nomor belum tersimpan. Coba lagi.", "The number was not saved. Try again.")), key: bump(f) }));
+      setWaFailure((f) => ({ message: messageFor(e, t("Nomor belum tersimpan. Coba lagi.", "Couldn't save the number. Try again.")), key: bump(f) }));
     }
   });
 
@@ -153,7 +153,7 @@ export function DataAkun() {
             ),
       );
     } catch (e) {
-      setEmailFailure((f) => ({ message: messageFor(e, t("Tautan belum terkirim. Coba lagi.", "The link was not sent. Try again.")), key: bump(f) }));
+      setEmailFailure((f) => ({ message: messageFor(e, t("Tautan belum terkirim. Coba lagi.", "Couldn't send the link. Try again.")), key: bump(f) }));
     }
   });
 
@@ -203,7 +203,7 @@ export function DataAkun() {
           : t("Kata sandi diganti.", "Password changed."),
       );
     } catch (e) {
-      setPasswordFailure((f) => ({ message: messageFor(e, t("Kata sandi belum diganti. Coba lagi.", "The password was not changed. Try again.")), key: bump(f) }));
+      setPasswordFailure((f) => ({ message: messageFor(e, t("Kata sandi belum diganti. Coba lagi.", "Couldn't change the password. Try again.")), key: bump(f) }));
     }
   });
 
@@ -220,7 +220,7 @@ export function DataAkun() {
       await requests.reload();
       toast.show({ message: t("Permintaan terkirim", "Request sent"), tone: "success" });
     } catch (e) {
-      setRequestFailure((f) => ({ message: messageFor(e, t("Permintaan belum terkirim. Coba lagi.", "The request was not sent. Try again.")), key: bump(f) }));
+      setRequestFailure((f) => ({ message: messageFor(e, t("Permintaan belum terkirim. Coba lagi.", "Couldn't send the request. Try again.")), key: bump(f) }));
     }
   });
 

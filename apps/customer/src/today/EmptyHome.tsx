@@ -102,7 +102,7 @@ export function EmptyHomeBody({
           <OfferCard key={o.id} offer={o} />
         ))}
       </FadeSwap>
-      <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
+      <Button label={t("Cari paket", "Find a package")} onPress={() => goToTab("jelajah")} />
       <Text variant="caption">
         {t(
           "Dapat tautan dari katering? Buka tautannya untuk menyambungkan paketmu ke akun ini.",

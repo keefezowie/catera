@@ -433,7 +433,7 @@ test("failed month data is never shown as empty coverage and retry recovers", as
   await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   await page.goto("/calendar");
   await expect(page.locator(".calendar-load-error")).toContainText(
-    "belum berhasil dimuat",
+    "belum bisa dimuat",
   );
   await expect(page.locator(".coverage-day.is-selected")).toHaveAttribute(
     "aria-label",

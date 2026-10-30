@@ -24,7 +24,7 @@ export function HapusAkun() {
       await requests.reload();
     } catch (e) {
       setFailure((f) => ({
-        message: accountMessage(e, t, locale, t("Permintaan belum terkirim. Coba lagi.", "The request was not sent. Try again.")),
+        message: accountMessage(e, t, locale, t("Permintaan belum terkirim. Coba lagi.", "Couldn't send the request. Try again.")),
         key: (f?.key ?? 0) + 1,
       }));
     }
@@ -35,8 +35,8 @@ export function HapusAkun() {
       <View testID="hapus-akun-content" style={{ paddingHorizontal: inset, gap: 16 }}>
         <Text>
           {t(
-            "Tim Catera memproses permintaan ini. Pelanggan dan pengantaran yang masih berjalan diselesaikan dulu bersama tim. Kami hubungi kamu soal sisanya sebelum akun dihapus.",
-            "The Catera team handles this request. Customers and deliveries still running are settled with the team first. We contact you about the rest before the account is deleted.",
+            "Tim Catera memproses permintaan ini. Pelanggan dan pengantaran yang masih jalan kami selesaikan dulu bersamamu. Sebelum akun dihapus, kami hubungi kamu.",
+            "The Catera team handles this request. We settle customers and deliveries still running with you first, then contact you before the account is deleted.",
           )}
         </Text>
         <Button

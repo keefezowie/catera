@@ -175,7 +175,7 @@ for (const locale of ["id", "en"] as const) {
         name: t("Status verifikasi", "Verification status"),
       });
       const all = group.getByRole("button", {
-        name: t("Semua katerer", "All caterers"),
+        name: t("Semua katering", "All caterers"),
       });
       await expect(all).toHaveAttribute("aria-pressed", "false");
       await all.click();

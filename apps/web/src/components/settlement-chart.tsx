@@ -100,7 +100,7 @@ export function EarningsBars({ report }: { report: SettlementReport }) {
   return (
     <>
       <p className="small muted">
-        {dayLabel(report.from, true)} – {dayLabel(report.to, true)} ·{" "}
+        {dayLabel(report.from, true)} {t("sampai", "to")} {dayLabel(report.to, true)} ·{" "}
         {t("Tanggal pencatatan", "Recorded date")} · WIB
       </p>
       <div className="settlement-chart-totals">

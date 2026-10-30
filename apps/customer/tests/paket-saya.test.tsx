@@ -187,18 +187,18 @@ describe("Paket saya", () => {
     expect(screen.queryByTestId("plan-row-list")).toBeNull();
   });
 
-  it("an empty Aktif offers Jelajah paket, which opens the Jelajah tab", async () => {
+  it("an empty Aktif offers Cari paket, which opens the Jelajah tab", async () => {
     const { goToTab } = require("../src/nav") as { goToTab: jest.Mock };
     mount(runtimeWith(async () => ({ ...eightPlans(), subscriptions: [], deliveries: [] })));
     await screen.findByText("Belum ada paket aktif.");
-    fireEvent.press(screen.getByRole("button", { name: "Jelajah paket" }));
+    fireEvent.press(screen.getByRole("button", { name: "Cari paket" }));
     expect(goToTab).toHaveBeenCalledWith("jelajah");
   });
 
-  it("a list with running plans has no Jelajah paket button", async () => {
+  it("a list with running plans has no Cari paket button", async () => {
     mount(runtimeWith(async () => withFinished(eightPlans())));
     await screen.findByText("Rantang Nusantara");
-    expect(screen.queryByRole("button", { name: "Jelajah paket" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cari paket" })).toBeNull();
   });
 
   it("draws the cards on the dark theme's surface", async () => {

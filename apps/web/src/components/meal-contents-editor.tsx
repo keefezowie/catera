@@ -222,7 +222,7 @@ export function MealContentsEditor({
       {library.error && (
         <ErrorNotice
           message={t(
-            "Daftar hidangan belum dimuat. Anda tetap dapat menulis hidangan langsung.",
+            "Daftar hidangan belum dimuat. Kamu tetap bisa menulis hidangan langsung.",
             "Dish library could not load. You can still enter dishes directly.",
           )}
           retry={library.reload}

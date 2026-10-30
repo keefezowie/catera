@@ -99,14 +99,14 @@ const sites: Site[] = [
     calls: (r) => (r.runtime.signInWithGoogle as jest.Mock).mock.calls.length,
   },
   {
-    name: "Daftar: Daftar & verifikasi email",
+    name: "Daftar: Daftar",
     signedIn: false,
     ui: <Register />,
     fill: async () => {
       fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
       fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
       fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-      return "Daftar & verifikasi email";
+      return "Daftar";
     },
     calls: (r) => (r.fake.auth.signUp as jest.Mock).mock.calls.length,
   },
@@ -144,14 +144,14 @@ const sites: Site[] = [
     calls: (r) => (r.runtime.api.command as jest.Mock).mock.calls.filter(([a]) => a === "review.save").length,
   },
   {
-    name: "Bantuan: Kirim permintaan",
+    name: "Bantuan: Kirim",
     params: { kind: "help" },
     signedIn: true,
     ui: <HelpForm />,
     fill: async () => {
       fireEvent.press(await screen.findByRole("radio", { name: /^Pembayaran, / }));
       fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Pembayaran saya belum tercatat");
-      return "Kirim permintaan";
+      return "Kirim";
     },
     calls: (r) => (r.runtime.api.command as jest.Mock).mock.calls.filter(([a]) => a === "support.create").length,
   },

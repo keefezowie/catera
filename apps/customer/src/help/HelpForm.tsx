@@ -297,7 +297,7 @@ function Help({ actorId, title, paket }: { actorId: string; title: string; paket
             {error ? <FormError message={error} failureKey={failures} /> : null}
             {sendBlocked ? <Text variant="meta">{sendReason}</Text> : null}
             <Button
-              label={t("Kirim permintaan", "Send request")}
+              label={t("Kirim", "Send")}
               accessibilityHint={sendBlocked ? sendReason : undefined}
               busy={busy}
               disabled={sendBlocked}
@@ -400,7 +400,7 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
           {error ? <FormError message={error} failureKey={failures} /> : null}
           {escalateBlocked ? <Text variant="meta">{escalateReason}</Text> : null}
           <Button
-            label={t("Kirim ke Catera", "Send to Catera")}
+            label={t("Kirim", "Send")}
             accessibilityHint={escalateBlocked ? escalateReason : undefined}
             busy={busy}
             disabled={escalateBlocked}

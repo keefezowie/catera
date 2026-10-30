@@ -110,8 +110,14 @@ export function PaymentOutcome({
       t("Memeriksa pembayaran", "Checking payment"),
       t("Jangan bayar lagi. Kami sedang mengecek statusnya.", "Don't pay again. We're checking the status."),
     ],
-    expired: [t("Waktu bayar habis. Kalau bayar lagi, kami cek ulang jadwalnya dulu.", "Payment time ran out. If you pay again, we'll check the schedule first."), ""],
-    failed: [t("Pembayaran gagal. Kalau bayar lagi, kami cek ulang jadwalnya dulu.", "Payment failed. If you pay again, we'll check the schedule first."), ""],
+    expired: [
+      t("Waktu bayar habis", "Payment time ran out"),
+      t("Kalau bayar lagi, kami cek ulang jadwalnya dulu.", "If you pay again, we'll check the schedule first."),
+    ],
+    failed: [
+      t("Pembayaran gagal", "Payment failed"),
+      t("Kalau bayar lagi, kami cek ulang jadwalnya dulu.", "If you pay again, we'll check the schedule first."),
+    ],
     review: [
       t("Pembayaran sedang ditinjau", "Payment under review"),
       t(

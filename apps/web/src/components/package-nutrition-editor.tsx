@@ -110,7 +110,7 @@ export function PackageNutritionEditor({
       </div>
       <p>
         {t(
-          "Estimasi katerer per porsi makan. Catera tidak menghitung atau memverifikasi nilai ini.",
+          "Estimasi katering per porsi makan. Catera tidak menghitung atau memverifikasi nilai ini.",
           "Caterer estimate per meal portion. Catera does not calculate or verify these values.",
         )}
       </p>

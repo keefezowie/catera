@@ -285,10 +285,10 @@ test("responsive calendar and picker, keyboard, atomic multi-date selection and 
     .click();
   await page.locator("button.menu-day").first().click();
   await page
-    .getByRole("button", { name: "Serahkan ke katerer", exact: true })
+    .getByRole("button", { name: "Serahkan ke katering", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Ya, serahkan ke katerer", exact: true })
+    .getByRole("button", { name: "Ya, serahkan ke katering", exact: true })
     .click();
   await expect(page.locator(".menu-day.configured")).toHaveCount(1);
 });

@@ -42,7 +42,7 @@ export function Brand({ small = false }: { small?: boolean }) {
     <Link
       href="/"
       className={"brand " + (small ? "small" : "")}
-      aria-label="Catera — Good Food on Repeat"
+      aria-label="Catera: katering langganan"
     >
       <Image
         src="/assets/wordmark.png"
@@ -491,21 +491,8 @@ export function ActionForm({
       const code =
         (e as { code?: string; message?: string }).code || (e as Error).message;
       setError(
-        code === "INVALID_CREDENTIALS"
-          ? t(
-              "Email atau kata sandi tidak cocok. Silakan coba lagi.",
-              "Email or password is incorrect. Please try again.",
-            )
-          : code === "AUTH_RATE_LIMITED"
-            ? t(
-                "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
-                "Too many sign-in attempts. Please wait and try again.",
-              )
-            : errorLabel(code, locale) ||
-              t(
-                "Belum berhasil. Silakan coba lagi.",
-                "It did not work. Please try again.",
-              ),
+        errorLabel(code, locale) ||
+          t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
       );
     } finally {
       submitting.current = false;

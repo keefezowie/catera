@@ -292,7 +292,7 @@ function Shell({
   const isAdmin = pathname.startsWith("/admin");
   const links = isAdmin
     ? ([
-        ["/admin/sellers", t("Katerer", "Caterers"), ShieldCheck],
+        ["/admin/sellers", t("Katering", "Caterers"), ShieldCheck],
         ["/admin/transactions", t("Transaksi", "Transactions"), Wallet],
         [
           "/admin/support",
@@ -343,7 +343,7 @@ function Shell({
           aria-label={t("Mode demo", "Demo mode")}
         >
           {t(
-            "Demo eksplorasi · Katerer, menu, dan transaksi menggunakan data sintetis.",
+            "Demo eksplorasi · Katering, menu, dan transaksi memakai data contoh.",
             "Exploration demo · Caterers, meals, and transactions are synthetic.",
           )}
         </div>
@@ -355,7 +355,7 @@ function Shell({
             aria-label={
               isAdmin
                 ? t("Navigasi admin", "Admin navigation")
-                : t("Navigasi katerer", "Caterer navigation")
+                : t("Navigasi Dapur", "Caterer navigation")
             }
           >
             <div className="ops-sidebar-head">
@@ -494,7 +494,7 @@ function Shell({
               <nav
                 ref={bottomNav}
                 className="seller-bottom"
-                aria-label={t("Navigasi katerer", "Caterer navigation")}
+                aria-label={t("Navigasi Dapur", "Caterer navigation")}
               >
                 {links.slice(0, 4).map(([href, label, Icon]) => (
                   <Link
@@ -526,7 +526,7 @@ function Shell({
                 onOpenChange={setMenu}
                 title={t("Kelola usaha", "Manage your business")}
                 description={t(
-                  "Pelanggan, bantuan, dan pengaturan katerer.",
+                  "Pelanggan, bantuan, dan pengaturan Dapur.",
                   "Customers, support, and caterer settings.",
                 )}
               >
@@ -575,7 +575,7 @@ function Shell({
                       customerDestination === "/home" ? "page" : undefined
                     }
                   >
-                    {t("Makanan saya", "My meals")}
+                    {t("Beranda", "Home")}
                   </Link>
                   <Link
                     href="/calendar"
@@ -599,7 +599,7 @@ function Shell({
                 </Link>
               )}
               <CatererEntry className="caterer-entry">
-                {t("Untuk katerer", "For caterers")} <ArrowUpRight size={13} />
+                {t("Untuk katering", "For caterers")} <ArrowUpRight size={13} />
               </CatererEntry>
             </nav>
             <div className="header-actions">
@@ -741,7 +741,7 @@ function AssetGallery() {
       <h1>{t("Identitas Catera", "Catera identity")}</h1>
       <p className="lead">
         {t(
-          "Good Food on Repeat. Aset individual yang dapat digunakan kembali.",
+          "Good Food on Repeat. Aset individual yang bisa dipakai lagi.",
           "Good Food on Repeat. Individual assets ready to reuse.",
         )}
       </p>
@@ -794,12 +794,12 @@ function WorkspaceIdentity({ isAdmin }: { isAdmin: boolean }) {
       </span>
       <div>
         <strong>
-          {isAdmin ? "Catera Admin" : t("Ruang katerer", "Caterer workspace")}
+          {isAdmin ? "Catera Admin" : t("Dapur", "Caterer workspace")}
         </strong>
         <small>
           {isAdmin
             ? actor?.name
-            : identity.data?.name || t("Profil katerer", "Caterer profile")}
+            : identity.data?.name || t("Profil katering", "Caterer profile")}
         </small>
       </div>
     </>

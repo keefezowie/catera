@@ -647,7 +647,7 @@ export function BuySkeleton() {
 export function BreakdownSkeleton() {
   const { t } = useMobile();
   return (
-    <SkeletonGroup label={t("Menghitung harga", "Working out the price")}>
+    <SkeletonGroup label={t("Menghitung harga", "Calculating the price")}>
       <BreakdownCard testID="breakdown-skeleton" />
     </SkeletonGroup>
   );

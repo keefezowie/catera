@@ -626,7 +626,7 @@ test("package wizard publishes composition only and customers buy before dated m
     .fill("Paket sintetis dengan menu yang diatur melalui kalender.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
   await page
-    .getByRole("button", { name: "Gunakan foto sintetis demo" })
+    .getByRole("button", { name: "Gunakan foto contoh demo" })
     .click();
   await choose(page, "Tambah kategori ke paket", "Lauk");
   await page.getByLabel("Jumlah Lauk", { exact: true }).fill("2");

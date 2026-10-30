@@ -43,7 +43,7 @@ export function RoleGate({ children }: { children: ReactNode }) {
         setError(t("Kode tidak ditemukan atau sudah dipakai.", "Code not found or already used."));
       } else
         setSetupFailure((f) => ({
-          message: errorLabel(codeOf(e), locale) || t("Dapurmu belum jadi dibuat. Coba lagi.", "Your kitchen wasn't set up yet. Try again."),
+          message: errorLabel(codeOf(e), locale) || t("Dapur belum bisa dibuat. Coba lagi.", "Couldn't set up your kitchen. Try again."),
           key: (f?.key ?? 0) + 1,
         }));
     } finally {
@@ -79,14 +79,14 @@ export function RoleGate({ children }: { children: ReactNode }) {
       setError(
         c === "NOT_FOUND"
           ? t("Kode tidak ditemukan atau sudah dipakai.", "Code not found or already used.")
-          : errorLabel(c, locale) || t("Belum bisa bergabung. Coba lagi.", "Could not join. Try again."),
+          : errorLabel(c, locale) || t("Belum bisa bergabung. Coba lagi.", "Couldn't join. Try again."),
       );
     }
   });
 
   const keluar = <Button variant="text" label={t("Keluar", "Sign out")} busy={leaving} onPress={() => void signOut()} />;
 
-  if (gated && settledFor !== who) return <MascotLoading label={t("Menyiapkan dapur kamu…", "Getting your kitchen ready…")} />;
+  if (gated && settledFor !== who) return <MascotLoading label={t("Menyiapkan dapurmu…", "Getting your kitchen ready…")} />;
   if (gated && setupFailure)
     return (
       <Screen header={<MoodHeader testID="rolegate-header" title={t("Dapurmu belum siap", "Your kitchen isn't ready")} />}>

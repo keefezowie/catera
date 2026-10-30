@@ -56,7 +56,7 @@ export function Select({
   );
   const current = value ?? internalValue;
   const placeholder =
-    options.find((option) => option.props.value === "")?.props.children ?? "—";
+    options.find((option) => option.props.value === "")?.props.children ?? "-";
   return (
     <SelectPrimitive.Root
       {...props}

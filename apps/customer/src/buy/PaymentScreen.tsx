@@ -309,7 +309,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       nativeTitle={title}
       footer={
         <Button
-          label={t("Saya sudah bayar, cek status", "I've paid, check status")}
+          label={t("Sudah bayar? Cek status", "Paid? Check status")}
           busy={waiting === "check"}
           onPress={() => {
             setNotice("");
@@ -444,7 +444,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         <Card tone="sage">
           <Text>
             {t(
-              `Kami tahan ${c.quote.dates.length} hari antarmu selama 15 menit. Lewat dari itu, jadwalnya kami cek ulang sebelum kamu bayar.`,
+              "Jadwalmu kami tahan 15 menit. Lewat dari itu, kami cek ulang dulu.",
               `We're holding ${c.quote.dates.length === 1 ? "your delivery day" : `your ${c.quote.dates.length} delivery days`} for 15 minutes. After that, we check the schedule again before you pay.`,
             )}
           </Text>

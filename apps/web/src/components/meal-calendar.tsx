@@ -370,7 +370,7 @@ export function MealCalendar() {
         <p className="calendar-message" role="status">
           {status(day) === "error"
             ? t(
-                "Jadwal belum berhasil dimuat.",
+                "Jadwal belum bisa dimuat.",
                 "The schedule could not be loaded.",
               )
             : t("Memuat jadwal…", "Loading schedule…")}
@@ -410,7 +410,7 @@ export function MealCalendar() {
       <Heading
         title={t("Jadwal makan", "Meal calendar")}
         description={t(
-          "Semua paket dan katerer, dalam satu jadwal.",
+          "Semua paket dan katering, dalam satu jadwal.",
           "Every package and caterer, in one calendar.",
         )}
       />
@@ -584,7 +584,7 @@ export function MealCalendar() {
           <div className="coverage-summary" aria-live="polite">
             <span>
               {t("Minggu terpilih", "Selected week")} ·{" "}
-              {format(week, { day: "numeric", month: "short" })} –{" "}
+              {format(week, { day: "numeric", month: "short" })} sampai{" "}
               {format(addDays(week, 6), {
                 day: "numeric",
                 month: "short",
@@ -606,7 +606,7 @@ export function MealCalendar() {
             <div className="calendar-load-error" role="alert">
               <span>
                 {t(
-                  "Sebagian jadwal belum berhasil dimuat.",
+                  "Sebagian jadwal belum bisa dimuat.",
                   "Part of the schedule could not be loaded.",
                 )}
               </span>

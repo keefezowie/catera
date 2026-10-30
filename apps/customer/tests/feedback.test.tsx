@@ -127,7 +127,7 @@ const paid = (c: Checkout): Checkout => ({
 
 type Purchase = Subscription & { checkout_id?: string | null };
 
-/** A checkout server: "Saya sudah bayar, cek status" turns the checkout paid, as the provider refresh does. */
+/** A checkout server: "Sudah bayar? Cek status" turns the checkout paid, as the provider refresh does. */
 function payServer({ checkout, subscriptions = [] as Purchase[] }: { checkout: Checkout; subscriptions?: Purchase[] }) {
   let stored = checkout;
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "catera", app: "customer" });
@@ -163,7 +163,7 @@ const reduced = (on: boolean) => (Reanimated.useReducedMotion as jest.Mock).mock
 async function payWhileOpen(runtime: MobileRuntime) {
   wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
   expect(await screen.findByLabelText("Kode QRIS pembayaran ini")).toBeTruthy();
-  fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+  fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
   expect(await screen.findByTestId("paid-hero")).toBeTruthy();
   await act(async () => {});
 }

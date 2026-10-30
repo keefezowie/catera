@@ -111,7 +111,7 @@ export function NeedsAttention({
       t("Periksa pilihan pelanggan", "Review customer choices"),
     ],
     choice_fallback: [
-      t("Katerer perlu memilih hidangan", "Caterer must choose dishes"),
+      t("Katering perlu memilih hidangan", "Caterer must choose dishes"),
       t(
         "Tentukan hidangan dan hubungi pelanggan",
         "Choose dishes and contact customer",
@@ -146,7 +146,7 @@ export function NeedsAttention({
     } catch {
       setPageError(
         t(
-          "Masalah berikutnya belum berhasil dimuat.",
+          "Masalah berikutnya belum bisa dimuat.",
           "More issues could not be loaded.",
         ),
       );

@@ -185,7 +185,7 @@ export function AuthCallback() {
         play
         title={t("Email terverifikasi", "Email verified")}
         body={name ? t(`Akunmu sudah siap, ${name}.`, `Your account is ready, ${name}.`) : t("Akunmu sudah siap.", "Your account is ready.")}
-        primary={{ label: t("Mulai", "Get started"), onPress: () => void proceed() }}
+        primary={{ label: t("Ke Beranda", "Go to Home"), onPress: () => void proceed() }}
       />
     );
   if (phase === "recovery") return <NewPasswordForm action={action} form={form} onSave={savePassword} onBack={toSignIn} />;
@@ -204,8 +204,8 @@ export function AuthCallback() {
           email={intent.email}
           intro={
             intent.purpose === "signup"
-              ? t("Kalau email ini bisa didaftarkan, tautan verifikasi sudah kami kirim ke", "If this email can be registered, we've sent a verification link to")
-              : t("Kalau email ini terdaftar, tautan pemulihan sudah kami kirim ke", "If this email has an account, we've sent a recovery link to")
+              ? t("Kalau emailnya bisa dipakai, kami kirim tautan verifikasi ke", "If this email can be used, we'll send a verification link to")
+              : t("Kalau emailnya terdaftar, kami kirim tautan pemulihan ke", "If this email has an account, we'll send a recovery link to")
           }
           resent={resent}
           resendBusy={run.busy}

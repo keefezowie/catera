@@ -24,7 +24,7 @@ function PublicChoiceGallery({ options }: { options: LibraryDish[] }) {
         <strong>{t("Menu belum diumumkan", "Menu not announced yet")}</strong>
         <p>
           {t(
-            "Katerer akan menampilkan pilihan hidangan sebelum batas pemilihan. Anda tidak dikenai biaya tambahan untuk memilih menu.",
+            "Katering akan menampilkan pilihan hidangan sebelum batas pemilihan. Kamu tidak dikenai biaya tambahan untuk memilih menu.",
             "The caterer will publish dish choices before the selection deadline. There is no extra fee for choosing your menu.",
           )}
         </p>
@@ -36,7 +36,7 @@ function PublicChoiceGallery({ options }: { options: LibraryDish[] }) {
         <h4>{t("Contoh pilihan hidangan", "Example dish choices")}</h4>
         <p>
           {t(
-            "Pilihan tersedia setelah pembayaran. Hidangan yang ditampilkan dapat berubah sebelum jadwal Anda dibuka.",
+            "Pilihan tersedia setelah pembayaran. Hidangan yang ditampilkan bisa berubah sebelum jadwalmu dibuka.",
             "Choices become available after payment. The displayed dishes may change before your schedule opens.",
           )}
         </p>
@@ -61,7 +61,7 @@ export function ChoiceRules() {
   return (
     <p className="notice">
       {t(
-        "Pilih menu sendiri setelah pembayaran, sebelum batas waktu pengantaran. Satu menu berlaku untuk semua porsi pada tanggal dan waktu makan yang sama. Semua pilihan termasuk harga paket. Jika belum memilih, katerer menentukan hidangan dan menghubungi Anda.",
+        "Pilih menu sendiri setelah pembayaran, sebelum batas waktu pengantaran. Satu menu berlaku untuk semua porsi pada tanggal dan waktu makan yang sama. Semua pilihan termasuk harga paket. Kalau belum memilih, katering menentukan hidangan dan menghubungimu.",
         "Choose your menu after payment, before the delivery cutoff. One menu applies to all portions on the same date and meal. All choices are included. If you have not chosen, the caterer decides the dishes and contacts you.",
       )}
     </p>
