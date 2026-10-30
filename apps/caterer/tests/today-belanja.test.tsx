@@ -45,10 +45,15 @@ const SIANG_NOW = () => new Date("2026-10-08T03:00:00Z");
 const MALAM_NOW = () => new Date("2026-10-08T12:00:00Z");
 const store = () => (SecureStore as unknown as { __store: Map<string, string> }).__store;
 
-function dayFor(date: string): SellerOperationsState {
+function dayFor(date: string, delivered = false): SellerOperationsState {
   const day = canvasDay();
   day.operationalDate = date;
-  day.deliveries = day.deliveries.map((d) => ({ ...d, service_date: date }) as typeof d);
+  day.deliveries = day.deliveries.map(
+    (d) =>
+      (delivered
+        ? { ...d, service_date: date, status: "delivered", meals: [{ meal: "lunch", status: "delivered" }] }
+        : { ...d, service_date: date }) as typeof d,
+  );
   return day;
 }
 
@@ -65,6 +70,21 @@ function runtimeWith(role: "owner" | "staff" = "owner") {
     usage: jest.fn(async () => undefined),
   } as unknown as MobileRuntime["api"];
   return runtime;
+}
+
+/** Where each testID (or `text:` plus a text) first appears in the rendered tree, top to bottom (-1 when it is not drawn). */
+function positions(...ids: string[]) {
+  const seen: string[] = [];
+  const walk = (node: unknown): void => {
+    if (typeof node === "string") seen.push(`text:${node}`);
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) return node.forEach(walk);
+    const { props, children } = node as { props?: { testID?: string }; children?: unknown };
+    if (props?.testID) seen.push(props.testID);
+    walk(children);
+  };
+  walk(screen.toJSON());
+  return ids.map((id) => seen.indexOf(id));
 }
 
 function renderToday(runtime: MobileRuntime, { date, now = SIANG_NOW }: { date?: string; now?: () => Date } = {}) {
@@ -128,6 +148,36 @@ describe("Hari ini's Belanja entry row", () => {
     renderToday(runtime);
     expect(await screen.findByText("Shopping, 7 days")).toBeTruthy();
     expect(screen.getByText(`Portions per dish, ${range("en")}`)).toBeTruthy();
+  });
+
+  it("comes after the read errors and the live slot, and before the session (the body order)", async () => {
+    const runtime = runtimeWith();
+    (runtime.api.sellerAttention as jest.Mock).mockResolvedValue({
+      items: [{ id: "a-2", kind: "support", priority: 1, at_time: "2026-10-08T02:41:00Z", context: "Tanya tagihan", href: "/seller/support?case=c-1" }],
+      total: 1, nextCursor: null, timezone: "Asia/Jakarta",
+    });
+    // The reports read fails: its ReadError shows above the live slot.
+    (runtime.api.request as jest.Mock).mockRejectedValue(new Error("offline"));
+    renderToday(runtime);
+    await screen.findByText("Laporan pelanggan belum bisa dimuat.");
+    await screen.findByTestId("attention-a-2");
+    await screen.findByTestId("session-card");
+    const errorId = "text:Laporan pelanggan belum bisa dimuat.";
+    const [error, live, row, session] = positions(errorId, "live-card", "belanja-entry", "session-card");
+    expect(live).toBeGreaterThan(-1);
+    expect(error).toBeLessThan(live);
+    expect(live).toBeLessThan(row);
+    expect(row).toBeLessThan(session);
+  });
+
+  it("comes before Semua beres on a finished day", async () => {
+    const runtime = runtimeWith();
+    (runtime.api.sellerOperations as jest.Mock).mockImplementation(async (_id: string, date: string) => dayFor(date, true));
+    renderToday(runtime);
+    await screen.findByText("Semua beres hari ini");
+    const [row, done] = positions("belanja-entry", "done-card");
+    expect(row).toBeGreaterThan(-1);
+    expect(row).toBeLessThan(done);
   });
 
   const combos = [

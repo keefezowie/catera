@@ -3,8 +3,17 @@ import { jakartaDay, shortDate, type WeekRecap } from "@catera/domain";
 /** The days a Belanja recap reads: today and the six after it, Jakarta calendar days. */
 export const BELANJA_DAYS = 7;
 
-/** The first and last day a recap read on `now` covers, for the Hari ini entry row before anything is read. */
-export const belanjaRange = (now: Date) => ({ from: jakartaDay(now, 0), to: jakartaDay(now, BELANJA_DAYS - 1) });
+/** The days a recap read on `now` covers, in order. */
+export const belanjaDates = (now: Date) => Array.from({ length: BELANJA_DAYS }, (_, i) => jakartaDay(now, i));
+
+/**
+ * The first and last of those days: the range the Hari ini entry row shows before anything is read, and the one the
+ * Belanja screen shows over its recap, so the two always name the same week.
+ */
+export const belanjaRange = (now: Date) => {
+  const dates = belanjaDates(now);
+  return { from: dates[0], to: dates[dates.length - 1] };
+};
 
 /** The category a dish sits under; a dish whose package names none goes under "Lainnya". */
 export const OTHER_CATEGORY = "Lainnya";

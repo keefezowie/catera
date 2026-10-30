@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo } from "react";
 import { Share, View } from "react-native";
 import * as Print from "expo-print";
-import { jakartaDay, weekRecap, type SellerOperationsState, type WeekRecap } from "@catera/domain";
+import { weekRecap, type SellerOperationsState, type WeekRecap } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import {
@@ -20,7 +20,7 @@ import {
 } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
 import { ScreenGuard } from "../ErrorBoundary";
-import { BELANJA_DAYS, belanjaHtml, belanjaLines, dishSections, OTHER_CATEGORY, weekRange } from "./belanja";
+import { belanjaDates, belanjaHtml, belanjaLines, belanjaRange, dishSections, OTHER_CATEGORY, weekRange } from "./belanja";
 import { TextAction } from "./rows";
 
 /** The seven days' dishes while they load: a lead and two sections of rows at KeyValueRow's height. No spinner. */
@@ -94,14 +94,19 @@ function BelanjaContent() {
   const { runtime, actor, t, locale } = useMobile();
   const catererId = actor?.catererId ?? "";
   const owner = actor?.role === "owner";
-  const days = useData(`belanja:${catererId}`, () => {
+  // The read keeps the range it was made for (`belanjaRange`, the same one the Hari ini row shows) beside its days.
+  const days = useData(`belanja:${catererId}`, async () => {
     const now = new Date();
-    return Promise.all(
-      Array.from({ length: BELANJA_DAYS }, (_, i) => runtime.api.sellerOperations(catererId, jakartaDay(now, i))),
-    ) as Promise<SellerOperationsState[]>;
+    const read = await (Promise.all(
+      belanjaDates(now).map((date) => runtime.api.sellerOperations(catererId, date)),
+    ) as Promise<SellerOperationsState[]>);
+    return { days: read, range: belanjaRange(now) };
   });
-  const week = useMemo(() => (days.data ? weekRecap(days.data) : null), [days.data]);
-  const caterer = days.data?.[0]?.caterer.name ?? "";
+  const week = useMemo(
+    () => (days.data ? { ...weekRecap(days.data.days), ...days.data.range } : null),
+    [days.data],
+  );
+  const caterer = days.data?.days[0]?.caterer.name ?? "";
   useBelanjaActions(week, caterer);
   const title = t("Belanja 7 hari", "Shopping, 7 days");
 

@@ -307,7 +307,7 @@ function DoneCard({ ops, onTomorrow }: { ops: SellerOperationsState; onTomorrow:
   const { t } = useMobile();
   const { arrived, failed } = dayOutcome(ops);
   return (
-    <Card tone="sage" style={{ gap: 12 }}>
+    <Card testID="done-card" tone="sage" style={{ gap: 12 }}>
       {/* The celebrating mascot holds up its own check, so it takes the place of the check icon. */}
       <StateArt pose="merayakan" />
       <Text variant="heading" style={{ textAlign: "center" }}>
@@ -422,6 +422,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // The first read of this day: the header and the body each hold their skeleton until it answers. A kept copy or a
   // failed read is never a skeleton (the copy shows itself, a failure shows Coba lagi).
   const loading = !ops && !day.error;
+  // The body's fade key: a different day, or the first read landing.
+  const dayKey = `${loading ? "loading" : "day"}-${date}`;
 
   // Pull to refresh reads the day and its reports again while what is on screen stays; only the spinner says so.
   const [pulling, setPulling] = useState(false);
@@ -511,116 +513,127 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
         lastSeen={day.data?.savedAt ? new Date(day.data.savedAt) : undefined}
         onRetry={() => void pull()}
       />
-      {/* Outside the day's FadeSwap: the row is the same on every day, so a day change does not fade it. */}
-      <BelanjaEntry />
       {/* Only a different day (or the first read landing) is new content and fades. A stage change (Mulai masak, Berangkat
           antar, Semua beres) or the Siang / Malam switch is the same day answering a tap: its parts change in place,
-          so the body neither fades from zero nor blanks for a frame. */}
-      <FadeSwap swapKey={`${loading ? "loading" : "day"}-${date}`}>
-        <View style={{ gap: SECTION_GAP }}>
-          {day.fromCache && day.loading ? (
-            // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.
-            <Text testID="day-refreshing" variant="meta">
-              {t("Memperbarui…", "Updating…")}
-            </Text>
-          ) : day.data?.savedAt ? (
-            <Text testID="day-kept" variant="meta">
-              {t(
-                "Ini data terakhir yang tersimpan. Mulai masak dan Berangkat kembali setelah data diperbarui.",
-                "This is the last data saved. The Start cooking and Head out buttons come back once the data is refreshed.",
-              )}
-            </Text>
-          ) : null}
-          {!ops && day.error ? <ReadError art message={day.error} onRetry={() => void day.reload()} /> : null}
-          {loading ? <TodaySkeleton /> : null}
-          {today && !issues.data && issues.error ? (
-            // A failed read must not look like "no reports".
-            <ReadError
-              message={t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
-              onRetry={() => void issues.reload()}
-            />
-          ) : null}
-          {today && !attention.data && attention.error ? (
-            // A failed read must not look like "nothing needs attention".
-            <ReadError
-              message={t("Hal yang perlu dicek belum bisa dimuat.", "Items that need a check could not be loaded.")}
-              onRetry={() => void attention.reload()}
-            />
-          ) : null}
-          {/* The live slot: the first of the setup card, the reports and the attention items, the rest one tap away. */}
-          <LiveSlot
-            setup={newKitchen}
-            issues={today ? (issues.data ?? []) : []}
-            attention={today ? (attention.data?.items ?? []) : []}
-          />
-          {ops && done ? (
-            <DoneCard ops={ops} onTomorrow={() => setOffset(1)} />
-          ) : ops && session ? (
-            <SessionCard
-              ops={ops}
-              session={session}
-              ticks={ticks}
-              meal={meal}
-              date={date}
-              report={day.data?.savedAt ? null : today ? "today" : "later"}
-              caterer={ops.caterer.name}
-              selection={selection}
-              route={route}
-            />
-          ) : ops && (failedCount > 0 || otherSession) ? (
-            <Card tone="sage">
-              {/* Nothing scheduled for this meal rests the mascot; rows marked "Gagal diantar" are not a quiet meal. */}
-              {failedCount > 0 ? null : <StateArt pose="tidur" />}
-              <Text testID="meal-empty-note" selectable style={failedCount > 0 ? undefined : { textAlign: "center" }}>
-                {failedCount > 0
-                  ? meal === "lunch"
-                    ? t(
-                        `${failedCount} pengantaran makan siang ditandai Gagal diantar.`,
-                        `${failedCount} lunch ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
-                      )
-                    : t(
-                        `${failedCount} pengantaran makan malam ditandai Gagal diantar.`,
-                        `${failedCount} dinner ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
-                      )
-                  : meal === "lunch"
-                    ? t("Tidak ada pengantaran makan siang.", "No lunch deliveries.")
-                    : t("Tidak ada pengantaran makan malam.", "No dinner deliveries.")}
+          so the body neither fades from zero nor blanks for a frame. The day is two FadeSwaps on the same key with the
+          Belanja row between them: what needs the caterer first (the captions, the read errors, the live slot), then the
+          row, then the day's content. The row is the same on every day, so it stays out of both and never fades.
+          Each part ends (or starts) with a zero-height spacer, so its 24 to the row exists only when the part has
+          content: an empty part adds no gap. */}
+      <View testID="today-body">
+        <FadeSwap swapKey={dayKey}>
+          <View testID="today-first" style={{ gap: SECTION_GAP }}>
+            {day.fromCache && day.loading ? (
+              // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.
+              <Text testID="day-refreshing" variant="meta">
+                {t("Memperbarui…", "Updating…")}
               </Text>
-              {otherSession ? (
-                <Button
-                  variant="secondary"
-                  label={
-                    other === "lunch"
+            ) : day.data?.savedAt ? (
+              <Text testID="day-kept" variant="meta">
+                {t(
+                  "Ini data terakhir yang tersimpan. Mulai masak dan Berangkat kembali setelah data diperbarui.",
+                  "This is the last data saved. The Start cooking and Head out buttons come back once the data is refreshed.",
+                )}
+              </Text>
+            ) : null}
+            {!ops && day.error ? <ReadError art message={day.error} onRetry={() => void day.reload()} /> : null}
+            {today && !issues.data && issues.error ? (
+              // A failed read must not look like "no reports".
+              <ReadError
+                message={t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
+                onRetry={() => void issues.reload()}
+              />
+            ) : null}
+            {today && !attention.data && attention.error ? (
+              // A failed read must not look like "nothing needs attention".
+              <ReadError
+                message={t("Hal yang perlu dicek belum bisa dimuat.", "Items that need a check could not be loaded.")}
+                onRetry={() => void attention.reload()}
+              />
+            ) : null}
+            {/* The live slot: the first of the setup card, the reports and the attention items, the rest one tap away. */}
+            <LiveSlot
+              setup={newKitchen}
+              issues={today ? (issues.data ?? []) : []}
+              attention={today ? (attention.data?.items ?? []) : []}
+            />
+            <View style={{ height: 0 }} />
+          </View>
+        </FadeSwap>
+        <BelanjaEntry />
+        <FadeSwap swapKey={dayKey}>
+          <View testID="today-day" style={{ gap: SECTION_GAP }}>
+            <View style={{ height: 0 }} />
+            {loading ? <TodaySkeleton /> : null}
+            {ops && done ? (
+              <DoneCard ops={ops} onTomorrow={() => setOffset(1)} />
+            ) : ops && session ? (
+              <SessionCard
+                ops={ops}
+                session={session}
+                ticks={ticks}
+                meal={meal}
+                date={date}
+                report={day.data?.savedAt ? null : today ? "today" : "later"}
+                caterer={ops.caterer.name}
+                selection={selection}
+                route={route}
+              />
+            ) : ops && (failedCount > 0 || otherSession) ? (
+              <Card tone="sage">
+                {/* Nothing scheduled for this meal rests the mascot; rows marked "Gagal diantar" are not a quiet meal. */}
+                {failedCount > 0 ? null : <StateArt pose="tidur" />}
+                <Text testID="meal-empty-note" selectable style={failedCount > 0 ? undefined : { textAlign: "center" }}>
+                  {failedCount > 0
+                    ? meal === "lunch"
                       ? t(
-                          `Lihat makan siang · ${otherSession.portions} porsi`,
-                          `See lunch · ${plural(otherSession.portions, "portion")}`,
+                          `${failedCount} pengantaran makan siang ditandai Gagal diantar.`,
+                          `${failedCount} lunch ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
                         )
                       : t(
-                          `Lihat makan malam · ${otherSession.portions} porsi`,
-                          `See dinner · ${plural(otherSession.portions, "portion")}`,
+                          `${failedCount} pengantaran makan malam ditandai Gagal diantar.`,
+                          `${failedCount} dinner ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
                         )
-                  }
-                  onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
-                />
-              ) : null}
-            </Card>
-          ) : ops && !newKitchen ? (
-            <Card tone="sage">
-              <StateArt pose="tidur" />
-              <Text style={{ textAlign: "center" }}>
-                {today
-                  ? t("Tidak ada yang dimasak hari ini.", "Nothing to cook today.")
-                  : offset === 1
-                    ? t("Tidak ada yang dimasak besok.", "Nothing to cook tomorrow.")
-                    : t(`Tidak ada yang dimasak hari ${dayWord}.`, `Nothing to cook on ${dayWord}.`)}
-              </Text>
-              <Text variant="meta" style={{ textAlign: "center" }}>
-                {t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}
-              </Text>
-            </Card>
-          ) : null}
-        </View>
-      </FadeSwap>
+                    : meal === "lunch"
+                      ? t("Tidak ada pengantaran makan siang.", "No lunch deliveries.")
+                      : t("Tidak ada pengantaran makan malam.", "No dinner deliveries.")}
+                </Text>
+                {otherSession ? (
+                  <Button
+                    variant="secondary"
+                    label={
+                      other === "lunch"
+                        ? t(
+                            `Lihat makan siang · ${otherSession.portions} porsi`,
+                            `See lunch · ${plural(otherSession.portions, "portion")}`,
+                          )
+                        : t(
+                            `Lihat makan malam · ${otherSession.portions} porsi`,
+                            `See dinner · ${plural(otherSession.portions, "portion")}`,
+                          )
+                    }
+                    onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+                  />
+                ) : null}
+              </Card>
+            ) : ops && !newKitchen ? (
+              <Card tone="sage">
+                <StateArt pose="tidur" />
+                <Text style={{ textAlign: "center" }}>
+                  {today
+                    ? t("Tidak ada yang dimasak hari ini.", "Nothing to cook today.")
+                    : offset === 1
+                      ? t("Tidak ada yang dimasak besok.", "Nothing to cook tomorrow.")
+                      : t(`Tidak ada yang dimasak hari ${dayWord}.`, `Nothing to cook on ${dayWord}.`)}
+                </Text>
+                <Text variant="meta" style={{ textAlign: "center" }}>
+                  {t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}
+                </Text>
+              </Card>
+            ) : null}
+          </View>
+        </FadeSwap>
+      </View>
     </Screen>
   );
 }
