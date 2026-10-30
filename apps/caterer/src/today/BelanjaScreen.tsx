@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo } from "react";
 import { Share, View } from "react-native";
 import * as Print from "expo-print";
-import { weekRecap, type SellerOperationsState, type WeekRecap } from "@catera/domain";
+import { weekRecap, type WeekRecap } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import {
@@ -97,9 +97,7 @@ function BelanjaContent() {
   // The read keeps the range it was made for (`belanjaRange`, the same one the Hari ini row shows) beside its days.
   const days = useData(`belanja:${catererId}`, async () => {
     const now = new Date();
-    const read = await (Promise.all(
-      belanjaDates(now).map((date) => runtime.api.sellerOperations(catererId, date)),
-    ) as Promise<SellerOperationsState[]>);
+    const read = await Promise.all(belanjaDates(now).map((date) => runtime.api.sellerOperations(catererId, date)));
     return { days: read, range: belanjaRange(now) };
   });
   const week = useMemo(

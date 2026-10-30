@@ -46,9 +46,10 @@ const OUTLINE = 1;
  *
  * Colour: the track is the theme `line` step, which also shows through the 2dp gaps and holds the scheduled remainder.
  * It is all but invisible on the mood header it sits on, so a 1dp `markerIdle` outline (3:1 or more on every header)
- * draws the bar's whole 0..total extent. Every segment is at least 3:1 on the track, and the three differ in lightness, not hue alone: forest, then sunrise ink, then
- * the idle marker grey in light (darkest to lightest); forest, sunrise and cream in dark, where the floor above the
- * track leaves no grey step 1.5:1 off sunrise. Ratios are in the task report.
+ * draws the bar's whole 0..total extent. Every segment is at least 3:1 on the track, and the three differ in lightness,
+ * not hue alone: forest, then sunrise ink, then the idle marker grey in light (darkest to lightest); forest, sunrise
+ * and cream in dark, where the floor above the track leaves no grey step 1.5:1 off sunrise. Ratios are in the task
+ * report.
  */
 export function BatchProgress({ session }: { session: KitchenSession }) {
   const { t } = useMobile();

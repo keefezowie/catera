@@ -117,6 +117,7 @@ function BelanjaEntry() {
   const detail = t(`Porsi per menu, ${range}`, `Portions per dish, ${range}`);
   return (
     <Card testID="belanja-entry" style={{ paddingVertical: 0 }}>
+      {/* A PressableRow, not a LinkRow: LinkRow holds one label, and this row needs a title over its range line. */}
       <PressableRow
         testID="belanja-entry-row"
         accessibilityRole="button"
@@ -400,7 +401,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // The meta keeps the kitchen's name while the other day loads, instead of dropping it for a moment.
   const [catererName, setCatererName] = useState("");
   if (ops && ops.caterer.name !== catererName) setCatererName(ops.caterer.name);
-  // Once the meal is out the header says so, in place of the day word: the track and the order below say the rest.
+  // Once the meal is out the header says so, in place of the day word: the batch progress and the order below say the rest.
   const out = today && (session?.journey.stage === "out_for_delivery" || session?.journey.stage === "arrived");
   const dayWord = out
     ? t("Sedang diantar", "On the way")
@@ -492,8 +493,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
         >
           <WeekStrip selected={offset} onSelect={setOffset} counts={counts} />
           {/* The figures enter from their skeleton as one block, in the same place on the header. They are keyed by
-              day and meal, so the mood toggle and Hari ini/Besok mount the other session's track in place instead of
-              sliding it (Decision A); only a stage change of the same session moves it. */}
+              day and meal, so the mood toggle and a day picked on the week strip mount the other session's batch
+              progress in place instead of sliding it (Decision A); only a stage change of the same session moves it. */}
           {loading || (ops && session) ? (
             <FadeSwap swapKey={loading ? "loading" : "count"}>
               {ops && session ? (
