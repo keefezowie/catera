@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { RefreshControl, View } from "react-native";
+import { router } from "expo-router";
 import {
   errorLabel,
   jakartaDay,
@@ -18,9 +19,11 @@ import {
   Button,
   Card,
   ConnectionBanner,
+  DecorativeIcon,
   FadeSwap,
   FigureStrip,
   MoodHeader,
+  PressableRow,
   Screen,
   StateArt,
   Text,
@@ -41,7 +44,9 @@ import { useTicks } from "./ticks";
 import { WEEK_DAYS, WeekStrip, weekOffset } from "./WeekStrip";
 import { useRouteView } from "./DeliveryOrder";
 import { LiveSlot } from "./LiveSlot";
-import { CAPTION_RESERVE, FIGURE_GAP, FIGURE_TOP, SECTION_GAP } from "./rows";
+import { ACTION, CAPTION_RESERVE, FIGURE_GAP, FIGURE_TOP, SECTION_GAP } from "./rows";
+import { belanjaRange, weekRange } from "./belanja";
+import { belanjaHref } from "../hrefs";
 import { ReadError } from "../ReadError";
 import { TodayCountSkeleton, TodaySkeleton } from "../skeletons";
 
@@ -95,6 +100,43 @@ function HeaderFigures({ ops, session }: { ops: SellerOperationsState; session: 
       />
       <BatchProgress session={session} />
     </View>
+  );
+}
+
+/**
+ * The way into Belanja 7 hari, under the header on every day of the strip, for the owner and the helper alike: one
+ * surface card holding a 48+ row, the basket glyph, "Belanja 7 hari" over the range it covers (today and the six days
+ * after, the recap's own range), and a chevron. It reads nothing itself, so it is there before the day answers and
+ * stays put when the day, the meal or the stage changes.
+ */
+function BelanjaEntry() {
+  const { t, locale } = useMobile();
+  const c = useColors();
+  const range = weekRange(belanjaRange(new Date()), locale);
+  const title = t("Belanja 7 hari", "Shopping, 7 days");
+  const detail = t(`Porsi per menu, ${range}`, `Portions per dish, ${range}`);
+  return (
+    <Card testID="belanja-entry" style={{ paddingVertical: 0 }}>
+      <PressableRow
+        testID="belanja-entry-row"
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, ${detail}`}
+        onPress={() => router.push(belanjaHref() as never)}
+        style={{ minHeight: ACTION, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 12 }}
+      >
+        {/* forest: the action's glyph */}
+        <DecorativeIcon name="basket-outline" size={22} color={c.forest} />
+        <View style={{ flex: 1 }}>
+          <Text testID="belanja-entry-title" variant="bodyStrong">
+            {title}
+          </Text>
+          <Text testID="belanja-entry-detail" variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
+            {detail}
+          </Text>
+        </View>
+        <DecorativeIcon name="chevron-forward" size={18} color={c.muted} />
+      </PressableRow>
+    </Card>
   );
 }
 
@@ -469,6 +511,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
         lastSeen={day.data?.savedAt ? new Date(day.data.savedAt) : undefined}
         onRetry={() => void pull()}
       />
+      {/* Outside the day's FadeSwap: the row is the same on every day, so a day change does not fade it. */}
+      <BelanjaEntry />
       {/* Only a different day (or the first read landing) is new content and fades. A stage change (Mulai masak, Berangkat
           antar, Semua beres) or the Siang / Malam switch is the same day answering a tap: its parts change in place,
           so the body neither fades from zero nor blanks for a frame. */}

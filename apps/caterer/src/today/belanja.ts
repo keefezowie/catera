@@ -1,7 +1,10 @@
-import { shortDate, type WeekRecap } from "@catera/domain";
+import { jakartaDay, shortDate, type WeekRecap } from "@catera/domain";
 
 /** The days a Belanja recap reads: today and the six after it, Jakarta calendar days. */
 export const BELANJA_DAYS = 7;
+
+/** The first and last day a recap read on `now` covers, for the Hari ini entry row before anything is read. */
+export const belanjaRange = (now: Date) => ({ from: jakartaDay(now, 0), to: jakartaDay(now, BELANJA_DAYS - 1) });
 
 /** The category a dish sits under; a dish whose package names none goes under "Lainnya". */
 export const OTHER_CATEGORY = "Lainnya";
@@ -18,7 +21,7 @@ export function dishSections(week: WeekRecap) {
 }
 
 /** "Sen 5 Okt sampai Min 11 Okt". The shared and printed text always uses the Indonesian form. */
-export const weekRange = (week: WeekRecap, locale: "id" | "en") =>
+export const weekRange = (week: Pick<WeekRecap, "from" | "to">, locale: "id" | "en") =>
   `${shortDate(week.from, locale)} ${locale === "id" ? "sampai" : "to"} ${shortDate(week.to, locale)}`;
 
 /**
