@@ -35,6 +35,8 @@ export async function uploadProof(
   const response = await fetch(`${runtime.apiBase}/api/uploads/proof`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+    // Bearer only, like every Catera API call from the phone: no cookie is sent or kept.
+    credentials: "omit",
     body: form,
   });
   const body = (await response.json().catch(() => ({}))) as { data?: { path?: string }; error?: { code?: string } };

@@ -42,8 +42,12 @@ export async function ensureActor(
 }
 
 /**
- * Empties the app's native cookie store (OkHttp's jar on Android, NSHTTPCookieStorage on iOS). It never throws and
- * waits at most two seconds, so a store that never answers cannot hold sign-out up.
+ * Empties the app's native cookie store. It never throws and waits at most two seconds, so a store that never answers
+ * cannot hold sign-out up.
+ *
+ * The store is shared, and clearing all of it is intended at sign-out. On Android it is the app's CookieManager, which
+ * React Native's networking, expo/fetch and any WebView all use. On iOS it is `HTTPCookieStorage.shared`. In Expo Go
+ * every project runs in the one Expo Go app, so it clears the cookies of the other projects too.
  */
 function clearNativeCookies(): Promise<void> {
   return new Promise<void>((resolve) => {
@@ -84,7 +88,8 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
     (await SecureStore.getItemAsync(key("demo.token"))) ||
     (await supabase?.auth.getSession())?.data.session?.access_token ||
     null;
-  // Bearer only: the phone never keeps or sends the API's cookies, so the token is the whole session.
+  // Bearer only: the phone never keeps or sends the API's cookies, so the token is the whole session. The direct
+  // fetches to the Catera API (uploads, proof photos, the import assistant) pass `credentials: "omit"` too.
   const api = createApi(apiBase, token, { timeoutMs: 15_000, credentials: "omit" });
 
   /** `name` names a brand-new profile when the account carries none (default "Katering"). */

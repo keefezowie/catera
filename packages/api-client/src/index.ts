@@ -49,8 +49,9 @@ export function createApi(
     timeoutMs?: number;
     /**
      * Whether requests carry and keep cookies. The web session lives in cookies ("include"). A native client signs in
-     * with a bearer token only and passes "omit": React Native's fetch otherwise stores the API's cookies (the demo
-     * `catera_v1_demo`, Supabase's) in the phone's cookie store and keeps sending them after the token is gone.
+     * with a bearer token only and passes "omit": the phone's fetch (expo/fetch, which defaults to "include")
+     * otherwise stores the API's cookies, such as the demo `catera_v1_demo`, in the phone's cookie store and keeps
+     * sending them after the token is gone.
      */
     credentials?: RequestCredentials;
   } = {},

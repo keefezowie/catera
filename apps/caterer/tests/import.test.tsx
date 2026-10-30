@@ -108,6 +108,8 @@ it("saves only the rows that need no checking", async () => {
   expect(preview[1].rows).toHaveLength(25);
   expect(preview[1].rows.map((r) => r.externalReference)).not.toContain("impor-2026-10-07-26");
   expect(screen.getByText("Alamat belum lengkap")).toBeTruthy();
+  // The assistant call is bearer only: no cookie is sent or kept.
+  expect((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].credentials).toBe("omit");
 });
 
 it("flags a start date before the earliest one the kitchen can cook for", () => {
