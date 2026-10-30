@@ -4,6 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { webMotionVariables } from "@/lib/motion";
+import { publicOrigin } from "@/lib/public-url";
 import "./globals.css";
 import "./usability.css";
 import "./spacing.css";
@@ -25,13 +26,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale =
     (await cookies()).get("catera_locale")?.value === "en" ? "en" : "id";
   return {
-    title: { default: "Catera — Good Food on Repeat", template: "%s · Catera" },
+    metadataBase: new URL(publicOrigin()),
+    title: { default: "Catera: katering langganan", template: "%s · Catera" },
     description:
       locale === "en"
         ? "Compare catering packages, choose portions, and manage your delivery schedule."
         : "Bandingkan paket katering, pilih porsi, dan kelola jadwal pengantaran.",
     manifest: "/manifest.webmanifest",
-    icons: { icon: "/assets/app-icon.png", apple: "/assets/app-icon.png" },
+    openGraph: {
+      type: "website",
+      siteName: "Catera",
+      locale: locale === "en" ? "en_US" : "id_ID",
+    },
+    twitter: { card: "summary_large_image" },
   };
 }
 
