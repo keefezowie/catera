@@ -64,6 +64,9 @@ const useStyles = themedStyles((c) => ({
     borderCurve: "continuous",
     paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
     overflow: "hidden",
+    // The width is always set, 0 in dark: a border key that only drops out on a light-to-dark switch is reset to
+    // "undefined" on Android, which clips this overflow-hidden card's children to nothing (gate 2026-10-30 #10).
+    borderWidth: cardEdgeWidth(c),
     ...cardEdge(c),
   },
   open: { overflow: "visible" },

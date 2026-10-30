@@ -123,7 +123,7 @@ const useStyles = themedStyles((c) => ({
           paddingVertical: nativeLayout.space.md - 1,
           paddingHorizontal: nativeLayout.cardPadding - 1,
         }
-      : { paddingVertical: nativeLayout.space.md, paddingHorizontal: nativeLayout.cardPadding }),
+      : { borderWidth: 0, paddingVertical: nativeLayout.space.md, paddingHorizontal: nativeLayout.cardPadding }),
   },
   line: { flexDirection: "row" },
   cell: { minWidth: 0, justifyContent: "space-between" },

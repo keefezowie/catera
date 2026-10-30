@@ -902,7 +902,8 @@ describe("the action sheets on the Dapur scale", () => {
       expect(dark.sage).toMatchObject({ backgroundColor: nativeThemes.dark.sage, borderWidth: 1, borderColor: nativeThemes.dark.line, paddingHorizontal: 15 });
       // The 1px edge and the 15 padding put the rows 16 in, as the surface card's 16 does.
       expect(dark.surface).toMatchObject({ backgroundColor: nativeThemes.dark.surface, paddingHorizontal: 16 });
-      expect(dark.surface.borderWidth).toBeUndefined();
+      // Zero, never absent: a border key dropped on a live switch empties the clipped card on Android (gate 2026-10-30 #10).
+      expect(dark.surface.borderWidth).toBe(0);
       const light = cards("light");
       expect(light.sage).toMatchObject({ backgroundColor: nativeThemes.light.sage, borderWidth: 1, borderColor: nativeThemes.light.cardBorder, paddingHorizontal: 15 });
       expect(light.surface).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderWidth: 1, paddingHorizontal: 15 });
