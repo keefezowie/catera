@@ -216,6 +216,11 @@ test("day cards layer all meal coverage states with today and selection", async 
   );
   // From 1100px the landscape layout compacts the cards to 100px (docs/V1-LANDSCAPE-OPTIMIZATION.md, 1af1b7d).
   await expect(selectedToday).toHaveCSS("min-height", "100px");
+  // Below 1100px the desktop rule stands: 120px (DESIGN.md, meal-calendar.css).
+  await page.setViewportSize({ width: 1024, height: 1000 });
+  await expect(selectedToday).toHaveCSS("min-height", "120px");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(selectedToday).toHaveCSS("min-height", "100px");
 
   mkdirSync(evidenceDir, { recursive: true });
   await page.screenshot({
