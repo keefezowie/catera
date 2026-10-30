@@ -24,6 +24,8 @@ describe("react-native-screens dimming view patch", () => {
 
   it("keeps TalkBack off the formSheet backdrop in the installed Kotlin", () => {
     const source = readFileSync(dimmingView, "utf8");
-    expect(source).toContain("importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO");
+    // npm runs the root postinstall only on a bare `npm install` or `npm ci`; `npm install <pkg>` skips it, so a
+    // tree installed before the patch landed stays unpatched until patch-package runs.
+    expect(source, "react-native-screens is unpatched: run `npx patch-package` (or `npm ci`) at the repo root").toContain("importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO");
   });
 });
