@@ -1,0 +1,23 @@
+{
+  "option": "A2",
+  "file": "dapur-order-spike.png",
+  "method": "Built-in image_gen; individual output copied unchanged",
+  "source": "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-80c5cfde-84dd-4d53-9a5d-d4ca36627e57.png",
+  "promptFile": "dapur-order-spike-prompt.txt",
+  "references": [
+    "dapur-rice-cooker.png",
+    "../../spot/spot-menu-card-pencil.png"
+  ],
+  "width": 1254,
+  "height": 1254,
+  "transparentPixels": 1085901,
+  "visibleMargins": [
+    131,
+    173,
+    131,
+    186
+  ],
+  "sha256": "7b3c95e1541a29ca37eb4a154889eac3fcfb89e96a5ca01e3e2939f438a2ef30",
+  "marginWarning": false,
+  "review": "Reviewed beside B at identical size: matching thick forest outlines and glossy fills. At 48px, bare blunt stand and blank ticket remain readable. Ticket contains no writing."
+}

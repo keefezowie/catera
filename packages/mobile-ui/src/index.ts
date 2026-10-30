@@ -29,6 +29,7 @@ export * from "./StickyAction";
 export * from "./HeroPager";
 export { MascotArt, mascotArtFrame, type MascotPose } from "./brand/MascotArt";
 export * from "./brand/StateArt";
+export { POLISH_ART, PolishArt, type PolishArtName } from "./brand/polishArt";
 export * from "./brand/SuccessRig";
 export * from "./brand/MascotReading";
 export * from "./brand/Sparkle";

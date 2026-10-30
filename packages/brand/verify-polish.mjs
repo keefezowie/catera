@@ -29,14 +29,17 @@ for (const record of records) {
   if(maxX<0 || maxY<0) errors.push(`${relative}: no visible subject`);
   let sourceMatches=null;
   try {sourceMatches=hash(await fs.readFile(record.source))===hash(bytes);if(!sourceMatches)errors.push(`${relative}: modified original`);} catch {warnings.push('Original generator source is unavailable on this machine; verify retained SHA-256 instead.');}
-  manifest.push({number:record.number,file:relative,priority:record.number<=29?'P1':record.number<=36?'P2':'P3',width:info.width,height:info.height,requestedDimensions:expected,sha256:hash(bytes),bytes:bytes.length,transparentPixels:transparent,opaquePixels:opaque,partialAlphaPixels:partial,visibleSubjectMarginsAtAlpha128:margins,sourceMatches,provenance:'Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling',warnings});
+  manifest.push({number:record.number,file:relative,priority:record.number<=29?'P1':record.number<=36?'P2':'P3',usedByApp:record.usedByApp!==false,...(record.supersededBy?{supersededBy:record.supersededBy}:{}),width:info.width,height:info.height,requestedDimensions:expected,sha256:hash(bytes),bytes:bytes.length,transparentPixels:transparent,opaquePixels:opaque,partialAlphaPixels:partial,visibleSubjectMarginsAtAlpha128:margins,sourceMatches,provenance:'Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling',warnings});
 }
-if(records.length!==45 || new Set(records.map(r=>r.number)).size!==45) errors.push('Expected 45 unique entries');
-const result={generatedAt:new Date().toISOString(),assetCount:manifest.length,transparentCount:manifest.filter(x=>x.transparentPixels>0).length,opaqueCount:manifest.filter(x=>x.transparentPixels===0).length,errors,assets:manifest};
+// 46 entries: asset 46 (dapur-kosong) replaced asset 45 (dapur-rak-kosong) in the app; 45 is kept unchanged, unused.
+const EXPECTED=46;
+if(records.length!==EXPECTED || new Set(records.map(r=>r.number)).size!==EXPECTED) errors.push(`Expected ${EXPECTED} unique entries`);
+if(manifest.filter(x=>!x.usedByApp).length!==1) errors.push('Expected exactly one superseded (unused) entry');
+const result={generatedAt:new Date().toISOString(),assetCount:manifest.length,usedCount:manifest.filter(x=>x.usedByApp).length,transparentCount:manifest.filter(x=>x.transparentPixels>0).length,opaqueCount:manifest.filter(x=>x.transparentPixels===0).length,errors,assets:manifest};
 if(process.argv.includes('--refresh')) await fs.writeFile(path.join(root,'manifest.json'),JSON.stringify(result,null,2)+'\n');
 else {
   const previous=JSON.parse(await fs.readFile(path.join(root,'manifest.json'),'utf8'));
   for(const item of manifest) if(previous.assets.find(p=>p.file===item.file)?.sha256!==item.sha256) errors.push(`${item.file}: retained hash mismatch`);
 }
-console.log(JSON.stringify({assets:result.assetCount,transparent:result.transparentCount,opaque:result.opaqueCount,sizeDeviations:manifest.filter(x=>x.width!==x.requestedDimensions[0]||x.height!==x.requestedDimensions[1]).length,marginWarnings:manifest.filter(x=>x.warnings.some(w=>w.includes('margin'))).length,errors},null,2));
+console.log(JSON.stringify({assets:result.assetCount,used:result.usedCount,transparent:result.transparentCount,opaque:result.opaqueCount,sizeDeviations:manifest.filter(x=>x.width!==x.requestedDimensions[0]||x.height!==x.requestedDimensions[1]).length,marginWarnings:manifest.filter(x=>x.warnings.some(w=>w.includes('margin'))).length,errors},null,2));
 if(errors.length) process.exitCode=1;

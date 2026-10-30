@@ -1,0 +1,30 @@
+{
+  "option": "C2",
+  "file": "dapur-wok-off-duty.png",
+  "method": "Built-in image_gen; generated then edited with built-in image_gen; final output copied unchanged",
+  "source": "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-d425275e-1b99-4dc0-98aa-7a6505c478da.png",
+  "prompt": "Style A: Warm hand-drawn flat illustration in a glossy sticker style: thick, rounded, even dark forest #163D2E outlines, flat fills with one soft shading tone, upper-left light, one or two soft highlight streaks. Cream #FFF7E9, forest #163D2E, charcoal #2E2E2E and natural warm wood. Match the attached references. 1254x1254 transparent PNG with real alpha, at least 12% empty margin all sides. No faces, text, labels, ground shadows, background shapes, gradients or checkerboards.\nReferences: Image 1 spot-wok.png is the WOK DESIGN and drawing-style reference. Use that same low round dark-charcoal wok shape, thick forest rim and warm wooden utensils, but EMPTY and cold. Image 2 dapur-kompor.png supplies stove geometry and drawing style only; replace its pot with the reference wok. Do not copy the food, steam or pot lid from either reference.\nEmpty-state illustration, drawn exactly like the attached reference images: same thick dark-forest outline weight, same glossy fills with soft highlights, chunky friendly proportions. Use the same wok design as the reference wok.\nSubject: an empty, clean, cold wok resting on a switched-off single-burner kompor.\nWok: dark charcoal with a glossy highlight, a forest #163D2E outline and a wooden handle, completely empty inside. You can see its clean, shiny inner bowl. No food, no oil, no steam.\nSpatula: a wooden spatula (sutil) lies neatly across the wok's rim, resting, not stirring.\nKompor: cream #FFF7E9 with a forest trim, the cream sprout emblem on its front, and its one forest knob clearly turned to the off position. Use a clear physical OFF detent: knob pointer straight up aligned to a single small unlettered forest index dot, no words or digits. No flame, no blue fire, no heat lines.\nRag: a small folded cream kitchen rag with a thin forest stripe sits beside the kompor on the right.\nComposition: front three-quarter view, centred, the group filling about 70 percent of the canvas width so it reads at 48 px. Calm and tidy, nothing moving, no steam, no motion marks, no sparkles, no characters. Generous even margin on all sides.\nExclusions: no text and no other objects.\nCheck before saving: Next to spot-wok.png, it should read as the same wok, but clearly off duty: empty, no steam, spatula resting, knob off. At 48 px it still reads as a wok on a stove. The empty inner bowl is visible, not hidden by the angle. Keep spatula laid across only a narrow portion of the bowl so the entire empty interior remains legible. No lid.\nSTRICT FINAL REQUIREMENTS: the wok must have its OWN SHORT WOODEN HANDLE attached to the wok on the LEFT, distinct from the separate wooden spatula resting across the RIGHT rim. A cream TWO-LEAF SPROUT EMBLEM must be clearly visible on the stove front on the RIGHT of the knob, not omitted. Put a small single plain dark index dot above the knob for OFF. Reduce whole composition to 70% canvas width: leave 188 pixels transparent on LEFT and RIGHT and at least 150 pixels TOP and BOTTOM. The rag must remain entirely within those margins. Show the wooden spatula laid almost horizontally from rim to rim, not tipped down as though stirring. Empty clean bowl visible beneath.",
+  "finalEditPrompt": "Edit the attached wok-on-stove illustration. Keep the entire illustration design exactly: empty charcoal wok with wooden handle on left, wooden spatula resting horizontally over rim on right, cream single-burner stove with OFF knob, folded striped cream rag on right, existing thick forest outlines and gloss. Change ONLY TWO things: (1) make the ENTIRE group smaller inside the unchanged 1254x1254 transparent canvas, so its total visible width is 878 pixels, centered with 188 transparent pixels left and right; do not crop any object. (2) the front stove sprout must be CREAM #FFF7E9 on a small FOREST #163D2E oval badge, replacing the current forest sprout. No other alterations. Keep empty clean inner bowl fully visible, no food, steam, flame, text or extra objects. True alpha transparency. Generous margins, one image.",
+  "references": [
+    "../../spot/spot-wok.png",
+    "dapur-kompor.png"
+  ],
+  "earlierOutputs": [
+    "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-ba2bce3b-a23e-46ca-8d7a-e66137f894ef.png",
+    "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-d6172b1b-6d91-4f7a-b2c3-249dee5c7b3b.png"
+  ],
+  "width": 1254,
+  "height": 1254,
+  "transparentPixels": 1055899,
+  "visibleMargins": [
+    115,
+    319,
+    102,
+    197
+  ],
+  "marginWarning": true,
+  "visibleWidthFraction": 0.8269537480063796,
+  "sha256": "212b879233df724e3012f4350ee9dcde0ad0a58f2305d50a04469f071ae2f2ff",
+  "sourceMatches": true,
+  "review": "Reviewed at 48px and beside spot-wok.png: clearly a wok on a stove, clean visible empty bowl, resting spatula, no food/steam/flame. Cream sprout on forest badge and aligned off-index knob visible at full size. Width about 83 percent instead of requested 70; left/right margins below 10 percent."
+}

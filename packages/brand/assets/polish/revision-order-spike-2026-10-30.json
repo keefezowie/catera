@@ -1,0 +1,9 @@
+{
+  "number": 45,
+  "file": "dapur/dapur-rak-kosong.png",
+  "concept": "User-selected option A: bare restaurant order spike, blank ticket, pencil",
+  "method": "Built-in image_gen; untouched generated original",
+  "source": "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-967558dd-5294-44b5-9fd8-5e29633c7cb4.png",
+  "prompt": "Catera Dapur no-orders empty-state illustration, 1254x1254 transparent PNG. Empty-state illustration: a classic restaurant order spike (a round forest #163D2E base with an upright metal spike) standing on a small cream counter strip, with no tickets on it. Next to it lies one blank cream order ticket, slightly curled, face up and empty. A tiny sunrise-orange pencil rests beside the ticket. Calm, nothing moving. Front three-quarter view, centred, generous margin, no text or numbers anywhere. Rendering: warm hand-drawn flat glossy sticker illustration matching the Catera asset family, thick rounded dark forest outlines, cream #FFF7E9, sunrise orange #F47B2A pencil, restrained highlights from upper left and one soft shading tone. The upright order spike is slender bare metal with a visible pointed tip, firmly attached to the round forest base. Exactly one blank ticket lying NEXT TO the spike, NOT pierced by it. Short cream counter strip only, transparent elsewhere, no environment, no food, no people, no faces, no logos. Entire subject including strip within central 70 percent of canvas, at least 15 percent clear transparent margin on all sides. One individual asset only.",
+  "status": "Withdrawn 2026-10-30: dapur/dapur-rak-kosong.png is back to its original shelf delivery (unused); the spike bytes are retained as dapur/alternatives/dapur-order-spike-v1.png. The app uses dapur/dapur-kosong.png (asset 46)."
+}

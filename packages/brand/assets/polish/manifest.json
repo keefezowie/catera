@@ -1,7 +1,8 @@
 {
-  "generatedAt": "2026-10-30T12:26:14.675Z",
-  "assetCount": 45,
-  "transparentCount": 44,
+  "generatedAt": "2026-10-30T15:04:15.418Z",
+  "assetCount": 46,
+  "usedCount": 45,
+  "transparentCount": 45,
   "opaqueCount": 1,
   "errors": [],
   "assets": [
@@ -9,6 +10,7 @@
       "number": 1,
       "file": "spot/spot-rantang.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -36,6 +38,7 @@
       "number": 2,
       "file": "spot/spot-rantang-open.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -63,6 +66,7 @@
       "number": 3,
       "file": "spot/spot-menu-card-pencil.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -90,6 +94,7 @@
       "number": 4,
       "file": "spot/spot-plate-empty-pencil.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -117,6 +122,7 @@
       "number": 5,
       "file": "spot/spot-rantang-clock.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -144,6 +150,7 @@
       "number": 6,
       "file": "spot/spot-scooter.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -171,6 +178,7 @@
       "number": 7,
       "file": "spot/spot-wok.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -198,6 +206,7 @@
       "number": 8,
       "file": "spot/spot-nota.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -223,6 +232,7 @@
       "number": 9,
       "file": "spot/spot-lid-heart.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -250,6 +260,7 @@
       "number": 10,
       "file": "spot/spot-calendar-tote.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -277,6 +288,7 @@
       "number": 11,
       "file": "spot/spot-pin-lid.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -302,6 +314,7 @@
       "number": 12,
       "file": "spot/spot-saringan.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -327,6 +340,7 @@
       "number": 13,
       "file": "spot/spot-cabai.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -352,6 +366,7 @@
       "number": 14,
       "file": "spot/spot-plate-leaf.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -377,6 +392,7 @@
       "number": 15,
       "file": "spot/spot-plate-pause.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -404,6 +420,7 @@
       "number": 16,
       "file": "spot/spot-rantang-gift.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -431,6 +448,7 @@
       "number": 17,
       "file": "empty/empty-area.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -456,6 +474,7 @@
       "number": 18,
       "file": "empty/empty-kentongan-lid.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -483,6 +502,7 @@
       "number": 19,
       "file": "onboarding/welcome-meja.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1024,
       "height": 1536,
       "requestedDimensions": [
@@ -508,6 +528,7 @@
       "number": 20,
       "file": "onboarding/plate-ayam.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -535,6 +556,7 @@
       "number": 21,
       "file": "onboarding/plate-ikan.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -562,6 +584,7 @@
       "number": 22,
       "file": "onboarding/plate-daging.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -589,6 +612,7 @@
       "number": 23,
       "file": "onboarding/plate-sayur.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -616,6 +640,7 @@
       "number": 24,
       "file": "onboarding/plate-pedas.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -643,6 +668,7 @@
       "number": 25,
       "file": "onboarding/plate-tanpa-santan.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -670,6 +696,7 @@
       "number": 26,
       "file": "onboarding/primer-area.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -695,6 +722,7 @@
       "number": 27,
       "file": "moment/moment-rantang-meledak.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -720,6 +748,7 @@
       "number": 28,
       "file": "moment/moment-langganan-aktif.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -747,6 +776,7 @@
       "number": 29,
       "file": "onboarding/primer-notifikasi.png",
       "priority": "P1",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -774,6 +804,7 @@
       "number": 30,
       "file": "spot/spot-rantang-dikemas.png",
       "priority": "P2",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -801,6 +832,7 @@
       "number": 31,
       "file": "spot/spot-rantang-sampai.png",
       "priority": "P2",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -828,6 +860,7 @@
       "number": 32,
       "file": "token/token-nasi-kotak.png",
       "priority": "P2",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -855,6 +888,7 @@
       "number": 33,
       "file": "token/token-sate.png",
       "priority": "P2",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -882,6 +916,7 @@
       "number": 34,
       "file": "token/token-gado-gado.png",
       "priority": "P2",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -909,6 +944,7 @@
       "number": 35,
       "file": "token/token-pisang-goreng.png",
       "priority": "P2",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -936,6 +972,7 @@
       "number": 36,
       "file": "token/token-es-teh.png",
       "priority": "P2",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -963,6 +1000,7 @@
       "number": 37,
       "file": "category/category-nusantara.png",
       "priority": "P3",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -990,6 +1028,7 @@
       "number": 38,
       "file": "category/category-sehat.png",
       "priority": "P3",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -1017,6 +1056,7 @@
       "number": 39,
       "file": "category/category-keluarga.png",
       "priority": "P3",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -1044,6 +1084,7 @@
       "number": 40,
       "file": "category/category-kantor.png",
       "priority": "P3",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -1071,6 +1112,7 @@
       "number": 41,
       "file": "compliment/compliment-hangat.png",
       "priority": "P3",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -1098,6 +1140,7 @@
       "number": 42,
       "file": "compliment/compliment-porsi-pas.png",
       "priority": "P3",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -1125,6 +1168,7 @@
       "number": 43,
       "file": "compliment/compliment-rumahan.png",
       "priority": "P3",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -1152,6 +1196,7 @@
       "number": 44,
       "file": "dapur/dapur-selesai.png",
       "priority": "P3",
+      "usedByApp": true,
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -1177,6 +1222,8 @@
       "number": 45,
       "file": "dapur/dapur-rak-kosong.png",
       "priority": "P3",
+      "usedByApp": false,
+      "supersededBy": "dapur/dapur-kosong.png",
       "width": 1254,
       "height": 1254,
       "requestedDimensions": [
@@ -1199,6 +1246,32 @@
       "warnings": [
         "Visible-subject margin below requested 10 percent on at least one side. Use contain with layout padding; original retained."
       ]
+    },
+    {
+      "number": 46,
+      "file": "dapur/dapur-kosong.png",
+      "priority": "P3",
+      "usedByApp": true,
+      "width": 1254,
+      "height": 1254,
+      "requestedDimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "41a56eb9cf9a402d0c431903166af361aa989e9f54c066826fed4965eea69604",
+      "bytes": 670849,
+      "transparentPixels": 1153517,
+      "opaquePixels": 1654,
+      "partialAlphaPixels": 417345,
+      "visibleSubjectMarginsAtAlpha128": [
+        162,
+        274,
+        162,
+        264
+      ],
+      "sourceMatches": true,
+      "provenance": "Built-in image_gen output, copied byte-for-byte; no cropping, retouching or upscaling",
+      "warnings": []
     }
   ]
 }

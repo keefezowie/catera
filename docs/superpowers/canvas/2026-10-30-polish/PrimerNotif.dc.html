@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Primer notifikasi - lembar setelah bayar (primer-notifikasi)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#163D2E}a:hover{color:#0C2C20}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FFFFFF; color: #2E2E2E; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; flex-direction: column; position: relative; overflow: hidden; background: #F4F4F2">
+
+<div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(27,27,26,0.45)"></div>
+<div role="dialog" aria-modal="true" aria-labelledby="pn-t" style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 28px 28px 0 0; padding: 10px 20px 30px; display: flex; flex-direction: column; gap: 16px">
+<div style="width: 40px; height: 5px; border-radius: 3px; background: #D6D9D3; align-self: center"></div>
+<div style="display: flex; justify-content: center"><img src="/_blob/48c8f61b7ee47e3e346fe7cee3801b07" alt="" style="width: 300px; height: 240px; object-fit: contain"></div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<h2 id="pn-t" style="margin: 0; font-size: 26px; line-height: 32px; font-weight: 800; letter-spacing: -0.5px">Tahu kapan makananmu jalan</h2>
+<p style="margin: 0; font-size: 15px; line-height: 23px; color: #555B54">Kami kabari saat rantangmu dimasak, diantar dan sampai. Sesekali ada kabar promo dari katering langgananmu. Bisa dimatikan kapan saja di Pengaturan.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px">
+<button style="height: 56px; border-radius: 28px; border: 0; background: #163D2E; color: #FFF7E9; font-family: inherit; font-size: 17px; font-weight: 700">Nyalakan notifikasi</button>
+<button style="height: 48px; border: 0; background: none; color: #163D2E; font-family: inherit; font-size: 16px; font-weight: 700">Nanti saja</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

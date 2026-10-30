@@ -1,0 +1,37 @@
+{
+  "option": "C3",
+  "file": "dapur-wok-off-duty-v2.png",
+  "method": "Built-in image_gen redraw and edits; final generator file copied unchanged",
+  "source": "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-00066df0-e208-4a64-8563-5186eace5ce6.png",
+  "prompt": "Empty-state illustration, redraw of the first attached image, keeping its exact drawing style, colours and wok design: thick dark-forest outline, glossy fills with soft highlights, chunky friendly proportions, the same charcoal wok with a wooden handle as the second reference.\nSubject: an empty, clean, cold wok resting on a switched-off single-burner kompor. Nothing else in the scene.\nWok: sits squarely on the burner, tilted slightly toward the viewer so its clean, glossy, empty inner bowl is clearly visible. No food, no oil, no steam.\nWooden spatula (sutil): rests inside the wok, its blade lying on the inner bottom and its handle leaning on the rim and pointing up and to the right. It doesn't float across the top.\nKompor: cream #FFF7E9 with a forest #163D2E trim and base, and the cream sprout emblem on its front panel. Keep the cream sprout on the small forest oval badge as in Image 1.\nKnob: its single, large, round forest knob has one clear thick cream indicator line pointing straight up to a small cream dot on the panel, the universal off position. Put the small cream dot on a small forest backing directly above the knob, so the dot is visible against the cream panel. Indicator and dot vertically aligned. No flame, no blue fire, no heat lines, no glow on the burner.\nNo extras: no rag, no towel, no other objects.\nComposition: front three-quarter view. The kompor and wok form one compact group, perfectly centred horizontally and vertically, filling about 75 percent of the canvas width, so it reads at 48 px. The wok's handle and the spatula handle must not stick out past the group's balanced silhouette. Calm and tidy, nothing moving, no motion marks, no sparkles, no characters.\nMargins and exclusions: even margin of at least 10 percent on every side, with no part touching or near the canvas edge. No text, letters or numbers anywhere.\nCheck before saving: The group's centre sits at the canvas centre (no right-hand bulge). The knob's line visibly points up to the dot. The spatula lies in the wok. At 48 px it reads as a wok on a stove. Next to spot-wok.png it's clearly the same wok, off duty.\nOutput one individual 1254x1254 PNG with REAL alpha transparency. Background entirely transparent. The complete group including both short wooden handles must fit between x=157 and x=1097, and between y=157 and y=1097. Bounding box centred on (627,627), not bottom-heavy. Keep the wok handle short at left and the resting spatula short at right for balanced silhouette. Reference 1 is the redraw target; reference 2 is the wok design/style reference only, do not copy its food or steam.",
+  "editPrompts": [
+    "Edit this illustration while preserving every object, drawing style and colour. Only two corrections: FIRST, make the tiny dot directly ABOVE the knob CREAM, placing it inside a small FOREST oval or forest circle so it is clearly visible. Keep the knob's thick cream indicator exactly straight up toward that cream dot. SECOND, shrink the whole artwork to a bounding box exactly 940 pixels wide and 760 pixels high, centered at canvas coordinates (627,627). The transparent canvas stays 1254x1254. This means generous clear space above AND below, the entire group inside x=157..1097 and y=247..1007. Use real alpha. Don't crop. Don't add anything. Keep no rag, empty clean wok, wooden spatula blade resting inside on bottom and handle leaning on rim, short balanced wooden handles. One final PNG.",
+    "Keep this exact illustration and all its details unchanged. This is ONLY a composition-position correction: move the ENTIRE wok-and-stove group vertically UP by 62 pixels on the same 1254 x 1254 transparent canvas. Do not resize, redraw, rotate or add anything. Current clear margins are approximately 333 pixels at TOP and 210 pixels at BOTTOM; final clear margins must be EQUAL at about 271 pixels TOP and BOTTOM. Keep horizontal placement exactly unchanged. This balances the whole visible group's bounding-box center precisely at canvas center. Keep the cream off dot with dark backing, aligned vertical cream knob line, empty wok, spatula blade inside bowl, no rag, no steam, no text. True alpha transparency."
+  ],
+  "references": [
+    "dapur-wok-off-duty.png",
+    "../../spot/spot-wok.png"
+  ],
+  "earlierOutputs": [
+    "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-29f157e6-220d-455c-acd2-459cf55d2599.png",
+    "C:\\Users\\nidal\\.codex\\generated_images\\01a18cb8-85f4-76a2-920e-9df7011f6811\\exec-2554fb4e-cf36-4c7b-bc2d-bd96bc098952.png"
+  ],
+  "width": 1254,
+  "height": 1254,
+  "transparentPixels": 1153517,
+  "visibleMargins": [
+    162,
+    274,
+    162,
+    264
+  ],
+  "marginWarning": false,
+  "visibleWidthFraction": 0.7416267942583732,
+  "centerOffset": [
+    0,
+    5
+  ],
+  "sha256": "41a56eb9cf9a402d0c431903166af361aa989e9f54c066826fed4965eea69604",
+  "sourceMatches": true,
+  "review": "Pass: compared beside spot-wok.png and at 48px. Empty bowl visible, spatula blade resting inside, no extras or food/steam/flame. Knob cream indicator points upward to cream dot. All margins above 10%; horizontal center exact, vertical center +5px."
+}

@@ -1,0 +1,244 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-30T12:00:00Z"
+ },
+ "title": "Catera polish: artwork placements",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 260,
+   "w": 390,
+   "h": 844,
+   "title": "Mulai · Selamat datang (welcome-meja)"
+  },
+  "MulaiArea.dc.html": {
+   "x": 470,
+   "y": 260,
+   "w": 390,
+   "h": 844,
+   "title": "Mulai 1/3 · Area (primer-area)"
+  },
+  "MulaiLauk.dc.html": {
+   "x": 940,
+   "y": 260,
+   "w": 390,
+   "h": 844,
+   "title": "Mulai 3/3 · Lauk favoritmu (6 plate-*)"
+  },
+  "MulaiMencari.dc.html": {
+   "x": 1410,
+   "y": 260,
+   "w": 390,
+   "h": 844,
+   "title": "Mulai · Mencari katering (plate-* echo)"
+  },
+  "Masuk.dc.html": {
+   "x": 1880,
+   "y": 260,
+   "w": 390,
+   "h": 844,
+   "title": "Masuk · pita makanan (5 token-*)"
+  },
+  "Beranda.dc.html": {
+   "x": 0,
+   "y": 1760,
+   "w": 390,
+   "h": 880,
+   "title": "Beranda · Pilih menu + Berikutnya (spot-menu-card-pencil, spot-plate-empty-pencil, spot-rantang-clock, spot-rantang-open)"
+  },
+  "Lacak.dc.html": {
+   "x": 470,
+   "y": 1760,
+   "w": 390,
+   "h": 920,
+   "title": "Lacak · tahap antar (spot-wok, spot-rantang-dikemas, spot-scooter, spot-rantang-sampai)"
+  },
+  "SelamatMakan.dc.html": {
+   "x": 940,
+   "y": 1760,
+   "w": 390,
+   "h": 1180,
+   "title": "Selamat makan · ulasan (moment-rantang-meledak, compliment-*)"
+  },
+  "Lunas.dc.html": {
+   "x": 0,
+   "y": 3320,
+   "w": 390,
+   "h": 900,
+   "title": "Langganan aktif · setelah bayar (moment-langganan-aktif)"
+  },
+  "PrimerNotif.dc.html": {
+   "x": 470,
+   "y": 3320,
+   "w": 390,
+   "h": 844,
+   "title": "Primer notifikasi · lembar setelah bayar (primer-notifikasi)"
+  },
+  "Jelajah.dc.html": {
+   "x": 0,
+   "y": 4600,
+   "w": 390,
+   "h": 900,
+   "title": "Jelajah · baris kategori (category-*, spot-cabai, spot-plate-leaf)"
+  },
+  "JelajahArea.dc.html": {
+   "x": 470,
+   "y": 4600,
+   "w": 390,
+   "h": 844,
+   "title": "Jelajah · area kosong (empty-area)"
+  },
+  "JelajahFilter.dc.html": {
+   "x": 940,
+   "y": 4600,
+   "w": 390,
+   "h": 844,
+   "title": "Jelajah · filter kosong (spot-saringan)"
+  },
+  "Paket.dc.html": {
+   "x": 1410,
+   "y": 4600,
+   "w": 390,
+   "h": 1340,
+   "title": "Detail paket · Termasuk + Kata pelanggan (spot-rantang, spot-calendar-tote, spot-plate-leaf, spot-plate-pause, compliment-*, spot-rantang-clock)"
+  },
+  "Disimpan.dc.html": {
+   "x": 1880,
+   "y": 4600,
+   "w": 390,
+   "h": 844,
+   "title": "Disimpan · kosong + tetangga (spot-lid-heart)"
+  },
+  "Akun.dc.html": {
+   "x": 0,
+   "y": 6320,
+   "w": 390,
+   "h": 900,
+   "title": "Akun · ubin + promo (spot-rantang, spot-pin-lid, spot-nota, spot-rantang-gift)"
+  },
+  "Notifikasi.dc.html": {
+   "x": 470,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Notifikasi · kosong (empty-kentongan-lid)"
+  },
+  "Laporan.dc.html": {
+   "x": 940,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Bantuan dan laporan · kosong (spot-nota)"
+  },
+  "DapurKosong.dc.html": {
+   "x": 0,
+   "y": 8160,
+   "w": 390,
+   "h": 844,
+   "title": "Dapur Hari ini · tidak ada pesanan (dapur-rak-kosong)"
+  },
+  "DapurSelesai.dc.html": {
+   "x": 470,
+   "y": 8160,
+   "w": 390,
+   "h": 844,
+   "title": "Dapur Hari ini · semua beres (dapur-selesai)"
+  },
+  "DapurLibur.dc.html": {
+   "x": 940,
+   "y": 8160,
+   "w": 390,
+   "h": 844,
+   "title": "Dapur Hari ini · libur (mascot-tidur tetap)"
+  },
+  "Inventory.dc.html": {
+   "x": 0,
+   "y": 9760,
+   "w": 1200,
+   "h": 2068,
+   "title": "Inventaris · 45 aset dan layarnya"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "MulaiArea.dc.html",
+  "MulaiLauk.dc.html",
+  "MulaiMencari.dc.html",
+  "Masuk.dc.html",
+  "Beranda.dc.html",
+  "Lacak.dc.html",
+  "SelamatMakan.dc.html",
+  "Lunas.dc.html",
+  "PrimerNotif.dc.html",
+  "Jelajah.dc.html",
+  "JelajahArea.dc.html",
+  "JelajahFilter.dc.html",
+  "Paket.dc.html",
+  "Disimpan.dc.html",
+  "Akun.dc.html",
+  "Notifikasi.dc.html",
+  "Laporan.dc.html",
+  "DapurKosong.dc.html",
+  "DapurSelesai.dc.html",
+  "DapurLibur.dc.html",
+  "Inventory.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": 0,
+   "text": "Pertama buka: sambutan, area, lauk favorit, mencari, lalu Masuk dengan pita makanan",
+   "kind": "title1",
+   "maxW": 2270
+  },
+  "t2": {
+   "x": 0,
+   "y": 1500,
+   "text": "Hari ini: pilih menu, berikutnya, lacak tahap antar, selamat makan + ulasan",
+   "kind": "title1",
+   "maxW": 1330
+  },
+  "t3": {
+   "x": 0,
+   "y": 3060,
+   "text": "Setelah bayar: langganan aktif, lalu primer notifikasi",
+   "kind": "title1",
+   "maxW": 860
+  },
+  "t4": {
+   "x": 0,
+   "y": 4340,
+   "text": "Jelajah: kategori, kosong per sebab, detail paket, Disimpan",
+   "kind": "title1",
+   "maxW": 2270
+  },
+  "t5": {
+   "x": 0,
+   "y": 6060,
+   "text": "Akun: ubin bergambar, promo ajak teman, kosong Notifikasi dan Laporan",
+   "kind": "title1",
+   "maxW": 1330
+  },
+  "t6": {
+   "x": 0,
+   "y": 7900,
+   "text": "Catera Dapur, Hari ini: tidak ada pesanan, semua beres, libur (maskot tetap)",
+   "kind": "title1",
+   "maxW": 1330
+  },
+  "t7": {
+   "x": 0,
+   "y": 9500,
+   "text": "Inventaris: 45 aset, tiap kartu menyebut papannya",
+   "kind": "title1",
+   "maxW": 1200
+  }
+ },
+ "designSystems": []
+}

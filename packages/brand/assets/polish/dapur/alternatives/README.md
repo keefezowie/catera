@@ -1,0 +1,17 @@
+# Dapur empty-state alternatives B, C and D
+
+Latest C3: [dapur-wok-off-duty-v2.png](dapur-wok-off-duty-v2.png) redraws C2 with the wooden spatula blade resting inside the empty bowl, its handle leaning up-right on the rim, a cream knob indicator aligned upward to a cream dot on forest backing, and no rag or other extras. Built-in image_gen used C2 and `spot-wok.png` as references. The native 1254 × 1254 PNG has real alpha and is unchanged from final generator output. Visible width is 74.16%; margins are 162/274/162/264 px (left/top/right/bottom), all above 10%. Bounding-box centre is exactly centred horizontally and 5 px below vertical centre. Reviewed at 48 px and beside `spot-wok.png`; empty interior and wok-on-stove silhouette remain readable. Prompts, source, hash and checks are in `dapur-wok-off-duty-v2-record.json`. Previous versions remain intact.
+
+New C2: [dapur-wok-off-duty.png](dapur-wok-off-duty.png) shows the clean empty charcoal wok on a switched-off cream kompor, wooden handle and resting spatula, cream sprout on a forest badge, and folded striped rag. Generated with the active wok and kompor as references, then refined using built-in image_gen. Final generator bytes are unchanged. Reviewed beside `spot-wok.png` and downsampled to 48 px: reads as a wok on a stove, empty inner bowl visible, no food, oil, flame, steam or text. Native 1254 × 1254 with real alpha. Framing deviation remains: group width is 83%, rather than about 70%; visible margins are 115/319/102/197 px (left/top/right/bottom). Full prompts, earlier attempts, source path, hash and checks are in `dapur-wok-off-duty-record.json`. Existing assets remain unchanged.
+
+Open [index.html](index.html) to compare against current option A.
+
+New A2: [dapur-order-spike.png](dapur-order-spike.png) uses the rice cooker B and menu-card pencil as attached style references, with Style A preceding the user's revised prompt. Native 1254 × 1254 with real alpha, unchanged from generator output. The blunt rod, blank ticket, outlined rectangular board and matching chunky pencil were reviewed at 48 px and beside B at equal size. Clear margins are 131/173/131/186 px (left/top/right/bottom), meeting the 10% framing requirement. Full prompt is in `dapur-order-spike-prompt.txt`; provenance and checks are in `dapur-order-spike-record.json`. `dapur-rak-kosong.png` was not modified.
+
+- B: `dapur-rice-cooker.png` — closed cream and forest rice cooker, coiled unplugged cord, rice paddle, no steam or lights.
+- C: `dapur-kompor.png` — single burner, clean empty pot, lid ajar, no flame or steam.
+- D: `dapur-chef-hat.png` — chef hat on hook, folded apron on shelf, two orange z shapes.
+
+Generated individually with built-in image_gen on October 30, 2026. All three PNGs are native 1254 × 1254, contain real transparent pixels, and match selected generator files byte-for-byte. No cropping, segmentation, retouching or upscaling. Final prompts, sources, hashes, transparency counts and framing checks are in [generation-records.json](generation-records.json). Initial C and D realistic renders were rejected; subsequent generations use option A as a drawing-style reference only.
+
+The requested generous margins were not fully achieved: B has 80/57 px left/right, C has 94 px bottom, D has 78/75 px top/bottom (visible subject at alpha >= 128). These are review alternatives with documented framing deviations. They do not replace option A and are not integrated into an application. Previous ZIP packages do not include them.
