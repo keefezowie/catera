@@ -1365,7 +1365,9 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       await screen.findByText("Nasi putih");
       fireEvent.press(ayamPill());
       await waitFor(() => expect(command).toHaveBeenCalled());
-      await waitFor(() => expect(screen.queryByText("Mengunggah…")).toBeNull());
+      // Count the label rather than expect the element toBeNull: a failed toBeNull check pretty-prints the whole
+      // host instance (its fiber graph), which takes seconds and lets waitFor's 1 s timeout fire before React commits.
+      await waitFor(() => expect(screen.queryAllByText("Mengunggah…").length).toBe(0));
       expect(ayamPill().props.accessibilityState.disabled).toBeFalsy();
     });
 
