@@ -1021,8 +1021,9 @@ describe("dark Malam", () => {
     expect(StyleSheet.flatten(within(strip).getByText("34").props.style).color).toBe(nativeThemes.dark.charcoal);
     const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
     const ink = nativeMood.dark.malam;
-    expect(flatOf("batch-progress-track").backgroundColor).toBe(ink.arcTrack);
-    expect(flatOf("batch-progress-segment-cooking").backgroundColor).toBe(ink.heroMeta);
+    expect(flatOf("batch-progress-track").backgroundColor).toBe(nativeThemes.dark.line);
+    // Dark Dimasak is cream: no grey step sits 3:1 off the track and 1.5:1 off the sunrise beside it.
+    expect(flatOf("batch-progress-segment-cooking").backgroundColor).toBe(ink.headerText);
     expect(StyleSheet.flatten(screen.getByText("0 dari 4 sampai").props.style).color).toBe(ink.headerText);
   });
 });

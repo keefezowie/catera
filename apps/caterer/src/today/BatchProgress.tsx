@@ -1,14 +1,20 @@
 import { View } from "react-native";
 import type { KitchenSession } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { StopGlyph, Text, useMoodColors } from "@catera/mobile-ui";
+import { StopGlyph, Text, useColors, useMoodColors, useThemePreference } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 
 /** How far the whole batch has got: every active row, counted once by the stage it is in. */
-export function batchCounts(session: KitchenSession): { total: number; cooking: number; out: number; arrived: number } {
+export function batchCounts(session: KitchenSession): {
+  total: number;
+  scheduled: number;
+  cooking: number;
+  out: number;
+  arrived: number;
+} {
   const c = session.counts;
   const total = Object.values(c).reduce((sum, n) => sum + n, 0);
-  return { total, cooking: c.preparing, out: c.out_for_delivery, arrived: c.arrived + c.delivered };
+  return { total, scheduled: c.scheduled, cooking: c.preparing, out: c.out_for_delivery, arrived: c.arrived + c.delivered };
 }
 
 /** The latest time any stop was marked Sampai, or null when none was. */
@@ -36,11 +42,18 @@ const GAP = 2;
  * and a legend of the same three counts. Delivery-ops tools count stops this way; a single track cannot say that
  * twelve are out while three still cook. Nothing is drawn while every row is scheduled: there is no progress to show.
  * The bar is one image for a screen reader, whose label carries the legend, so the legend is hidden from it.
+ *
+ * Colour: the track is the theme `line` step, which also shows through the 2dp gaps and holds the scheduled remainder.
+ * Every segment is at least 3:1 on it, and the three differ in lightness, not hue alone: forest, then sunrise ink, then
+ * the idle marker grey in light (darkest to lightest); forest, sunrise and cream in dark, where the floor above the
+ * track leaves no grey step 1.5:1 off sunrise. Ratios are in the task report.
  */
 export function BatchProgress({ session }: { session: KitchenSession }) {
   const { t } = useMobile();
   const ink = useMoodColors();
-  const { total, cooking, out, arrived } = batchCounts(session);
+  const track = useColors().line;
+  const { scheme } = useThemePreference();
+  const { total, scheduled, cooking, out, arrived } = batchCounts(session);
   if (!total || cooking + out + arrived === 0) return null;
 
   const { journey } = session;
@@ -59,7 +72,7 @@ export function BatchProgress({ session }: { session: KitchenSession }) {
   const parts = [
     { key: "arrived", n: arrived, color: ink.toggleActive, glyph: "house", label: t("Sampai", "Arrived") },
     { key: "out", n: out, color: ink.stopActive, glyph: "motorbike", label: t("Diantar", "On the way") },
-    { key: "cooking", n: cooking, color: ink.heroMeta, glyph: "pot", label: t("Dimasak", "Cooking") },
+    { key: "cooking", n: cooking, color: scheme === "dark" ? ink.headerText : ink.markerIdle, glyph: "pot", label: t("Dimasak", "Cooking") },
   ] as const;
 
   return (
@@ -88,13 +101,15 @@ export function BatchProgress({ session }: { session: KitchenSession }) {
       >
         <View
           testID="batch-progress-track"
-          style={{ flexDirection: "row", gap: GAP, height: BAR, borderRadius: BAR / 2, overflow: "hidden", backgroundColor: ink.arcTrack }}
+          style={{ flexDirection: "row", gap: GAP, height: BAR, borderRadius: BAR / 2, overflow: "hidden", backgroundColor: track }}
         >
           {parts.map((p) =>
             p.n > 0 ? (
               <View key={p.key} testID={`batch-progress-segment-${p.key}`} style={{ flex: p.n, backgroundColor: p.color }} />
             ) : null,
           )}
+          {/* What is still Terjadwal keeps its share of the track, so a segment's width is its count over the total. */}
+          {scheduled > 0 ? <View testID="batch-progress-rest" style={{ flex: scheduled }} /> : null}
         </View>
       </View>
       <View
