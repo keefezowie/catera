@@ -27,6 +27,7 @@ describe("POLISH_ART registry", () => {
       const record = runtime.files.find((f) => f.name === name)!;
       expect(JSON.stringify(source)).toContain(record.file.replace("runtime/", ""));
       expect(JSON.stringify(source)).toContain("runtime");
+      expect(record.file).toMatch(name === "welcome-meja" ? /\.jpg$/ : /\.webp$/);
     }
   });
 });

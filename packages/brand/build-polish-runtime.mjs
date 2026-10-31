@@ -3,8 +3,12 @@
 // (build-phase-f-runtime.mjs) each is one file sized for a 3x screen, with no @2x/@3x density variants.
 // - Cutouts keep their full square canvas (no trim) and alpha, resized to min(source, 3 x the largest display size).
 // - welcome-meja is an opaque photo: kept at its native 1024 x 1536 (cover at ~430pt wide needs more, never enlarged)
-//   and stored as JPEG, since a lossless PNG of a photo would cost megabytes and it has no alpha to keep.
-// Writes assets/polish/runtime/*.{png,jpg} and assets/polish/runtime/manifest.json. Rerun after verify-polish --refresh.
+//   and stored as JPEG, since a lossless PNG of a photo would cost megabytes and it has no alpha to keep. (WebP at equal
+//   PSNR softened the linen texture, so it stays JPEG.)
+// - Food cutouts (plate-*, token-*) are photos with alpha: lossy WebP quality 85, alphaQuality 100. Checked side by side
+//   with the PNG at 2x zoom on white and dark: no visible difference, ~5x smaller.
+// - Illustrations are lossless WebP with exact: true, so every RGBA pixel equals the PNG it replaced (~27% smaller).
+// Writes assets/polish/runtime/*.{webp,jpg} and assets/polish/runtime/manifest.json. Rerun after verify-polish --refresh.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -46,13 +50,17 @@ for (const asset of used) {
   const height = Math.round(asset.height * scale);
   let pipeline = sharp(sourceBytes);
   if (scale < 1) pipeline = pipeline.resize(width, height, { kernel: sharp.kernel.lanczos3, fit: 'fill' });
+  const food = /^(plate|token)-/.test(stem);
   const bytes = photo
     ? await pipeline.jpeg({ quality: 85, mozjpeg: true }).toBuffer()
-    : await pipeline.ensureAlpha().png({ compressionLevel: 9, adaptiveFiltering: true, palette: false }).toBuffer();
+    : food
+      ? await pipeline.ensureAlpha().webp({ quality: 85, alphaQuality: 100, effort: 6, smartSubsample: true }).toBuffer()
+      : await pipeline.ensureAlpha().webp({ lossless: true, exact: true, effort: 6 }).toBuffer();
   const meta = await sharp(bytes).metadata();
   if (meta.width !== width || meta.height !== height) throw new Error(`${stem}: wrote ${meta.width}x${meta.height}`);
   if (!photo && !meta.hasAlpha) throw new Error(`${stem}: lost alpha`);
-  const file = `${stem}.${photo ? 'jpg' : 'png'}`;
+  const format = photo ? 'jpeg' : food ? 'webp-lossy' : 'webp-lossless';
+  const file = `${stem}.${photo ? 'jpg' : 'webp'}`;
   await fs.writeFile(path.join(runtime, file), bytes);
   files.push({
     name: stem,
@@ -65,10 +73,11 @@ for (const asset of used) {
     displayPoints: points,
     width,
     height,
+    format,
     bytes: bytes.length,
     sha256: hash(bytes),
     alpha: !photo,
-    method: `sharp ${sharp.versions.sharp}: ${scale < 1 ? `Lanczos3 downscale by ${scale.toFixed(4)}` : 'not resampled (source is below 3x the display size)'}, full canvas, no trim; ${photo ? 'JPEG quality 85 (mozjpeg), opaque source' : 'PNG level 9, full RGBA kept'}`,
+    method: `sharp ${sharp.versions.sharp}: ${scale < 1 ? `Lanczos3 downscale by ${scale.toFixed(4)}` : 'not resampled (source is below 3x the display size)'}, full canvas, no trim; ${photo ? 'JPEG quality 85 (mozjpeg), opaque source' : food ? 'WebP quality 85, alphaQuality 100, effort 6, full RGBA kept' : 'WebP lossless (exact), effort 6, full RGBA kept'}`,
     nativeGeneratedMaster: false,
     upscaled: false,
   });

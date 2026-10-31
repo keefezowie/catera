@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 type Asset = { file: string; sha256: string; width: number; height: number; transparentPixels: number; usedByApp: boolean; supersededBy?: string };
 type Derivative = {
   name: string; file: string; derivedFrom: string; sourceSha256: string; displayPoints: number; width: number; height: number;
-  bytes: number; sha256: string; alpha: boolean; nativeGeneratedMaster: boolean; upscaled: boolean;
+  format: 'jpeg' | 'webp-lossy' | 'webp-lossless'; bytes: number; sha256: string; alpha: boolean; nativeGeneratedMaster: boolean; upscaled: boolean;
 };
 
 const root = path.join(process.cwd(), 'packages/brand/assets/polish');
@@ -66,6 +66,15 @@ describe('polish runtime derivatives', () => {
     const total = runtime.files.reduce((sum, d) => sum + d.bytes, 0);
     expect(runtime.totalBytes).toBe(total);
     console.log(`polish runtime: ${runtime.files.length} files, ${(total / 1024 / 1024).toFixed(2)} MB`);
-    expect(total).toBeLessThan(10 * 1024 * 1024);
+    expect(total).toBeLessThan(4.5 * 1024 * 1024);
+  });
+
+  it('ships food cutouts as lossy WebP, illustrations as lossless WebP and only welcome-meja as JPEG', async () => {
+    for (const d of runtime.files) {
+      const expected = d.name === 'welcome-meja' ? 'jpeg' : /^(plate|token)-/.test(d.name) ? 'webp-lossy' : 'webp-lossless';
+      expect(d.format, d.name).toBe(expected);
+      expect(d.file, d.name).toBe(`runtime/${d.name}.${expected === 'jpeg' ? 'jpg' : 'webp'}`);
+      expect((await sharp(path.join(root, d.file)).metadata()).format, d.name).toBe(expected === 'jpeg' ? 'jpeg' : 'webp');
+    }
   });
 });
