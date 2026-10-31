@@ -306,6 +306,7 @@ it("does not resubmit an uncertain provider creation", async () => {
   env();
   const c = await create();
   await prepare(c);
+  vi.spyOn(doku, "dokuToken").mockResolvedValue("token");
   const network = vi
     .spyOn(doku, "dokuSnap")
     .mockRejectedValue(new Error("socket closed"));
@@ -313,6 +314,22 @@ it("does not resubmit an uncertain provider creation", async () => {
   await submitDirectPayment(c, sys);
   expect(network).toHaveBeenCalledTimes(1);
   expect((await read(c.id)).payment?.status).toBe("checking");
+});
+it("keeps a payment retryable when DOKU's token fails before anything is sent", async () => {
+  env();
+  const c = await create();
+  await prepare(c, "QRIS");
+  const token = vi
+    .spyOn(doku, "dokuToken")
+    .mockRejectedValueOnce(new Error("DOKU_TOKEN_HTTP_503"));
+  const snap = vi.spyOn(doku, "dokuSnap").mockRejectedValue(new Error("socket closed"));
+  await expect(submitDirectPayment(c, sys)).rejects.toThrow("DOKU_TOKEN_HTTP_503");
+  expect(snap).not.toHaveBeenCalled();
+  expect((await read(c.id)).payment?.status).toBe("preparing");
+  token.mockResolvedValue("token");
+  await submitDirectPayment(c, sys);
+  expect(snap).toHaveBeenCalledTimes(1);
+  expect(snap.mock.calls[0][4]).toBe("token");
 });
 it("deduplicates callback-before-response and atomically activates exactly once", async () => {
   env();

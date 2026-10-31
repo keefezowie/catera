@@ -17,6 +17,7 @@ import {
   dokuPaymentEvent,
   dokuRequest,
   dokuSnap,
+  dokuToken,
 } from "./doku";
 import type { ProviderOperation, System } from "./payment-provider";
 
@@ -350,6 +351,9 @@ export async function submitDirectPayment(c: Checkout, sys: System) {
       })
     : null;
   const request = directRequest(c, op, customer);
+  // DOKU's token comes before the claim: when it fails nothing reached DOKU, the operation stays
+  // preparing and the customer can try again (a failure after the claim is never resubmitted).
+  const token = redirect ? undefined : await dokuToken();
   op = await sys<ProviderOperation>("provider.direct.submit", {
     id: c.id,
     // The stored copy keeps the audit trail but not the buyer's contact details.
@@ -364,6 +368,7 @@ export async function submitDirectPayment(c: Checkout, sys: System) {
           op.request,
           await sys<string>("provider.externalId"),
           "H2H",
+          token,
         );
     await sys("provider.direct.attached", {
       id: c.id,

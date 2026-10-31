@@ -360,9 +360,11 @@ export async function dokuSnap(
   body: unknown,
   externalId: string,
   channelId?: "H2H",
+  /** A token fetched beforehand, so a failed token never counts as a sent request. */
+  prefetched?: string,
 ): Promise<Record<string, any>> {
   const { client, secret } = dokuConfig();
-  const token = await dokuToken(),
+  const token = prefetched ?? (await dokuToken()),
     timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
     raw = JSON.stringify(body);
   const response = await fetch(base + path, {
