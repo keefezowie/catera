@@ -231,7 +231,7 @@ describe("waitingItems", () => {
       due("a", day(6), { dueAt: `${day(5)}T10:00:00Z` }),
       due("b", day(2), { dueAt: `${day(1)}T10:00:00Z` }),
       due("d", day(4), { dueAt: `${day(3)}T10:00:00Z` }),
-      due("e", day(9), { kind: "payment_action", status: "awaiting_payment" }),
+      due("e", day(9), { kind: "payment_action", status: "checking_payment" }),
       due("f", day(9), { status: "open" }),
     ];
     const rows = waitingItems(state([]), actions, NOW);
@@ -260,6 +260,32 @@ describe("waitingItems", () => {
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(row.kind === "menu" && row.href).toBe(`/subscriptions/s-1/menu?date=${day(2)}&meal=lunch`);
+  });
+
+  it("payments still to finish come first, soonest hold end first; checked or ended ones never", () => {
+    const pay = (id: string, status: CustomerActionItem["status"], dueAt: string): CustomerActionItem => ({
+      id: `payment-${id}`,
+      kind: "payment_action",
+      status,
+      priority: 1,
+      dueAt,
+      packageName: `Paket ${id}`,
+      href: `/payment/${id}`,
+    });
+    const at = (ms: number) => new Date(NOW.getTime() + ms).toISOString();
+    const rows = waitingItems(
+      state([]),
+      [
+        due("m", day(2)),
+        pay("later", "awaiting_payment", at(10 * 60_000)),
+        pay("sooner", "choose_method", at(5 * 60_000)),
+        pay("checked", "checking_payment", at(5 * 60_000)),
+        pay("ended", "awaiting_payment", at(-60_000)),
+      ],
+      NOW,
+    );
+    expect(rows.map((r) => (r.kind === "payment" ? r.href : r.kind))).toEqual(["/payment/sooner", "/payment/later", "menu"]);
+    expect(waitingItems(state([]), null, NOW).some((r) => r.kind === "payment")).toBe(false);
   });
 
   it("offline: no menu rows", () => {

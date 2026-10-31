@@ -108,7 +108,23 @@ export type WaitingItem =
     }
   | { kind: "renew"; subscription: Subscription }
   | { kind: "trial"; subscription: Subscription }
-  | { kind: "review"; subscription: Subscription };
+  | { kind: "review"; subscription: Subscription }
+  /** A checkout still to pay (no method yet, or instructions shown) whose hold has not run out. */
+  | { kind: "payment"; packageName: string; deadline: string; href: string };
+
+/** Checkouts still to pay, soonest hold end first. A payment being checked is never offered again. */
+function paymentRows(actions: CustomerActionItem[], now: Date): WaitingItem[] {
+  return actions
+    .filter(
+      (i) =>
+        i.kind === "payment_action" &&
+        (i.status === "choose_method" || i.status === "awaiting_payment") &&
+        !!i.dueAt &&
+        deadlineAt(i.dueAt) > now.getTime(),
+    )
+    .map((i) => ({ kind: "payment" as const, packageName: i.packageName ?? "", deadline: i.dueAt!, href: i.href }))
+    .sort((a, b) => deadlineAt(a.deadline) - deadlineAt(b.deadline));
+}
 
 /** The plan a menu action belongs to: the id in its `/subscriptions/{id}/menu` link, else the action itself. */
 function menuPlanId(item: CustomerActionItem): string {
@@ -173,13 +189,13 @@ function reviewCandidate(state: CustomerState): Subscription | undefined {
 }
 
 /**
- * What waits on the customer, in the order Beranda shows it: menus still to choose (soonest deadline first), plans to
- * renew, trials to continue, then the review to leave. `actions` is the action read; null (offline, never loaded)
- * gives no menu rows, since a menu that is due is only known from that read. Nothing here depends on the clock:
- * `now` is accepted so every Beranda section reads the same way, and for rules that start to depend on it.
+ * What waits on the customer, in the order Beranda shows it: payments still to finish (the held days run out first),
+ * menus still to choose (soonest deadline first), plans to renew, trials to continue, then the review to leave.
+ * `actions` is the action read; null (offline, never loaded) gives no payment or menu rows, since both are only known
+ * from that read. `now` drops a payment whose hold has already ended.
  */
-export function waitingItems(state: CustomerState, actions: CustomerActionItem[] | null, _now: Date): WaitingItem[] {
-  const items: WaitingItem[] = actions ? menuRows(state, actions) : [];
+export function waitingItems(state: CustomerState, actions: CustomerActionItem[] | null, now: Date): WaitingItem[] {
+  const items: WaitingItem[] = actions ? [...paymentRows(actions, now), ...menuRows(state, actions)] : [];
   for (const subscription of state.subscriptions) {
     if (renewalDue(subscription, state.subscriptions)) items.push({ kind: "renew", subscription });
   }

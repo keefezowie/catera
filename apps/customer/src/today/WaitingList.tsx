@@ -8,6 +8,7 @@ import {
   addDays,
   changeDeadline,
   currency,
+  jakartaClock,
   jakartaDay,
   shortDate,
   waitingItems,
@@ -65,6 +66,8 @@ export type WaitingRow = {
   action: string;
   /** Only the renewal is urgent: it is the one thing on the screen that needs the customer now, so its action is charcoal. */
   urgent?: boolean;
+  /** A payment still to finish: Beranda's slot takes the cream attention card for it. */
+  attention?: boolean;
   onPress: () => void;
 };
 
@@ -114,6 +117,19 @@ export function useWaitingRows({
 
   function rowFor(item: WaitingItem): WaitingRow | null {
     switch (item.kind) {
+      case "payment": {
+        const until = jakartaClock(item.deadline);
+        return {
+          key: `payment:${item.href}`,
+          icon: "qr-code-outline",
+          title: t("Selesaikan pembayaran", "Finish your payment"),
+          detail: [item.packageName, until ? t(`bayar sebelum ${until}`, `pay before ${until}`) : ""].filter(Boolean).join(" · "),
+          action: t("Bayar", "Pay"),
+          urgent: true,
+          attention: true,
+          onPress: () => openLink(customerLink(item.href)),
+        };
+      }
       case "menu": {
         const deadline = item.deadline ? changeDeadline(item.deadline, now, locale) : null;
         return {

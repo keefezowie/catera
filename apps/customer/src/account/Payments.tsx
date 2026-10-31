@@ -122,10 +122,11 @@ function History() {
                 label={item.packageName ?? t("Pembayaran", "Payment")}
                 status={{ label: t("Diproses", "Processing"), tone: "checking" }}
                 caption={[progressWord(item, t), item.catererName].filter(Boolean).join(" · ")}
+                // A payment being checked opens Bayar, where its status is checked; one under review goes to help.
                 onPress={
                   item.status === "payment_exception"
                     ? () => router.push(`/bantuan?checkoutId=${encodeURIComponent(checkoutIdOf(item))}` as never)
-                    : undefined
+                    : () => openLink(customerLink(item.href))
                 }
               />
             ))}

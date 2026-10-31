@@ -1123,6 +1123,53 @@ describe("Paket", () => {
     expect(router.push).toHaveBeenCalledWith("/beli/p-murah");
   });
 
+  it("a payment this package is still waiting on leads back to Bayar, and buying again waits", async () => {
+    mockParams = { id: "p-murah" };
+    const pay = (id: string, packageId: string) => ({
+      item: {
+        id: `payment-${id}`,
+        kind: "payment_action",
+        status: "awaiting_payment",
+        priority: 1,
+        dueAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+        packageName: "Paket",
+        href: `/payment/${id}`,
+      },
+      checkout: { id, quote: { packageId } },
+    });
+    const other = pay("ck-lain", "p-mahal");
+    const mine = pay("ck-ini", "p-murah");
+    wrap(
+      runtimeWith(customer, {
+        customerActions: jest.fn(async () => ({ total: 2, items: [other.item, mine.item] })),
+        checkout: jest.fn(async (id: string) => [other.checkout, mine.checkout].find((c) => c.id === id)),
+      }),
+      <PackageDetail />,
+    );
+    const card = await screen.findByTestId("paket-pending");
+    expect(within(card).getByText("Pembayaran paket ini belum selesai")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pilih jadwal" }).props.accessibilityState).toMatchObject({ disabled: true });
+    fireEvent.press(within(card).getByRole("button", { name: "Lanjutkan bayar" }));
+    expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-ini");
+  });
+
+  it("another package's unpaid checkout leaves this one free to buy", async () => {
+    mockParams = { id: "p-murah" };
+    wrap(
+      runtimeWith(customer, {
+        customerActions: jest.fn(async () => ({
+          total: 1,
+          items: [{ id: "payment-ck-lain", kind: "payment_action", status: "awaiting_payment", priority: 1, dueAt: new Date(Date.now() + 600_000).toISOString(), href: "/payment/ck-lain" }],
+        })),
+        checkout: jest.fn(async () => ({ id: "ck-lain", quote: { packageId: "p-mahal" } })),
+      }),
+      <PackageDetail />,
+    );
+    await screen.findByRole("button", { name: "Pilih jadwal" });
+    await waitFor(() => expect(screen.queryByTestId("paket-pending")).toBeNull());
+    expect(screen.getByRole("button", { name: "Pilih jadwal" }).props.accessibilityState?.disabled).toBeFalsy();
+  });
+
   it("the footer reflows at large text: the buttons wrap under the price, never over it, Pilih jadwal last", async () => {
     // Jest has no layout engine, so this pins the flex contract the reflow rests on (Yoga breaks the line, checked on
     // the emulator at font scale 1.3 on a 360dp screen): a wrapping row whose price and button group never shrink below

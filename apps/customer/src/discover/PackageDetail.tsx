@@ -25,6 +25,7 @@ import {
 } from "@catera/domain";
 import { nativeLayout, nativeThemes } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
+import { PendingPurchaseCard, usePendingPurchase } from "./PendingPurchase";
 import {
   Button,
   FadeSwap,
@@ -204,6 +205,7 @@ export function PackageDetail() {
   const loaded = useData<{ offer: Offer | null }>(`paket:${id}`, () => runtime.api.offer(id));
   const reviews = useData<Review[]>(`reviews:${id}`, () => runtime.api.request<Review[]>(`reviews/${id}`));
   const o = loaded.data?.offer;
+  const pending = usePendingPurchase(id);
   const insets = useSafeAreaInsets();
   const navigation = useScreenNavigation();
   const photoHeader = !!o;
@@ -312,6 +314,7 @@ export function PackageDetail() {
   }
 
   const open = `/beli/${encodeURIComponent(o.id)}`;
+  const unfinished = t("Selesaikan pembayaran yang tadi dulu", "Finish the earlier payment first");
   const windows = (o.meal === "both" ? [o.windows.lunch, o.windows.dinner] : [o.windows[o.meal]]).join(" · ");
   const shown = (reviews.data ?? []).slice(0, 3);
   const praise = praiseCounts(reviews.data ?? []);
@@ -342,12 +345,16 @@ export function PackageDetail() {
               <Button
                 variant="secondary"
                 label={t("Coba 1 hari", "Try 1 day")}
+                disabled={!!pending}
+                accessibilityHint={pending ? unfinished : undefined}
                 onPress={() => router.push(`${open}?trial=1` as never)}
                 style={styles.action}
               />
             ) : null}
             <Button
               label={t("Pilih jadwal", "Choose schedule")}
+              disabled={!!pending}
+              accessibilityHint={pending ? unfinished : undefined}
               onPress={() => router.push(open as never)}
               style={styles.action}
             />
@@ -405,6 +412,7 @@ export function PackageDetail() {
           </Text>
         </View>
 
+        {pending ? <PendingPurchaseCard pending={pending} /> : null}
         <StatStrip offer={o} />
         {o.description ? <Text variant="bodyL">{o.description}</Text> : null}
 

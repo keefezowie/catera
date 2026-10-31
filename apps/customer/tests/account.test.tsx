@@ -908,8 +908,9 @@ describe("Riwayat pembayaran", () => {
     expect(screen.getByText(/Pembayaran sedang dicek/)).toBeTruthy();
     expect(screen.getByText(/Pembayaran diterima, pemesanan sedang ditinjau Catera/)).toBeTruthy();
     expect(screen.getByText(/Jangan bayar lagi/)).toBeTruthy();
+    // A payment being checked opens Bayar, which shows its checking state (never a way to pay).
     fireEvent.press(screen.getByText("Paket Dicek"));
-    expect(router.push).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith("/bayar/ck-3");
     fireEvent.press(screen.getByText("Paket Ditinjau"));
     expect(router.push).toHaveBeenCalledWith("/bantuan?checkoutId=ck-4");
     fireEvent.press(pay[0]);
