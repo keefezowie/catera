@@ -6,7 +6,7 @@ import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { customerLink } from "../src/links";
-import { finishOnboarding, isLinkLaunch, onboardingKey, onboardingNeeded, openedFromLink, useFirstRunGate } from "../src/onboarding/gate";
+import { finishOnboarding, isLinkLaunch, onboardingKey, onboardingNeeded, openedFromLink, resetFirstRunForTests, useFirstRunGate } from "../src/onboarding/gate";
 import { LAUK_KEY, readLaukPrefs, saveLaukPrefs, toggleLauk } from "../src/onboarding/prefs";
 import { AreaPick, AreaStep, LaukStep, Mencari, MENCARI_MS, Welcome } from "../src/onboarding/Onboarding";
 import { FoodBand } from "../src/onboarding/FoodBand";
@@ -164,12 +164,31 @@ describe("first-run gate", () => {
 });
 
 describe("Android back inside onboarding", () => {
-  it("on the welcome screen, back skips onboarding like Lewati", async () => {
+  it("on the welcome screen, back leaves the app and never skips onboarding (only Lewati does)", async () => {
+    const exit = jest.spyOn(BackHandler, "exitApp").mockImplementation(() => {});
     await renderWith(<Welcome />);
     expect(pressBack()).toBe(true);
     await act(async () => {});
-    expect(store.get("catera.onboarding.done")).toBe("1");
-    expect(mockGoToTab).toHaveBeenCalledWith("index");
+    expect(exit).toHaveBeenCalled();
+    expect(store.get("catera.onboarding.done")).toBeUndefined();
+    expect(mockGoToTab).not.toHaveBeenCalled();
+    exit.mockRestore();
+  });
+
+  it("the welcome screen settles the first-run gate once laid out, so the cover lifts onto onboarding", async () => {
+    const { useFirstRunSettled } = require("../src/onboarding/gate") as typeof import("../src/onboarding/gate");
+    let seen: boolean | null = null;
+    function Probe() {
+      seen = useFirstRunSettled();
+      return null;
+    }
+    resetFirstRunForTests();
+    render(<Probe />);
+    expect(seen).toBe(false);
+    await renderWith(<Welcome />);
+    act(() => fireEvent(screen.getByTestId("mulai-welcome"), "layout", { nativeEvent: { layout: { width: 1, height: 1 } } }));
+    render(<Probe />);
+    expect(seen).toBe(true);
   });
 
   it.each([

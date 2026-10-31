@@ -28,7 +28,7 @@ import {
 } from "@catera/mobile-ui";
 import { chooseArea, useStoredArea } from "../discover/area";
 import { goToTab, type Tab } from "../nav";
-import { finishOnboarding } from "./gate";
+import { finishOnboarding, settleFirstRun } from "./gate";
 import { LAUK_PREFS, LAUK_SORTS_JELAJAH, laukName, MAX_LAUK, readLaukPrefs, saveLaukPrefs, toggleLauk, type LaukPref } from "./prefs";
 
 // Measurements: the 20 side gutter and the 44+ targets are the phone rules of design-taste-frontend's app screens
@@ -54,18 +54,19 @@ function useTop() {
 }
 
 /**
- * Android's back on the welcome screen, which has nowhere to go back to inside onboarding, skips it like "Lewati".
- * Only while Welcome is in front: it stays mounted under the steps, whose back must go back one step.
+ * Android's back on the welcome screen leaves the app, as on any first screen: a back gesture never skips onboarding
+ * (only "Lewati" does), so it opens again on the next launch. Only while Welcome is in front: it stays mounted under the
+ * steps, whose back must go back one step.
  */
-function useBackSkips(skip: () => void) {
+function useBackLeavesApp() {
   useFocusEffect(
     useCallback(() => {
       const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-        skip();
+        BackHandler.exitApp();
         return true;
       });
       return () => sub.remove();
-    }, [skip]),
+    }, []),
   );
 }
 
@@ -77,9 +78,10 @@ export function Welcome() {
   const top = useTop();
   const leave = useLeave();
   const skip = useCallback(() => leave("index"), [leave]);
-  useBackSkips(skip);
+  useBackLeavesApp();
   return (
-    <View style={{ flex: 1, backgroundColor: c.canvas }}>
+    // Laid out: the first-run gate may lift the launch cover onto this screen (gate.ts).
+    <View testID="mulai-welcome" style={{ flex: 1, backgroundColor: c.canvas }} onLayout={settleFirstRun}>
       {/* The photo takes whatever the words leave: flex, not a fixed share, so large text keeps its room. */}
       <View style={{ flex: 1, minHeight: 200 }}>
         <PolishArt name="welcome-meja" width={undefined} height={undefined} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />

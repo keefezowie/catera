@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme, useNa
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMobile } from "@catera/mobile-core";
 import {
@@ -29,7 +29,7 @@ import {
   WindowEdge,
 } from "@catera/mobile-ui";
 import { registerNavigation } from "../src/nav";
-import { useFirstRunGate } from "../src/onboarding/gate";
+import { useFirstRunGate, useFirstRunSettled } from "../src/onboarding/gate";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
 import { useFlowOptions } from "../src/stack";
@@ -52,6 +52,7 @@ function Navigation() {
   useEffect(() => registerNavigation(container), [container]);
   // A fresh install opens the first-run onboarding over Beranda once the session is known (spec ruling 5).
   useFirstRunGate({ ready, runtime: mobile, actor });
+  const settled = useFirstRunSettled();
   const palette = useColors();
   const { scheme } = useThemePreference();
   const screenOptions = useStackScreenOptions(demo);
@@ -82,7 +83,7 @@ function Navigation() {
         <Stack screenOptions={screenOptions}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           {/* First-run onboarding: full screen over Beranda, its own steps inside; leaving goes through goToTab. */}
-          <Stack.Screen name="mulai" options={{ headerShown: false, presentation: "fullScreenModal", animation: "fade", gestureEnabled: false }} />
+          <Stack.Screen name="mulai" options={{ headerShown: false, presentation: "fullScreenModal", animation: "none", gestureEnabled: false }} />
           {/* Short forms: a sheet on iOS, each with Close at the leading edge. Their large in-page title is the heading, so the bar title is empty; `title` still names the route. */}
           <Stack.Screen name="login" options={{ title: t("Masuk", "Sign in"), ...flow("modal"), headerTitle: "" }} />
           <Stack.Screen name="register" options={{ title: t("Daftar", "Sign up"), ...flow("modal"), headerTitle: "" }} />
@@ -140,6 +141,8 @@ function Navigation() {
           {/* The push primer after the first paid plan (polish, PushPrimer.tsx), sized to its content. */}
           <Stack.Screen name="notifikasi-primer" options={sheetOptions({ detents: "fit", palette })} />
         </Stack>
+        {/* Until the first-run decision is shown, a plain canvas hides the tabs: Beranda never flashes before onboarding. */}
+        {settled ? null : <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: palette.canvas }]} />}
       </TopInsetOwner>
     </MoodLabelsProvider>
   );
@@ -182,6 +185,8 @@ function Launch({ fontsDone, onReleased }: { fontsDone: boolean; onReleased: () 
   const { booted } = useMobile();
   const { loaded } = useThemePreference();
   const released = useSplashHold(fontsDone && loaded && booted, () => void SplashScreen.hideAsync().catch(() => {}));
+  // The cover also waits for the first-run decision, so it lifts onto onboarding on a fresh install, never Beranda.
+  const settled = useFirstRunSettled();
   const [cover, setCover] = useState(coldStart);
   useEffect(() => {
     coldStart = false;
@@ -189,7 +194,7 @@ function Launch({ fontsDone, onReleased }: { fontsDone: boolean; onReleased: () 
   useEffect(() => {
     if (released) onReleased();
   }, [released, onReleased]);
-  return cover ? <LaunchCover hold={!released} onDone={() => setCover(false)} /> : null;
+  return cover ? <LaunchCover hold={!released || !settled} onDone={() => setCover(false)} /> : null;
 }
 
 export default function RootLayout() {
