@@ -9,7 +9,7 @@ export {
 export { MobileProvider, RESUME_THROTTLE, useMobile, useTrack, translator, type MobileContextValue } from "./provider";
 export { useData, type DataOptions } from "./data";
 export { Notifications, pushAvailable, pushAvailableNow } from "./notifications";
-export { usePushSwitch, type PushSwitch, type PushSwitchState } from "./push";
+export { usePushPrimer, usePushSwitch, type PushPrimer, type PushSwitch, type PushSwitchState } from "./push";
 export { plural } from "./plural";
 export {
   updateProfileName,

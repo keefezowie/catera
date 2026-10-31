@@ -493,8 +493,8 @@ describe("a meal whose rows all failed", () => {
   it("says how many were marked Gagal diantar, never that there were none", async () => {
     renderToday(runtimeWith(async () => kitchenDay([{ status: "issue" }])));
     expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
-    expect(screen.queryByText("Tidak ada pengantaran makan siang.")).toBeNull();
-    expect(screen.queryByText("Tidak ada yang dimasak hari ini.")).toBeNull();
+    expect(screen.queryByText("Tidak ada pengantaran makan siang")).toBeNull();
+    expect(screen.queryByText("Tidak ada yang dimasak hari ini")).toBeNull();
     // Nothing is cooking, so there is no count card, checklist or footer action.
     expect(screen.queryByTestId("session-count")).toBeNull();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
@@ -913,7 +913,9 @@ describe("Semua beres", () => {
     const runtime = runtimeWith(async (_id, date) => kitchenDay([delivered], { date }));
     renderToday(runtime);
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
-    expect(screen.getByText("Semua pengantaran sudah ditandai sampai.")).toBeTruthy();
+    // The line counts the real customers whose meal arrived: the canvas day has four.
+    expect(screen.getByText("Semua sudah diantar. 4 pelanggan makan dari dapurmu hari ini.")).toBeTruthy();
+    expect(screen.getByTestId("art-dapur-selesai", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByText("Urutan antar")).toBeNull();
     expect(screen.queryByText("Daftar masak")).toBeNull();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
@@ -929,7 +931,19 @@ describe("Semua beres", () => {
     renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, delivered, failed])));
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
     expect(screen.getByText("3 ditandai sampai, 1 ditandai Gagal diantar.")).toBeTruthy();
-    expect(screen.queryByText("Semua pengantaran sudah ditandai sampai.")).toBeNull();
+    expect(screen.queryByText(/^Semua sudah diantar/)).toBeNull();
+    // The art still marks the finished day: the line above says how it ended.
+    expect(screen.getByTestId("art-dapur-selesai", { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it("counts customers once each, across both meals, and says it in English", async () => {
+    const day = kitchenDay([delivered]);
+    // Bu Sari also had dinner: still one customer.
+    day.deliveries[0].meals.push({ meal: "dinner", status: "delivered" } as never);
+    const runtime = runtimeWith(async () => day);
+    store().set(runtime.storageKey("locale"), "en");
+    renderToday(runtime);
+    expect(await screen.findByText("Everything has been delivered. 4 customers ate from your kitchen today.")).toBeTruthy();
   });
 
   it("says it in English", async () => {
@@ -943,7 +957,7 @@ describe("Semua beres", () => {
 
   it("counts a cancelled row as neither", async () => {
     renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, { status: "cancelled" }])));
-    expect(await screen.findByText("Semua pengantaran sudah ditandai sampai.")).toBeTruthy();
+    expect(await screen.findByText("Semua sudah diantar. 2 pelanggan makan dari dapurmu hari ini.")).toBeTruthy();
   });
 
   it("keeps the sessions while a customer report is still open", async () => {
@@ -1142,7 +1156,7 @@ describe("Hari ini on the Dapur scale", () => {
       const day = kitchenDay([scheduled]);
       day.deliveries = [];
       renderToday(runtimeWith(async () => day));
-      await screen.findByText("Tidak ada yang dimasak hari ini.");
+      await screen.findByText("Tidak ada yang dimasak hari ini");
       const header = screen.getByTestId("mood-header");
       expect(within(header).queryByTestId("session-figures")).toBeNull();
       expect(within(header).queryByTestId("rantang-track")).toBeNull();
@@ -1466,7 +1480,7 @@ describe("Hari ini on the Dapur scale", () => {
       day.deliveries = [];
       day.offers = [];
       renderToday(staffRuntime(day));
-      await screen.findByText("Tidak ada yang dimasak hari ini.");
+      await screen.findByText("Tidak ada yang dimasak hari ini");
       expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
       expect(screen.queryByTestId("live-slot")).toBeNull();
     });

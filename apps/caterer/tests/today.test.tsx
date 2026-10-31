@@ -237,14 +237,14 @@ it("opens on the day a notification points to", async () => {
 
 it("keeps the day toggle for a kitchen with packages on a day without deliveries", async () => {
   renderToday(runtimeWith(async () => quietDay()));
-  expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
+  expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
   expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
 });
 
 it("never shows helpers the owner setup steps", async () => {
   renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
-  expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
+  expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
   expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
 });
@@ -379,15 +379,15 @@ describe("session cards", () => {
 
   it("shows a calm empty state", async () => {
     renderToday(runtimeWith(async () => quietDay()));
-    expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
+    expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
     expect(screen.getByText("Pesanan baru akan muncul di sini.")).toBeTruthy();
   });
 
   it("words the empty state for tomorrow", async () => {
     renderToday(runtimeWith(async () => quietDay()));
-    await screen.findByText("Tidak ada yang dimasak hari ini.");
+    await screen.findByText("Tidak ada yang dimasak hari ini");
     fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
-    expect(await screen.findByText("Tidak ada yang dimasak besok.")).toBeTruthy();
+    expect(await screen.findByText("Tidak ada yang dimasak besok")).toBeTruthy();
   });
 });
 
@@ -606,20 +606,20 @@ describe("Hari ini by mood", () => {
 
     it("in Malam with only lunch work says so and offers the lunch session", async () => {
       renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
-      expect(await screen.findByText("Tidak ada pengantaran makan malam.")).toBeTruthy();
+      expect(await screen.findByText("Tidak ada pengantaran makan malam")).toBeTruthy();
       expect(screen.queryByTestId("session-count")).toBeNull();
       expect(tabsSelected()).toEqual([false, true]);
 
       fireEvent.press(screen.getByRole("button", { name: "Lihat makan siang · 34 porsi" }));
       expect(await screen.findByTestId("session-card")).toBeTruthy();
       expect(tabsSelected()).toEqual([true, false]);
-      expect(screen.queryByText("Tidak ada pengantaran makan malam.")).toBeNull();
+      expect(screen.queryByText("Tidak ada pengantaran makan malam")).toBeNull();
       expect(within(screen.getByTestId("session-count")).getByText("34")).toBeTruthy();
     });
 
     it("in Siang with only dinner work offers the dinner session", async () => {
       renderMood(runtimeWith(async () => dinnerOnly()));
-      expect(await screen.findByText("Tidak ada pengantaran makan siang.")).toBeTruthy();
+      expect(await screen.findByText("Tidak ada pengantaran makan siang")).toBeTruthy();
       fireEvent.press(screen.getByRole("button", { name: "Lihat makan malam · 34 porsi" }));
       expect(await screen.findByTestId("session-card")).toBeTruthy();
       expect(tabsSelected()).toEqual([false, true]);
@@ -627,8 +627,8 @@ describe("Hari ini by mood", () => {
 
     it("keeps the whole-day empty card when neither meal has work", async () => {
       renderMood(runtimeWith(async () => quietDay()), MALAM_NOW);
-      expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
-      expect(screen.queryByText("Tidak ada pengantaran makan malam.")).toBeNull();
+      expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
+      expect(screen.queryByText("Tidak ada pengantaran makan malam")).toBeNull();
       expect(screen.queryByText(/^Lihat makan/)).toBeNull();
     });
 
@@ -636,7 +636,7 @@ describe("Hari ini by mood", () => {
       const runtime = runtimeWith(same(canvasDay()));
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
       renderMood(runtime, MALAM_NOW);
-      expect(await screen.findByText("No dinner deliveries.")).toBeTruthy();
+      expect(await screen.findByText("No dinner deliveries")).toBeTruthy();
       expect(screen.getByRole("button", { name: "See lunch · 34 portions" })).toBeTruthy();
     });
   });
@@ -645,7 +645,7 @@ describe("Hari ini by mood", () => {
     it("paints the header on the deep Malam fill and keeps the title readable on it", async () => {
       jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
       renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
-      await screen.findByText("Tidak ada pengantaran makan malam.");
+      await screen.findByText("Tidak ada pengantaran makan malam");
       expect(flat("mood-fill-malam").backgroundColor).toBe("#E2ECDD");
       // The fill is always mounted; in Malam it is the opaque layer.
       expect(flat("mood-fill-malam").opacity).toBe(1);

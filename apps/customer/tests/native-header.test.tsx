@@ -57,6 +57,7 @@ jest.mock("@catera/mobile-core", () => ({
     logout: async () => undefined,
   }),
   useTrack: () => () => undefined,
+  usePushPrimer: () => ({ shown: false, accept: async () => "off", dismiss: () => undefined }),
   useData: (key: string) => mockRead(key),
   plural: (n: number, w: string) => `${n} ${w}`,
 }));
@@ -389,7 +390,7 @@ describe("paid is final", () => {
     await go(() => router.push("/beli/p1"));
     await go(() => router.replace("/bayar/c1"));
     expect(root()).toEqual(["(tabs)", "bayar/[id]"]);
-    expect(screen.getAllByText("Pembayaran diterima").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Langganan aktif").length).toBeGreaterThan(0);
     return app;
   }
   const expectHome = (app: { getPathname: () => string }) => {

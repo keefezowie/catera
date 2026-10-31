@@ -32,6 +32,7 @@ import {
   linkTitle,
   nativeHeaderOptions,
   Photo,
+  PolishArt,
   PressableScale,
   ReadError,
   SaveHeart,
@@ -44,12 +45,14 @@ import {
   useScreenMargin,
   useScreenNavigation,
   withAlpha,
+  type PolishArtName,
 } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
 import { StatStrip } from "./NutritionCard";
 import { useSaved } from "./saved";
 import { goToTab } from "../nav";
+import { hasPraise, PRAISE } from "../today/praise";
 import { PackageSkeleton } from "../skeletons";
 import { DecorativeIcon, GLYPH_INSET, GlyphRow, ListCard, SectionHeader } from "../layout";
 import { GLYPH_BARE } from "../layout/metrics";
@@ -311,6 +314,7 @@ export function PackageDetail() {
   const open = `/beli/${encodeURIComponent(o.id)}`;
   const windows = (o.meal === "both" ? [o.windows.lunch, o.windows.dinner] : [o.windows[o.meal]]).join(" · ");
   const shown = (reviews.data ?? []).slice(0, 3);
+  const praise = praiseCounts(reviews.data ?? []);
   const { note } = priceUnitLabel(o, locale);
   const earliest = startDates(o, new Date(), 1)[0];
   const cutoff = o.cutoff.slice(0, 5);
@@ -423,22 +427,46 @@ export function PackageDetail() {
           </ListCard>
         </View>
 
+        {/* Termasuk (canvas Paket, spec ruling 3): only what the package's own fields back. No field says there is a
+            vegetable every day, so that canvas row is not drawn; moving a date is only offered when the package is
+            flexible (a fixed one is refused with FIXED_PACKAGE). */}
         <View testID="paket-antar" style={styles.section}>
-          <SectionHeader title={t("Pengantaran", "Delivery")} />
+          <SectionHeader title={t("Termasuk", "Included")} />
           <View style={styles.infoRows}>
-            <InfoRow icon="bicycle-outline" text={`${dayRange(o.weekdays, locale)}, ${windows}`} />
-            <InfoRow
-              icon="time-outline"
-              text={t(
-                `Ubah hari sampai ${cutoff.replace(":", ".")}, sehari sebelumnya`,
-                `Change a day until ${cutoff} the day before`,
+            <IncludedRow
+              art="spot-rantang"
+              title={t("Diantar ke alamatmu", "Delivered to your address")}
+              meta={t(
+                `${dayRange(o.weekdays, locale)}, ${windows}. Ongkir sudah termasuk.`,
+                `${dayRange(o.weekdays, locale)}, ${windows}. Delivery included.`,
               )}
             />
-            <InfoRow icon="pricetag-outline" text={t("Ongkir sudah termasuk", "Delivery included")} />
             {earliest ? (
-              <InfoRow
-                icon="calendar-outline"
-                text={`${t("Mulai paling cepat", "Earliest start")} ${shortDate(earliest, locale)}`}
+              <IncludedRow
+                art="spot-calendar-tote"
+                title={t("Pilih tanggal mulai", "Choose your start date")}
+                meta={`${t("Paling cepat", "Earliest")} ${shortDate(earliest, locale)}.`}
+              />
+            ) : null}
+            {o.flexible ? (
+              <IncludedRow
+                art="spot-plate-pause"
+                title={t("Bisa pindah tanggal", "You can move a date")}
+                meta={t(
+                  `Ubah hari sampai ${cutoff.replace(":", ".")}, sehari sebelumnya.`,
+                  `Change a day until ${cutoff} the day before.`,
+                )}
+              />
+            ) : null}
+            {o.trialPrice ? (
+              // Ruling 2: the gift rantang marks the trial package; there is no referral programme.
+              <IncludedRow
+                art="spot-rantang-gift"
+                title={t("Bisa coba 1 hari", "One-day trial")}
+                meta={t(
+                  `${currency(o.trialPrice, locale)} per porsi untuk satu hari.`,
+                  `${currency(o.trialPrice, locale)} a portion for one day.`,
+                )}
               />
             ) : null}
           </View>
@@ -454,6 +482,29 @@ export function PackageDetail() {
               )}
               onRetry={() => void reviews.reload()}
             />
+          </View>
+        ) : null}
+        {praise.length ? (
+          <View testID="paket-pujian" style={styles.section}>
+            <SectionHeader title={t("Kata pelanggan", "What customers say")} />
+            <View style={styles.praiseRow}>
+              {praise.map((p) => (
+                <View
+                  key={p.art}
+                  accessible
+                  accessibilityLabel={t(`${p.id}, ${p.count} ulasan`, `${p.en}, ${p.count} ${p.count === 1 ? "review" : "reviews"}`)}
+                  style={styles.praise}
+                >
+                  <PolishArt name={p.art} size={PRAISE_ART} />
+                  <Text variant="bodyStrong" style={{ fontVariant: ["tabular-nums"] }}>
+                    {p.count}
+                  </Text>
+                  <Text variant="meta" style={{ textAlign: "center" }}>
+                    {t(p.id, p.en)}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         ) : null}
         {shown.length ? (
@@ -476,21 +527,38 @@ export function PackageDetail() {
   );
 }
 
-/** A 48 info row: the bare 20 glyph and a `bodyL` line that wraps rather than truncates. */
-function InfoRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  const c = useColors();
+/** Each praise picture is a 48 square (DESIGN.md 8 grid; the same size as the Termasuk art). */
+const PRAISE_ART = 48;
+
+/**
+ * Kata pelanggan: how many reviews carry each quick-praise phrase the review sheet writes (ruling 1), matched as a
+ * whole clause by the sheet's own `hasPraise`. A phrase nobody wrote is not shown.
+ */
+export function praiseCounts(reviews: { body: string }[]) {
+  return PRAISE.map((p) => ({
+    ...p,
+    count: reviews.filter((r) => hasPraise(r.body ?? "", p.id) || hasPraise(r.body ?? "", p.en)).length,
+  })).filter((p) => p.count > 0);
+}
+
+/**
+ * One Termasuk row: the 48 spot art beside a `bodyStrong` title over a `meta` line. At least 72 tall (the media row);
+ * every line wraps rather than truncates.
+ */
+function IncludedRow({ art, title, meta }: { art: PolishArtName; title: string; meta: string }) {
   const styles = useStyles();
   return (
-    <View testID="paket-info" style={styles.info}>
-      <View testID="paket-info-glyph" style={styles.infoGlyph}>
-        <DecorativeIcon name={icon} size={GLYPH_BARE} color={c.muted} />
+    <View testID="paket-termasuk-row" style={styles.info}>
+      <PolishArt name={art} size={INCLUDED_ART} />
+      <View style={styles.infoText}>
+        <Text variant="bodyStrong">{title}</Text>
+        <Text variant="meta">{meta}</Text>
       </View>
-      <Text variant="bodyL" style={styles.infoText}>
-        {text}
-      </Text>
     </View>
   );
 }
+/** The spot art in a Termasuk row (canvas 48; runtime files are drawn for 72, so 48 is a downscale, never blurred). */
+const INCLUDED_ART = 48;
 
 const useStyles = themedStyles((c) => ({
   hero: {
@@ -525,11 +593,23 @@ const useStyles = themedStyles((c) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: nativeLayout.space.md,
-    minHeight: nativeLayout.row.info,
+    minHeight: nativeLayout.row.media,
     paddingVertical: nativeLayout.space.sm,
   },
-  infoGlyph: { width: GLYPH_BARE, height: GLYPH_BARE, alignItems: "center", justifyContent: "center" },
-  infoText: { flex: 1, minWidth: 0 },
+  infoText: { flex: 1, minWidth: 0, gap: 2 },
+  // Up to four praise tiles share the row and wrap two by two when a quarter is too narrow for its label.
+  praiseRow: { flexDirection: "row", flexWrap: "wrap", gap: nativeLayout.space.sm },
+  praise: {
+    flexGrow: 1,
+    flexBasis: 72,
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: nativeLayout.space.md,
+    paddingHorizontal: nativeLayout.space.xs,
+    borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous",
+    backgroundColor: c.surface,
+  },
   // A wrapping row: price first, then the buttons, "Pilih jadwal" last at the trailing edge on whichever line it lands.
   // Yoga breaks a line on each child's own width, measured at most the row's width, so a child that cannot shrink moves
   // to the next line instead of drawing over its neighbour; `maxWidth` keeps a very long one inside the row.

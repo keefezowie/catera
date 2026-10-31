@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { act, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { StyleSheet, Text } from "react-native";
 import * as Reanimated from "react-native-reanimated";
@@ -163,40 +163,9 @@ type State = {
 
 const STATES: State[] = [
   // tidur: nothing here. Beranda with nothing today or next and an empty Jadwal month draw no art (tested below).
-  {
-    name: "Notifikasi with no updates",
-    pose: "tidur",
-    runtime: () => runtimeWith(),
-    ui: <NotificationsScreen />,
-    copy: ["Belum ada kabar baru.", "Kabar soal makananmu dan permintaan bantuan muncul di sini."],
-  },
-  // mencari: nothing found.
-  {
-    name: "Jelajah with nothing on offer",
-    pose: "mencari",
-    runtime: () => runtimeWith(),
-    ui: <Jelajah />,
-    copy: ["Belum ada paket."],
-  },
-  {
-    name: "Jelajah with no results for a search",
-    pose: "mencari",
-    runtime: () => runtimeWith({ catalog: jest.fn(async () => ({ items: [offer()], nextCursor: null })) }),
-    ui: <Jelajah />,
-    reach: async () => {
-      fireEvent.changeText(await screen.findByLabelText("Cari paket"), "rendang");
-    },
-    copy: ["Belum ada paket yang cocok.", "Coba kata kunci atau pilihan lain."],
-    action: "Hapus pilihan",
-  },
-  {
-    name: "an empty Disimpan",
-    pose: "mencari",
-    runtime: () => runtimeWith(),
-    ui: <SavedList />,
-    copy: ["Belum ada paket tersimpan.", "Ketuk hati di paket yang kamu suka."],
-    action: "Jelajah paket",
-  },
+  // Notifikasi, Bantuan, an empty Disimpan and every empty Jelajah (nothing on offer, the meal, filters, the area) draw their own polish
+  // art instead of a mascot (polish canvas 2026-10-30, ruling 7; tests/polish-p3.test.tsx).
+  // mencari: nothing found. Jelajah and Disimpan empties now draw polish art (tests/polish-p3.test.tsx).
   // melambai: hello.
   {
     name: "EmptyHome",
@@ -417,22 +386,22 @@ describe("each empty and error state shows its pose and keeps its copy and actio
 
   it("draws the art at 72 on a 360dp phone at font scale 1.3, so the title and action stay above the fold", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    for (const state of [STATES[0], STATES[3], STATES[6]]) {
+    for (const state of ["Notifikasi that could not load", "Disimpan that could not load", "Belum bisa terhubung"].map((n) => STATES.find((s) => s.name === n)!)) {
       const art = await open(state);
       expect(artHeight(art)).toBe(72);
       screen.unmount();
     }
     // Enlarged text on a wider phone, or a 360dp phone at the default size, keeps 88.
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
-    expect(artHeight(await open(STATES[3]))).toBe(88);
+    expect(artHeight(await open(state("Disimpan that could not load")))).toBe(88);
     screen.unmount();
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
-    expect(artHeight(await open(STATES[3]))).toBe(88);
+    expect(artHeight(await open(state("Disimpan that could not load")))).toBe(88);
   });
 
   it("shows the same still under reduced motion: the art never moves", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    const art = await open(STATES[0]);
+    const art = await open(state("Disimpan that could not load"));
     expect(within(art).getByTestId("mascot-art-image", hidden)).toBeTruthy();
     expect(artHeight(art)).toBe(88);
   });
@@ -448,7 +417,7 @@ describe("each empty and error state shows its pose and keeps its copy and actio
 });
 
 it("mascot art is hidden from screen readers", async () => {
-  for (const state of [STATES[0], STATES[1], STATES[4], STATES[8]]) {
+  for (const state of ["Notifikasi that could not load", "Disimpan that could not load", "EmptyHome", "Jelajah that could not load"].map((n) => STATES.find((s) => s.name === n)!)) {
     const art = await open(state);
     // Present for the eye, absent for TalkBack and VoiceOver: the state's own text carries the meaning.
     expect(screen.queryByTestId(`mascot-${state.pose}`)).toBeNull();

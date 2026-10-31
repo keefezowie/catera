@@ -10,13 +10,13 @@ import {
   FormError,
   ReadError,
   Screen,
-  StateArt,
   Text,
   useBlockEnter,
   useColors,
   useListMotion,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
+import { EmptyArt } from "./EmptyArt";
 import { PackageCard } from "./PackageCard";
 import { PackageGrid, useGridCell } from "./PackageGrid";
 import { useSaved } from "./saved";
@@ -112,14 +112,14 @@ function Saved() {
           <ReadError art message={saved.loadError} onRetry={() => void saved.reload()} />
         ) : !saved.items.length ? (
           <View style={{ gap: 10 }}>
-            <StateArt pose="mencari" />
+            <EmptyArt name="spot-lid-heart" />
             <Text variant="heading" style={{ textAlign: "center" }}>
               {t("Belum ada paket tersimpan.", "No saved packages yet.")}
             </Text>
             <Text style={{ color: c.muted, textAlign: "center" }}>
               {t("Ketuk hati di paket yang kamu suka.", "Tap the heart on a package you like.")}
             </Text>
-            <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
+            <Button variant="secondary" label={t("Cari paket", "Find a package")} onPress={() => goToTab("jelajah")} />
           </View>
         ) : (
           <PackageGrid>{saved.pages.flatMap((page, n) => page.map((item) => row(item, n)))}</PackageGrid>

@@ -288,13 +288,13 @@ it("upcoming rows name the meal and its window, tomorrow first as Besok", async 
   expect(within(screen.getByTestId("upcoming-days")).getAllByText("Siang 11.00–13.00")).toHaveLength(2);
 });
 
-it("empty upcoming row says Menu belum diisi", async () => {
+it("empty upcoming row says the menu is not announced yet", async () => {
   const state = customerState(null);
   state.deliveries[0] = delivery("d-empty", addDays(TODAY, 1), {}, { offer: offer({ menus: [] }) });
   renderHome(runtimeWith(async () => state));
   // The kitchen stands in for the dish that is not chosen yet.
   expect(await screen.findByText("Besok · Siang 11.00–13.00 · Dapur Contoh")).toBeTruthy();
-  expect(screen.getAllByText("Menu belum diisi")).toHaveLength(1);
+  expect(screen.getAllByText(/^Menu belum (dipilih|diumumkan)$/)).toHaveLength(1);
 });
 
 it("shows the renewal row at three days left", async () => {
@@ -436,7 +436,7 @@ it("offline shows the cached day and when it was updated", async () => {
   // detail line under the stop gives the arrival window instead.
   expect((await screen.findByTestId("plate-detail")).props.children).toBe("Tiba sekitar 11.00–13.00");
   expect(within(screen.getByTestId("status-stop-lunch")).getAllByText("Sedang diantar")).toHaveLength(1);
-  expect(within(screen.getByTestId("rantang-track")).getAllByText("Sedang diantar")).toHaveLength(1);
+  expect(screen.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sedang diantar");
   expect(screen.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sedang diantar");
   expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
   expect(screen.getByText(keptLine("2026-10-07T23:12:00.000Z"))).toBeTruthy();
@@ -1052,9 +1052,10 @@ describe("Beranda mood", () => {
       const track = h.getByTestId("rantang-track");
       expect(track.props.accessibilityLabel).toBe("Pesanan: Terjadwal, langkah 1 dari 4");
       expect(track.props.accessibilityValue.text).toBe("Terjadwal");
-      expect(within(track).getByText("Terjadwal")).toBeTruthy();
+      // The art track says the stage in its headline; the bare word stays in its accessibility value.
+      expect(within(track).getByText("Belum mulai dimasak")).toBeTruthy();
       expect(stop().getAllByText("Terjadwal")).toHaveLength(1);
-      expect(within(track).getAllByText("Terjadwal")).toHaveLength(1);
+      expect(within(track).queryByText("Terjadwal")).toBeNull();
       expect(screen.getByTestId("home-title").props.children).toBe("Makan siang terjadwal.");
       expect(detail()).toBe(`Diantar ${NOT_YET} ke Kantor`);
       // The detail carries the window, so its figures are tabular.
@@ -1069,7 +1070,7 @@ describe("Beranda mood", () => {
       const h = await hero();
       expect(detail()).toBe(`Delivered ${NOT_YET} to Kantor`);
       expect(stop().getAllByText("Scheduled")).toHaveLength(1);
-      expect(within(h.getByTestId("rantang-track")).getAllByText("Scheduled")).toHaveLength(1);
+      expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Scheduled");
       expect(screen.getByTestId("home-title").props.children).toBe("Lunch is scheduled.");
     });
 
@@ -1078,7 +1079,7 @@ describe("Beranda mood", () => {
       const h = await hero();
       expect(detail()).toBe(`Tiba sekitar ${NOT_YET}`);
       expect(stop().getAllByText("Sedang diantar")).toHaveLength(1);
-      expect(within(h.getByTestId("rantang-track")).getAllByText("Sedang diantar")).toHaveLength(1);
+      expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sedang diantar");
       expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sedang diantar");
     });
 
@@ -1207,7 +1208,7 @@ describe("Beranda mood", () => {
         expect(detail()).not.toBe(caption);
         // Each region says its own fact once: the stop its label, the tracker its caption.
         expect(stop().getAllByText(state as string)).toHaveLength(1);
-        expect(within(h.getByTestId("rantang-track")).getAllByText(caption)).toHaveLength(1);
+        expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe(caption);
         // The dish is named once on the screen's hero, never in the band.
         expect(h.getAllByTestId("plate-dishes")).toHaveLength(1);
         expect(screen.getByTestId("home-title").props.children).not.toMatch(/ayam bakar madu|sayur asem/i);
@@ -1250,7 +1251,7 @@ describe("Beranda mood", () => {
     it("says Dimasak without a time when the kitchen's start was not recorded", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "preparing" })));
       const h = await hero();
-      expect(within(h.getByTestId("rantang-track")).getByText("Dimasak")).toBeTruthy();
+      expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Dimasak");
     });
 
     it("says Berangkat with the departure time in the track, and the old chip is gone", async () => {
@@ -1331,7 +1332,7 @@ describe("Beranda mood", () => {
         ),
       );
       const h = await hero();
-      expect(within(h.getByTestId("rantang-track")).getByText("Sampai")).toBeTruthy();
+      expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sampai");
     });
 
     // The stop labels are hidden from a screen reader (the caption speaks for the track), so they are looked up hidden.

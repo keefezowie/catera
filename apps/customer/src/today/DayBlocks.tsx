@@ -3,9 +3,12 @@ import { Image } from "expo-image";
 import type { UpcomingDay, UpcomingMeal } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { plural, useMobile } from "@catera/mobile-core";
-import { PressableRow, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
+import { PolishArt, PressableRow, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
 import { photoUri } from "./photoUri";
-import { DecorativeIcon, rowLabel } from "../layout";
+import { rowLabel } from "../layout";
+
+/** The picture in the 44 tile of a day's unset row, 2 in from its edge. */
+const UNSET_ART = 40;
 
 /** The most delivery tiles a day shows; the rest are "+n lagi". */
 export const TILES_PER_DAY = 2;
@@ -206,7 +209,7 @@ function NoneTile({ meal, stacked }: { meal: "lunch" | "dinner"; stacked: boolea
 }
 
 /**
- * A day's deliveries without a menu, as one row (spec R3): the utensil tile, what is missing and, for pick-your-own
+ * A day's deliveries without a menu, as one row (spec R3): its picture tile (polish canvas Beranda), what is missing and, for pick-your-own
  * menus still before their cutoff, one "Pilih menu" text action. The text wraps at large text; the action keeps one line.
  */
 function UnsetRow({ testID, text, onPick }: { testID: string; text: string; onPick?: () => void }) {
@@ -217,7 +220,8 @@ function UnsetRow({ testID, text, onPick }: { testID: string; text: string; onPi
   return (
     <View testID={testID} style={styles.unpicked}>
       <View testID={`${testID.replace(/-row$/, "")}-tile`} style={styles.unpickedTile}>
-        <DecorativeIcon name="restaurant-outline" size={20} color={c.charcoal} />
+        {/* The same pictures as a one-delivery day (UpcomingDays.dayArt): to choose, or not announced yet. */}
+        <PolishArt name={testID === "day-unpicked-row" ? "spot-plate-empty-pencil" : "spot-rantang-clock"} size={UNSET_ART} />
       </View>
       <Text variant="body" style={styles.unpickedText}>
         {text}
@@ -287,7 +291,7 @@ const useStyles = themedStyles((c) => ({
     height: 44,
     borderRadius: nativeLayout.radius.control,
     borderCurve: "continuous",
-    backgroundColor: c.line,
+    backgroundColor: c.fill,
     alignItems: "center",
     justifyContent: "center",
   },

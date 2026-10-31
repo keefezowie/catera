@@ -18,7 +18,7 @@ import {
 } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile, useTrack } from "@catera/mobile-core";
-import { PressableRow, Text, themedStyles, useColors, useRowMotion, useStackedLayout } from "@catera/mobile-ui";
+import { PressableRow, Text, themedStyles, useColors, useRowMotion, useStackedLayout, type PolishArtName } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { openLink, pushSheet } from "../nav";
 import { packageHref } from "../hrefs";
@@ -55,6 +55,11 @@ function trialTitle(s: Subscription, today: string, t: Translate): string {
 export type WaitingRow = {
   key: string;
   icon: IconName;
+  /**
+   * The polish picture Beranda's live slot shows in place of the glyph (canvas Beranda): the menu card and pencil for
+   * menus to choose, the gift rantang for a trial (ruling 2). Rows without one keep the glyph.
+   */
+  art?: PolishArtName;
   title: string;
   detail: string;
   action: string;
@@ -114,6 +119,7 @@ export function useWaitingRows({
         return {
           key: `menu:${item.subscriptionId}`,
           icon: "reorder-three-outline",
+          art: "spot-menu-card-pencil",
           title: menuTitle(item.dates, t),
           detail: deadline ? `${item.packageName} · ${t("sebelum", "before")} ${deadline}` : item.packageName,
           action: t("Pilih", "Choose"),
@@ -151,6 +157,7 @@ export function useWaitingRows({
           key: `trial:${s.id}`,
           // The full plan is another package to take, so the row carries the packages bag, not the renewal's arrow.
           icon: "bag-handle-outline",
+          art: "spot-rantang-gift",
           title: trialTitle(s, today, t),
           detail: `${s.snapshot.offer.caterer} · ${t("paket coba", "trial")}`,
           action: t("Beli paket", "Buy package"),

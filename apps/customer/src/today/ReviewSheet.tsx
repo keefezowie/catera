@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   FadeSwap,
   Field,
+  fontFor,
   FormError,
+  PolishArt,
+  type PolishArtName,
   PressableScale,
   ReadError,
   SheetBody,
@@ -21,6 +25,7 @@ import {
   useToast,
   useUnsavedGuard,
 } from "@catera/mobile-ui";
+import { hasPraise, PRAISE, REVIEW_MAX, withPraise } from "./praise";
 import { markReview } from "./reviewMark";
 
 /**
@@ -35,6 +40,44 @@ const PARTS = ["food", "delivery", "value"] as const;
 type Part = (typeof PARTS)[number];
 /** Sub-ratings the customer changed; one left out follows the overall rating. */
 type Parts = Partial<Record<Part, number>>;
+
+/** The moment art's largest side; a short phone gives it 22% of the window height. */
+const ART_MAX = 200;
+const ART_SHARE = 0.22;
+/** A praise chip: 48 tall (expo-native-ui touch target), its art at 32 in the chip's leading edge. */
+const CHIP = 48;
+const CHIP_ART = 32;
+
+function PraiseChip({ art, label, selected, onPress }: { art: PolishArtName; label: string; selected: boolean; onPress: () => void }) {
+  const palette = useColors();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      haptic="select"
+      onPress={onPress}
+      style={{
+        minHeight: CHIP,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: nativeLayout.space.sm,
+        paddingLeft: (CHIP - CHIP_ART) / 2,
+        paddingRight: nativeLayout.space.lg,
+        borderRadius: CHIP / 2,
+        borderCurve: "continuous",
+        borderWidth: selected ? 2 : 1.5,
+        borderColor: selected ? palette.forest : palette.controlRing,
+        backgroundColor: selected ? palette.fill : palette.surface,
+      }}
+    >
+      <PolishArt name={art} size={CHIP_ART} />
+      <Text variant="bodyStrong" style={{ fontFamily: fontFor(selected ? "800" : "600") }}>
+        {label}
+      </Text>
+    </PressableScale>
+  );
+}
 
 /**
  * Five stars, each a button named "{prefix}{n} bintang". Outline + muted (5.8:1) for unselected, filled + forest for
@@ -79,11 +122,23 @@ function Stars({
 }
 
 /** The sheet's frame: the title row over the scrolling content, in one FadeSwap so the form fades in as one block. */
-function Frame({ title, swapKey, children, footer }: { title: string; swapKey: string; children: ReactNode; footer?: ReactNode }) {
+function Frame({
+  title,
+  context,
+  swapKey,
+  children,
+  footer,
+}: {
+  title: string;
+  context?: string;
+  swapKey: string;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
-      <SheetHeader title={title} closeLabel={t("Tutup", "Close")} />
+      <SheetHeader title={title} context={context} closeLabel={t("Tutup", "Close")} />
       <SheetBody footer={footer}>
         <FadeSwap swapKey={swapKey} style={{ gap: 12 }}>
           {children}
@@ -137,7 +192,7 @@ export function ReviewRoute() {
 }
 
 function Review({ actorId, id }: { actorId: string; id: string }) {
-  const { runtime, command, t, locale } = useMobile();
+  const { runtime, command, t, locale, actor } = useMobile();
   const palette = useColors();
   const toast = useToast();
   const state = useData(`ulasan:${id}`, () => runtime.api.customer());
@@ -156,6 +211,7 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
   // Set before the first await, so a second tap in the same frame never sends twice.
   const sending = useRef(false);
   const stacked = useStackedLayout(340);
+  const { height } = useWindowDimensions();
 
   // Typed words ask before the sheet closes; the stars alone do not. A sent or put-off review has nothing to lose.
   useUnsavedGuard(!finished && body.trim() !== "", t("ulasan", "review"), {
@@ -194,6 +250,28 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
     );
 
   const caterer = subscription.snapshot.offer.caterer;
+  const meal = (subscription.snapshot.offer as { meal?: string }).meal;
+  const firstName = actor?.name?.trim().split(/\s+/)[0] ?? "";
+  const greeting = firstName
+    ? t(`Selamat makan, ${firstName}`, `Enjoy your meal, ${firstName}`)
+    : t("Selamat makan", "Enjoy your meal");
+  const question =
+    meal === "lunch"
+      ? t("Gimana makan siangmu?", "How was your lunch?")
+      : meal === "dinner"
+        ? t("Gimana makan malammu?", "How was your dinner?")
+        : t("Gimana masakannya?", "How was the food?");
+  const praise = PRAISE.map((p) => ({ ...p, phrase: t(p.id, p.en) }));
+  const togglePraise = (phrase: string) => {
+    const next = withPraise(body, phrase);
+    // A phrase that would pass the field's limit is not added; the words stay as they are and a toast says why.
+    if (next === null) {
+      toast.show({ message: t("Ceritanya sudah penuh. Hapus sedikit dulu.", "Your review is full. Remove a little first."), tone: "error" });
+      return;
+    }
+    setBody(next);
+    keep({ body: next });
+  };
 
   const partLabel: Record<Part, string> = {
     food: t("Rasa", "Taste"),
@@ -230,7 +308,8 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
 
   return (
     <Frame
-      title={t(`Ulasan untuk ${caterer}`, `Your review of ${caterer}`)}
+      title={greeting}
+      context={t(`${caterer} sudah masak untukmu.`, `${caterer} has been cooking for you.`)}
       swapKey="ready"
       footer={
         <>
@@ -260,6 +339,13 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
       }
     >
       <View testID="review-sheet" style={{ gap: 12 }}>
+        {/* Sized by the window height (expo-native-ui), so the stars stay above the fold of the form detent. */}
+        <View style={{ alignItems: "flex-start" }}>
+          <PolishArt name="moment-rantang-meledak" size={Math.round(Math.min(ART_MAX, height * ART_SHARE))} />
+        </View>
+        <Text variant="rowTitle" accessibilityRole="header">
+          {question}
+        </Text>
         <Stars
           value={rating}
           target={48}
@@ -299,6 +385,14 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
               </View>
             ))
           : null}
+        <Text variant="rowTitle" accessibilityRole="header" style={{ marginTop: nativeLayout.space.sm }}>
+          {t("Yang paling terasa?", "What stood out?")}
+        </Text>
+        <View testID="review-praise" style={{ flexDirection: "row", flexWrap: "wrap", gap: nativeLayout.space.sm }}>
+          {praise.map((p) => (
+            <PraiseChip key={p.id} art={p.art} label={p.phrase} selected={hasPraise(body, p.phrase)} onPress={() => togglePraise(p.phrase)} />
+          ))}
+        </View>
         <Field
           label={t("Cerita singkat (opsional)", "A few words (optional)")}
           value={body}
@@ -307,7 +401,7 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
             keep({ body: text });
           }}
           multiline
-          maxLength={1000}
+          maxLength={REVIEW_MAX}
         />
       </View>
     </Frame>

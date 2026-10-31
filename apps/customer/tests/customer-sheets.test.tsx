@@ -685,17 +685,21 @@ describe("outcomes", () => {
       answer("ulasan:s-1", stateWith([], { subscriptions: [subscription()] }));
       const app = await mount("/");
       await go(() => router.push("/ulasan/s-1"));
-      expect(screen.getByRole("header", { name: "Ulasan untuk Dapur Contoh" })).toBeTruthy();
+      expect(screen.getByRole("header", { name: "Selamat makan, Rani" })).toBeTruthy();
+      expect(screen.getByText("Dapur Contoh sudah masak untukmu.")).toBeTruthy();
       await go(() => fireEvent.press(screen.getByRole("button", { name: "4 bintang" })));
       // The three sub-ratings start at the overall rating; Pengantaran is changed to 3.
       for (const part of ["Rasa", "Pengantaran", "Harga"])
         expect(screen.getByRole("button", { name: `${part} 4 bintang` }).props.accessibilityState.selected).toBe(true);
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Pengantaran 3 bintang" })));
       expect(screen.getByRole("button", { name: "Pengantaran 4 bintang" }).props.accessibilityState.selected).toBe(false);
+      // A quick-praise chip writes its phrase into the words (ruling 1): no new field.
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Masih hangat" })));
+      expect(screen.getByRole("button", { name: "Masih hangat" }).props.accessibilityState.selected).toBe(true);
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" })));
       expect(mockCommand).toHaveBeenCalledWith(
         "review.save",
-        expect.objectContaining({ subscriptionId: "s-1", rating: 4, food: 4, delivery: 3, value: 4 }),
+        expect.objectContaining({ subscriptionId: "s-1", rating: 4, food: 4, delivery: 3, value: 4, body: "Masih hangat." }),
       );
       await act(async () => {});
       expect(stack("(index)")).toEqual(["index"]);
@@ -781,7 +785,7 @@ describe("outcomes", () => {
       expect(screen.getByRole("header", { name: "Minta bantuan" })).toBeTruthy();
       await go(() => fireEvent.press(screen.getByRole("radio", { name: /^Pembatalan, / })));
       fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota bulan depan.");
-      await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" })));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim" })));
       expect(mockCommand).toHaveBeenCalledWith("support.create", {
         subscriptionId: "s-1",
         subject: "Pembatalan",

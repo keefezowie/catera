@@ -29,6 +29,7 @@ import {
   WindowEdge,
 } from "@catera/mobile-ui";
 import { registerNavigation } from "../src/nav";
+import { useFirstRunGate } from "../src/onboarding/gate";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
 import { useFlowOptions } from "../src/stack";
@@ -44,11 +45,13 @@ let coldStart = true;
 const SplashReleased = createContext(false);
 
 function Navigation() {
-  const { t, ready, booted, demo } = useMobile();
+  const { t, ready, booted, demo, runtime: mobile, actor } = useMobile();
   const released = use(SplashReleased);
   const container = useNavigationContainerRef();
   // goToTab and openLink target each navigator by key; a push tapped while the session loads opens once it can.
   useEffect(() => registerNavigation(container), [container]);
+  // A fresh install opens the first-run onboarding over Beranda once the session is known (spec ruling 5).
+  useFirstRunGate({ ready, runtime: mobile, actor });
   const palette = useColors();
   const { scheme } = useThemePreference();
   const screenOptions = useStackScreenOptions(demo);
@@ -78,6 +81,8 @@ function Navigation() {
             sign-in, buying and paying, a claim link and the story. */}
         <Stack screenOptions={screenOptions}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          {/* First-run onboarding: full screen over Beranda, its own steps inside; leaving goes through goToTab. */}
+          <Stack.Screen name="mulai" options={{ headerShown: false, presentation: "fullScreenModal", animation: "fade", gestureEnabled: false }} />
           {/* Short forms: a sheet on iOS, each with Close at the leading edge. Their large in-page title is the heading, so the bar title is empty; `title` still names the route. */}
           <Stack.Screen name="login" options={{ title: t("Masuk", "Sign in"), ...flow("modal"), headerTitle: "" }} />
           <Stack.Screen name="register" options={{ title: t("Daftar", "Sign up"), ...flow("modal"), headerTitle: "" }} />
@@ -132,6 +137,8 @@ function Navigation() {
           {/* The confirm and action sheets (`useConfirm`, `useActionSheet`), sized to their content, over any screen. */}
           <Stack.Screen name="konfirmasi" options={sheetOptions({ detents: "fit", palette })} />
           <Stack.Screen name="aksi" options={sheetOptions({ detents: "fit", palette })} />
+          {/* The push primer after the first paid plan (polish, PushPrimer.tsx), sized to its content. */}
+          <Stack.Screen name="notifikasi-primer" options={sheetOptions({ detents: "fit", palette })} />
         </Stack>
       </TopInsetOwner>
     </MoodLabelsProvider>

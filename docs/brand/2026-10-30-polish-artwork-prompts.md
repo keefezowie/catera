@@ -370,8 +370,8 @@ The research calls for these in section 4 but not in the top 10. Shared style A.
 - Appears in: the Dapur "no orders" state (`TodayScreen.tsx`); `tidur` stays only for "libur".
 - Folder and size: as #44.
 - Prompt:
-  > Illustration: an empty wooden pass shelf (the counter where finished food waits for pickup) seen in three-quarter view, two plain wooden shelves with nothing on them, and one forest ladle hanging from a hook on its side.
-- Check before saving: reads as empty and calm, not broken; no food anywhere.
+  > Empty-state illustration: a classic restaurant order spike (a round forest #163D2E base with an upright metal spike) standing on a small cream counter strip, with no tickets on it. Next to it lies one blank cream order ticket, slightly curled, face up and empty. A tiny sunrise-orange pencil rests beside the ticket. Calm, nothing moving. Front three-quarter view, centred, generous margin, no text or numbers anywhere.
+- Check before saving: bare spike with no tickets on it; exactly one blank ticket beside it; calm composition with generous margin and no text. User-selected option A replaces the shelf concept; the existing filename is retained for the handoff.
 
 ---
 

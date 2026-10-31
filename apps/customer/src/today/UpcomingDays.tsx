@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { WEEK_HEADER, type StoryPart, type UpcomingDay, type UpcomingMeal } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { Text, themedStyles } from "@catera/mobile-ui";
+import { PolishArt, Text, themedStyles, type PolishArtName } from "@catera/mobile-ui";
 import { dayHref } from "../hrefs";
 import { ListCard, MediaRow, rowLabel, SectionHeader, Thumb } from "../layout";
 import { goToTab } from "../nav";
@@ -16,6 +16,19 @@ export const UPCOMING_DAYS = 3;
 
 /** The date column of a one-delivery row. */
 const DATE_COLUMN = 36;
+/** The art tile matches the row's 56 photo; the picture sits 4 in from its edge (canvas Beranda, 48 in 56). */
+const TILE = nativeLayout.thumb.sm;
+const TILE_ART = TILE - 8;
+
+/**
+ * The picture for a day with no dish photo (polish canvas Beranda): a menu the customer still picks is the empty plate
+ * and pencil, one the caterer has not announced is the rantang with its clock, and a set menu with no photo is the open
+ * rantang. A set menu with a photo keeps the photo.
+ */
+export function dayArt(meal: Pick<UpcomingMeal, "lead" | "pickable">): PolishArtName {
+  if (meal.lead !== null) return "spot-rantang-open";
+  return meal.pickable ? "spot-plate-empty-pencil" : "spot-rantang-clock";
+}
 
 /** Tomorrow's delivery parts in the story's own order, so a block can open the story at the part it shows. */
 export type TomorrowParts = { date: string; parts: Pick<StoryPart, "deliveryId" | "meal">[] };
@@ -93,7 +106,7 @@ export function UpcomingDays({
   );
 }
 
-/** One day with one delivery: the date column, the 56 photo (dashed while the menu is not set), the dish and its line. */
+/** One day with one delivery: the date column, the 56 photo (or its picture, `dayArt`), the dish and its line. */
 function DayRow({
   day,
   meal,
@@ -111,7 +124,10 @@ function DayRow({
   const styles = useStyles();
   const id = `upcoming-row-${meal.deliveryId}-${meal.meal}`;
   const notSet = meal.lead === null;
-  const dish = meal.lead ?? t("Menu belum diisi", "Menu not set yet");
+  const dish =
+    meal.lead ??
+    (meal.pickable ? t("Menu belum dipilih", "Menu not chosen yet") : t("Menu belum diumumkan", "Menu not announced yet"));
+  const photo = notSet || !meal.image ? null : photoUri(meal.image, apiBase);
   const when = [mealWord(meal.meal, t), meal.window].filter(Boolean).join(" ");
   // A dish not chosen yet says whose kitchen it is: there is no dish to tell the row apart by.
   const line = [tomorrow ? t("Besok", "Tomorrow") : null, when, notSet ? meal.catererName : null]
@@ -129,11 +145,13 @@ function DayRow({
               {Number(day.date.slice(8))}
             </Text>
           </View>
-          <Thumb
-            uri={notSet || !meal.image ? null : photoUri(meal.image, apiBase)}
-            notSet={notSet}
-            testID={`${id}-thumb`}
-          />
+          {photo ? (
+            <Thumb uri={photo} testID={`${id}-thumb`} />
+          ) : (
+            <View testID={notSet ? `${id}-thumb-not-set` : `${id}-thumb`} style={styles.tile}>
+              <PolishArt name={dayArt(meal)} size={TILE_ART} />
+            </View>
+          )}
         </View>
       }
       title={dish}
@@ -145,9 +163,18 @@ function DayRow({
   );
 }
 
-const useStyles = themedStyles(() => ({
+const useStyles = themedStyles((c) => ({
   section: { marginTop: SECTION_LEAD },
   lead: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md },
   date: { width: DATE_COLUMN, alignItems: "center" },
   figures: { fontVariant: ["tabular-nums"] },
+  tile: {
+    width: TILE,
+    height: TILE,
+    borderRadius: nativeLayout.radius.thumb,
+    borderCurve: "continuous",
+    backgroundColor: c.fill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 }));

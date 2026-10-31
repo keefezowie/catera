@@ -3,9 +3,13 @@ import { router } from "expo-router";
 import type { CustomerActionItem, CustomerState } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { PressableRow, Text, themedStyles, useColors, useStackedLayout, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
+import { PolishArt, PressableRow, Text, themedStyles, useColors, useStackedLayout, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { GLYPH_INSET } from "../layout";
 import { SECTION_LEAD } from "./sectionGap";
+
+/** The row's picture, when it has one: the 56 thumb size, so the 72 row keeps its height (canvas Beranda). */
+const ART = nativeLayout.thumb.sm;
+const ART_INSET = ART + nativeLayout.space.md;
 import { WaitingAction, WaitingGlyph, useWaitingRows } from "./WaitingList";
 
 /**
@@ -53,7 +57,7 @@ export function LiveSlot({
         onPress={row.onPress}
         style={styles.row}
       >
-        <WaitingGlyph icon={row.icon} />
+        {row.art ? <PolishArt name={row.art} size={ART} /> : <WaitingGlyph icon={row.icon} />}
         <View testID="live-slot-text" style={styles.text}>
           <Text variant="rowTitle" style={styles.figures}>
             {row.title}
@@ -71,7 +75,7 @@ export function LiveSlot({
           accessibilityRole="button"
           accessibilityLabel={more}
           onPress={openList}
-          style={styles.more}
+          style={[styles.more, row.art ? { paddingLeft: ART_INSET } : null]}
         >
           {/* forest: action (the link to the full list) */}
           <Text variant="bodyStrong" style={{ color: c.forest }}>

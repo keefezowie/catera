@@ -590,8 +590,9 @@ describe("Jelajah mood header", () => {
   const title = () => screen.getByTestId("jelajah-title").props.children;
   const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
 
-  const rumahan = { ...cheap, tags: ["Rumahan", "Sehat"], image: "https://images.example.test/a.jpg" };
-  const sehat = { ...pricey, tags: ["Sehat"], image: "https://images.example.test/b.jpg" };
+  // "Hemat" and "Rumahan" have no category art, so they stay chips in the chip row (the art tiles are in polish-p3.test).
+  const rumahan = { ...cheap, tags: ["Rumahan", "Hemat"], image: "https://images.example.test/a.jpg" };
+  const sehat = { ...pricey, tags: ["Hemat"], image: "https://images.example.test/b.jpg" };
   const malam = { ...dinner, tags: ["Makan malam", "Rumahan"], image: "https://images.example.test/c.jpg" };
   const taggedRuntime = () =>
     runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [rumahan, sehat, malam], nextCursor: null })) });
@@ -667,7 +668,7 @@ describe("Jelajah mood header", () => {
     const names = within(row)
       .getAllByRole("button")
       .map((b) => b.props.accessibilityLabel ?? within(b).getByText(/./).props.children);
-    expect(names).toEqual(["Di bawah Rp30.000", "Bisa coba 1 hari", "Kategori Sehat", "Kategori Rumahan"]);
+    expect(names).toEqual(["Di bawah Rp30.000", "Bisa coba 1 hari", "Kategori Hemat", "Kategori Rumahan"]);
     // The segment leads the row: it comes before the first filter chip in the tree.
     const order: string[] = [];
     const walk = (node: unknown) => {
@@ -791,11 +792,11 @@ describe("Jelajah mood header", () => {
     it("renders a 34 point chip per top tag, without the meal tags and with no photo ring", async () => {
       mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
-      expect(screen.getByRole("button", { name: "Kategori Sehat" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Kategori Hemat" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" })).toBeTruthy();
       expect(screen.queryByRole("button", { name: /Kategori Makan malam/ })).toBeNull();
       expect(screen.queryByTestId("photo-ring", { includeHiddenElements: true })).toBeNull();
-      expect(flat(screen.getByRole("button", { name: "Kategori Sehat" })).minHeight).toBe(34);
+      expect(flat(screen.getByRole("button", { name: "Kategori Hemat" })).minHeight).toBe(34);
     });
 
     it("filters by the tapped tag, marks it selected, and clears on a second tap", async () => {
@@ -805,10 +806,10 @@ describe("Jelajah mood header", () => {
       expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
       expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(true);
-      expect(screen.getByRole("button", { name: "Kategori Sehat" }).props.accessibilityState.selected).toBe(false);
+      expect(screen.getByRole("button", { name: "Kategori Hemat" }).props.accessibilityState.selected).toBe(false);
       // The active tag is a selection, so its chip is forest (direction K rule 3); the others are not.
       expect(flat(screen.getByRole("button", { name: "Kategori Rumahan" })).backgroundColor).toBe(nativeThemes.light.forest);
-      expect(flat(screen.getByRole("button", { name: "Kategori Sehat" })).backgroundColor).not.toBe(nativeThemes.light.forest);
+      expect(flat(screen.getByRole("button", { name: "Kategori Hemat" })).backgroundColor).not.toBe(nativeThemes.light.forest);
       // The tag carries over to the other meal: the dinner package is tagged Rumahan too.
       fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
@@ -823,7 +824,7 @@ describe("Jelajah mood header", () => {
       mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
       fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Sehat" }));
+      fireEvent.press(screen.getByRole("button", { name: "Kategori Hemat" }));
       expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
       expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
       expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
@@ -856,14 +857,14 @@ describe("Jelajah mood header", () => {
       });
       mount(runtime);
       await screen.findByText("Paket Pedas");
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Sehat" }));
+      fireEvent.press(screen.getByRole("button", { name: "Kategori Hemat" }));
       expect(screen.queryByText("Paket Pedas")).toBeNull();
       fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       // Nothing on Malam carries Sehat: no circle, and the list is not filtered by it.
-      expect(screen.queryByRole("button", { name: "Kategori Sehat" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Kategori Hemat" })).toBeNull();
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
       fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
-      expect(screen.getByRole("button", { name: "Kategori Sehat" }).props.accessibilityState.selected).toBe(true);
+      expect(screen.getByRole("button", { name: "Kategori Hemat" }).props.accessibilityState.selected).toBe(true);
       expect(screen.queryByText("Paket Pedas")).toBeNull();
       expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     });
@@ -871,12 +872,12 @@ describe("Jelajah mood header", () => {
     it("only offers tags that the current meal has, so no circle leads to an empty list", async () => {
       mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
-      expect(screen.getByRole("button", { name: "Kategori Sehat" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Kategori Hemat" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" })).toBeTruthy();
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Sehat" }));
+      fireEvent.press(screen.getByRole("button", { name: "Kategori Hemat" }));
       fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       // Sehat has no dinner package: its circle goes, and with it the filter.
-      expect(screen.queryByRole("button", { name: "Kategori Sehat" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Kategori Hemat" })).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" })).toBeTruthy();
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
     });
@@ -890,7 +891,7 @@ describe("Jelajah mood header", () => {
     it("keeps every category chip a 44 point target", async () => {
       mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
-      const chip = screen.getByRole("button", { name: "Kategori Sehat" });
+      const chip = screen.getByRole("button", { name: "Kategori Hemat" });
       const slop = chip.props.hitSlop;
       expect(flat(chip).minHeight + slop.top + slop.bottom).toBeGreaterThanOrEqual(44);
     });
@@ -1180,11 +1181,10 @@ describe("Paket", () => {
     wrap(runtime, <PackageDetail />);
     expect(await screen.findByText("Dapur Sehat, Tebet. 4,8 dari 23 ulasan")).toBeTruthy();
     expect(screen.getByText("Masakan rumahan sehari-hari.")).toBeTruthy();
-    // The facts are icon rows now, each one sentence (the label and value table is gone).
-    expect(screen.getByText("Pengantaran")).toBeTruthy();
-    expect(screen.getByText(/^Sen–Jum, 17.00–19.00$|^Sen–Jum, 11.00–13.00$/)).toBeTruthy();
-    expect(screen.getByText("Ubah hari sampai 17.00, sehari sebelumnya")).toBeTruthy();
-    expect(screen.getByText("Ongkir sudah termasuk")).toBeTruthy();
+    // The facts are Termasuk rows (polish canvas, ruling 3), each a title over one meta sentence.
+    expect(screen.getByText("Termasuk")).toBeTruthy();
+    expect(screen.getByText(/^Sen–Jum, (17.00–19.00|11.00–13.00). Ongkir sudah termasuk.$/)).toBeTruthy();
+    expect(screen.getByText("Ubah hari sampai 17.00, sehari sebelumnya.")).toBeTruthy();
     expect(screen.getByText("Per sekali makan")).toBeTruthy();
     expect(screen.getByText(/45\.000/)).toBeTruthy();
     // A price is read as text, never announced as a heading.
@@ -1224,7 +1224,7 @@ describe("Paket", () => {
     wrap(runtimeWith(), <PackageDetail />);
     await screen.findByText("Isi paket");
     const first = startDates(cheap, new Date(), 1)[0];
-    expect(screen.getByText(`Mulai paling cepat ${shortDate(first, "id")}`)).toBeTruthy();
+    expect(screen.getByText(`Paling cepat ${shortDate(first, "id")}.`)).toBeTruthy();
     expect(screen.queryByText("Cara kerja Catera")).toBeNull();
     expect(screen.queryByText("Bayar sekali di depan")).toBeNull();
   });
@@ -1234,7 +1234,7 @@ describe("Paket", () => {
     const closed = offer({ id: "p-tutup", name: "Paket Tutup", weekdays: [] });
     wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: closed })) }), <PackageDetail />);
     await screen.findByText("Isi paket");
-    expect(screen.queryByText(/Mulai paling cepat/)).toBeNull();
+    expect(screen.queryByText(/Paling cepat/)).toBeNull();
   });
 
   it("says when the package is gone", async () => {
@@ -1368,29 +1368,25 @@ describe("Paket on the layout scale (v2)", () => {
     expect(within(screen.getByTestId("paket-meal-dinner")).getByText("Katering memilih")).toBeTruthy();
   });
 
-  it("Pengantaran is a section of 48 icon rows set in bodyL", async () => {
+  it("Termasuk is a section of 72 rows: spot art, a bodyStrong title and a meta line", async () => {
     await open();
-    expect(flat(screen.getByText("Pengantaran"))).toMatchObject({ fontSize: 20, lineHeight: 26 });
-    const rows = screen.getAllByTestId("paket-info");
-    expect(rows).toHaveLength(4);
-    for (const r of rows) {
-      expect(flat(r).minHeight).toBe(48);
-      expect(flat(within(r).getByTestId("paket-info-glyph"))).toMatchObject({ width: 20, height: 20 });
-    }
+    expect(flat(screen.getByText("Termasuk"))).toMatchObject({ fontSize: 20, lineHeight: 26 });
+    const rows = screen.getAllByTestId("paket-termasuk-row");
+    expect(rows).toHaveLength(3);
+    for (const r of rows) expect(flat(r).minHeight).toBe(72);
     const texts = rows.map((r) => within(r).UNSAFE_getAllByType(ReactNative.Text).at(-1)!);
-    for (const text of texts) expect(flat(text)).toMatchObject({ fontSize: 15, lineHeight: 22 });
-    expect(texts[0].props.children).toBe("Sen–Jum, 11.00–13.00 · 17.00–19.00");
-    expect(texts[1].props.children).toBe("Ubah hari sampai 17.00, sehari sebelumnya");
-    expect(texts[2].props.children).toBe("Ongkir sudah termasuk");
-    expect(String(texts[3].props.children)).toMatch(/^Mulai paling cepat /);
+    for (const text of texts) expect(flat(text)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(texts[0].props.children).toBe("Sen–Jum, 11.00–13.00 · 17.00–19.00. Ongkir sudah termasuk.");
+    expect(String(texts[1].props.children)).toMatch(/^Paling cepat /);
+    expect(texts[2].props.children).toBe("Ubah hari sampai 17.00, sehari sebelumnya.");
     // Nothing is cut to one line: the rows grow at large text.
     for (const text of texts) expect(text.props.numberOfLines).toBeUndefined();
   });
 
   it("with no bookable day the earliest start row is left out", async () => {
     await open(offer({ id: "p-tutup", name: "Paket Tutup", weekdays: [] }));
-    expect(screen.getAllByTestId("paket-info")).toHaveLength(3);
-    expect(screen.queryByText(/Mulai paling cepat/)).toBeNull();
+    expect(screen.getAllByTestId("paket-termasuk-row")).toHaveLength(2);
+    expect(screen.queryByText(/Paling cepat/)).toBeNull();
   });
 
   it("the sections sit 32 apart", async () => {
@@ -1475,7 +1471,7 @@ describe("Paket on the layout scale (v2)", () => {
       expect(flat(screen.getByTestId("paket-footer"))).toMatchObject({ flexWrap: "wrap" });
       expect(screen.getByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Coba 1 hari" })).toBeTruthy();
-      for (const r of screen.getAllByTestId("paket-info"))
+      for (const r of screen.getAllByTestId("paket-termasuk-row"))
         for (const text of within(r).UNSAFE_getAllByType(ReactNative.Text)) expect(text.props.numberOfLines).toBeUndefined();
     } finally {
       mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };

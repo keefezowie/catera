@@ -11,11 +11,9 @@ import { addDays, type Checkout, type CustomerState, type Quote, type Subscripti
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMotion, nativeThemes } from "@catera/design-tokens";
 import {
-  Confetti,
   MoodProvider,
   Sparkle,
   SuccessBeat,
-  SuccessRig,
   ThemeProvider,
   ToastProvider,
   useListMotion,
@@ -155,8 +153,6 @@ const wrap = (runtime: MobileRuntime, ui: React.ReactElement) =>
   );
 
 const successes = () => (Haptics.notificationAsync as jest.Mock).mock.calls.filter(([kind]) => kind === "success");
-const rig = () => screen.UNSAFE_getByType(SuccessRig);
-const confetti = () => screen.UNSAFE_queryByType(Confetti);
 const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
 const reduced = (on: boolean) => (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(on);
 
@@ -164,7 +160,7 @@ async function payWhileOpen(runtime: MobileRuntime) {
   wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
   expect(await screen.findByLabelText("Kode QRIS pembayaran ini")).toBeTruthy();
   fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
-  expect(await screen.findByTestId("paid-hero")).toBeTruthy();
+  expect(await screen.findByTestId("paid-outcome")).toBeTruthy();
   await act(async () => {});
 }
 
@@ -175,122 +171,76 @@ beforeEach(() => {
   (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
 });
 
-describe("Pembayaran diterima: the success beat", () => {
-  it("turning paid while open plays the beat with one success haptic", async () => {
+describe("Langganan aktif: the paid moment", () => {
+  it("turning paid while open settles the art in with one success haptic", async () => {
     await payWhileOpen(payServer({ checkout: pending() }));
-    expect(screen.getByTestId("success-beat")).toBeTruthy();
-    expect(rig().props.play).toBe(true);
+    const outcome = within(screen.getByTestId("paid-outcome"));
+    expect(outcome.getByText("Langganan aktif")).toBeTruthy();
+    expect(outcome.getByText("Pembayaran diterima. Jadwal antar sudah kami simpan.")).toBeTruthy();
+    expect(outcome.getByTestId("polish-art", { includeHiddenElements: true }).props.source).toBeTruthy();
     expect(successes()).toHaveLength(1);
-    // The facts are the beat's children: the hero and the reserved days, and the beat names the moment.
-    const beat = within(screen.getByTestId("success-beat"));
-    expect(beat.getByText("Pembayaran diterima")).toBeTruthy();
-    expect(beat.getByTestId("paid-hero")).toBeTruthy();
     // Re-renders (the footer, a reload) never play it again.
     await act(async () => {});
     expect(successes()).toHaveLength(1);
   });
 
-  it("the header stays Bayar, the beat is the one heading that names the payment, and its arrival is announced once", async () => {
+  it("the bar drops Bayar, Langganan aktif is the one heading, and its arrival is announced once", async () => {
     const announce = jest.spyOn(ReactNative.AccessibilityInfo, "announceForAccessibility");
     await payWhileOpen(payServer({ checkout: pending() }));
-    expect(within(screen.getByTestId("screen-native-title")).getByText("Bayar")).toBeTruthy();
-    const headings = screen.getAllByText("Pembayaran diterima");
+    expect(screen.queryByTestId("screen-native-title")).toBeNull();
+    const headings = screen.getAllByText("Langganan aktif");
     expect(headings).toHaveLength(1);
     expect(headings[0].props.accessibilityRole).toBe("header");
-    expect(announce.mock.calls.filter(([said]) => said === "Pembayaran diterima")).toHaveLength(1);
+    expect(announce.mock.calls.filter(([said]) => said === "Langganan aktif")).toHaveLength(1);
     await act(async () => {});
-    expect(announce.mock.calls.filter(([said]) => said === "Pembayaran diterima")).toHaveLength(1);
+    expect(announce.mock.calls.filter(([said]) => said === "Langganan aktif")).toHaveLength(1);
     announce.mockRestore();
+  });
+
+  it("the card says the plan, its kitchen, days and meal, and how many deliveries follow the first", async () => {
+    await payWhileOpen(payServer({ checkout: pending() }));
+    const card = within(screen.getByTestId("paid-summary"));
+    expect(card.getByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(card.getByText(/^Dapur Contoh · .+ · Siang/)).toBeTruthy();
+    expect(card.getByTestId("paid-first").props.children).toMatch(/^Antar pertama .+ dan 2 hari lainnya$/);
   });
 
   it("Bayar reads the customer's plans once, not again on each status check", async () => {
     const runtime = payServer({ checkout: pending() });
     await payWhileOpen(runtime);
-    // The cek status command bumped the revision; the plans read only decides the confetti at the paid moment.
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
     expect(runtime.api.customer).toHaveBeenCalledTimes(1);
   });
 
-  it("opened already paid shows the resting frame with no haptic", async () => {
+  it("opened already paid shows the resting frame with no haptic and no announcement", async () => {
     const announce = jest.spyOn(ReactNative.AccessibilityInfo, "announceForAccessibility");
     wrap(payServer({ checkout: paid(pending()) }), <PaymentScreen checkoutId="ck-1" />);
-    await screen.findByTestId("paid-hero");
+    await screen.findByTestId("paid-outcome");
     await act(async () => {});
-    expect(rig().props.play).toBe(false);
     expect(successes()).toHaveLength(0);
-    // Nothing arrived: the resting frame announces nothing. The heading is there in reading order.
     expect(announce).not.toHaveBeenCalled();
     announce.mockRestore();
-    expect(confetti()?.props.play).toBe(false);
-    expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).toBeNull();
-    // At rest the facts are already there, at full opacity.
-    expect(flat(screen.getByTestId("success-beat-facts")).opacity).toBe(1);
+    expect(flat(screen.getByTestId("paid-art")).opacity).toBe(1);
   });
 
-  it("reduced motion shows merayakan and still fires the haptic", async () => {
+  it("reduced motion draws everything in place and still fires the haptic and the announcement", async () => {
     reduced(true);
     const announce = jest.spyOn(ReactNative.AccessibilityInfo, "announceForAccessibility");
     await payWhileOpen(payServer({ checkout: pending() }));
-    expect(announce.mock.calls.filter(([said]) => said === "Pembayaran diterima")).toHaveLength(1);
+    expect(announce.mock.calls.filter(([said]) => said === "Langganan aktif")).toHaveLength(1);
     announce.mockRestore();
-    const beat = within(screen.getByTestId("success-beat"));
-    expect(beat.getByTestId("mascot-art", { includeHiddenElements: true })).toBeTruthy();
-    expect(beat.queryByTestId("success-rig", { includeHiddenElements: true })).toBeNull();
-    expect(beat.queryByTestId("success-ring", { includeHiddenElements: true })).toBeNull();
-    expect(beat.queryAllByTestId("sparkle", { includeHiddenElements: true })).toHaveLength(0);
-    expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).toBeNull();
-    expect(flat(screen.getByTestId("success-beat-facts")).opacity).toBe(1);
+    expect(flat(screen.getByTestId("paid-art")).opacity).toBe(1);
     expect(successes()).toHaveLength(1);
   });
 
-  it("confetti only on the first paid plan", async () => {
-    // A plan the caterer recorded outside Catera has no checkout: it is not an earlier paid plan.
-    const imported: Purchase = { ...subscription({ id: "s-import" }), checkout_id: null };
-    const view = wrap(payServer({ checkout: pending(), subscriptions: [imported] }), <PaymentScreen checkoutId="ck-1" />);
-    await screen.findByLabelText("Kode QRIS pembayaran ini");
-    await act(async () => {});
-    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
-    await screen.findByTestId("paid-hero");
-    await act(async () => {});
-    expect(confetti()?.props.play).toBe(true);
-    // It plays once and never takes a touch: the vector does not loop, and its wrapper lets presses through.
-    const lottie = screen.getByTestId("confetti", { includeHiddenElements: true });
-    expect(lottie.props.loop).toBe(false);
-    expect(lottie.props.autoPlay).toBe(true);
-    let holder = lottie.parent;
-    while (holder && holder.props.pointerEvents === undefined) holder = holder.parent;
-    expect(holder?.props.pointerEvents).toBe("none");
-    view.unmount();
-
-    // A later purchase: an earlier plan was paid through Catera.
-    const earlier: Purchase = { ...subscription({ id: "s-1" }), checkout_id: "ck-0" };
-    wrap(payServer({ checkout: pending(), subscriptions: [earlier] }), <PaymentScreen checkoutId="ck-1" />);
-    await screen.findByLabelText("Kode QRIS pembayaran ini");
-    await act(async () => {});
-    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
-    await screen.findByTestId("paid-hero");
-    await act(async () => {});
-    expect(rig().props.play).toBe(true);
-    expect(confetti()?.props.play ?? false).toBe(false);
+  it("no confetti any more: the art is the moment", async () => {
+    await payWhileOpen(payServer({ checkout: pending() }));
     expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).toBeNull();
+    expect(screen.queryByTestId("success-beat")).toBeNull();
   });
+});
 
-  it("a read that cannot tell gives no confetti", async () => {
-    const runtime = payServer({ checkout: pending() });
-    (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
-    await payWhileOpen(runtime);
-    expect(rig().props.play).toBe(true);
-    expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).toBeNull();
-  });
-
-  it("a renewal paid while open plays the beat once, with no confetti after an earlier paid plan", async () => {
-    const earlier: Purchase = { ...subscription({ id: "s-1", remaining: 2 }), checkout_id: "ck-0" };
-    await payWhileOpen(payServer({ checkout: pending({ renewedFrom: "s-1" }), subscriptions: [earlier] }));
-    expect(rig().props.play).toBe(true);
-    expect(successes()).toHaveLength(1);
-    expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).toBeNull();
-  });
-
+describe("Pembayaran diterima: the success beat component", () => {
   it("the beat burst uses sunrise ink, sunrise and forest from the theme, and its title is the outcome type, free to wrap", async () => {
     render(
       <SuccessBeat title="Pembayaran diterima untuk paket yang panjang" play>

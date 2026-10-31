@@ -1,11 +1,9 @@
-import type { ComponentProps } from "react";
 import { View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { PressableRow, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useStackedLayout, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
-import { DecorativeIcon, rowLabel } from "../layout";
+import { PolishArt, PressableRow, Skeleton, SkeletonGroup, Text, themedStyles, useStackedLayout, cardEdge, cardEdgeWidth, type PolishArtName } from "@catera/mobile-ui";
+import { rowLabel } from "../layout";
 
 /** A shortcut tile is at least this tall (spec 3.5); its words push it taller rather than being cut. */
 export const TILE_MIN_HEIGHT = 96;
@@ -20,31 +18,32 @@ export const TILE_COUNT_LINE = 18;
  */
 export const TILES_STACK_BELOW = 340;
 
-type Glyph = ComponentProps<typeof Ionicons>["name"];
+/** The tile's spot art (canvas Akun): 48, twice the old 24 glyph, so it reads as a picture and still leaves the label and
+ * count room in a 96 tile (48 + 8 + 22 + 18 = 96 before padding; the tile grows rather than clipping). */
+export const TILE_ART = 48;
 
 /** What a tile says under its label: a count, nothing yet (the read is out), or nothing (the read failed). */
 type Count = { kind: "text"; text: string } | { kind: "loading" } | { kind: "none" };
 
 /**
- * One shortcut tile: the glyph over a `bodyStrong` label and a `meta` count, on a 16 radius surface at least 96 tall.
+ * One shortcut tile: the spot art over a `bodyStrong` label and a `meta` count, on a 16 radius surface at least 96 tall.
  * Every word wraps; nothing is held to one line.
  */
 function Tile({
   testID,
-  glyph,
+  art,
   label,
   count,
   href,
   stacked,
 }: {
   testID: string;
-  glyph: Glyph;
+  art: PolishArtName;
   label: string;
   count: Count;
   href: string;
   stacked: boolean;
 }) {
-  const c = useColors();
   const styles = useStyles();
   const text = count.kind === "text" ? count.text : "";
   return (
@@ -55,7 +54,7 @@ function Tile({
       onPress={() => router.push(href as never)}
       style={[styles.tile, stacked ? styles.tileStacked : styles.tileColumn]}
     >
-      <DecorativeIcon name={glyph} size={24} color={c.charcoal} />
+      <PolishArt name={art} size={TILE_ART} />
       <View style={styles.words}>
         <Text variant="bodyStrong">{label}</Text>
         {count.kind === "text" ? <Text variant="meta">{count.text}</Text> : null}
@@ -95,7 +94,7 @@ export function AkunTiles({
     <View testID="akun-tiles" style={[styles.row, { flexDirection: stacked ? "column" : "row" }]}>
       <Tile
         testID="akun-tile-paket"
-        glyph="restaurant-outline"
+        art="spot-rantang"
         label={t("Paket saya", "My plans")}
         count={counted(plans, (n) => t(`${n} aktif`, `${n} active`))}
         href="/paket-saya"
@@ -103,7 +102,7 @@ export function AkunTiles({
       />
       <Tile
         testID="akun-tile-alamat"
-        glyph="location-outline"
+        art="spot-pin-lid"
         label={t("Alamat", "Addresses")}
         count={counted(addresses, (n) => t(`${n} tersimpan`, `${n} saved`))}
         href="/alamat"
@@ -111,7 +110,7 @@ export function AkunTiles({
       />
       <Tile
         testID="akun-tile-riwayat"
-        glyph="receipt-outline"
+        art="spot-nota"
         label={t("Riwayat", "History")}
         count={{ kind: "text", text: t("Pembayaran", "Payments") }}
         href="/pembayaran"

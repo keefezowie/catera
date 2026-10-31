@@ -34,6 +34,7 @@ import { HeroPhotoFrame } from "./HeroPhoto";
 import { dayHasActions } from "../schedule/dayActions";
 import { DayMore } from "../schedule/DayMore";
 import { photoUri } from "./photoUri";
+import { SelamatMakanCard } from "./SelamatMakan";
 
 // `photoUri` lives in its own module so the day actions can read it without importing the hero back.
 export { photoUri };
@@ -475,6 +476,7 @@ function PlateContent({
         ) : null}
         {showTrack ? (
           <RantangTrack
+            size="art"
             stage={trackStage(journey)}
             caption={caption ?? undefined}
             reached={journey.stage === "preparing" || journey.stage === "out_for_delivery" ? journey.stage : "scheduled"}
@@ -530,6 +532,10 @@ function PlateContent({
               })}
             </View>
           </View>
+        ) : null}
+        {/* Selamat makan (polish ruling): the delivered hero offers the plan's review; tapping opens the sheet. */}
+        {hero && !offline && plate.state === "arrived" && delivery?.subscription_id ? (
+          <SelamatMakanCard subscriptionId={delivery.subscription_id} ink={ink} quiet={quiet} edge={edge} />
         ) : null}
         {plate.state === "failed" ? (
           <View style={{ gap: 4 }}>

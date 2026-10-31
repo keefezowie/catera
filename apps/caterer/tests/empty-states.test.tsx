@@ -128,30 +128,23 @@ type State = {
   action?: string | RegExp;
 };
 
+/** A kitchen whose published packages all cook Monday to Wednesday: Thursday 8 Oct is its day off. */
+function restDay(): SellerOperationsState {
+  const ops = { ...day("scheduled"), deliveries: [] };
+  ops.offers = ops.offers.map((o) => ({ ...o, status: "published", weekdays: [1, 2, 3] }) as typeof o);
+  return ops;
+}
+
+/** DapurLibur: the sleeping mascot stays, as a character, on the kitchen's day off (140, the canvas size). */
+const REST: State = {
+  name: "Hari ini on the kitchen's day off",
+  pose: "tidur",
+  runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => restDay()) }),
+  ui: withDapurScale(<TodayScreen />),
+  copy: ["Dapur libur hari ini", "Masak lagi Senin 12 Okt."],
+};
+
 const STATES: State[] = [
-  {
-    name: "Hari ini with no session",
-    pose: "tidur",
-    runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => ({ ...day("scheduled"), deliveries: [] })) }),
-    ui: withDapurScale(<TodayScreen />),
-    copy: ["Tidak ada yang dimasak hari ini.", "Pesanan baru akan muncul di sini."],
-  },
-  {
-    name: "Hari ini with no session for this meal",
-    pose: "tidur",
-    runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => day("scheduled", "dinner")) }),
-    ui: withDapurScale(<TodayScreen />),
-    copy: ["Tidak ada pengantaran makan siang."],
-    action: /^Lihat makan malam · \d+ porsi$/,
-  },
-  {
-    name: "Semua beres hari ini",
-    pose: "merayakan",
-    runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => day("delivered")) }),
-    ui: withDapurScale(<TodayScreen />),
-    copy: ["Semua beres hari ini", "Semua pengantaran sudah ditandai sampai."],
-    action: "Lihat besok",
-  },
   {
     name: "Hari ini that could not load",
     pose: "bingung",
@@ -269,7 +262,7 @@ describe("each empty and error state shows its pose and keeps its copy and actio
 
   it("draws the art at 72 on a 360dp phone at font scale 1.3, so the title and action stay above the fold", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    for (const state of [STATES[0], STATES[2], STATES[3]]) {
+    for (const state of [STATES[0]]) {
       expect(artHeight(await open(state))).toBe(72);
       screen.unmount();
     }
@@ -283,9 +276,89 @@ describe("each empty and error state shows its pose and keeps its copy and actio
 
   it("shows the same still under reduced motion: the art never moves", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    const art = await open(STATES[2]);
+    const art = await open(STATES[0]);
     expect(within(art).getByTestId("mascot-art-image", hidden)).toBeTruthy();
     expect(artHeight(art)).toBe(88);
+  });
+
+  it("draws the day-off mascot at 140, 115 on a 360dp phone at font scale 1.3", async () => {
+    const art = await open(REST);
+    expect(artHeight(art)).toBe(140);
+    for (const copy of REST.copy) expect(screen.getByText(copy)).toBeTruthy();
+    screen.unmount();
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    expect(artHeight(await open(REST))).toBe(115);
+  });
+});
+
+/**
+ * DapurKosong and DapurSelesai (polish canvas, 2026-10-30): no orders shows the empty wok and a finished day shows
+ * dapur-selesai, each centred above its title in place of the mascot. 180pt is DESIGN.md's success size (the canvas
+ * draws both at 180); a 360dp phone at font scale 1.3 takes the same four-fifths step as StateArt (147).
+ */
+describe("Dapur polish art", () => {
+  const ART_STATES = [
+    {
+      name: "no orders today",
+      art: "art-dapur-kosong",
+      runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => ({ ...day("scheduled"), deliveries: [] })) }),
+      copy: ["Tidak ada yang dimasak hari ini", "Pesanan baru akan muncul di sini."],
+    },
+    {
+      name: "everything delivered",
+      art: "art-dapur-selesai",
+      runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => day("delivered")) }),
+      copy: ["Semua beres hari ini", "Semua sudah diantar. 4 pelanggan makan dari dapurmu hari ini."],
+      action: "Lihat besok",
+    },
+    {
+      // Nothing for this meal, the other one cooking: the same empty wok, not a second empty-card style.
+      name: "no session for this meal",
+      art: "art-dapur-kosong",
+      runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => day("scheduled", "dinner")) }),
+      copy: ["Tidak ada pengantaran makan siang"],
+      action: /^Lihat makan malam · \d+ porsi$/,
+    },
+  ];
+  const artSize = (art: ReturnType<typeof screen.getByTestId>) =>
+    StyleSheet.flatten(within(art).getByTestId("polish-art", hidden).props.style).width as number;
+
+  describe.each(["light", "dark"] as const)("%s theme", (scheme) => {
+    it.each(ART_STATES.map((s) => [s.name, s] as const))("%s", async (_name, state) => {
+      jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+      render(wrap(state.runtime(), withDapurScale(<TodayScreen />)));
+      const art = await screen.findByTestId(state.art, hidden, { timeout: 4000 });
+      expect(artSize(art)).toBe(180);
+      expect(StyleSheet.flatten(art.props.style).alignSelf).toBe("center");
+      // Decorative: the title says what the picture shows.
+      expect(within(art).queryByTestId("polish-art")).toBeNull();
+      for (const pose of POSES) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
+      for (const copy of state.copy) expect(screen.getByText(copy)).toBeTruthy();
+      if (state.action) expect(screen.getByRole("button", { name: state.action })).toBeTruthy();
+    });
+  });
+
+  it("draws the art at 147 on a 360dp phone at font scale 1.3", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    for (const state of ART_STATES) {
+      render(wrap(state.runtime(), withDapurScale(<TodayScreen />)));
+      expect(artSize(await screen.findByTestId(state.art, hidden, { timeout: 4000 }))).toBe(147);
+      screen.unmount();
+    }
+  });
+
+  it("drops the customer line when no meal arrived", async () => {
+    // Every row was cancelled: nobody ate from this kitchen today, so no number (and no "diantar") is claimed.
+    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("cancelled")) }), withDapurScale(<TodayScreen />)));
+    await screen.findByText(/^Tidak ada yang dimasak hari ini$|^Semua beres hari ini$/, {}, { timeout: 4000 });
+    expect(screen.queryByText(/pelanggan makan dari dapurmu/)).toBeNull();
+    expect(screen.queryByText(/^Semua sudah diantar/)).toBeNull();
+  });
+
+  it("is a plain empty state, not the day off, when packages carry no weekdays", async () => {
+    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => ({ ...day("scheduled"), deliveries: [] })) }), withDapurScale(<TodayScreen />)));
+    expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
+    expect(screen.queryByText("Dapur libur hari ini")).toBeNull();
   });
 });
 
@@ -355,7 +428,7 @@ describe("the header holds no cooking mascot", () => {
 });
 
 it("mascot art is hidden from screen readers", async () => {
-  for (const state of [STATES[0], STATES[2], STATES[3]]) {
+  for (const state of [STATES[0], REST]) {
     const art = await open(state);
     expect(screen.queryByTestId(`mascot-${state.pose}`)).toBeNull();
     expect(art.props.accessible).toBe(false);

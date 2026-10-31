@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FlatList, ScrollView, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { router } from "expo-router";
@@ -16,14 +16,17 @@ import {
   Screen,
   Skeleton,
   SkeletonGroup,
-  StateArt,
   Text,
   useColors,
   useMood,
   useBlockEnter,
   useScreenMargin,
 } from "@catera/mobile-ui";
-import { topTags } from "./categories";
+import { categoryTiles } from "./categories";
+import { ArtChip } from "./CategoryTiles";
+import { EmptyArt } from "./EmptyArt";
+import { readLaukPrefs, type LaukPref } from "../onboarding/prefs";
+import { sortByLauk } from "./laukSort";
 import { BODY_GAP, ChipRowFrame } from "./ChipRow";
 import { FilterChip } from "./FilterChip";
 import { MealSegment } from "./MealSegment";
@@ -97,6 +100,21 @@ function Browse({
   const [tag, setTag] = useState("");
   const [budget, setBudget] = useState(false);
   const [trial, setTrial] = useState(false);
+  // The lauk picked on first run (kept on this phone): packages that match them come first (spec ruling 5).
+  const [prefs, setPrefs] = useState<LaukPref[]>([]);
+  useEffect(() => {
+    let live = true;
+    readLaukPrefs()
+      .then((p) => {
+        if (live) setPrefs(p);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+    // Read again whenever the area changes: onboarding keeps its area through the same store, so a run of /mulai after
+    // Jelajah first mounted (Lewati, then a later run) brings its lauk picks with it.
+  }, [area]);
 
   // The area goes to the server too, but the list is narrowed here by each package's own areas.
   // Chips and search filter what it returned, so toggling one never refetches or blanks the list.
@@ -130,13 +148,14 @@ function Browse({
   // The category chips are what caterers tagged in the packages of this area and meal, so none leads to an empty list.
   // A tag that left with an area or meal change no longer filters, so a list never hides behind a chip that is not on
   // screen.
-  const tags = useMemo(() => topTags(inMeal, CATEGORIES), [inMeal]);
-  const activeTag = tags.includes(tag) ? tag : "";
+  // Tags with canvas art become art chips ahead of the plain tag chips. Both filter by the caterers' own tag.
+  const { tiles, chips: tags } = useMemo(() => categoryTiles(inMeal, CATEGORIES), [inMeal]);
+  const activeTag = tags.includes(tag) || tiles.some((x) => x.tag === tag) ? tag : "";
   const mealWord = mood === "siang" ? "siang" : "malam";
   const mealWordEn = mood === "siang" ? "lunch" : "dinner";
   const items = useMemo(
     () =>
-      inMeal.filter(
+      sortByLauk(inMeal, prefs, locale).filter(
         (o) =>
           (!activeTag || o.tags.includes(activeTag)) &&
           (!budget || perMealPrice(o) <= BUDGET) &&
@@ -152,7 +171,7 @@ function Browse({
               .toLowerCase()
               .includes(needle)),
       ),
-    [inMeal, activeTag, budget, trial, needle, locale],
+    [inMeal, prefs, activeTag, budget, trial, needle, locale],
   );
   // The meal is not a choice that can be cleared: it is the mood, so it is always one of the two.
   const filtered = !!(needle || activeTag || budget || trial);
@@ -276,6 +295,16 @@ function Browse({
                             selected={trial}
                             onPress={() => setTrial(!trial)}
                           />
+                          {/* The categories with canvas art lead the tags, art first, in the same 34 chip row. */}
+                          {tiles.map(({ tag: name, art }) => (
+                            <ArtChip
+                              key={name}
+                              tag={name}
+                              art={art}
+                              selected={name === activeTag}
+                              onPress={() => setTag(name === activeTag ? "" : name)}
+                            />
+                          ))}
                           {tags.map((name) => (
                             <FilterChip
                               key={name}
@@ -317,7 +346,7 @@ function Browse({
                     />
                   ) : area && inArea.length === 0 ? (
                     <View style={{ gap: 10 }}>
-                      <StateArt pose="mencari" />
+                      <EmptyArt name="empty-area" />
                       <Text variant="heading" style={centred}>
                         {t(
                           `Belum ada katering yang antar ke ${area}.`,
@@ -333,7 +362,7 @@ function Browse({
                   ) : inArea.length === 0 ? (
                     // Nothing is on offer at all (no area is chosen here), so there is no other meal to send the person to.
                     <View style={{ gap: 10 }}>
-                      <StateArt pose="mencari" />
+                      <EmptyArt name="empty-area" />
                       <Text variant="heading" style={centred}>
                         {t("Belum ada paket.", "No packages yet.")}
                       </Text>
@@ -341,8 +370,9 @@ function Browse({
                   ) : items.length === 0 && !filtered ? (
                     // Only the meal is narrowing and the area has packages, so the other meal has some: say which meal is empty
                     // and offer the other one.
+                    // The meal is a filter, so this is the filter picture (ruling 7: no repeated mascot).
                     <View style={{ gap: 10 }}>
-                      <StateArt pose="mencari" />
+                      <EmptyArt name="spot-saringan" />
                       <Text variant="heading" style={centred}>
                         {area
                           ? t(
@@ -368,7 +398,7 @@ function Browse({
                     </View>
                   ) : items.length === 0 ? (
                     <View style={{ gap: 10 }}>
-                      <StateArt pose="mencari" />
+                      <EmptyArt name="spot-saringan" />
                       <Text variant="heading" style={centred}>
                         {t(
                           "Belum ada paket yang cocok.",

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { View } from "react-native";
+import { router } from "expo-router";
 import { addDays, jakartaDay, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
@@ -9,7 +10,6 @@ import {
   PressableRow,
   ReadError,
   Screen,
-  StateArt,
   Text,
   themedStyles,
   useBusy,
@@ -20,6 +20,7 @@ import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { jakartaClock } from "../today/Plate";
 import { SignInFirst } from "./SignInFirst";
+import { EmptyArt } from "../discover/EmptyArt";
 import { openLink } from "../nav";
 import { ListSkeleton } from "../skeletons";
 
@@ -161,13 +162,23 @@ function Updates() {
           </View>
         ) : (
           <View style={{ gap: 6 }}>
-            <StateArt pose="tidur" style={{ marginBottom: 6 }} />
+            <View style={{ marginBottom: 6 }}>
+              <EmptyArt name="empty-kentongan-lid" />
+            </View>
             <Text variant="heading" style={{ textAlign: "center" }}>
               {t("Belum ada notifikasi baru.", "No new notifications yet.")}
             </Text>
             <Text style={{ color: c.muted, textAlign: "center" }}>
               {t("Info soal makananmu dan permintaan bantuan muncul di sini.", "Updates on your meals and help requests show up here.")}
             </Text>
+            {/* The canvas way to the push switch: Pengaturan holds the notification toggle. */}
+            <View style={{ paddingTop: 10 }}>
+              <Button
+                variant="secondary"
+                label={t("Pengaturan notifikasi", "Notification settings")}
+                onPress={() => router.push("/pengaturan" as never)}
+              />
+            </View>
           </View>
         )}
       </FadeSwap>

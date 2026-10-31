@@ -9,7 +9,9 @@
     "ios": "expo run:ios",
     "export": "expo export --platform android --platform ios",
     "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "test:fast": "jest --maxWorkers=75%",
+    "test:related": "jest --maxWorkers=75% --findRelatedTests"
   },
   "dependencies": {
     "@catera/api-client": "1.0.0",

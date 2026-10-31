@@ -21,13 +21,13 @@ import {
   FormError,
   ReadError,
   Screen,
-  StateArt,
   Text,
   themedStyles,
   useColors,
   cardEdge,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
+import { EmptyArt } from "../discover/EmptyArt";
 import { FLOW_HREF, pushSheet } from "../nav";
 import { ListSkeleton } from "../skeletons";
 
@@ -158,7 +158,9 @@ function List({ flow }: { flow: boolean }) {
         ))}
         {empty ? (
           <View testID="bantuan-empty" style={{ gap: 6, paddingTop: 8 }}>
-            <StateArt pose="tidur" style={{ marginBottom: 6 }} />
+            <View style={{ marginBottom: 6 }}>
+              <EmptyArt name="spot-nota" />
+            </View>
             <Text variant="heading" style={{ textAlign: "center" }}>
               {t("Belum ada laporan", "No reports yet")}
             </Text>

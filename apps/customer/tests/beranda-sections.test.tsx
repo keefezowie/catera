@@ -891,12 +891,13 @@ describe("Berikutnya", () => {
     expect(color(days.getByText("Lihat jadwal"))).toBe(light.forest);
   });
 
-  it("a menu not set is the dashed tile and Menu belum diisi, never a dish", async () => {
+  it("a menu not set is its picture tile and says the menu is not chosen or announced, never a dish", async () => {
     const state = scheduled({ 2: 1 }, { "s-1": [pendingMenu("lunch")] });
     mount(runtimeWith(async () => state).runtime, v2);
     const days = await daysBlock();
     const row = days.getByTestId("upcoming-row-d-s-1-2026-10-12-lunch");
-    expect(within(row).getByText("Menu belum diisi")).toBeTruthy();
+    expect(within(row).getByText(/^Menu belum (dipilih|diumumkan)$/)).toBeTruthy();
+    expect(within(row).getByTestId("polish-art", { includeHiddenElements: true })).toBeTruthy();
     expect(within(row).getByTestId("upcoming-row-d-s-1-2026-10-12-lunch-thumb-not-set")).toBeTruthy();
     expect(within(row).getByText("Siang 11.00–13.00 · Dapur Senja")).toBeTruthy();
   });
@@ -978,7 +979,7 @@ describe("Berikutnya", () => {
     expect(rows).toHaveLength(1);
     expect(within(rows[0]).getByText("3 pengantaran belum ada menu")).toBeTruthy();
     expect(monday.queryByTestId(/-photo-not-set$/)).toBeNull();
-    expect(monday.queryByText("Menu belum diisi")).toBeNull();
+    expect(monday.queryByText(/^Menu belum (dipilih|diumumkan)$/)).toBeNull();
     expect(monday.queryByText(/lagi$/)).toBeNull();
     // The picked one keeps its photo tile.
     expect(monday.getAllByTestId(/^upcoming-tile-d-.*-(lunch|dinner)$/).map((t) => t.props.testID)).toEqual([
@@ -1030,7 +1031,9 @@ describe("Berikutnya", () => {
     mount(runtimeWith(async () => ownMenus(state)).runtime, { ...v2, scheme: "dark" });
     const row = within((await daysBlock()).getByTestId("day-unpicked-row"));
     expect(color(row.getByText("Pilih menu"))).toBe(nativeThemes.dark.forest);
-    expect(StyleSheet.flatten(row.getByTestId("day-unpicked-tile").props.style).backgroundColor).toBe(nativeThemes.dark.line);
+    // The picture tile sits on the small-fill tone, as the one-delivery rows' tile does.
+    expect(StyleSheet.flatten(row.getByTestId("day-unpicked-tile").props.style).backgroundColor).toBe(nativeThemes.dark.fill);
+    expect(row.getByTestId("polish-art", { includeHiddenElements: true })).toBeTruthy();
   });
 
   it("a caterer-chosen menu not announced yet has no Pilih menu", async () => {

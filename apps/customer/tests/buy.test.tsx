@@ -881,14 +881,14 @@ describe("Beli and Bayar under the native header", () => {
     expect(surfaceAround(label)).toBe(nativeThemes.light.surface);
   });
 
-  it("Bayar keeps its title in the outcome and not-found states", async () => {
+  it("Bayar keeps its title in the outcome and not-found states, and paid gives the title to Langganan aktif", async () => {
     const paid = pendingCheckout({ state: "paid", subscription_id: "s-2" }, { status: "paid" });
     const done = wrapMood(server({ checkout: paid }), <PaymentScreen checkoutId="ck-1" />);
-    // Paid keeps the title Bayar: the success beat below it is the one place that says "Pembayaran diterima".
-    await screen.findByTestId("paid-hero");
-    expect((await nativeTitle()).getByText("Bayar")).toBeTruthy();
-    expect((await nativeTitle()).queryByText("Pembayaran diterima")).toBeNull();
-    expect(screen.getAllByText("Pembayaran diterima")).toHaveLength(1);
+    // Paid drops the bar title: "Langganan aktif" is the one heading (canvas Lunas).
+    await screen.findByTestId("paid-outcome");
+    expect(screen.queryByTestId("screen-native-title")).toBeNull();
+    expect(screen.queryByText("Bayar")).toBeNull();
+    expect(screen.getAllByText("Langganan aktif")).toHaveLength(1);
     done.unmount();
 
     // The server has no such checkout: the page says so with a retry, under the same title.
@@ -915,7 +915,7 @@ describe("Bayar", () => {
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
-    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    expect(await screen.findByText("Langganan aktif")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
@@ -1058,7 +1058,7 @@ describe("Bayar", () => {
     expect(await checkingShown()).toBeTruthy();
     expect(screen.queryByText("Pembayaran diterima")).toBeNull();
     // No paid beat before the booking exists (Review Focus 4): no hero, no reserved days, the header still says Bayar.
-    expect(screen.queryByTestId("paid-hero")).toBeNull();
+    expect(screen.queryByTestId("paid-outcome")).toBeNull();
     expect(screen.queryByText("Jadwal antar sudah kami simpan.")).toBeNull();
     expect(within(screen.getByTestId("screen-native-title")).getByText("Bayar")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Lihat jadwal" })).toBeNull();
@@ -1070,7 +1070,7 @@ describe("Bayar", () => {
   });
 
   for (const [state, title] of [
-    ["failed", "Pembayaran gagal. Kalau bayar lagi, kami cek ulang jadwalnya dulu."],
+    ["failed", "Pembayaran gagal"],
     ["payment_exception", "Pembayaran sedang ditinjau"],
     ["refunded", "Pembayaran dikembalikan"],
     ["partially_refunded", "Sebagian pembayaran dikembalikan"],
@@ -1096,7 +1096,7 @@ describe("Bayar", () => {
     const runtime = server({ demo: true, checkout: hosted });
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     fireEvent.press(await screen.findByRole("button", { name: "Bayar (demo)" }));
-    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    expect(await screen.findByText("Langganan aktif")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.demo_pay", { id: "ck-1" }, expect.any(String));
   });
 
@@ -1107,7 +1107,7 @@ describe("Bayar", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Bayar (demo)" }));
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledWith("checkout.demo_pay", { id: "ck-1" }, expect.any(String)));
     const reads = (runtime.api.checkout as jest.Mock).mock.calls.length;
-    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    expect(await screen.findByText("Langganan aktif")).toBeTruthy();
     // The read that follows the command is this button's own, not one the screen happened to make later.
     expect((runtime.api.checkout as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(reads);
     const order = (runtime.api.command as jest.Mock).mock.invocationCallOrder[0];
@@ -1147,7 +1147,7 @@ describe("Bayar", () => {
       await act(async () => {
         jest.advanceTimersByTime(10_000);
       });
-      expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+      expect(await screen.findByText("Langganan aktif")).toBeTruthy();
       expect(refreshes()).toBe(1);
       await act(async () => {
         jest.advanceTimersByTime(30_000);
@@ -1243,7 +1243,7 @@ describe("Bayar", () => {
       .filter((c, i) => c[0] === "change" && !listen.mock.results[i]?.value?.remove?.mock?.calls.length)
       .map((c) => c[1] as (s: string) => void);
     await act(async () => handlers.forEach((h) => h("active")));
-    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    expect(await screen.findByText("Langganan aktif")).toBeTruthy();
     expect(commands(runtime).filter((c) => c[0] === "checkout.payment.refresh")).toHaveLength(1);
   });
 
@@ -1359,50 +1359,31 @@ describe("Pembayaran diterima", () => {
     return { press: () => live.map((h) => h()), count: () => live.length, restore: () => spy.mockRestore() };
   }
 
-  it("shows the food, the package, the first delivery and every reserved day of a short plan", async () => {
+  it("shows Langganan aktif, the plan card with the first delivery and how many follow", async () => {
     wrap(server({ checkout: paidCheckout({}, { dates: SHORT }) }), <PaymentScreen checkoutId="ck-1" />);
-    await screen.findByTestId("paid-hero");
-    // The beat names the moment, once, as a heading; the screen's own title stays Bayar.
-    const title = within(screen.getByTestId("success-beat")).getByText("Pembayaran diterima");
+    await screen.findByTestId("paid-outcome");
+    // The outcome names the moment, once, as the screen's one heading; the bar carries no title.
+    const title = within(screen.getByTestId("paid-outcome")).getByText("Langganan aktif");
     expect(title.props.accessibilityRole).toBe("header");
-    expect(within(screen.getByTestId("screen-native-title")).getByText("Bayar")).toBeTruthy();
+    expect(screen.queryByTestId("screen-native-title")).toBeNull();
+    expect(screen.getByText("Pembayaran diterima. Jadwal antar sudah kami simpan.")).toBeTruthy();
 
-    // The hero is the mood surface: the food photo at radius 20, the package, its caterer and the first delivery.
-    const hero = within(screen.getByTestId("paid-hero"));
-    expect(hero.getByTestId("paid-hero-fill-siang", { includeHiddenElements: true })).toBeTruthy();
-    expect(flat(hero.getByTestId("paid-photo", { includeHiddenElements: true })).borderRadius).toBe(20);
-    expect(hero.getByTestId("paid-photo-image", { includeHiddenElements: true }).props.source).toEqual({
-      uri: "https://images.example.test/rumahan.jpg",
-    });
-    expect(hero.getByText("Makan Siang Rumahan")).toBeTruthy();
-    expect(hero.getByText("Dapur Contoh")).toBeTruthy();
-    const first = hero.getByText("Antar pertama Senin 19 Okt");
+    // One card: the package, its kitchen and days, then the first delivery (sorted dates) and how many follow.
+    const card = within(screen.getByTestId("paid-summary"));
+    expect(card.getByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(card.getByText(/^Dapur Contoh · /)).toBeTruthy();
+    const first = card.getByTestId("paid-first");
+    expect(first.props.children).toBe("Antar pertama Senin 19 Okt dan 2 hari lainnya");
     expect(flat(first).fontVariant).toEqual(["tabular-nums"]);
-
-    expect(screen.getByText("Jadwal antar sudah kami simpan.")).toBeTruthy();
-    // Every reserved day, sorted, as plain wrapped chips on the body (not buttons, not in the hero), tabular figures.
-    const chips = screen.getAllByTestId("paid-date");
-    expect(chips.map((c) => c.props.children)).toEqual(["Senin 19 Okt", "Selasa 20 Okt", "Rabu 21 Okt"]);
-    expect(flat(chips[0]).fontVariant).toEqual(["tabular-nums"]);
-    // Plain tags, not the chip control look: a quiet sage fill with no outline, regular body ink, continuous corners.
-    const tag = flat(screen.getAllByTestId("paid-date-tag")[0]);
-    expect(tag.backgroundColor).toBe(nativeThemes.light.sage);
-    expect(tag.borderWidth ?? 0).toBe(0);
-    expect(tag.borderColor).toBeUndefined();
-    expect(tag.borderCurve).toBe("continuous");
-    expect(flat(chips[0]).color).toBe(nativeThemes.light.charcoal);
-    expect(flat(chips[0]).fontFamily).toBe(fonts.regular);
-    expect(hero.queryAllByTestId("paid-date")).toHaveLength(0);
-    expect(flat(screen.getByTestId("paid-dates")).flexWrap).toBe("wrap");
-    expect(screen.queryByRole("button", { name: /Okt/ })).toBeNull();
-    expect(screen.queryByText(/hari lainnya/)).toBeNull();
+    expect(flat(first).color).toBe(nativeThemes.light.charcoal);
+    expect(flat(screen.getByTestId("paid-summary")).borderCurve).toBe("continuous");
     // Nothing from paying is left: no QR, no payment help, no total line.
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     expect(screen.queryByRole("button", { name: "Bantuan pembayaran" })).toBeNull();
     expect(screen.queryByText(currency(paidCheckout().quote.total, "id"), { exact: false })).toBeNull();
   });
 
-  it("the reserved-day tags read the dark theme's sage fill and ink", async () => {
+  it("the plan card reads the dark theme", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {
       render(
@@ -1412,10 +1393,10 @@ describe("Pembayaran diterima", () => {
           </MobileProvider>
         </ThemeProvider>,
       );
-      await screen.findByTestId("paid-hero");
+      await screen.findByTestId("paid-outcome");
       await act(async () => {});
-      expect(flat(screen.getAllByTestId("paid-date-tag")[0]).backgroundColor).toBe(nativeThemes.dark.sage);
-      expect(flat(screen.getAllByTestId("paid-date")[0]).color).toBe(nativeThemes.dark.charcoal);
+      expect(flat(screen.getByTestId("paid-summary")).backgroundColor).toBe(nativeThemes.dark.surface);
+      expect(flat(screen.getByTestId("paid-first")).color).toBe(nativeThemes.dark.charcoal);
     } finally {
       scheme.mockRestore();
     }
@@ -1428,36 +1409,27 @@ describe("Pembayaran diterima", () => {
     // While paying, the swipe keeps its normal meaning.
     expect(gesture().at(-1)).toBe(true);
     fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
-    await screen.findByTestId("paid-hero");
+    await screen.findByTestId("paid-outcome");
     expect(gesture().at(-1)).toBe(false);
   });
 
   it("opened already paid has the iOS edge swipe and the header back off", async () => {
     wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
-    await screen.findByTestId("paid-hero");
+    await screen.findByTestId("paid-outcome");
     expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false, headerBackVisible: false });
   });
 
-  it("a long plan shows its first six days, then how many more", async () => {
+  it("a long plan counts every delivery after the first", async () => {
     wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
-    await screen.findByTestId("paid-hero");
-    const chips = screen.getAllByTestId("paid-date");
-    expect(chips.map((c) => c.props.children)).toEqual([
-      "Senin 19 Okt",
-      "Selasa 20 Okt",
-      "Rabu 21 Okt",
-      "Kamis 22 Okt",
-      "Jumat 23 Okt",
-      "Senin 26 Okt",
-    ]);
-    expect(screen.queryByText("Selasa 27 Okt")).toBeNull();
-    const more = screen.getByText("dan 14 hari lainnya");
-    expect(flat(more).fontVariant).toEqual(["tabular-nums"]);
+    await screen.findByTestId("paid-outcome");
+    // Six dates shown by the summary plus 14 more: 20 deliveries, the first named and 19 counted.
+    expect(screen.getByTestId("paid-first").props.children).toBe("Antar pertama Senin 19 Okt dan 19 hari lainnya");
+    expect(screen.queryByTestId("paid-date")).toBeNull();
   });
 
   it("offers the schedule first and home last when the caterer picks the menus", async () => {
     wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
-    await screen.findByTestId("paid-hero");
+    await screen.findByTestId("paid-outcome");
     expect(footerLabels()).toEqual(["Lihat jadwal", "Ke Beranda"]);
     fireEvent.press(screen.getByRole("button", { name: "Lihat jadwal" }));
     expect(goToTab).toHaveBeenLastCalledWith("jadwal");
@@ -1468,7 +1440,7 @@ describe("Pembayaran diterima", () => {
     expect(router.back).not.toHaveBeenCalled();
   });
 
-  it("adds Pilih menu between them when the customer picks the menus, and shows the package photo, not a menu template", async () => {
+  it("leads with Pilih menu when the customer picks the menus, and promises no dish while none is set", async () => {
     const choose = offer({
       menuSelectionMode: "customer",
       menus: [
@@ -1484,11 +1456,9 @@ describe("Pembayaran diterima", () => {
     });
     const base = paidCheckout();
     wrap(server({ checkout: { ...base, quote: { ...base.quote, offer: choose } } }), <PaymentScreen checkoutId="ck-1" />);
-    await screen.findByTestId("paid-hero");
-    expect(screen.getByTestId("paid-photo-image", { includeHiddenElements: true }).props.source).toEqual({
-      uri: "https://images.example.test/rumahan.jpg",
-    });
-    expect(footerLabels()).toEqual(["Lihat jadwal", "Pilih menu", "Ke Beranda"]);
+    await screen.findByTestId("paid-outcome");
+    expect(screen.queryByTestId("paid-dish")).toBeNull();
+    expect(footerLabels()).toEqual(["Pilih menu", "Lihat jadwal", "Ke Beranda"]);
     fireEvent.press(screen.getByRole("button", { name: "Pilih menu" }));
     // Bayar is left for Pilih menu, which opens in the tabs above the screen that started the purchase.
     expect(leaveFor).toHaveBeenLastCalledWith("/subscriptions/s-2/menu");
@@ -1496,7 +1466,7 @@ describe("Pembayaran diterima", () => {
 
   it("opened already paid gives no success haptic", async () => {
     wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
-    await screen.findByTestId("paid-hero");
+    await screen.findByTestId("paid-outcome");
     await act(async () => {});
     expect(successes()).toHaveLength(0);
   });
@@ -1507,7 +1477,7 @@ describe("Pembayaran diterima", () => {
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     expect(successes()).toHaveLength(0);
     fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
-    expect(await screen.findByTestId("paid-hero")).toBeTruthy();
+    expect(await screen.findByTestId("paid-outcome")).toBeTruthy();
     await waitFor(() => expect(screen.getByRole("button", { name: "Lihat jadwal" })).toBeEnabled());
     await act(async () => {});
     expect(successes()).toHaveLength(1);
@@ -1528,7 +1498,7 @@ describe("Pembayaran diterima", () => {
       const back = hardwareBack();
       try {
         wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
-        await screen.findByTestId("paid-hero");
+        await screen.findByTestId("paid-outcome");
         leave(back);
         expect(goToTab).toHaveBeenCalledTimes(1);
         expect(goToTab).toHaveBeenCalledWith(target);
@@ -1552,7 +1522,7 @@ describe("Pembayaran diterima", () => {
       const back = hardwareBack();
       try {
         wrap(server({ checkout: paidCheckout({}, quote) }), <PaymentScreen checkoutId="ck-1" />);
-        await screen.findByTestId("paid-hero");
+        await screen.findByTestId("paid-outcome");
         // Close in the header is a back: the screen keeps itself and goes home.
         expect(removeBy(CLOSE)).toBe(true);
         expect(exit).toHaveBeenLastCalledWith("index");
@@ -1578,7 +1548,7 @@ describe("Pembayaran diterima", () => {
       expect(removeBy(NATIVE_BACK)).toBe(false);
       expect(goToTab).not.toHaveBeenCalled();
       fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
-      await screen.findByTestId("paid-hero");
+      await screen.findByTestId("paid-outcome");
       expect(back.count()).toBe(1);
       expect(back.press()).toEqual([true]);
       expect(goToTab).toHaveBeenLastCalledWith("index");
@@ -1593,13 +1563,13 @@ describe("Pembayaran diterima", () => {
   it("counts purchase_confirmed_viewed once per checkout id, however often it is opened", async () => {
     const runtime = server({ checkout: paidCheckout({ id: "ck-viewed-1" }) });
     const first = wrap(runtime, <PaymentScreen checkoutId="ck-viewed-1" />);
-    await screen.findByTestId("paid-hero");
+    await screen.findByTestId("paid-outcome");
     await waitFor(() => expect(viewed(runtime)).toHaveLength(1));
     expect(viewed(runtime)[0]).toEqual(["purchase_confirmed_viewed", "customer"]);
     first.unmount();
 
     const second = wrap(runtime, <PaymentScreen checkoutId="ck-viewed-1" />);
-    await screen.findByTestId("paid-hero");
+    await screen.findByTestId("paid-outcome");
     await act(async () => {});
     expect(viewed(runtime)).toHaveLength(1);
     second.unmount();
@@ -1607,7 +1577,7 @@ describe("Pembayaran diterima", () => {
     // A second purchase counts again.
     const other = server({ checkout: paidCheckout({ id: "ck-viewed-2" }) });
     wrap(other, <PaymentScreen checkoutId="ck-viewed-2" />);
-    await screen.findByTestId("paid-hero");
+    await screen.findByTestId("paid-outcome");
     await waitFor(() => expect(viewed(other)).toHaveLength(1));
   });
 

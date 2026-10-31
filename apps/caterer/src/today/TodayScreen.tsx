@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { RefreshControl, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { RefreshControl, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   errorLabel,
+  firstOperatingDayAfter,
   jakartaDay,
   journeyCaption,
   kitchenDayDone,
@@ -23,13 +24,16 @@ import {
   FadeSwap,
   FigureStrip,
   MoodHeader,
+  PolishArt,
   PressableScale,
   RantangTrack,
   trackCounts,
   trackStage,
   Screen,
   StateArt,
+  stateArtSize,
   Text,
+  type PolishArtName,
   useColors,
   useConfirm,
   useToast,
@@ -251,43 +255,119 @@ function KitchenAction({
   );
 }
 
-/** How the day's deliveries ended, counted from the real rows of both meals; a cancelled day or meal counts as neither. */
+/**
+ * How the day's deliveries ended, counted from the real rows of both meals; a cancelled day or meal counts as neither.
+ * `customers` is how many different customers had at least one meal arrive.
+ */
 function dayOutcome(ops: SellerOperationsState) {
   let arrived = 0;
   let failed = 0;
+  const fed = new Set<string>();
   for (const d of ops.deliveries) {
     if (d.status === "cancelled") continue;
     for (const m of d.meals) {
-      if (m.status === "delivered") arrived += 1;
-      else if (m.status === "issue") failed += 1;
+      if (m.status === "delivered") {
+        arrived += 1;
+        if (d.customer?.id) fed.add(d.customer.id);
+      } else if (m.status === "issue") failed += 1;
     }
   }
-  return { arrived, failed };
+  return { arrived, failed, customers: fed.size };
+}
+
+/**
+ * The polish scene above a Dapur state's title (DapurKosong, DapurSelesai): 180pt, DESIGN.md's success size and the
+ * canvas's; StateArt's four-fifths step on a 360dp phone at font scale 1.3 (147), so the title and action stay above the
+ * fold. Decorative: the title carries the meaning. The runtime file keeps its square canvas, so `contain` adds no crop.
+ */
+function DapurArt({ name }: { name: PolishArtName }) {
+  const size = stateArtSize(useWindowDimensions(), 180);
+  return (
+    <View testID={`art-${name}`} style={{ alignSelf: "center" }}>
+      <PolishArt name={name} size={size} />
+    </View>
+  );
+}
+
+/** The day the kitchen is off: it has published packages and none of them cooks on this weekday. */
+function kitchenRest(ops: SellerOperationsState, date: string): { next: string } | null {
+  const live = ops.offers.filter((o) => o.status === "published");
+  // A package listing no weekdays may deliver any day, so it never makes a day off.
+  if (!live.length || live.some((o) => !o.weekdays?.length)) return null;
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+  const weekdays = [...new Set(live.flatMap((o) => o.weekdays))];
+  if (weekdays.includes(weekday)) return null;
+  return { next: firstOperatingDayAfter(date, weekdays) };
 }
 
 /**
  * "Semua beres hari ini": what the body shows once every delivery is recorded and no report is open. It says everything
  * arrived only when nothing was marked "Gagal diantar"; otherwise it counts both, so a day with failures never reads as clean.
+ * The customer line uses the real count of customers whose meal arrived, and is left out when there are none.
  */
 function DoneCard({ ops, onTomorrow }: { ops: SellerOperationsState; onTomorrow: () => void }) {
   const { t } = useMobile();
-  const { arrived, failed } = dayOutcome(ops);
+  const { arrived, failed, customers } = dayOutcome(ops);
+  const ate = customers
+    ? t(
+        ` ${customers} pelanggan makan dari dapurmu hari ini.`,
+        ` ${plural(customers, "customer")} ate from your kitchen today.`,
+      )
+    : "";
   return (
-    <Card tone="sage" style={{ gap: 12 }}>
-      {/* The celebrating mascot holds up its own check, so it takes the place of the check icon. */}
-      <StateArt pose="merayakan" />
-      <Text variant="heading" style={{ textAlign: "center" }}>
-        {t("Semua beres hari ini", "All done today")}
-      </Text>
-      <Text selectable testID="done-outcome" style={{ textAlign: "center" }}>
-        {failed === 0
-          ? t("Semua pengantaran sudah ditandai sampai.", "All deliveries are marked as arrived.")
+    <DapurState
+      art={<DapurArt name="dapur-selesai" />}
+      title={t("Semua beres hari ini", "All done today")}
+      body={
+        failed === 0
+          ? t("Semua sudah diantar.", "Everything has been delivered.") + ate
           : t(
               `${arrived} ditandai sampai, ${failed} ditandai Gagal diantar.`,
               `${arrived} marked as arrived, ${failed} marked Not delivered.`,
-            )}
-      </Text>
-      <Button label={t("Lihat besok", "See tomorrow")} onPress={onTomorrow} />
+            )
+      }
+      bodyTestID="done-outcome"
+    >
+      <Button label={t("Lihat besok", "See tomorrow")} onPress={onTomorrow} style={{ alignSelf: "stretch" }} />
+    </DapurState>
+  );
+}
+
+/**
+ * One Dapur state as the polish canvas draws it: a surface card, the art centred, a section title and one muted line,
+ * then the action if there is one. Gap 12 and the card's own padding come from DESIGN.md's 4pt card spacing; the title
+ * is the v2 `section` step (20/26) and the line `bodyL` (15/22), the canvas's sizes on the existing ladder.
+ */
+function DapurState({
+  art,
+  title,
+  body,
+  testID,
+  bodyTestID,
+  children,
+}: {
+  art?: ReactNode;
+  title?: string;
+  body?: string;
+  testID?: string;
+  bodyTestID?: string;
+  children?: ReactNode;
+}) {
+  const c = useColors();
+  return (
+    <Card testID={testID} style={{ gap: 12, alignItems: "center" }}>
+      {art}
+      {title ? (
+        <Text variant="section" style={{ textAlign: "center" }}>
+          {title}
+        </Text>
+      ) : null}
+      {body ? (
+        <Text selectable testID={bodyTestID} variant="bodyL" style={{ textAlign: "center", color: title ? c.muted : c.charcoal }}>
+          {body}
+        </Text>
+      ) : null}
+      {children}
     </Card>
   );
 }
@@ -345,6 +425,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           (d) => d.status !== "cancelled" && d.meals.some((m) => m.meal === meal && m.status === "issue"),
         ).length
       : 0;
+  // Nothing to cook on a weekday none of the kitchen's packages delivers: that is a day off, not an empty day.
+  const rest = ops && !session && !otherSession && failedCount === 0 ? kitchenRest(ops, date) : null;
   // A copy kept from before the connection dropped may be stale: it can be read, but not acted on.
   const action = session && !day.data?.savedAt && (session.canCook || session.canDepart) ? session : null;
   // "Pilih": the order list and the bottom bar share one selection, reset when the day or the meal changes.
@@ -485,7 +567,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <Text testID="day-kept" variant="meta">
               {t(
                 "Ini data terakhir yang tersimpan. Tombol Mulai masak dan Berangkat muncul lagi setelah data diperbarui.",
-                "This is the last data saved. The Start cooking and Head out buttons come back once the data is refreshed.",
+                "This is the last saved data. The Start cooking and Head out buttons return once it refreshes.",
               )}
             </Text>
           ) : null}
@@ -526,11 +608,20 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               route={route}
             />
           ) : ops && (failedCount > 0 || otherSession) ? (
-            <Card tone="sage">
-              {/* Nothing scheduled for this meal rests the mascot; rows marked "Gagal diantar" are not a quiet meal. */}
-              {failedCount > 0 ? null : <StateArt pose="tidur" />}
-              <Text testID="meal-empty-note" selectable style={failedCount > 0 ? undefined : { textAlign: "center" }}>
-                {failedCount > 0
+            // Rows marked "Gagal diantar" are not a quiet meal: their count stands alone, with no art. A meal with nothing
+            // scheduled shows the empty wok, like the empty day (polish ruling 7 retires the repeated tidur).
+            <DapurState
+              testID="meal-empty-note"
+              art={failedCount > 0 ? null : <DapurArt name="dapur-kosong" />}
+              title={
+                failedCount > 0
+                  ? undefined
+                  : meal === "lunch"
+                    ? t("Tidak ada pengantaran makan siang", "No lunch deliveries")
+                    : t("Tidak ada pengantaran makan malam", "No dinner deliveries")
+              }
+              body={
+                failedCount > 0
                   ? meal === "lunch"
                     ? t(
                         `${failedCount} pengantaran makan siang ditandai Gagal diantar.`,
@@ -540,10 +631,9 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                         `${failedCount} pengantaran makan malam ditandai Gagal diantar.`,
                         `${failedCount} dinner ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
                       )
-                  : meal === "lunch"
-                    ? t("Tidak ada pengantaran makan siang.", "No lunch deliveries.")
-                    : t("Tidak ada pengantaran makan malam.", "No dinner deliveries.")}
-              </Text>
+                  : undefined
+              }
+            >
               {otherSession ? (
                 <Button
                   variant="secondary"
@@ -559,21 +649,35 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                         )
                   }
                   onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+                  style={{ alignSelf: "stretch" }}
                 />
               ) : null}
-            </Card>
+            </DapurState>
+          ) : ops && rest ? (
+            // DapurLibur: the sleeping mascot is a character here, so it stays (polish ruling 7). 140 is the canvas size:
+            // the mascot is trimmed to its visible height, so it reads level with the 180 square polish boxes (115 compact).
+            <DapurState
+              art={<StateArt pose="tidur" base={140} />}
+              title={
+                offset === "0"
+                  ? t("Dapur libur hari ini", "The kitchen is off today")
+                  : t("Dapur libur besok", "The kitchen is off tomorrow")
+              }
+              body={t(
+                `Masak lagi ${shortDate(rest.next, locale)}.`,
+                `Cooking again ${shortDate(rest.next, locale)}.`,
+              )}
+            />
           ) : ops && !newKitchen ? (
-            <Card tone="sage">
-              <StateArt pose="tidur" />
-              <Text style={{ textAlign: "center" }}>
-                {offset === "0"
-                  ? t("Tidak ada yang dimasak hari ini.", "Nothing to cook today.")
-                  : t("Tidak ada yang dimasak besok.", "Nothing to cook tomorrow.")}
-              </Text>
-              <Text variant="meta" style={{ textAlign: "center" }}>
-                {t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}
-              </Text>
-            </Card>
+            <DapurState
+              art={<DapurArt name="dapur-kosong" />}
+              title={
+                offset === "0"
+                  ? t("Tidak ada yang dimasak hari ini", "Nothing to cook today")
+                  : t("Tidak ada yang dimasak besok", "Nothing to cook tomorrow")
+              }
+              body={t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}
+            />
           ) : null}
         </View>
       </FadeSwap>

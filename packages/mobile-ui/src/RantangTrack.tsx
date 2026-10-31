@@ -12,11 +12,14 @@ import Animated, {
 import Svg, { Line } from "react-native-svg";
 import { nativeMotion } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
+import { PolishArt, type PolishArtName } from "./brand/polishArt";
 import { Rantang } from "./brand/Rantang";
 import { StopGlyph, type StopGlyphName } from "./brand/StopGlyphs";
 import { Text } from "./components";
+import { fontFor } from "./type";
 import { useMoodInks } from "./mood";
 import { useReduced } from "./motion";
+import { withAlpha } from "./withAlpha";
 
 export type TrackStage = "scheduled" | "preparing" | "out_for_delivery" | "arrived_unconfirmed" | "delivered" | "issue";
 /** Where a meal that failed to arrive got to: the last stop it reached. */
@@ -34,6 +37,12 @@ const ease = Easing.bezier(...nativeMotion.ease);
 const SIZES = {
   regular: { marker: 24, disc: 28, ring: 36, glyph: 16, rail: 64 },
   compact: { marker: 24, disc: 24, ring: 32, glyph: 14, rail: 40 },
+  /**
+   * `art` (Beranda's hero, polish canvas Lacak): each stop is its picture (36) on a 44 tone disc inside a 56 ring, the
+   * 44 being the HIG's 44pt unit (expo-native-ui); the disc at 1.14 (50) still clears the ring's 2.5 border. No marker
+   * rides above it (the ring marks where the meal is), so the rail is the ring's height.
+   */
+  art: { marker: 24, disc: 44, ring: 56, glyph: 36, rail: 56 },
 } as const;
 type Dims = (typeof SIZES)[keyof typeof SIZES];
 /** The rantang drawn on the current stop of a compact track, on a 24 disc. */
@@ -45,6 +54,13 @@ const CURRENT_SCALE = 1.14;
 /** Stop centres sit at 0, 1/3, 2/3 and 1 of the rail, so the rail is inset by half of one label column on each side. */
 const INSET = `${100 / STOPS / 2}%` as const;
 const GLYPHS: StopGlyphName[] = ["calendar", "pot", "motorbike", "house"];
+/**
+ * The `art` stops. Terjadwal is the rantang with its clock: the data has no packing stage, so the canvas's Dikemas
+ * (spot-rantang-dikemas) has no stop to stand for.
+ */
+const ART: PolishArtName[] = ["spot-rantang-clock", "spot-wok", "spot-scooter", "spot-rantang-sampai"];
+/** A stop still ahead shows its picture faded to this. */
+const ART_AHEAD = 0.45;
 const ORDER: Flow[] = ["scheduled", "preparing", "out_for_delivery", "arrived_unconfirmed", "delivered"];
 const REACHED_INDEX: Record<TrackReached, number> = { scheduled: 0, preparing: 1, out_for_delivery: 2 };
 /** One pass of the in-progress segment: it grows over the first 60%, holds, then fades over the last 20%. */
@@ -141,6 +157,12 @@ export function trackLabelLines(t: Translate): 1 | 2 {
  * - `counts` (Dapur) puts a figure under each stop and fills the line to the furthest stage any meal has reached; the
  *   words then name that stage too, so the caption never disagrees with the ring.
  * - The caller remounts the track (a `key`) when it starts showing another meal or day, so a switch is not a change.
+ * - `art` (Beranda's hero, polish canvas Lacak): each stop is its picture (Terjadwal the rantang with its clock, then
+ *   the wok, the scooter and the rantang that arrived) on an opaque tone disc, a stop ahead faded, the current one
+ *   ringed (Sampai keeps its ring once reached), with no marker. A short headline names the stage ("Lagi dimasak"); the
+ *   caption shows under it only when it adds a fact (a time, an automatic arrival); its words are always in the
+ *   accessibility value.
+ *   The fill, the loop and their reduced-motion rules are the same as `regular`.
  */
 export function RantangTrack({
   stage: given,
@@ -159,11 +181,12 @@ export function RantangTrack({
    * `compact` (Dapur): a 40 rail with the state-words line left out of the picture (it stays in the accessibility
    * label) and the marker drawn on the current stop. The default is the track as it always was.
    */
-  size?: "regular" | "compact";
+  size?: "regular" | "compact" | "art";
   testID?: string;
 }) {
   const dims: Dims = SIZES[size];
   const compact = size === "compact";
+  const art = size === "art";
   const ink = useMoodInks();
   const reduced = useReduced();
   const mobile = useMobile();
@@ -231,6 +254,15 @@ export function RantangTrack({
     delivered: t("Sampai", "Arrived"),
     issue: t("Gagal diantar", "Not delivered"),
   };
+  // The art track's headline: what is happening, in a few words, over the caption's times.
+  const headlines: Record<TrackStage, string> = {
+    scheduled: t("Belum mulai dimasak", "Not cooking yet"),
+    preparing: t("Lagi dimasak", "Being cooked"),
+    out_for_delivery: t("Dalam perjalanan", "On its way"),
+    arrived_unconfirmed: t("Sudah sampai?", "Has it arrived?"),
+    delivered: t("Selamat makan", "Enjoy your meal"),
+    issue: t("Gagal diantar", "Not delivered"),
+  };
   const labels = stopLabels(t);
   const twoLines = trackLabelLines(t) === 2;
   // A failed meal is counted at the stop it reached.
@@ -251,6 +283,8 @@ export function RantangTrack({
   const total = (i: number) =>
     i === LAST ? (counts?.arrived_unconfirmed ?? 0) + (counts?.delivered ?? 0) : (counts?.[ORDER[i] as Flow] ?? 0);
   const state = [words, ...(counts ? labels.map((label, i) => `${label} ${total(i)}`) : [])].join(". ");
+  // The stage in a word or two, as the stop labels, the names, the headlines and the journey caption say it.
+  const bare = new Set<string>([...labels, ...Object.values(names), ...Object.values(headlines), t("Sedang diantar", "On the way")]);
 
   // Regular: the rantang rides above the rail. Compact: it is drawn on the current stop, on a disc that hides the
   // stop's own glyph, so it sits after the stops in the tree (on top of them).
@@ -283,7 +317,19 @@ export function RantangTrack({
     <View testID={testID} accessible accessibilityLabel={sentence} accessibilityValue={{ text: state }} style={{ gap: 8 }}>
       {/* The caption carries the cooking and departure times, so its figures are tabular. A compact track leaves it out
           of the picture: the accessibility value above says the same words. */}
-      {compact ? null : (
+      {art ? (
+        <Text
+          testID={`${testID}-headline`}
+          variant="rowTitle"
+          style={{ color: issue ? ink.heroWarn : ink.heroText, fontFamily: fontFor("700") }}
+        >
+          {headlines[stage]}
+        </Text>
+      ) : null}
+      {/* An art track says the stage once, in its headline (the stop labels name it too). Its caption stays as the one
+          supporting line only when it adds a fact (a time, "Berangkat 10.42", or "Ditandai sampai otomatis"); a bare
+          stage word lives in the accessibility value alone. */}
+      {compact || (art && bare.has(words)) ? null : (
         <Text
           testID={`${testID}-caption`}
           variant="label"
@@ -294,13 +340,13 @@ export function RantangTrack({
       )}
       <View style={{ paddingHorizontal: INSET }}>
         <View testID={`${testID}-rail`} onLayout={onLayout} style={{ height: dims.rail }}>
-          {compact ? null : markerView}
+          {compact || art ? null : markerView}
           <View
             style={{
               position: "absolute",
               left: 0,
               right: 0,
-              top: compact ? (dims.rail - dims.ring) / 2 : dims.marker + 4,
+              top: compact || art ? (dims.rail - dims.ring) / 2 : dims.marker + 4,
               height: dims.ring,
               justifyContent: "center",
             }}
@@ -373,6 +419,7 @@ export function RantangTrack({
                 issue={issue}
                 half={i === LAST && !issue}
                 dims={dims}
+                art={art ? ART[i] : undefined}
                 testID={`${testID}-stop-${i}`}
               />
             ))}
@@ -470,9 +517,12 @@ function TrackStop({
   issue,
   half,
   dims,
+  art,
   testID,
 }: {
   index: number;
+  /** The stop's picture (`art` tracks); without it the stop is the drawn glyph. */
+  art?: PolishArtName;
   position: SharedValue<number>;
   warn: SharedValue<number>;
   issue: boolean;
@@ -496,9 +546,12 @@ function TrackStop({
   };
   // The stop the fill stands on. `delivered` sits one past the last stop, so nothing is current then: the journey is
   // over and Sunrise marks only a stop the meal is still at.
+  // An art track has no marker, so its last stop keeps the ring once the meal is there: the ring is where it is.
+  const keepRing = !!art && last;
   const current = (p: number) => {
     "worklet";
     if (issue) return 0;
+    if (keepRing) return arrived(p);
     return arrived(p) * (1 - clamp01(p - index));
   };
   const done = useAnimatedStyle(() => ({ opacity: passed(position.value) }), [issue]);
@@ -511,6 +564,9 @@ function TrackStop({
   const warning = useAnimatedStyle(() => ({ opacity: warn.value }));
   // Sampai half fills as the fill reaches it, over the same timing (instant under reduced motion, like the fill).
   const halfway = useAnimatedStyle(() => ({ opacity: arrived(position.value) }), [issue]);
+
+  // A stop ahead shows its picture faded; once the fill reaches it, in full.
+  const reached = useAnimatedStyle(() => ({ opacity: ART_AHEAD + (1 - ART_AHEAD) * arrived(position.value) }), [issue]);
 
   return (
     <View
@@ -534,29 +590,53 @@ function TrackStop({
           ring,
         ]}
       />
-      <Animated.View testID={`${testID}-disc`} style={[{ width: DISC, height: DISC }, disc]}>
-        <View testID={`${testID}-ahead`} style={[layer, { backgroundColor: ink.hero, borderWidth: 1.6, borderColor: ink.heroMeta }]}>
-          <StopGlyph name={glyph} size={GLYPH} color={ink.heroMeta} />
-        </View>
+      {art ? (
         <Animated.View
-          testID={`${testID}-now`}
-          style={[layer, { backgroundColor: ink.hero, borderWidth: 1.6, borderColor: ink.heroText }, now]}
+          testID={`${testID}-disc`}
+          style={[
+            {
+              width: DISC,
+              height: DISC,
+              borderRadius: DISC / 2,
+              // Opaque, so the rail never shows through the picture; the tint is a layer on top of the hero ink.
+              backgroundColor: ink.hero,
+              overflow: "hidden",
+              alignItems: "center",
+              justifyContent: "center",
+            },
+            disc,
+          ]}
         >
-          <StopGlyph name={glyph} size={GLYPH} color={ink.heroText} />
-        </Animated.View>
-        {half ? (
-          <Animated.View testID={`${testID}-half`} style={[layer, halfway]}>
-            <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: DISC / 2, overflow: "hidden", backgroundColor: ink.heroText }}>
-              <View style={{ position: "absolute", left: 0, top: 0, width: DISC, height: DISC, alignItems: "center", justifyContent: "center" }}>
-                <StopGlyph name={glyph} size={GLYPH} color={ink.hero} />
-              </View>
-            </View>
+          <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: withAlpha(ink.heroText, 0.08) }} />
+          <Animated.View testID={`${testID}-art`} style={reached}>
+            <PolishArt name={art} size={GLYPH} />
           </Animated.View>
-        ) : null}
-        <Animated.View testID={`${testID}-done`} style={[layer, { backgroundColor: ink.heroText }, done]}>
-          <StopGlyph name={glyph} size={GLYPH} color={ink.hero} />
         </Animated.View>
-      </Animated.View>
+      ) : (
+        <Animated.View testID={`${testID}-disc`} style={[{ width: DISC, height: DISC }, disc]}>
+          <View testID={`${testID}-ahead`} style={[layer, { backgroundColor: ink.hero, borderWidth: 1.6, borderColor: ink.heroMeta }]}>
+            <StopGlyph name={glyph} size={GLYPH} color={ink.heroMeta} />
+          </View>
+          <Animated.View
+            testID={`${testID}-now`}
+            style={[layer, { backgroundColor: ink.hero, borderWidth: 1.6, borderColor: ink.heroText }, now]}
+          >
+            <StopGlyph name={glyph} size={GLYPH} color={ink.heroText} />
+          </Animated.View>
+          {half ? (
+            <Animated.View testID={`${testID}-half`} style={[layer, halfway]}>
+              <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: DISC / 2, overflow: "hidden", backgroundColor: ink.heroText }}>
+                <View style={{ position: "absolute", left: 0, top: 0, width: DISC, height: DISC, alignItems: "center", justifyContent: "center" }}>
+                  <StopGlyph name={glyph} size={GLYPH} color={ink.hero} />
+                </View>
+              </View>
+            </Animated.View>
+          ) : null}
+          <Animated.View testID={`${testID}-done`} style={[layer, { backgroundColor: ink.heroText }, done]}>
+            <StopGlyph name={glyph} size={GLYPH} color={ink.hero} />
+          </Animated.View>
+        </Animated.View>
+      )}
       {last && issue ? (
         <Animated.View
           testID={`${testID}-warn`}

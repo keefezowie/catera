@@ -26,6 +26,7 @@ import { leaveFor } from "../nav";
 import { useFlowOptions } from "../stack";
 import { clearPending, redirectTo } from "./emailAuth";
 import { authFailure, canRetry } from "./failure";
+import { FoodBand } from "../onboarding/FoodBand";
 import { LegalLine } from "./LegalLine";
 import { Lengkapi, lengkapiNeeded, type LengkapiInfo } from "./Lengkapi";
 import { emailCheck, useFormPose, useRateWait } from "./useAuthRun";
@@ -222,11 +223,13 @@ export function Masuk() {
   if (!emailStep)
     return (
       <AuthScreen revealKey={failures} footer={<LegalLine />}>
+        {/* The food band sits on the providers step only, above the heading (polish canvas, Masuk). */}
+        <FoodBand />
         <AuthHeading
           title={t("Masuk ke Catera", "Sign in to Catera")}
           subtitle={t(
             "Masuk atau daftar dengan satu akun untuk langganan, jadwal, dan pembayaranmu.",
-            "One account for your subscriptions, deliveries and payments. No account yet? We'll make one.",
+            "Sign in or sign up to manage your plans, deliveries and payments.",
           )}
           pose={form.pose}
         />

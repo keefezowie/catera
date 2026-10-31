@@ -124,18 +124,7 @@ export function usePushSwitch(channelName: string): PushSwitch {
   const turnOn = useCallback(
     () =>
       // While the phone blocks Catera the switch never shows on, not even while it asks again.
-      change(current.current === "denied" ? "denied" : "on", async () => {
-        const phone = Notifications!;
-        const permission = await phone.getPermissionsAsync();
-        if (permission.status !== "granted") {
-          const answer = await phone.requestPermissionsAsync();
-          if (answer.status !== "granted") return stateOf(answer, null);
-        }
-        await enablePush(channelName);
-        // A lost flag only means the next read shows off; the phone is registered either way.
-        await SecureStore.setItemAsync(key, "on").catch(() => undefined);
-        return "on";
-      }),
+      change(current.current === "denied" ? "denied" : "on", () => allowAndRegister(enablePush, channelName, key)),
     [change, enablePush, channelName, key],
   );
 
@@ -149,4 +138,73 @@ export function usePushSwitch(channelName: string): PushSwitch {
   );
 
   return { state, turnOn, turnOff };
+}
+
+/**
+ * Asks for the permission if the phone has not given it, then registers this phone and sets the account's flag. The
+ * switch's `turnOn` and the primer's "Nyalakan notifikasi" share it. A refusal settles on its state; a failed
+ * registration rejects.
+ */
+async function allowAndRegister(
+  enablePush: (channelName: string) => Promise<void>,
+  channelName: string,
+  key: string,
+): Promise<PushSwitchState> {
+  const phone = Notifications!;
+  const permission = await phone.getPermissionsAsync();
+  if (permission.status !== "granted") {
+    const answer = await phone.requestPermissionsAsync();
+    if (answer.status !== "granted") return stateOf(answer, null);
+  }
+  await enablePush(channelName);
+  // A lost flag only means the next read shows off; the phone is registered either way.
+  await SecureStore.setItemAsync(key, "on").catch(() => undefined);
+  return "on";
+}
+
+/** The push primer: whether it shows, and its two answers. */
+export type PushPrimer = {
+  shown: boolean;
+  /** "Nyalakan notifikasi": asks the phone and registers it, as the switch does. Rejects when registering fails. */
+  accept(): Promise<PushSwitchState>;
+  /** "Nanti saja": closes it. Either answer is final; the primer never returns. */
+  dismiss(): void;
+};
+
+/**
+ * The one-time push primer (polish spec, ruling 4). With `eligible` (the caller's moment: the first paid plan) it shows
+ * only when this build can receive push and the phone has never been asked (`undetermined`, and it may still ask). The
+ * phone remembers it the moment it shows (`push.primer`), so it appears at most once per phone, whatever the answer
+ * and even if the app closes on it. An unreadable permission or mark shows nothing.
+ */
+export function usePushPrimer(channelName: string, eligible: boolean): PushPrimer {
+  const { runtime, actor, enablePush } = useMobile();
+  const [shown, setShown] = useState(false);
+  const mark = runtime.storageKey("push.primer");
+  const flag = runtime.storageKey(`push.${actor?.id ?? "guest"}`);
+  const signedIn = !!actor;
+
+  useEffect(() => {
+    if (!eligible || !signedIn || !pushAvailableNow() || !Notifications) return;
+    const phone = Notifications;
+    let live = true;
+    void Promise.all([Promise.resolve().then(() => phone.getPermissionsAsync()), SecureStore.getItemAsync(mark)])
+      .then(async ([permission, seen]) => {
+        const unasked = permission.status === "undetermined" && permission.canAskAgain !== false;
+        if (!live || seen || !unasked) return;
+        await SecureStore.setItemAsync(mark, "shown");
+        if (live) setShown(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [eligible, signedIn, mark]);
+
+  const accept = useCallback(() => {
+    setShown(false);
+    return allowAndRegister(enablePush, channelName, flag);
+  }, [enablePush, channelName, flag]);
+  const dismiss = useCallback(() => setShown(false), []);
+  return { shown, accept, dismiss };
 }

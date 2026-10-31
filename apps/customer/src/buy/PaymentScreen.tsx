@@ -210,7 +210,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     }
   });
 
-  // One native title over every state, paid included: the success beat is the one heading that names the payment.
+  // One native title over every state but paid: there "Langganan aktif" is the one heading (canvas Lunas), so the
+  // bar carries no title (expo-native-ui: one title per screen).
   const title = t("Bayar", "Pay");
   const help = (
     <Button
@@ -245,7 +246,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   // checking stage's mascot is the first child here, where the first read's wait sits, so it carries over.
   if (stage !== "pay")
     return (
-      <Screen nativeTitle={title} footer={paid && summary ? <PaidActions summary={summary} /> : undefined}>
+      <Screen nativeTitle={paid && summary ? "" : title} footer={paid && summary ? <PaidActions summary={summary} /> : undefined}>
         <FadeSwap swapKey={stage} style={{ gap: 16 }}>
           {stage === CHECKING ? <CheckingWait t={t} /> : null}
           {paid && summary ? (
@@ -445,7 +446,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
           <Text>
             {t(
               "Jadwalmu kami tahan 15 menit. Lewat dari itu, kami cek ulang dulu.",
-              `We're holding ${c.quote.dates.length === 1 ? "your delivery day" : `your ${c.quote.dates.length} delivery days`} for 15 minutes. After that, we check the schedule again before you pay.`,
+              "We're holding your schedule for 15 minutes. After that, we recheck it.",
             )}
           </Text>
         </Card>

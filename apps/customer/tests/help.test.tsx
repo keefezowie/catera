@@ -534,7 +534,7 @@ describe("Bantuan dan laporan", () => {
   it("empty Bantuan shows the art, the Jadwal line, and Minta bantuan when there is a plan", async () => {
     const view = renderWith(runtimeWith({ state: customerState(null) }), <ReportList />);
     const title = await screen.findByText("Belum ada laporan");
-    expect(screen.getByTestId("mascot-tidur", { includeHiddenElements: true })).toBeTruthy();
+    expect(within(screen.getByTestId("bantuan-empty")).getByTestId("polish-art", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByText("Kalau ada yang salah dengan pengantaran, laporkan dari harinya di Jadwal.")).toBeTruthy();
     // With a plan, the way to ask sits in the empty state, under its line.
     const empty = screen.getByTestId("bantuan-empty");
@@ -545,7 +545,7 @@ describe("Bantuan dan laporan", () => {
     // Without a plan there is nothing to ask about yet: the art and the line, no button.
     renderWith(runtimeWith({ state: { ...customerState(null), subscriptions: [] } }), <ReportList />);
     expect(await screen.findByText("Belum ada laporan")).toBeTruthy();
-    expect(screen.getByTestId("mascot-tidur", { includeHiddenElements: true })).toBeTruthy();
+    expect(within(screen.getByTestId("bantuan-empty")).getByTestId("polish-art", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Minta bantuan" })).toBeNull();
   });
 
@@ -553,7 +553,7 @@ describe("Bantuan dan laporan", () => {
     renderWith(runtimeWith({ issues: [issue()] }), <ReportList />);
     expect(await screen.findByRole("button", { name: "Minta bantuan" })).toBeTruthy();
     expect(screen.queryByTestId("bantuan-empty")).toBeNull();
-    expect(screen.queryByTestId("mascot-tidur", { includeHiddenElements: true })).toBeNull();
+    expect(screen.queryByTestId("polish-art", { includeHiddenElements: true })).toBeNull();
   });
 
   it("asks to sign in and comes back to Bantuan", async () => {
