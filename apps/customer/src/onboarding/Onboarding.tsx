@@ -167,7 +167,10 @@ function Heading({ title, subtitle }: { title: string; subtitle: string }) {
 export function AreaStep() {
   const { t } = useMobile();
   const c = useColors();
-  const area = useStoredArea();
+  const stored = useStoredArea();
+  const covered = useCoveredAreas();
+  // An area picked earlier in Jelajah only carries over when a caterer still delivers there.
+  const area = stored && (!covered || covered.includes(stored)) ? stored : "";
   const { width, height } = useWindowDimensions();
   // Large on a tall phone (the art carries transparent margins), never wider than the gutters, and under 40% of the
   // height so the words and the action stay on the first screen.

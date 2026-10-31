@@ -216,8 +216,9 @@ describe("Selamat makan on the delivered slot", () => {
   it("offers the review with the moment art and opens the sheet only on tap", async () => {
     card();
     await settle();
-    expect(screen.getByText("Selamat makan")).toBeTruthy();
-    expect(screen.getByText("Gimana makanannya?")).toBeTruthy();
+    // The track headline already says "Selamat makan" (re-gate N1): the card only asks for the review.
+    expect(screen.queryByText("Selamat makan")).toBeNull();
+    expect(screen.getByText("Ulas paketnya untuk pelanggan lain")).toBeTruthy();
     expect(router.push).not.toHaveBeenCalled();
     fireEvent.press(screen.getByRole("button", { name: "Tulis ulasan" }));
     expect(router.push).toHaveBeenCalledWith("/ulasan/s-1");

@@ -285,6 +285,16 @@ function Browse({
                           }}
                         >
                           <MealSegment />
+                          {/* The categories with canvas art come right after the meal toggle, art first, in the same 34 chip row. */}
+                          {tiles.map(({ tag: name, art }) => (
+                            <ArtChip
+                              key={name}
+                              tag={name}
+                              art={art}
+                              selected={name === activeTag}
+                              onPress={() => setTag(name === activeTag ? "" : name)}
+                            />
+                          ))}
                           <FilterChip
                             label={t("Di bawah Rp30.000", "Under Rp30,000")}
                             selected={budget}
@@ -295,16 +305,6 @@ function Browse({
                             selected={trial}
                             onPress={() => setTrial(!trial)}
                           />
-                          {/* The categories with canvas art lead the tags, art first, in the same 34 chip row. */}
-                          {tiles.map(({ tag: name, art }) => (
-                            <ArtChip
-                              key={name}
-                              tag={name}
-                              art={art}
-                              selected={name === activeTag}
-                              onPress={() => setTag(name === activeTag ? "" : name)}
-                            />
-                          ))}
                           {tags.map((name) => (
                             <FilterChip
                               key={name}

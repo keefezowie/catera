@@ -52,25 +52,14 @@ export function SelamatMakanCard({
   return (
     <View
       testID="selamat-makan"
-      style={{
-        borderWidth: 1.5,
-        borderColor: edge,
-        borderRadius: nativeLayout.radius.card,
-        borderCurve: "continuous",
-        padding: nativeLayout.space.md,
-        gap: nativeLayout.space.md,
-      }}
+      style={{ gap: nativeLayout.space.md }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}>
         <PolishArt name="moment-rantang-meledak" size={ART} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text variant="bodyStrong" style={{ color: ink }}>
-            {t("Selamat makan", "Enjoy your meal")}
-          </Text>
-          <Text variant="meta" style={{ color: quiet }}>
-            {t("Gimana makanannya?", "How was the food?")}
-          </Text>
-        </View>
+        {/* The track headline above already says "Selamat makan"; the card adds only the ask. */}
+        <Text variant="body" style={{ flex: 1, minWidth: 0, color: ink }}>
+          {t("Ulas paketnya untuk pelanggan lain", "Review the plan for other customers")}
+        </Text>
       </View>
       <Button
         variant="secondary"
