@@ -34,7 +34,7 @@ Branch v2. Speed mode. Built, audited with expo-native-ui + design-taste-fronten
 - Audit: output/native-review/polish-2026-10-30/audit/AUDIT.md. It found 33 issues (2 high, 12 med, 19 low), all addressed by the builders.
 - Code review (Opus): one medium (Android back skipping onboarding) and three lows, all fixed.
 - Checks on the final tree: typecheck clean; customer jest 2139/2139; caterer jest 986/986; root vitest 1115/1115. They ran in parallel (`npm run test:fast`); the full suite takes about 3 minutes.
-- **Gate:** the re-gate agent stopped at a rate limit after "Masuk OK". Its output, if any, is in output/native-review/polish-2026-10-30/regate/. **Next session: finish the re-gate (verify the 2 high and 12 med findings fixed, Android back on each onboarding step, and a light/dark sweep), then stop the emulator.**
+- **Gate:** re-gate PASS (output/native-review/polish-2026-10-30/regate/GATE.md). Both highs and all 12 mediums are fixed or changed by ruling, and Android back steps back on every onboarding step. Its three follow-ups (N1 Selamat makan card repeating the headline, N2 art chips after the budget/trial chips, N3 onboarding pre-filling an uncovered area) are fixed in 46496ae0. Those three fixes were checked by tests, not on a device.
 
 ## Owner actions / parked
 - Shrink the 11 food cutouts to WebP to cut about 4 MB from the 8.3 MB runtime art.
