@@ -1423,6 +1423,23 @@ Owner pick of October 13, 2026 (the owner found the animations too fast and aske
 
 Sources: `nativeMotion` (`packages/design-tokens/src/index.ts:45-52`) and `webMotion` (`apps/web/src/lib/motion.ts:2-9`; its web-only `exit` ease `cubic-bezier(.4,0,1,1)` stays). `tests/native-motion-tokens.test.ts` keeps the two equal, pins the values, checks the durations rise and checks the spring is critically damped within 0.02. Every rule above that names a duration by its token (for example "over 220ms (`content`)") now runs at the new value of that token; the token is the contract, the old number is history. The older shared `motion` export (180ms on the old ease, `index.ts:40-43`) still feeds the web `--ease` variable and is not part of this change.
 
+### Motion: everyday pace (November 1, 2026)
+
+Owner pick of November 1, 2026, after an animation audit against current practice (UI motion near or under 300ms, ease-out to enter and leave, ease-in-out to travel, springs for anything a finger can interrupt). It partly supersedes "Even slower": everyday motion is quicker, and the one-off moments keep the calm pace the owner chose.
+
+| Token | Even slower | Now |
+| --- | --- | --- |
+| `control` | 200ms | 200ms |
+| `selection` | 340ms | 260ms |
+| `content` | 440ms | 320ms |
+| `feature` | 680ms | 680ms (launch, paid outcome, mood arc, tracker stage, heart burst) |
+| `move` | (none) | `cubic-bezier(.65, 0, .35, 1)`: something already on screen travelling (rows making room, the tracker marker) |
+
+- `StoryViewer` opens on `nativeMotion.spring` instead of a 680ms timing, so a close during the opening turns around from where it is.
+- The customer Siang / Malam door uses `nativeMotion.toggle` instead of a copy of its values; the payment bar's breath is a 3% swell on two `selection` beats.
+- The web's legacy `motion` export and its `--ease` variable are gone: every web transition names `--motion-*` (`--motion-move` added).
+- `tests/native-motion-tokens.test.ts` pins the new column and keeps `move` equal on native and web.
+
 - **Press.** `PressableScale` springs to 0.97 and back on `nativeMotion.spring` (`packages/mobile-ui/src/motion/PressableScale.tsx:52, 57`). The scale starts on press-down, so the response is immediate; only the settle is slower (about 0.4s). The reduced-motion dim to 0.85 runs over `control`.
 - **Heart.** `HEART_BURST_MS` is `nativeMotion.feature`, 680ms (`SaveHeart.tsx:23`; it was 380). The heart rises to 1.22 over `control` and springs back on the new spring. Saved and outline hearts are both forest (rule 3); the burst dots alternate `forest` and `forestDeep`.
 - **Tracker.** The stage change animates over `feature` (680ms) on the new ease (see Tracker).

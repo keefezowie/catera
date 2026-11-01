@@ -29,12 +29,13 @@ export type RowMotion = {
 const ROW_RISE = 8;
 
 const ease = Easing.bezier(...nativeMotion.ease);
+const move = Easing.bezier(...nativeMotion.move);
 
 /**
  * Layout animations for a row the user's own action inserts or removes (an address saved, a saved package removed,
  * an import row deleted or put back): `entering` fades in and rises 8dp over `nativeMotion.content` on
  * `nativeMotion.ease`, `exiting` fades out over `nativeMotion.control`, and `layout` moves the rows that remain with
- * `LinearTransition` over `nativeMotion.content`.
+ * `LinearTransition` over `nativeMotion.content` on `nativeMotion.move` (ease-in-out: they travel across the screen).
  * Spread them on the row's `Animated.View`. Never use them on a first load, a refresh, a search or filter change, a
  * tab return or a mood switch (Decision A): those swap the whole data area through `FadeSwap`, or swap the rows
  * as one block through `RowSwap`.
@@ -52,7 +53,7 @@ export function useRowMotion(): RowMotion {
               .withInitialValues({ opacity: 0, transform: [{ translateY: ROW_RISE }] }),
             returning: FadeIn.delay(nativeMotion.content).duration(nativeMotion.control).easing(ease),
             exiting: FadeOut.duration(nativeMotion.control).easing(ease),
-            layout: LinearTransition.duration(nativeMotion.content).easing(ease),
+            layout: LinearTransition.duration(nativeMotion.content).easing(move),
           },
     [reduced],
   );

@@ -353,15 +353,15 @@ describe("StoryViewer", () => {
     }
   });
 
-  it("fades in and scales up from 0.92 over the feature duration on mount, instantly under reduced motion", () => {
-    const timing = jest.spyOn(Reanimated, "withTiming");
+  it("fades in and scales up from 0.92 on the calm spring on mount, instantly under reduced motion", () => {
+    const spring = jest.spyOn(Reanimated, "withSpring");
     const view = mount(viewer(0));
-    expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: nativeMotion.feature }));
+    expect(spring).toHaveBeenCalledWith(1, nativeMotion.spring);
     view.unmount();
-    timing.mockClear();
+    spring.mockClear();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     mount(viewer(0));
-    expect(timing).not.toHaveBeenCalled();
+    expect(spring).not.toHaveBeenCalledWith(1, nativeMotion.spring);
     expect(flat("story-viewer-stage").opacity).toBe(1);
     expect((flat("story-viewer-stage").transform as { scale?: number }[]).find((t) => "scale" in t)?.scale).toBeCloseTo(1, 6);
   });

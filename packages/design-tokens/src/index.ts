@@ -37,17 +37,21 @@ export const typography = {
   heading: 32,
 } as const;
 
-export const motion = {
-  duration: 180,
-  ease: "cubic-bezier(.16,1,.3,1)",
-} as const;
 /** Native motion contract: durations match apps/web/src/lib/motion.ts (guarded by tests/native-motion-tokens.test.ts). */
 export const nativeMotion = {
+  /**
+   * Durations (November 1, 2026): everyday motion (selection, content) stays near or under 300ms so frequent changes
+   * feel immediate; `feature` keeps the owner's "Even slower" 680 for one-off moments (launch, paid outcome, mood arc,
+   * tracker stage, the heart burst).
+   */
   control: 200,
-  selection: 340,
-  content: 440,
+  selection: 260,
+  content: 320,
   feature: 680,
+  /** Ease-out: anything entering, leaving or changing in place. */
   ease: [0.33, 1, 0.68, 1] as const,
+  /** Ease-in-out: something already on screen travelling to a new place (rows making room, the tracker marker). */
+  move: [0.65, 0, 0.35, 1] as const,
   /**
    * Springs, all with mass 1 written out: Reanimated 4 defaults mass to 4, which turned the ratio-1.0 spring below into a
    * ratio-0.5 wobble. In Apple's terms (response in seconds, damping ratio): stiffness = (2π / response)², damping =
@@ -85,7 +89,6 @@ export const webVariables = {
   "--danger": colors.danger,
   "--radius": radii.surface + "px",
   "--focus": focus.color,
-  "--ease": motion.ease,
   "--space-xs": spacing.xs + "px",
   "--space-sm": spacing.sm + "px",
   "--space-md": spacing.md + "px",

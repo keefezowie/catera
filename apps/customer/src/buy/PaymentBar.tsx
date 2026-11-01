@@ -33,6 +33,14 @@ const IOS_TAB_BAR = 49;
 const WARM_MS = 3 * 60_000;
 /** While a payment is open the read is asked again this often, so one paid elsewhere leaves without a tap. */
 const REFRESH_MS = 30_000;
+/** The warm breath: a 3% swell out and back over two selection beats, then a rest, once every 2 s. */
+const SWELL = 1.03;
+const BREATH_MS = 2_000;
+const BREATH_REST_MS = BREATH_MS - 2 * nativeMotion.selection;
+/** One turn of the checking arrow: slow, so it reads as waiting rather than loading fast. */
+const SPIN_MS = 1_400;
+/** How far below its place the bar starts as it rises in. */
+const RISE = 28;
 
 const ease = Easing.bezier(...nativeMotion.ease);
 
@@ -127,7 +135,7 @@ export function PaymentBarView({ bar, now }: { bar: Bar; now: number }) {
   const open = () =>
     router.push((bar.kind === "many" ? "/pembayaran" : customerLink(bar.href)) as never);
 
-  // The tile warms over a selection beat; under 3 minutes it breathes (a 6% swell every 2 s).
+  // The tile warms over a selection beat; under 3 minutes it breathes (a 3% swell every 2 s).
   const warmth = useSharedValue(warm ? 1 : 0);
   const swell = useSharedValue(1);
   const spin = useSharedValue(0);
@@ -138,9 +146,9 @@ export function PaymentBarView({ bar, now }: { bar: Bar; now: number }) {
     if (warm && !reduced)
       swell.value = withRepeat(
         withSequence(
-          withTiming(1.06, { duration: 380, easing: ease }),
-          withTiming(1, { duration: 380, easing: ease }),
-          withDelay(1240, withTiming(1, { duration: 0 })),
+          withTiming(SWELL, { duration: nativeMotion.selection, easing: ease }),
+          withTiming(1, { duration: nativeMotion.selection, easing: ease }),
+          withDelay(BREATH_REST_MS, withTiming(1, { duration: 0 })),
         ),
         -1,
       );
@@ -148,7 +156,7 @@ export function PaymentBarView({ bar, now }: { bar: Bar; now: number }) {
   useEffect(() => {
     cancelAnimation(spin);
     spin.value = 0;
-    if (checking && !reduced) spin.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.linear }), -1);
+    if (checking && !reduced) spin.value = withRepeat(withTiming(1, { duration: SPIN_MS, easing: Easing.linear }), -1);
   }, [checking, reduced, spin]);
   const tileStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(warmth.value, [0, 1], [c.forest, c.cream]),
@@ -169,7 +177,7 @@ export function PaymentBarView({ bar, now }: { bar: Bar; now: number }) {
               .damping(nativeMotion.spring.damping)
               .stiffness(nativeMotion.spring.stiffness)
               .mass(nativeMotion.spring.mass)
-              .withInitialValues({ opacity: 0, transform: [{ translateY: 28 }] })
+              .withInitialValues({ opacity: 0, transform: [{ translateY: RISE }] })
       }
       exiting={reduced ? undefined : FadeOutDown.duration(nativeMotion.control).easing(ease)}
       style={[styles.lane, { bottom: insets.bottom + tabBar + GAP }]}

@@ -49,7 +49,7 @@ Both native apps draw the mascot from `packages/mobile-ui` (`src/brand/` and `sr
 
 ### Timings against the `nativeMotion` tokens
 
-`nativeMotion` since Phase G ("Even slower", owner pick of October 13, 2026, `98af208e`): `control` 200, `selection` 340, `content` 440, `feature` 680 ms, ease `cubic-bezier(.33, 1, .68, 1)`, spring damping 22 and stiffness 120 (critically damped). Before Phase G they were 120, 180, 220 and 320 ms on `cubic-bezier(.16, 1, .3, 1)` with a damping 18, stiffness 260 spring. Transform and opacity only. Rows tied to a token moved with it; the rig's own segment times did not change. The rig timelines use the Catera ease, solved as a worklet, but their segment times are the rig's own recipe (`rig.json`, `motionRecipes`), so only some line up with a token.
+`nativeMotion` since November 1, 2026 (everyday pace; see DESIGN.md): `control` 200, `selection` 260, `content` 320, `feature` 680 ms (Phase G "Even slower", October 13, `98af208e`, had `selection` 340 and `content` 440), ease `cubic-bezier(.33, 1, .68, 1)`, spring damping 22 and stiffness 120 (critically damped). Before Phase G they were 120, 180, 220 and 320 ms on `cubic-bezier(.16, 1, .3, 1)` with a damping 18, stiffness 260 spring. Transform and opacity only. Rows tied to a token moved with it; the rig's own segment times did not change. The rig timelines use the Catera ease, solved as a worklet, but their segment times are the rig's own recipe (`rig.json`, `motionRecipes`), so only some line up with a token.
 
 | Piece | Timing | Token relation |
 | --- | --- | --- |

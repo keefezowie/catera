@@ -10,11 +10,14 @@ describe("native motion tokens", () => {
       webMotion.content,
       webMotion.feature,
     ]);
-    expect(`cubic-bezier(${nativeMotion.ease.map(String).join(",").replace(/0\./g, ".")})`).toBe(webMotion.ease);
+    const css = (curve: readonly number[]) => `cubic-bezier(${curve.map(String).join(",").replace(/0\./g, ".")})`;
+    expect(css(nativeMotion.ease)).toBe(webMotion.ease);
+    expect(css(nativeMotion.move)).toBe(webMotion.move);
   });
-  it("is the Even slower column the owner picked", () => {
-    expect([nativeMotion.control, nativeMotion.selection, nativeMotion.content, nativeMotion.feature]).toEqual([200, 340, 440, 680]);
+  it("everyday motion stays near 300ms; feature keeps the owner's Even slower 680", () => {
+    expect([nativeMotion.control, nativeMotion.selection, nativeMotion.content, nativeMotion.feature]).toEqual([200, 260, 320, 680]);
     expect([...nativeMotion.ease]).toEqual([0.33, 1, 0.68, 1]);
+    expect([...nativeMotion.move]).toEqual([0.65, 0, 0.35, 1]);
     expect(nativeMotion.spring).toEqual({ damping: 22, stiffness: 120, mass: 1 });
   });
   // Reanimated 4 defaults mass to 4, so a spring without it runs at half the ratio and twice the response it was

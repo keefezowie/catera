@@ -171,7 +171,7 @@ describe("photos", () => {
     const photo = find();
     expect(photo.props.source).toEqual({ uri: PHOTO });
     expect(photo.props.transition).toBe(nativeMotion.selection);
-    expect(nativeMotion.selection).toBe(340);
+    expect(nativeMotion.selection).toBe(260);
     expect(photo.props.contentFit).toBe("cover");
     // While it loads, the photo's own ground is its neutral fallback, never sage.
     expect(flat(photo).backgroundColor).toBe(fill);

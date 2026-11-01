@@ -188,6 +188,6 @@ describe("PhotoThumb", () => {
     render(withDapurScale(<PhotoThumb uri="https://cdn.example.test/a.jpg" />));
     const image = screen.UNSAFE_getByType(ExpoImage);
     expect(flat(image)).toMatchObject({ borderCurve: "continuous" });
-    expect(image.props.transition).toBe(340);
+    expect(image.props.transition).toBe(260);
   });
 });

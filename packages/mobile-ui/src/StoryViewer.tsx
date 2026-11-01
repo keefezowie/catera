@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { PanResponder, Pressable, useWindowDimensions, View, type GestureResponderEvent } from "react-native";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { nativeMotion, nativeThemes } from "@catera/design-tokens";
@@ -9,7 +9,6 @@ import { FadeSwap, PressableScale, useReduced } from "./motion";
 
 // A story sits on black whatever the theme, so its inks do not follow it (as in StoryCover).
 const ink = nativeThemes.light;
-const ease = Easing.bezier(...nativeMotion.ease);
 const BAR_HEIGHT = 3;
 const START_SCALE = 0.92;
 /** A drag this far down closes the story... */
@@ -58,7 +57,7 @@ function rubberband(overshoot: number, dimension: number) {
  *   the finger is down the story follows it 1:1 and shrinks a little (an upward pull rubber-bands); let go short of a
  *   close, or while moving back up, and it springs home from the finger's speed (`nativeMotion.settle`). Under reduced
  *   motion it does not follow; the close rule is the same.
- * - It opens with a fade and a scale from 0.92 to 1 over `nativeMotion.feature`; instantly under reduced motion.
+ * - It opens with a fade and a scale from 0.92 to 1 on `nativeMotion.spring` (no overshoot, interruptible by a close); instantly under reduced motion.
  * - The bars start 8dp below `topInset`, which defaults to the status-bar inset. A caller drawn below something that
  *   already covers the status bar (the demo strip) passes 0, so the inset is not added twice.
  */
@@ -90,7 +89,7 @@ export function StoryViewer({
   const drag = useSharedValue(0);
 
   useEffect(() => {
-    if (!reduced) enter.value = withTiming(1, { duration: nativeMotion.feature, easing: ease });
+    if (!reduced) enter.value = withSpring(1, nativeMotion.spring);
     // The opening plays once, when the viewer mounts; a later change of the motion setting does not replay it.
   }, []);
   const stage = useAnimatedStyle(() => {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, type SharedValue } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { nativeLayout } from "@catera/design-tokens";
+import { nativeLayout, nativeMotion } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
 import { fontFor, PressableScale, Skeleton, Text, useMood, useMoodColors, useReduced } from "@catera/mobile-ui";
 import type { Mood } from "@catera/design-tokens";
@@ -21,8 +21,6 @@ const GAP = 4;
 const GLYPH = 18;
 /** How far the sun sinks and the moon rises while the door crosses. */
 const DRIFT = 3;
-/** The door's spring: settles in about 350ms with a hint of overshoot. */
-const DOOR_SPRING = { damping: 26, stiffness: 320, mass: 1 };
 
 const STOPS = [
   { mood: "siang", id: "lunch", icon: "sunny" },
@@ -93,7 +91,7 @@ export function StatusStops({ lunch, dinner }: { lunch: StopInfo; dinner: StopIn
   const chosen = mood === "malam" ? 1 : 0;
   const door = useSharedValue(chosen);
   useEffect(() => {
-    door.value = reduced ? chosen : withSpring(chosen, DOOR_SPRING);
+    door.value = reduced ? chosen : withSpring(chosen, nativeMotion.toggle);
   }, [chosen, reduced, door]);
   const info = { lunch, dinner };
   const names = {

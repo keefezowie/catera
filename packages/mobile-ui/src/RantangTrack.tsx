@@ -30,6 +30,7 @@ export type TrackCounts = Partial<Record<Exclude<TrackStage, "issue">, number>>;
 type Flow = Exclude<TrackStage, "issue">;
 
 const ease = Easing.bezier(...nativeMotion.ease);
+const move = Easing.bezier(...nativeMotion.move);
 /**
  * The track's geometry per size. `regular` is the rantang marker riding above a 36 ring rail (64 with the 4 between);
  * `compact` (Dapur's Hari ini header) is a 40 rail of 32 rings round 24 discs, the marker drawn on the current stop.
@@ -223,7 +224,7 @@ export function RantangTrack({
       warn.value = next;
       return;
     }
-    position.value = withTiming(target, { duration: nativeMotion.feature, easing: ease });
+    position.value = withTiming(target, { duration: nativeMotion.feature, easing: move });
     warn.value = withTiming(next, { duration: nativeMotion.feature, easing: ease });
   }, [target, issue, reduced, position, warn]);
 

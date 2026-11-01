@@ -217,7 +217,7 @@
 
 .customer-subscriptions > summary svg {
   flex: 0 0 auto;
-  transition: transform 180ms var(--ease);
+  transition: transform var(--motion-control) var(--motion-ease);
 }
 
 .customer-subscriptions > summary:hover {

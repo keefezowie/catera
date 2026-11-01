@@ -1,10 +1,11 @@
 /** Web timing. Shared with the native apps (packages/design-tokens nativeMotion), guarded by tests/native-motion-tokens.test.ts. */
 export const webMotion = {
   control: 200,
-  selection: 340,
-  content: 440,
+  selection: 260,
+  content: 320,
   feature: 680,
   ease: "cubic-bezier(.33,1,.68,1)",
+  move: "cubic-bezier(.65,0,.35,1)",
   exit: "cubic-bezier(.4,0,1,1)",
 } as const;
 
@@ -14,6 +15,7 @@ export const webMotionVariables = {
   "--motion-content": `${webMotion.content}ms`,
   "--motion-feature": `${webMotion.feature}ms`,
   "--motion-ease": webMotion.ease,
+  "--motion-move": webMotion.move,
   "--motion-exit": webMotion.exit,
 };
 
