@@ -413,7 +413,9 @@ describe("Mulai masak", () => {
     expect(within(screen.getByTestId("screen-footer")).queryByText("Hanya bisa untuk hari ini.")).toBeNull();
     await waitFor(() => expect((runtime.api.sellerOperations as jest.Mock).mock.calls.length).toBeGreaterThan(1));
     expect(runtime.api.usage).not.toHaveBeenCalledWith("cook_started", "dapur");
-    expect(Haptics.notificationAsync).not.toHaveBeenCalled();
+    // The failure toast plays the error haptic; nothing plays success.
+    expect(Haptics.notificationAsync).toHaveBeenCalledTimes(1);
+    expect(Haptics.notificationAsync).toHaveBeenCalledWith("error");
     // The button is usable again, and a new try clears the line.
     expect(screen.getByRole("button", { name: "Mulai masak" }).props.accessibilityState?.disabled).toBeFalsy();
   });

@@ -368,10 +368,10 @@ describe("the heart", () => {
     const runtime = savedRuntime(["p-murah"]);
     wrap(runtime, <Jelajah />);
     fireEvent.press(await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
-    // The outline comes back at once, with no pop and no haptic.
+    // The outline comes back at once, with no pop, and the same select tick as saving.
     expect(screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeTruthy();
     expect(sequence).not.toHaveBeenCalledWith(1.22, 1);
-    expect(Haptics.selectionAsync).not.toHaveBeenCalled();
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
     expect(Haptics.impactAsync).not.toHaveBeenCalled();
     expect(await screen.findByText("Dihapus dari simpanan")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));

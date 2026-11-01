@@ -131,7 +131,8 @@ describe("Paket diterbitkan", () => {
     expect(await screen.findByText("Paket diterbitkan")).toBeTruthy();
     expect(screen.queryByTestId("success-beat")).toBeNull();
     expect(screen.UNSAFE_queryByType(Confetti)).toBeNull();
-    expect(successes()).toHaveLength(0);
+    // No beat; the success toast plays the one success haptic.
+    expect(successes()).toHaveLength(1);
   });
 
   it("a package read that cannot tell gives the toast, never the beat", () => {

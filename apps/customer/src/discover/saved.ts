@@ -62,12 +62,14 @@ export function useSaved(next: string) {
           message: t("Disimpan", "Saved"),
           action: { label: t("Lihat", "View"), onPress: () => router.push("/disimpan" as never) },
           tone: "success",
+          haptic: "none", // the heart already ticked
         });
       else
         toast.show({
           message: t("Dihapus dari simpanan", "Removed from saved"),
           action: { label: t("Urungkan", "Undo"), onPress: () => void set(packageId, true, true) },
           tone: "success",
+          haptic: "none", // the heart already ticked
         });
     } catch {
       setPending((p) => {

@@ -1,6 +1,15 @@
 import { useMemo } from "react";
 import * as Haptics from "expo-haptics";
 
+/**
+ * The haptic map: the feel matches the meaning.
+ * - tap: a press that does something (buttons, rows, tiles).
+ * - select: a choice or a toggle changes (chips, switches, radios, save and unsave, a copied value).
+ * - success: something finished (a success toast).
+ * - warning: a caution the person can recover from (a warning toast).
+ * - error: something failed (an error toast).
+ * Toasts play theirs from `tone` (override with `haptic`), so a screen pairs a toast with no haptic call of its own.
+ */
 export type HapticKind = "tap" | "select" | "success" | "warning" | "error";
 
 // Haptics are decoration: a missing motor or a denied permission must never surface as an error.

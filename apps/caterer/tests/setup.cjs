@@ -51,7 +51,7 @@ jest.mock("expo-haptics", () => {
     ),
     AndroidHaptics,
     ImpactFeedbackStyle: { Light: "light" },
-    NotificationFeedbackType: { Success: "success", Warning: "warning" },
+    NotificationFeedbackType: { Success: "success", Warning: "warning", Error: "error" },
   };
 });
 // lottie-react-native draws through a native view. The stand-in is a host View that keeps every prop, so a test reads

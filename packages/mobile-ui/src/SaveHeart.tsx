@@ -90,8 +90,9 @@ export function SaveHeart({
   const heart = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   const press = () => {
+    // Saving and unsaving both tick; only saving draws the pop and burst.
+    if (saved || canSave) haptic.select();
     if (!saved && canSave) {
-      haptic.select();
       if (!reduced) {
         scale.value = withSequence(
           withTiming(POP, { duration: nativeMotion.control, easing: ease }),

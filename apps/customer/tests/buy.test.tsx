@@ -1172,7 +1172,7 @@ describe("Bayar", () => {
     expect(await screen.findByText("8808123456789012")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Salin nomor" }));
     await waitFor(() => expect(Clipboard.setStringAsync).toHaveBeenCalledWith("8808123456789012"));
-    await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ message: "Nomor disalin", tone: "success" }));
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ message: "Nomor disalin", tone: "success", haptic: "select" }));
   });
 
   it("a copy that fails says so in an error toast instead of rejecting unhandled", async () => {

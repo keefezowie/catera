@@ -315,6 +315,7 @@ export function SettingsSwitchRow({
   const palette = useColors();
   const ios = os === "ios";
   const { inset } = useRowInset(ios);
+  const haptic = useHaptic();
   return (
     <View testID="settings-switch-row" style={{ minHeight: ios ? 52 : 72, paddingVertical: ios ? 12 : 8, gap: 8 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: inset, minHeight: 48 }}>
@@ -331,7 +332,10 @@ export function SettingsSwitchRow({
             accessibilityState={{ checked: value, disabled }}
             value={value}
             disabled={disabled}
-            onValueChange={onValueChange}
+            onValueChange={(next) => {
+              haptic.select();
+              onValueChange(next);
+            }}
             trackColor={{ true: palette.forest, false: ios ? undefined : palette.disabledFill }}
             // Android: the M3 handle, on-primary when on and the outline tone when off. iOS keeps its own white thumb
             // and system off track.

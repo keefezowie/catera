@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FullWindowOverlay } from "react-native-screens";
 import { nativeMotion } from "@catera/design-tokens";
 import { Text } from "./components";
-import { useReduced } from "./motion";
+import { useHaptic, useReduced, type HapticKind } from "./motion";
 import { useColors } from "./theme";
 import { ANDROID_TAB_BAR, ToastAnchorContext, type ToastAnchor } from "./toastAnchor";
 import { fonts } from "./type";
@@ -14,7 +14,9 @@ import { fonts } from "./type";
 export type ToastInput = {
   message: string;
   action?: { label: string; onPress: () => void };
-  tone?: "success" | "error";
+  tone?: "success" | "error" | "warning";
+  /** The haptic this toast plays. Default follows `tone` (success, error, warning; none without a tone); "none" is silent. */
+  haptic?: HapticKind | "none";
 };
 
 export type ToastApi = { show(input: ToastInput): void; hide(): void };
@@ -74,6 +76,7 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
   const nextId = useRef(0);
   const shownId = useRef(0);
   const screenReader = useRef(false);
+  const haptic = useHaptic();
   // iOS only: a sheet's toast sits above the keyboard. Android's window resizes for the keyboard, so it needs nothing.
   const [keyboard, setKeyboard] = useState(0);
 
@@ -122,6 +125,9 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
       const id = nextId.current;
       shownId.current = id;
       setShown({ ...input, id });
+      // One haptic per `show`, so the feel matches the toast's meaning.
+      const kind = input.haptic ?? input.tone;
+      if (kind && kind !== "none") haptic[kind]();
       AccessibilityInfo.announceForAccessibility(input.action ? `${input.message}, ${input.action.label}` : input.message);
       // A timeout that resolves after this toast was replaced or closed schedules nothing.
       const closeAfter = (ms: number) => {
@@ -135,7 +141,7 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
         () => closeAfter(SHOW_WITH_ACTION_MS),
       );
     },
-    [hide, os],
+    [hide, os, haptic],
   );
 
   useEffect(() => clearTimer, []);

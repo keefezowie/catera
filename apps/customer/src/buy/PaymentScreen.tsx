@@ -358,7 +358,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
               label={t("Salin nomor", "Copy number")}
               onPress={() =>
                 void Clipboard.setStringAsync(instructions.accountNumber).then(
-                  () => toast.show({ message: t("Nomor disalin", "Number copied"), tone: "success" }),
+                  () => toast.show({ message: t("Nomor disalin", "Number copied"), tone: "success", haptic: "select" }),
                   () => toast.show({ message: t("Belum bisa menyalin nomor. Coba lagi.", "Couldn't copy the number. Try again."), tone: "error" }),
                 )
               }

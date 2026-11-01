@@ -64,7 +64,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   useEffect(() => {
     if (!from || copied.current) return;
     copied.current = true;
-    toast.show({ message: t("Paket disalin", "Package copied"), tone: "success" });
+    toast.show({ message: t("Paket disalin", "Package copied"), tone: "success", haptic: "none" });
   }, [from, toast, t]);
   const [shown, setShown] = useState<ReturnType<typeof packageIssues>>({});
   const [giziShown, setGiziShown] = useState<ReturnType<typeof nutritionIssues>>({});
