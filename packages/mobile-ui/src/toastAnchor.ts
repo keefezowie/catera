@@ -84,11 +84,25 @@ export function insideTabs(navigation: NavigationLike | undefined): boolean {
 }
 
 /**
- * How far above the window's bottom this screen ends: inside the tabs, the tab bar and the system inset under it;
- * elsewhere (a modal, a full-screen flow) only the system inset.
+ * How much of a tab screen's foot something floating over the tab bar covers right now (the customer app's payment
+ * bar), so tab screens pad their content and the toast clears it. 0 when nothing floats there.
+ */
+export const TabOverlayContext = createContext(0);
+
+/** The room the floating tab overlay takes inside the tabs; 0 elsewhere. */
+export function useTabOverlay(): number {
+  const overlay = use(TabOverlayContext);
+  const navigation = useScreenNavigation() as NavigationLike | undefined;
+  return overlay && insideTabs(navigation) ? overlay : 0;
+}
+
+/**
+ * How far above the window's bottom this screen ends: inside the tabs, the tab bar, the system inset under it and
+ * anything floating over the bar; elsewhere (a modal, a full-screen flow) only the system inset.
  */
 export function useScreenBottomEdge(): number {
   const insets = useSafeAreaInsets();
   const navigation = useScreenNavigation() as NavigationLike | undefined;
-  return insets.bottom + (insideTabs(navigation) ? ANDROID_TAB_BAR : 0);
+  const overlay = useTabOverlay();
+  return insets.bottom + (insideTabs(navigation) ? ANDROID_TAB_BAR + overlay : 0);
 }

@@ -108,22 +108,33 @@ export type WaitingItem =
     }
   | { kind: "renew"; subscription: Subscription }
   | { kind: "trial"; subscription: Subscription }
-  | { kind: "review"; subscription: Subscription }
-  /** A checkout still to pay (no method yet, or instructions shown) whose hold has not run out. */
-  | { kind: "payment"; packageName: string; deadline: string; href: string };
+  | { kind: "review"; subscription: Subscription };
 
-/** Checkouts still to pay, soonest hold end first. A payment being checked is never offered again. */
-function paymentRows(actions: CustomerActionItem[], now: Date): WaitingItem[] {
-  return actions
-    .filter(
-      (i) =>
-        i.kind === "payment_action" &&
-        (i.status === "choose_method" || i.status === "awaiting_payment") &&
-        !!i.dueAt &&
-        deadlineAt(i.dueAt) > now.getTime(),
-    )
-    .map((i) => ({ kind: "payment" as const, packageName: i.packageName ?? "", deadline: i.dueAt!, href: i.href }))
-    .sort((a, b) => deadlineAt(a.deadline) - deadlineAt(b.deadline));
+/** What the payment bar over the tabs shows: one payment, several to pay, or nothing. */
+export type PaymentBar =
+  | { kind: "one"; status: "choose" | "pay" | "checking"; packageName: string; deadline: string; href: string }
+  | { kind: "many"; count: number; deadline: string };
+
+/**
+ * The open checkouts from the action read as the payment bar: still to pay comes before being checked; two or more
+ * still to pay become one "n pembayaran" bar (soonest hold end); a payment being checked shows only when nothing is
+ * left to pay. A hold that has ended, and a payment under review (its own help route), never show.
+ */
+export function paymentBar(actions: CustomerActionItem[] | null | undefined, now: Date): PaymentBar | null {
+  const open = (actions ?? [])
+    .filter((i) => i.kind === "payment_action" && !!i.dueAt && deadlineAt(i.dueAt) > now.getTime())
+    .sort((a, b) => deadlineAt(a.dueAt!) - deadlineAt(b.dueAt!));
+  const unpaid = open.filter((i) => i.status === "choose_method" || i.status === "awaiting_payment");
+  if (unpaid.length > 1) return { kind: "many", count: unpaid.length, deadline: unpaid[0].dueAt! };
+  const item = unpaid[0] ?? open.find((i) => i.status === "checking_payment");
+  if (!item) return null;
+  return {
+    kind: "one",
+    status: item.status === "choose_method" ? "choose" : item.status === "awaiting_payment" ? "pay" : "checking",
+    packageName: item.packageName ?? "",
+    deadline: item.dueAt!,
+    href: item.href,
+  };
 }
 
 /** The plan a menu action belongs to: the id in its `/subscriptions/{id}/menu` link, else the action itself. */
@@ -189,13 +200,14 @@ function reviewCandidate(state: CustomerState): Subscription | undefined {
 }
 
 /**
- * What waits on the customer, in the order Beranda shows it: payments still to finish (the held days run out first),
- * menus still to choose (soonest deadline first), plans to renew, trials to continue, then the review to leave.
- * `actions` is the action read; null (offline, never loaded) gives no payment or menu rows, since both are only known
- * from that read. `now` drops a payment whose hold has already ended.
+ * What waits on the customer, in the order Beranda shows it: menus still to choose (soonest deadline first), plans to
+ * renew, trials to continue, then the review to leave. `actions` is the action read; null (offline, never loaded)
+ * gives no menu rows, since a menu that is due is only known from that read. Payments to finish are not here: the
+ * payment bar over the tabs carries them (`paymentBar`). Nothing here depends on the clock: `now` is accepted so every
+ * Beranda section reads the same way, and for rules that start to depend on it.
  */
-export function waitingItems(state: CustomerState, actions: CustomerActionItem[] | null, now: Date): WaitingItem[] {
-  const items: WaitingItem[] = actions ? [...paymentRows(actions, now), ...menuRows(state, actions)] : [];
+export function waitingItems(state: CustomerState, actions: CustomerActionItem[] | null, _now: Date): WaitingItem[] {
+  const items: WaitingItem[] = actions ? menuRows(state, actions) : [];
   for (const subscription of state.subscriptions) {
     if (renewalDue(subscription, state.subscriptions)) items.push({ kind: "renew", subscription });
   }

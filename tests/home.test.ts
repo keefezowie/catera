@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   activePlans,
   mealPlates,
+  paymentBar,
   planLabel,
   todayPlates,
   upcomingDays,
@@ -262,30 +263,16 @@ describe("waitingItems", () => {
     expect(row.kind === "menu" && row.href).toBe(`/subscriptions/s-1/menu?date=${day(2)}&meal=lunch`);
   });
 
-  it("payments still to finish come first, soonest hold end first; checked or ended ones never", () => {
-    const pay = (id: string, status: CustomerActionItem["status"], dueAt: string): CustomerActionItem => ({
-      id: `payment-${id}`,
+  it("leaves payments to the payment bar", () => {
+    const item: CustomerActionItem = {
+      id: "payment-ck",
       kind: "payment_action",
-      status,
+      status: "awaiting_payment",
       priority: 1,
-      dueAt,
-      packageName: `Paket ${id}`,
-      href: `/payment/${id}`,
-    });
-    const at = (ms: number) => new Date(NOW.getTime() + ms).toISOString();
-    const rows = waitingItems(
-      state([]),
-      [
-        due("m", day(2)),
-        pay("later", "awaiting_payment", at(10 * 60_000)),
-        pay("sooner", "choose_method", at(5 * 60_000)),
-        pay("checked", "checking_payment", at(5 * 60_000)),
-        pay("ended", "awaiting_payment", at(-60_000)),
-      ],
-      NOW,
-    );
-    expect(rows.map((r) => (r.kind === "payment" ? r.href : r.kind))).toEqual(["/payment/sooner", "/payment/later", "menu"]);
-    expect(waitingItems(state([]), null, NOW).some((r) => r.kind === "payment")).toBe(false);
+      dueAt: new Date(NOW.getTime() + 600_000).toISOString(),
+      href: "/payment/ck",
+    };
+    expect(waitingItems(state([]), [item], NOW)).toEqual([]);
   });
 
   it("offline: no menu rows", () => {
@@ -388,5 +375,50 @@ describe("planLabel", () => {
     const a = sub({ id: "a" });
     const old = sub({ id: "old", status: "completed" });
     expect(planLabel(a, [a, old], "id")).toBe("Makan Siang Rumahan");
+  });
+});
+
+describe("paymentBar", () => {
+  const at = (ms: number) => new Date(NOW.getTime() + ms).toISOString();
+  const pay = (id: string, status: CustomerActionItem["status"], ms: number): CustomerActionItem => ({
+    id: `payment-${id}`,
+    kind: "payment_action",
+    status,
+    priority: 1,
+    dueAt: at(ms),
+    packageName: `Paket ${id}`,
+    href: `/payment/${id}`,
+  });
+
+  it("one payment to finish: its status, package, hold end and link", () => {
+    expect(paymentBar([pay("a", "awaiting_payment", 600_000)], NOW)).toEqual({
+      kind: "one",
+      status: "pay",
+      packageName: "Paket a",
+      deadline: at(600_000),
+      href: "/payment/a",
+    });
+    expect(paymentBar([pay("b", "choose_method", 600_000)], NOW)).toMatchObject({ status: "choose" });
+  });
+
+  it("two or more to finish become one bar with the soonest hold end", () => {
+    expect(
+      paymentBar([pay("late", "awaiting_payment", 900_000), pay("soon", "choose_method", 300_000), pay("c", "checking_payment", 100_000)], NOW),
+    ).toEqual({ kind: "many", count: 2, deadline: at(300_000) });
+  });
+
+  it("a payment being checked shows only when nothing is left to pay", () => {
+    expect(paymentBar([pay("c", "checking_payment", 600_000)], NOW)).toMatchObject({ kind: "one", status: "checking" });
+    expect(paymentBar([pay("c", "checking_payment", 100_000), pay("a", "awaiting_payment", 600_000)], NOW)).toMatchObject({
+      status: "pay",
+      href: "/payment/a",
+    });
+  });
+
+  it("nothing for an ended hold, a payment under review, other actions, or no read", () => {
+    expect(paymentBar([pay("x", "awaiting_payment", -1)], NOW)).toBeNull();
+    expect(paymentBar([pay("r", "payment_exception", 600_000)], NOW)).toBeNull();
+    expect(paymentBar([{ ...pay("m", "selection_due", 600_000), kind: "menu_choice_due" }], NOW)).toBeNull();
+    expect(paymentBar(null, NOW)).toBeNull();
   });
 });

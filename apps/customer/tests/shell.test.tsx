@@ -121,6 +121,8 @@ const mockNavTheme: { value?: { dark: boolean; colors: Record<string, string> } 
 jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), openLink: jest.fn() }));
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
+  // The tabs layout reads where it is to decide whether the payment bar shows: Beranda's root here.
+  useSegments: () => ["(tabs)", "(index)"],
   // The root layout registers the navigation container for goToTab and openLink; this one never has a state.
   useNavigationContainerRef: () => ({ addListener: () => () => undefined, isReady: () => false }),
   // The root hands the navigator a theme built from the palette; the library defaults are stood in by plain objects.

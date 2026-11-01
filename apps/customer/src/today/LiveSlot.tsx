@@ -45,7 +45,7 @@ export function LiveSlot({
   const label = [row.title, row.detail, row.action, more].filter(Boolean).join(", ");
 
   return (
-    <View testID="live-slot" style={[styles.card, row.attention && styles.attention]}>
+    <View testID="live-slot" style={styles.card}>
       {/* The row's press is the item's own action; the link to the full list is its own element below it, so a touch
           near the link can never start a renewal or open the menu picker. */}
       <PressableRow
@@ -97,8 +97,6 @@ const useStyles = themedStyles((c) => ({
     paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
     ...cardEdge(c),
   },
-  // A payment still to finish: the cream card with its warm edge, as Bayar's own attention cards.
-  attention: { backgroundColor: c.cream, ...(cardEdgeWidth(c) ? { borderColor: c.attentionBorder } : {}) },
   row: {
     minHeight: nativeLayout.row.media,
     flexDirection: "row",

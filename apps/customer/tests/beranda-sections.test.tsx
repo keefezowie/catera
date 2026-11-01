@@ -489,26 +489,6 @@ describe("Perlu kamu urus (the full list)", () => {
     expect(router.push).toHaveBeenLastCalledWith(`/pilih-menu/s-malam?date=${addDays(DEMO_TODAY, 6)}&meal=dinner`);
   });
 
-  it("a payment still to finish leads Beranda's slot on the cream card and opens Bayar", async () => {
-    const { state, actions } = demoCustomer();
-    const payment: CustomerActionItem = {
-      id: "payment-ck-pay",
-      kind: "payment_action",
-      status: "awaiting_payment",
-      priority: 1,
-      dueAt: new Date(morningOf(DEMO_TODAY).getTime() + 10 * 60_000).toISOString(),
-      packageName: "Makan Siang Rumahan",
-      href: "/payment/ck-pay",
-    };
-    const items = [...actions, payment];
-    mount(runtimeWith(async () => state, async () => ({ total: items.length, items })).runtime);
-    const row = await screen.findByTestId("live-slot-row");
-    expect(row.props.accessibilityLabel).toMatch(/^Selesaikan pembayaran, Makan Siang Rumahan · bayar sebelum \d{2}\.\d{2}, Bayar, /);
-    expect(StyleSheet.flatten(screen.getByTestId("live-slot").props.style).backgroundColor).toBe(light.cream);
-    fireEvent.press(row);
-    expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-pay");
-  });
-
   it("reads in English", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
     mountList(demo().runtime);

@@ -1,7 +1,10 @@
+import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSegments } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useMobile } from "@catera/mobile-core";
-import { tabBarColors, tabLabelStyle, useColors, useTabBarNativeProps } from "@catera/mobile-ui";
+import { tabBarColors, tabLabelStyle, TabOverlayContext, useColors, useTabBarNativeProps } from "@catera/mobile-ui";
+import { onTabRoot, PAYMENT_BAR_ROOM, PaymentBarView, usePaymentBar } from "../../src/buy/PaymentBar";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
@@ -23,12 +26,18 @@ const order = Object.keys(icons) as CustomerTab[];
  * returns on scroll up. Colours follow the theme and never the mood. Each trigger is a group, `(jadwal)`, with its own
  * stack (`(index,jadwal,jelajah,akun)/_layout.tsx`), so detail screens push inside the tab and the bar stays. While a sheet
  * is on top the bar leaves the accessibility tree where the platform allows it (`tabBarNativeProps`).
+ *
+ * The payment bar floats over the tab bar on the four tab roots only: a pushed screen, Bayar and every flow above the
+ * tabs hide it. While it shows, the tab screens pad their foot and the toast rises above it (`TabOverlayContext`).
  */
 export default function TabsLayout() {
   const { t } = useMobile();
   const bar = tabBarColors(useColors());
   const label = tabLabelStyle();
   const nativeProps = useTabBarNativeProps();
+  const segments = useSegments() as string[];
+  const payment = usePaymentBar();
+  const shown = onTabRoot(segments) ? payment.bar : null;
   const titles: Record<CustomerTab, string> = {
     index: t("Beranda", "Home"),
     jadwal: t("Jadwal", "Schedule"),
@@ -36,31 +45,36 @@ export default function TabsLayout() {
     akun: t("Akun", "Account"),
   };
   return (
-    <NativeTabs
-      unstable_nativeProps={nativeProps}
-      labelVisibilityMode="labeled"
-      minimizeBehavior="onScrollDown"
-      backgroundColor={bar.backgroundColor}
-      indicatorColor={bar.indicatorColor}
-      rippleColor={bar.rippleColor}
-      tintColor={bar.tintColor}
-      iconColor={bar.iconColor}
-      labelStyle={{
-        default: { ...label, color: bar.labelColor.default },
-        selected: { ...label, color: bar.labelColor.selected },
-      }}
-    >
-      {order.map((name) => (
-        <NativeTabs.Trigger key={name} name={`(${name})`}>
-          <NativeTabs.Trigger.Icon
-            src={{
-              default: <NativeTabs.Trigger.VectorIcon family={Ionicons} name={icons[name].outline} />,
-              selected: <NativeTabs.Trigger.VectorIcon family={Ionicons} name={icons[name].filled} />,
-            }}
-          />
-          <NativeTabs.Trigger.Label>{titles[name]}</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-      ))}
-    </NativeTabs>
+    <TabOverlayContext value={shown ? PAYMENT_BAR_ROOM : 0}>
+      <View style={{ flex: 1 }}>
+        <NativeTabs
+          unstable_nativeProps={nativeProps}
+          labelVisibilityMode="labeled"
+          minimizeBehavior="onScrollDown"
+          backgroundColor={bar.backgroundColor}
+          indicatorColor={bar.indicatorColor}
+          rippleColor={bar.rippleColor}
+          tintColor={bar.tintColor}
+          iconColor={bar.iconColor}
+          labelStyle={{
+            default: { ...label, color: bar.labelColor.default },
+            selected: { ...label, color: bar.labelColor.selected },
+          }}
+        >
+          {order.map((name) => (
+            <NativeTabs.Trigger key={name} name={`(${name})`}>
+              <NativeTabs.Trigger.Icon
+                src={{
+                  default: <NativeTabs.Trigger.VectorIcon family={Ionicons} name={icons[name].outline} />,
+                  selected: <NativeTabs.Trigger.VectorIcon family={Ionicons} name={icons[name].filled} />,
+                }}
+              />
+              <NativeTabs.Trigger.Label>{titles[name]}</NativeTabs.Trigger.Label>
+            </NativeTabs.Trigger>
+          ))}
+        </NativeTabs>
+        {shown ? <PaymentBarView bar={shown} now={payment.now} /> : null}
+      </View>
+    </TabOverlayContext>
   );
 }
