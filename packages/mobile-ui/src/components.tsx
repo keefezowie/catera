@@ -30,7 +30,7 @@ import { StatusBand } from "./StatusBand";
 import { barTone, cardEdge, cardEdgeWidth, themedStyles, useColors } from "./theme";
 import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
 import { ScreenHeaderContext, screenInsetBehavior } from "./screenInsets";
-import { insideTabs, useScreenBottomEdge, useToastAnchor } from "./toastAnchor";
+import { insideTabs, useScreenBottomEdge, useTabOverlay, useToastAnchor } from "./toastAnchor";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
 
@@ -566,6 +566,8 @@ export function Screen({
   // the inset itself, ScreenFooter; inside the tabs NativeTabs ends the screen above the bar; iOS insets automatically).
   const insets = useSafeAreaInsets();
   const bottomInset = scaled && !ios && !footer && !insideTabs(navigation as never) ? insets.bottom : 0;
+  // Something floating over the tab bar (the payment bar) would cover the last content, so the scroll ends above it.
+  const tabOverlay = useTabOverlay();
   const contentTitle = !ios && nativeTitle ? nativeTitle : null;
   const lineEnd = useRef(NO_LINE);
   const [titleInBar, setTitleInBar] = useState(false);
@@ -638,7 +640,7 @@ export function Screen({
     testID: "screen-scroll",
     contentInsetAdjustmentBehavior: screenInsetBehavior({ header: !!header, bleed }),
     automaticallyAdjustKeyboardInsets: ios,
-    contentContainerStyle: { paddingBottom: 32 + bottomInset + extraBottom },
+    contentContainerStyle: { paddingBottom: 32 + bottomInset + extraBottom + tabOverlay },
     keyboardShouldPersistTaps: "handled",
     onScroll: handleScroll,
     scrollEventThrottle: handleScroll ? 16 : undefined,
