@@ -17,8 +17,8 @@ export const CHIP_ROW_MARGIN_TOP = -(BODY_TOP - SEARCH_TO_CHIPS + CHIP_ROW_SLOP)
 export const CHIP_ROW_MARGIN_BOTTOM = -CHIP_ROW_SLOP;
 
 /**
- * The frame of Jelajah's chip row, shared by the loaded row and its skeleton so both sit at one place: an explicit 44
- * height that never shrinks (a hit slop cannot reach past its parent, so the parent must really be 44), the margins
+ * The frame of Jelajah's chip row, shared by the loaded row and its skeleton so both sit at one place: a 44 minimum
+ * height that never shrinks and grows with large text (a hit slop cannot reach past its parent, so the parent must really be 44), the margins
  * above, and a right edge that runs to the screen edge while the row starts at the margin. The negative margins are on
  * this plain frame, never on the scroll view, whose height they would shrink.
  */
@@ -28,7 +28,7 @@ export function ChipRowFrame({ children }: { children: ReactNode }) {
     <View
       testID="chip-row-frame"
       style={{
-        height: CHIP_ROW_HEIGHT,
+        minHeight: CHIP_ROW_HEIGHT,
         flexShrink: 0,
         marginTop: CHIP_ROW_MARGIN_TOP,
         marginBottom: CHIP_ROW_MARGIN_BOTTOM,

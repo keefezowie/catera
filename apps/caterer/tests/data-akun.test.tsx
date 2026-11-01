@@ -7,6 +7,12 @@ import { DataAkun } from "../src/settings/DataAkun";
 import { HapusAkun } from "../src/settings/HapusAkun";
 import { withDapurScale } from "./dapur-scale";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),

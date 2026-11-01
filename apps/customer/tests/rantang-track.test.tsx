@@ -288,6 +288,8 @@ describe("RantangTrack", () => {
       expect(label.props.minimumFontScale).toBe(0.85);
       expect(flat(`journey-label-${i}`)).toMatchObject({ textAlign: "center", width: "100%" });
       expect(byId(`journey-count-${i}`).props.numberOfLines).toBe(1);
+      // A gutter in every column, so a label shrunk to fit at large text never touches its neighbour.
+      expect(flat(`journey-label-col-${i}`)).toMatchObject({ flex: 1, paddingHorizontal: 3 });
     }
     // No two-line room in a language where nothing wraps.
     expect(has("journey-label-slot-0")).toBe(false);

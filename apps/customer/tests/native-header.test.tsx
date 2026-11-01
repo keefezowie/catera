@@ -21,6 +21,12 @@ import { goToTab } from "../src/nav";
 import { dayHref, packageHref, planHref } from "../src/hrefs";
 import { customerState, offer } from "./fixtures";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 // A cold real-router mount can pass the default 5 s under machine load, as in Dapur's real-router tests.
 jest.setTimeout(30000);
 

@@ -3,7 +3,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSegments } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useMobile } from "@catera/mobile-core";
-import { tabBarColors, tabLabelStyle, TabOverlayContext, useColors, useTabBarNativeProps } from "@catera/mobile-ui";
+import { tabBarColors, TabOverlayContext, useColors, useTabLabelStyle, useTabBarNativeProps } from "@catera/mobile-ui";
 import { onTabRoot, PAYMENT_BAR_ROOM, PaymentBarView, usePaymentBar } from "../../src/buy/PaymentBar";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
@@ -33,7 +33,7 @@ const order = Object.keys(icons) as CustomerTab[];
 export default function TabsLayout() {
   const { t } = useMobile();
   const bar = tabBarColors(useColors());
-  const label = tabLabelStyle();
+  const label = useTabLabelStyle();
   const nativeProps = useTabBarNativeProps();
   const segments = useSegments() as string[];
   const payment = usePaymentBar();

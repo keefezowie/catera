@@ -449,10 +449,11 @@ describe("native tab bar", () => {
     expect(tabs.filter((tab) => tab.hidden)).toEqual([]);
     // Android: the label always shows under its icon. iOS 26: the bar shrinks while a long list scrolls down.
     expect(mockNativeTabs.props).toMatchObject({ labelVisibilityMode: "labeled", minimizeBehavior: "onScrollDown" });
-    // Plus Jakarta Sans at the platform's own label size (Jest runs as Android: 12).
+    // Plus Jakarta Sans at the platform's own label size (Jest runs as Android: 12), held at 1.3 in Jest's font scale 2.
+    const size = tabLabelStyle("android", 2).fontSize;
     expect(mockNativeTabs.props!.labelStyle).toEqual({
-      default: { fontFamily: "Jakarta-SemiBold", fontSize: 12, color: nativeThemes.light.muted },
-      selected: { fontFamily: "Jakarta-SemiBold", fontSize: 12, color: nativeThemes.light.forest },
+      default: { fontFamily: "Jakarta-SemiBold", fontSize: size, color: nativeThemes.light.muted },
+      selected: { fontFamily: "Jakarta-SemiBold", fontSize: size, color: nativeThemes.light.forest },
     });
   });
 
@@ -472,8 +473,15 @@ describe("native tab bar", () => {
   it("tab labels are Plus Jakarta Sans SemiBold at 10 on iOS and 12 on Android", () => {
     expect(tabLabelStyle("ios")).toEqual({ fontFamily: "Jakarta-SemiBold", fontSize: 10 });
     expect(tabLabelStyle("android")).toEqual({ fontFamily: "Jakarta-SemiBold", fontSize: 12 });
-    // No cap on text scaling and no custom spoken label: the native bar does its own.
+    // No custom spoken label: the native bar does its own.
     expect(Object.keys(tabLabelStyle("ios")).sort()).toEqual(["fontFamily", "fontSize"]);
+  });
+
+  it("an Android tab label grows with the system font up to 1.3, then holds there so Beranda stays whole", () => {
+    expect(tabLabelStyle("android", 1.3).fontSize).toBe(12);
+    // At 2.0 the bar scales the size by 2, so 7.8 lands where 12 at 1.3 does (15.6).
+    expect(tabLabelStyle("android", 2).fontSize).toBeCloseTo(7.8);
+    expect(tabLabelStyle("ios", 2).fontSize).toBe(10);
   });
 });
 

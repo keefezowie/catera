@@ -4,6 +4,12 @@ import { nativeThemes } from "@catera/design-tokens";
 import { tabBarColors } from "@catera/mobile-ui";
 import { tabsForRole } from "../src/roles";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 /** What the layout hands the native tab bar: the bar's own props and each trigger's props (name, hidden, children). */
 type MockTrigger = { name: string; hidden?: boolean; children?: import("react").ReactNode };
 const mockNativeTabs: { props?: Record<string, any>; triggers: MockTrigger[] } = { triggers: [] };

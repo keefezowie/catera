@@ -12,3 +12,15 @@ export function isNarrow({ width, fontScale }: { width: number; fontScale: numbe
 export function useStackedLayout(threshold: number): boolean {
   return isNarrow(useWindowDimensions(), threshold);
 }
+
+/** Below this effective width a row's one-line texts get more lines before they are cut: 205 at 411dp and font scale 2.0,
+ * while 360dp at 1.3 (277) keeps the one-line rows the Dapur spec set. */
+export const ROW_LINES_BELOW = 260;
+
+/**
+ * How many lines a list row's title and meta take when the row does not wrap them: one each, or at large text (under
+ * `ROW_LINES_BELOW` effective width, where one line holds a word or two) two for the title and three for the meta.
+ */
+export function useRowLines(): { title: number; meta: number } {
+  return useStackedLayout(ROW_LINES_BELOW) ? { title: 2, meta: 3 } : { title: 1, meta: 1 };
+}

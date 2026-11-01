@@ -36,6 +36,35 @@ const phone = (width: number, fontScale: number) => {
 
 const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props.style as never) ?? {};
 
+describe("rows at large text", () => {
+  const lines = (text: string) => screen.getByText(text).props.numberOfLines;
+  const rows = () =>
+    render(
+      withDapurScale(
+        <>
+          <TwoLineRow title="Budi Contoh" meta="Rantang Nusantara · Berakhir hari ini" />
+          <MediaRow title="Ayam Panggang" meta="Rp 35.000 / makan · tayang" />
+          <StopRow testID="sr" n={1} name="Bu Rina" portions="8 porsi" address="Jl. Melati 1" onMap={() => {}} mapLabel="Peta" />
+        </>,
+      ),
+    );
+
+  it("keep one line each at 360dp and font scale 1.3, as the Dapur spec set", () => {
+    phone(360, 1.3);
+    rows();
+    for (const text of ["Budi Contoh", "Rantang Nusantara · Berakhir hari ini", "Ayam Panggang", "Rp 35.000 / makan · tayang", "Jl. Melati 1"])
+      expect(lines(text)).toBe(1);
+  });
+
+  it("at font scale 2.0 give the title two lines and the meta three before they cut", () => {
+    phone(411, 2);
+    rows();
+    for (const text of ["Budi Contoh", "Ayam Panggang"]) expect(lines(text)).toBe(2);
+    for (const text of ["Rantang Nusantara · Berakhir hari ini", "Rp 35.000 / makan · tayang", "Jl. Melati 1"]) expect(lines(text)).toBe(3);
+    expect(screen.getByTestId("sr-title").props.numberOfLines).toBe(2);
+  });
+});
+
 describe("MediaRow compact (Menu dish rows)", () => {
   it("is 64 tall with a 48 r8 thumb, a rowTitle title and one meta line", () => {
     render(withDapurScale(<MediaRow size="compact" testID="dish" image="https://x/y.jpg" title="Ayam panggang" meta="Lauk" />));
@@ -123,10 +152,12 @@ describe("KeyValueRow", () => {
     render(withDapurScale(<KeyValueRow testID="kv" label="Dibayarkan ke rekening minggu ini" value="Rp 12.345.000" />));
     expect(flat(screen.getByTestId("kv"))).toMatchObject({ minHeight: 40, flexDirection: "row" });
     const label = screen.getByText("Dibayarkan ke rekening minggu ini");
-    expect(flat(label)).toMatchObject({ fontSize: 15, lineHeight: 22, flex: 1 });
+    // Above font scale 1 Android takes the font's own line height (the type ramp's 22 would cut descenders).
+    expect(flat(label)).toMatchObject({ fontSize: 15, flex: 1 });
+    expect(flat(label).lineHeight).toBeUndefined();
     expect(label.props.numberOfLines).toBeUndefined();
     const value = screen.getByText("Rp 12.345.000");
-    expect(flat(value)).toMatchObject({ fontSize: 15, lineHeight: 22, flexShrink: 0, textAlign: "right", fontVariant: ["tabular-nums"] });
+    expect(flat(value)).toMatchObject({ fontSize: 15, flexShrink: 0, textAlign: "right", fontVariant: ["tabular-nums"] });
     expect(flat(value).fontFamily).toBe(fontFor("600"));
     expect(value.props.numberOfLines).toBeUndefined();
     expect(value.props.adjustsFontSizeToFit).toBeUndefined();

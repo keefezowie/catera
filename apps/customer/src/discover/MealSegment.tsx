@@ -12,6 +12,9 @@ const TARGET = nativeLayout.control.icon;
 const INSET = 2;
 const PILL = TRACK - INSET * 2;
 const RING = 1.5;
+/** The room above and below the track inside the 44 row (5), and above and below a pill inside its tab (7). */
+const TRACK_SLOP = (TARGET - TRACK) / 2;
+const PILL_SLOP = (TARGET - PILL) / 2;
 
 /**
  * The Siang / Malam segmented chip that opens Jelajah's chip row: a 34 surface track with a 2 inset, holding two 30
@@ -32,11 +35,11 @@ export function MealSegment() {
       testID="meal-segment"
       accessibilityRole="tablist"
       accessibilityLabel={t("Waktu makan", "Meal time")}
-      style={{ flexDirection: "row", height: TARGET, alignItems: "center" }}
+      style={{ flexDirection: "row", minHeight: TARGET, alignItems: "center" }}
     >
-      {/* The track fills the row and centres its 34 shape, so it stays level with the chips whatever the row measures. */}
-      <View testID="meal-track-frame" pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, justifyContent: "center" }}>
-        <View testID="meal-track" style={{ height: TRACK, borderRadius: TRACK / 2, backgroundColor: c.inputFill }} />
+      {/* The track sits 5 inside the row top and bottom: 34 in the 44 row, and as much taller as large text makes the pills. */}
+      <View testID="meal-track-frame" pointerEvents="none" style={{ position: "absolute", top: TRACK_SLOP, bottom: TRACK_SLOP, left: 0, right: 0 }}>
+        <View testID="meal-track" style={{ flex: 1, minHeight: TRACK, borderRadius: TRACK / 2, backgroundColor: c.inputFill }} />
       </View>
       {options.map((option) => {
         const selected = option.value === mood;
@@ -52,12 +55,12 @@ export function MealSegment() {
             haptic={selected ? "none" : "select"}
             pressFeedback={!selected}
             onPress={() => setMood(option.value)}
-            style={{ minHeight: TARGET, paddingHorizontal: INSET, alignItems: "center", justifyContent: "center" }}
+            style={{ minHeight: TARGET, paddingHorizontal: INSET, paddingVertical: PILL_SLOP, alignItems: "center", justifyContent: "center" }}
           >
             <View
               testID={`meal-pill-${option.value}`}
               style={{
-                height: PILL,
+                minHeight: PILL,
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 6,

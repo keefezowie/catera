@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { Text } from "../components";
 import { PressableRow } from "../PressableRow";
+import { useRowLines } from "../stackedLayout";
 import { themedStyles } from "../theme";
 import { GLYPH_BARE, GLYPH_CIRCLE } from "./metrics";
 import { rowLabel } from "./rowLabel";
@@ -39,6 +40,7 @@ export function GlyphRow({
 }) {
   const styles = useStyles();
   const bareGlyph = bare || minHeight === nativeLayout.row.info;
+  const lines = useRowLines();
   const body = (
     <>
       {/* Decorative: the row names itself from its title and meta, so the glyph adds no part to its label. */}
@@ -51,7 +53,7 @@ export function GlyphRow({
         {glyph}
       </View>
       <View style={styles.text}>
-        <Text variant="rowTitle" numberOfLines={wrap ? undefined : 1}>
+        <Text variant="rowTitle" numberOfLines={wrap ? undefined : lines.title}>
           {title}
         </Text>
         {meta ? <Text variant="meta">{meta}</Text> : null}

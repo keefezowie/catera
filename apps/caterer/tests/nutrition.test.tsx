@@ -15,6 +15,12 @@ import { PackageEditor } from "../src/business/PackageEditor";
 import { PackageDetail } from "../src/business/PackageDetail";
 import { withDapurScale } from "./dapur-scale";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn(), MediaTypeOptions: { Images: "Images" } }));
 jest.mock("expo-notifications", () => ({

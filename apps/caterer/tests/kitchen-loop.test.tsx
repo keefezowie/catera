@@ -16,6 +16,12 @@ import { canvasDay, delivery, report } from "./fixtures";
 import { spyFades } from "./fade";
 import { confirm, lastConfirm, resetSheets, SheetHost } from "./sheet-host";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 // The clock is pinned to Thursday 8 Oct 2026, 10.00 Jakarta. Only the clock: timers and microtasks keep running.
 const pinToday = () =>
   jest.useFakeTimers({

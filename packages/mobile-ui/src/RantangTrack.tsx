@@ -118,6 +118,8 @@ const fallbackT = (id: string) => id;
 
 /** "Scheduled" at font scale 1.3 is about 74dp against a 64dp pager column: 0.85 lets it fit whole. */
 const MIN_LABEL_SCALE = 0.85;
+/** Each label column keeps this much air on either side, so a label shrunk to its column (large text) never touches the next. */
+const LABEL_GUTTER = 3;
 
 type Translate = (id: string, en: string) => string;
 const stopLabels = (t: Translate) => [
@@ -458,7 +460,7 @@ export function RantangTrack({
             </Text>
           );
           return (
-          <View key={i} style={{ flex: 1, alignItems: "center" }}>
+          <View key={i} testID={`${testID}-label-col-${i}`} style={{ flex: 1, alignItems: "center", paddingHorizontal: LABEL_GUTTER }}>
             {twoLines ? (
               <View testID={`${testID}-label-slot-${i}`} style={{ alignSelf: "stretch" }}>
                 {/* Two invisible caption lines hold the room at any font scale; the label sits over them. */}

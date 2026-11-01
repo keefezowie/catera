@@ -745,7 +745,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       // Both tabs are as wide as the wider label and the track holds exactly the two plus its 2 + 2 edge: an even width.
       expect((style.width as number) % 2).toBe(0);
       for (const tab of within(frame).getAllByRole("tab")) {
-        expect(StyleSheet.flatten(tab.props.style)).toMatchObject({ height: 34, marginVertical: -2 });
+        expect(StyleSheet.flatten(tab.props.style)).toMatchObject({ minHeight: 34, marginVertical: -2 });
         expect(tab.props.hitSlop).toEqual({ top: 7, bottom: 7 });
       }
     });

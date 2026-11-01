@@ -8,6 +8,7 @@ import { MoodArc, type MoodArcProps } from "./brand/MoodArc";
 import { DEMO_STRIP_HEIGHT } from "./DemoStrip";
 import { Text } from "./components";
 import { useLayoutScale, useScreenMargin, useTouchTarget } from "./layoutScale";
+import { useStackedLayout } from "./stackedLayout";
 import { MoodFill } from "./MoodFill";
 import { statusBarStyle, useMood, useMoodColors, useMoodLabels } from "./mood";
 import { PressableScale, useReduced } from "./motion";
@@ -35,6 +36,9 @@ const TAB_PADDING = 12;
 const COMPACT_TRACK = 34;
 const COMPACT_EDGE = 1;
 const COMPACT_INNER = 1;
+/** Below this effective width (`width / fontScale`) the row wraps: a toggle or trailing control that does not fit beside
+ * the meta moves under it, so the meta keeps the row's width instead of breaking a word a line. */
+const ROW_WRAP_BELOW = 300;
 
 /**
  * The Siang / Malam switch: a two-tab tablist on a pill track, with the active pill sliding to the chosen tab.
@@ -128,7 +132,8 @@ export function MoodToggle({ size = "regular" }: { size?: "regular" | "compact" 
             onPress={() => setMood(option.value)}
             hitSlop={compact && slop > 0 ? { top: slop, bottom: slop } : undefined}
             style={{
-              ...(compact ? { height: COMPACT_TRACK, marginVertical: -(edge + inner) } : { minHeight: 48 }),
+              // A minimum, so large text grows the tab (and the track) instead of cutting the label.
+              ...(compact ? { minHeight: COMPACT_TRACK, marginVertical: -(edge + inner) } : { minHeight: 48 }),
               width: tabWidth,
               alignItems: "center",
               justifyContent: "center",
@@ -233,6 +238,10 @@ export function MoodHeader({
   // toggle's slop (hitSlop 7) is clipped to the row, so the tabs' touchable height there is the row's 36, not 48.
   const rowHeight = band ? BAND_ROW_HEIGHT : v2 ? Math.max(nativeLayout.control.icon, touchTarget) : ROW_HEIGHT;
   const [height, setHeight] = useState<number>();
+  const showToggle = toggle && !arc;
+  // At large text a toggle or trailing control would squeeze the meta to a word a line: the row wraps, and what does
+  // not fit beside the meta at its own width goes under it. At the default size the row is as it always was.
+  const wrap = useStackedLayout(ROW_WRAP_BELOW) && hasMeta && (showToggle || hasTrailing);
   const above = topOwned ? insets.top + DEMO_STRIP_HEIGHT : insets.top - topInset;
   useToastAnchor(height === undefined ? null : { top: above + height });
 
@@ -267,8 +276,15 @@ export function MoodHeader({
         }}
       >
         {hasRow ? (
-          <View testID="mood-header-row" style={{ minHeight: rowHeight, flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View style={{ flex: 1 }}>
+          <View
+            testID="mood-header-row"
+            style={[
+              { minHeight: rowHeight, flexDirection: "row", alignItems: "center", gap: 12 },
+              wrap && { flexWrap: "wrap", rowGap: nativeLayout.space.sm },
+            ]}
+          >
+            {/* Wrapping, the meta keeps at least half the row, so a control that does not fit beside it goes under it. */}
+            <View style={wrap ? { flexGrow: 1, flexShrink: 1, flexBasis: "auto", minWidth: "50%" } : { flex: 1 }}>
               {isText(meta) ? (
                 <Text variant="label" style={{ color: plain ? canvasInk.muted : palette.headerMeta, lineHeight: 18 }}>
                   {meta}
@@ -277,7 +293,7 @@ export function MoodHeader({
                 meta
               )}
             </View>
-            {toggle && !arc ? (
+            {showToggle ? (
               <View style={{ flexShrink: 0, marginVertical: toggleSize === "compact" ? 0 : -TRACK_PADDING }}>
                 <MoodToggle size={toggleSize} />
               </View>

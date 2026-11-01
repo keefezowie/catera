@@ -116,6 +116,7 @@ export function Text({
   selectable?: boolean;
 }) {
   const palette = useColors();
+  const { fontScale } = useWindowDimensions();
   // Android cannot select weights from a variable font, so a weight becomes a static family.
   // An explicit fontFamily wins over any weight: app code passes `fonts.semibold` etc. in styles it hands to Text.
   // The variant colour comes first so a caller's own colour still wins.
@@ -124,6 +125,10 @@ export function Text({
     { color: palette[variantColor[variant]] },
     style,
   ]) as TextStyle;
+  // Android 14 scales text non-linearly: at the largest sizes a 26/32 heading becomes about 37/40, so a fixed line
+  // height no longer holds the descenders and they are cut. Above font scale 1 Android gets the font's own line height,
+  // which grows with the text; at the default size, and on iOS (which scales both alike), the type ramp stays exact.
+  if (process.env.EXPO_OS !== "ios" && fontScale > 1) delete flat.lineHeight;
   return (
     <RNText
       style={[flat, { fontFamily: fontFamily ?? fontFor(fontWeight) }]}
@@ -832,7 +837,8 @@ const useStyles = themedStyles((c) => ({
   disabled: { backgroundColor: c.disabledFill },
   disabledQuiet: { opacity: 0.45 },
   // Tabular figures: an amount in a label ("Bayar Rp…") keeps its width while the quote changes.
-  buttonLabel: { fontFamily: fontFor("700"), fontSize: 15, fontVariant: ["tabular-nums"] },
+  // Centred, so a label that wraps at large text stays centred in its button.
+  buttonLabel: { fontFamily: fontFor("700"), fontSize: 15, fontVariant: ["tabular-nums"], textAlign: "center" },
   chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 9, borderCurve: "continuous", justifyContent: "center" },
   chipOn: { backgroundColor: c.forest },
   chipOff: { borderWidth: 1, borderColor: c.secondaryBorder },

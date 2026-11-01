@@ -2,6 +2,7 @@ import { Pressable, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { RoundButton, Text } from "./components";
 import { useTouchTarget } from "./layoutScale";
+import { useRowLines } from "./stackedLayout";
 import { PressableScale } from "./motion";
 import { useColors } from "./theme";
 import { fonts } from "./type";
@@ -228,6 +229,8 @@ function StopRowV2({
   testID: string;
 }) {
   const c = useColors();
+  // At large text one line holds a word or two of the address, so the lines wrap a little before they are cut.
+  const { title: titleLines, meta: lines } = useRowLines();
   const badge = (
     <View
       testID={`${testID}-badge`}
@@ -245,21 +248,21 @@ function StopRowV2({
   const spoken = `${n}. ${name}, ${detail}, ${address}` + (note ? `, ${note}` : "");
   const text = (
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text testID={`${testID}-title`} variant="rowTitle" numberOfLines={1}>
+      <Text testID={`${testID}-title`} variant="rowTitle" numberOfLines={titleLines}>
         <Text variant="rowTitle">{name}</Text>
         {portions ? <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>{` · ${portions}`}</Text> : null}
       </Text>
-      <Text testID={`${testID}-meta`} variant="meta" numberOfLines={1}>
+      <Text testID={`${testID}-meta`} variant="meta" numberOfLines={lines}>
         {meta}
       </Text>
       {note ? (
-        <Text testID={`${testID}-delivery-note`} variant="meta" numberOfLines={1} style={{ color: c.charcoal }}>
+        <Text testID={`${testID}-delivery-note`} variant="meta" numberOfLines={lines} style={{ color: c.charcoal }}>
           {note}
         </Text>
       ) : null}
       {selection?.note ? (
-        // One line, cut at the end: a picking row is title, meta and this status (and the delivery note), never a fifth line.
-        <Text testID={`${testID}-note`} variant="meta" numberOfLines={1}>
+        // One line at the default size, cut at the end: a picking row is title, meta and this status (and the delivery note).
+        <Text testID={`${testID}-note`} variant="meta" numberOfLines={lines}>
           {selection.note}
         </Text>
       ) : null}

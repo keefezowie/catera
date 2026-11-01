@@ -19,6 +19,12 @@ import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { lastConfirm, resetSheets, SheetHost, type Opened } from "./sheet-host";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
 
 // The date button's accessible name starts with its visible date and ends with the action.
@@ -518,7 +524,7 @@ describe("Hari ini by mood", () => {
     while (wrapper && StyleSheet.flatten(wrapper.props.style as never)?.flexShrink !== 0) wrapper = wrapper.parent;
     expect(StyleSheet.flatten(wrapper!.props.style as never).marginVertical).toBe(0);
     for (const tab of screen.getAllByRole("tab")) {
-      expect(StyleSheet.flatten(tab.props.style)).toMatchObject({ height: 34, marginVertical: -2 });
+      expect(StyleSheet.flatten(tab.props.style)).toMatchObject({ minHeight: 34, marginVertical: -2 });
       expect(tab.props.hitSlop).toEqual({ top: 7, bottom: 7 });
     }
     expect(StyleSheet.flatten(screen.getByTestId("mood-toggle-pill").props.style)).toMatchObject({ top: 1, bottom: 1, left: 1 });

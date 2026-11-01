@@ -214,10 +214,11 @@ describe("Jelajah", () => {
     // A hitSlop never reaches past its parent, so the chip row's own content must be 44 tall for the chips' slop to count.
     // The row's own height is a real 44 (not shrunk by a negative margin), and so is its frame.
     const row = screen.getByTestId("chip-row");
-    expect(flat(row)).toMatchObject({ height: 44, flexShrink: 0 });
+    // A 44 minimum, which large text can grow.
+    expect(flat(row)).toMatchObject({ minHeight: 44, flexShrink: 0 });
     expect(flat(row).marginTop).toBeUndefined();
     expect(flat(row).marginVertical).toBeUndefined();
-    expect(flat(screen.getByTestId("chip-row-frame"))).toMatchObject({ height: 44, flexShrink: 0 });
+    expect(flat(screen.getByTestId("chip-row-frame"))).toMatchObject({ minHeight: 44, flexShrink: 0 });
     expect(flat({ props: { style: row.props.contentContainerStyle } }).minHeight).toBeGreaterThanOrEqual(44);
     for (const name of ["Di bawah Rp30.000", "Bisa coba 1 hari"]) {
       const node = screen.getByRole("button", { name });
@@ -627,10 +628,10 @@ describe("Jelajah mood header", () => {
     expect(segment.props.accessibilityRole).toBe("tablist");
     expect(segment.props.accessibilityLabel).toBe("Waktu makan");
     // A 44 row holding the 34 surface track, whose two pills are 30 tall (a 2 inset).
-    expect(flat(segment).height).toBe(44);
-    expect(flat(screen.getByTestId("meal-track"))).toMatchObject({ height: 34, borderRadius: 17 });
-    // The track is centred in the 44 row by its own wrapper, not pinned to the top.
-    expect(flat(screen.getByTestId("meal-track-frame"))).toMatchObject({ justifyContent: "center", top: 0, bottom: 0 });
+    expect(flat(segment).minHeight).toBe(44);
+    expect(flat(screen.getByTestId("meal-track"))).toMatchObject({ flex: 1, minHeight: 34, borderRadius: 17 });
+    // The track sits 5 inside the row top and bottom: 34 in the 44 row, taller with the pills at large text.
+    expect(flat(screen.getByTestId("meal-track-frame"))).toMatchObject({ position: "absolute", top: 5, bottom: 5 });
     // Each tab is named from its label alone, with no empty part and no stray comma.
     expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityLabel).toBe("Siang");
     expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityLabel).toBe("Malam");
@@ -638,8 +639,10 @@ describe("Jelajah mood header", () => {
       expect(within(segment).getByRole("tab", { name })).toBeTruthy();
       expect(flat(screen.getByRole("tab", { name })).minHeight).toBe(44);
     }
-    expect(flat(screen.getByTestId("meal-pill-siang")).height).toBe(30);
-    expect(flat(screen.getByTestId("meal-pill-malam")).height).toBe(30);
+    // Each 30 pill sits 7 inside its 44 tab, so the tab grows with it at large text.
+    for (const name of ["Siang", "Malam"]) expect(flat(screen.getByRole("tab", { name })).paddingVertical).toBe(7);
+    expect(flat(screen.getByTestId("meal-pill-siang")).minHeight).toBe(30);
+    expect(flat(screen.getByTestId("meal-pill-malam")).minHeight).toBe(30);
     expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(true);
     expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(false);
     fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
@@ -1006,9 +1009,9 @@ describe("Jelajah mood header", () => {
       const bodyTop = need(byId("jelajah-body"), "paddingTop");
       const margin = need(byId("jelajah-body"), "paddingHorizontal");
       const frame = byId("chip-row-frame");
-      const chip = need(byId("meal-track"), "height");
+      const chip = need(byId("meal-track"), "minHeight");
       const frameTop = need(frame, "marginTop");
-      const frameHeight = need(frame, "height");
+      const frameHeight = need(frame, "minHeight");
       const frameBottom = need(frame, "marginBottom");
       // The chips are centred in the frame: this much frame sits above them.
       const above = (frameHeight - chip) / 2;

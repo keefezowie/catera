@@ -3,7 +3,7 @@ import { Redirect, useNavigationContainerRef } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
-import { tabBarColors, tabLabelStyle, useColors, useTabBarNativeProps } from "@catera/mobile-ui";
+import { tabBarColors, useColors, useTabLabelStyle, useTabBarNativeProps } from "@catera/mobile-ui";
 import { registerNavigation, releaseNavigation } from "../../src/nav";
 import { CATERER_TABS, tabsForRole, type CatererTab } from "../../src/roles";
 import { RoleGate } from "../../src/RoleGate";
@@ -37,9 +37,9 @@ export default function TabsLayout() {
   const bar = tabBarColors(useColors());
   // While a sheet is on top the bar leaves the accessibility tree where the platform allows it (`tabBarNativeProps`).
   const nativeProps = useTabBarNativeProps();
+  const label = useTabLabelStyle();
   if (!actor) return <Redirect href="/masuk" />;
   const allowed = tabsForRole(actor.role);
-  const label = tabLabelStyle();
   const titles: Record<CatererTab, string> = {
     index: t("Hari ini", "Today"),
     pelanggan: t("Pelanggan", "Customers"),

@@ -22,6 +22,12 @@ import * as offline from "../src/today/offline";
 import { canvasDay } from "./fixtures";
 import { withDapurScale } from "./dapur-scale";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 /**
  * Dapur's loading pass (Phase F task 6): every screen waits behind its own skeleton, never a bare "Memuat…" line or a
  * spinner, and Hari ini and Pelanggan reload with a pull. The skeleton's words are its progress bar's name, so the tests

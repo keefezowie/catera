@@ -1726,6 +1726,17 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(row.getByRole("button", { name: "Ganti alamat" })).toBeTruthy();
   });
 
+  it("Ubah tanggal and Ganti alamat sit beside the text at 411dp, and under it at font scale 2.0 so the words keep their width", async () => {
+    await open();
+    for (const id of ["start", "address"]) expect(within(screen.getByTestId(`buy-row-${id}-text`)).queryAllByRole("button")).toHaveLength(0);
+    screen.unmount();
+    mockWindow = { width: 411, height: 860, scale: 3, fontScale: 2 };
+    wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    expect(within(screen.getByTestId("buy-row-start-text")).getByRole("button", { name: "Ubah tanggal mulai" })).toBeTruthy();
+    expect(within(screen.getByTestId("buy-row-address-text")).getByRole("button", { name: "Ganti alamat" })).toBeTruthy();
+  });
+
   it("without an address Diantar ke says so and offers Tambah alamat, with Bayar off and the reason shown", async () => {
     mockWindow = PHONE;
     wrapV2(server({ addresses: [] }), <BuyScreen packageId="p-rumahan" />);

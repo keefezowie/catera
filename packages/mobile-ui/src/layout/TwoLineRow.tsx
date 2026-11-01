@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { Text } from "../components";
 import { PressableRow } from "../PressableRow";
+import { useRowLines } from "../stackedLayout";
 import { themedStyles } from "../theme";
 import { rowLabel } from "./rowLabel";
 
@@ -12,7 +13,8 @@ import { rowLabel } from "./rowLabel";
  * so every row of a list keeps its controls on one edge and its text on one width. Without `onPress` it is not a
  * button; its label is its title and meta (`rowLabel`) unless it is given one. `wrap="meta"` lets the meta grow past
  * one line (`wrap` lets the title too) for a row whose words must all show: the row grows, pads 12 top and bottom, and
- * its leading glyph aligns to the top while the trailing node stays centred. The default is one line each.
+ * its leading glyph aligns to the top while the trailing node stays centred. The default is one line each, or at large
+ * text two for the title and three for the meta (`useRowLines`).
  */
 export function TwoLineRow({
   leading,
@@ -34,16 +36,17 @@ export function TwoLineRow({
   testID?: string;
 }) {
   const styles = useStyles();
+  const lines = useRowLines();
   const rowStyle = wrap ? [styles.row, styles.wrapped] : styles.row;
   const body = (
     <>
       {leading}
       <View style={styles.text}>
-        <Text variant="rowTitle" numberOfLines={wrap === true ? undefined : 1}>
+        <Text variant="rowTitle" numberOfLines={wrap === true ? undefined : lines.title}>
           {title}
         </Text>
         {meta ? (
-          <Text variant="meta" numberOfLines={wrap ? undefined : 1}>
+          <Text variant="meta" numberOfLines={wrap ? undefined : lines.meta}>
             {meta}
           </Text>
         ) : null}

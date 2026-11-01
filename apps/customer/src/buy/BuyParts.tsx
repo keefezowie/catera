@@ -5,7 +5,7 @@ import { useMobile } from "@catera/mobile-core";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { currency, mealLabel, paymentMethodInfo, perMealPrice, priceUnitLabel, type DirectPaymentMethod, type Locale, type Offer, type PaymentAvailability } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, Card, fontFor, FormError, PressableRow, ReadError, Text, themedStyles, useColors, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
+import { Button, Card, fontFor, FormError, PressableRow, ReadError, Text, themedStyles, useColors, useStackedLayout, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { packageHref } from "../hrefs";
 import { DecorativeIcon, GlyphCircle, ListCard, SectionHeader, Thumb } from "../layout";
 import { goToTab, leaveFor } from "../nav";
@@ -163,6 +163,9 @@ export function BuySummary({ offer, trial, apiBase, locale }: { offer: Offer; tr
   );
 }
 
+/** Below this effective width a field row's trailing action sits under its text. */
+const FIELD_STACK_BELOW = 340;
+
 /** The glyph a field row leads with, drawn on its 40 circle. */
 export function FieldGlyph({ id, icon }: { id: string; icon: keyof typeof Ionicons.glyphMap }) {
   const c = useColors();
@@ -176,7 +179,8 @@ export function FieldGlyph({ id, icon }: { id: string; icon: keyof typeof Ionico
 /**
  * One row of the choices card: a 40 glyph circle, the text column (label in `meta` over the value in `bodyStrong`), and
  * a trailing action. 72 tall for a row of three lines (`THREE_LINE_PAD` keeps three lines inside 72), 56 for two. `below`
- * is a control that needs the card's full width (the length options). The row grows with large text.
+ * is a control that needs the card's full width (the length options). The row grows with large text; below 340 effective
+ * width (`width / fontScale`) the trailing action moves under the text, so the words keep the row's width.
  */
 export function FieldRow({
   id,
@@ -194,12 +198,16 @@ export function FieldRow({
   children: ReactNode;
 }) {
   const styles = useStyles();
+  const stacked = useStackedLayout(FIELD_STACK_BELOW);
   return (
     <View testID={`buy-row-${id}`} style={{ minHeight }}>
       <View style={[styles.field, { minHeight, paddingVertical: minHeight === nativeLayout.row.media ? THREE_LINE_PAD : nativeLayout.space.sm }]}>
         <FieldGlyph id={id} icon={icon} />
-        <View style={styles.fieldText}>{children}</View>
-        {trailing}
+        <View testID={`buy-row-${id}-text`} style={styles.fieldText}>
+          {children}
+          {stacked && trailing ? <View style={styles.under}>{trailing}</View> : null}
+        </View>
+        {stacked ? null : trailing}
       </View>
       {below ? <View style={styles.below}>{below}</View> : null}
     </View>
@@ -239,6 +247,7 @@ const useStyles = themedStyles((c) => ({
   summaryText: { flex: 1, minWidth: 0 },
   field: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md },
   fieldText: { flex: 1, minWidth: 0 },
+  under: { alignSelf: "flex-start" },
   below: { paddingBottom: nativeLayout.space.md },
   method: { borderColor: c.forest, borderWidth: 1.5, gap: 4 },
   methodRow: {

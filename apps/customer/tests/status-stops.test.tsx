@@ -16,6 +16,12 @@ import * as offline from "../src/today/offline";
 import { customerState, delivery, offer, TODAY } from "./fixtures";
 import { goOffline, goOnline } from "./offline";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   Link: () => null,

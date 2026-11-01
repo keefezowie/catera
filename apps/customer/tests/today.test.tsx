@@ -33,6 +33,12 @@ import { customerState, delivery, offer, TODAY } from "./fixtures";
 import { goOffline, keptLine } from "./offline";
 import { SheetHost } from "./sheetHost";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 let mockParams: Record<string, string> = {};
 /** The review is a sheet route (`/ulasan/{id}`): the host shows it over Beranda when the row pushes it. */
 const SHEETS = { "/ulasan": ReviewRoute };

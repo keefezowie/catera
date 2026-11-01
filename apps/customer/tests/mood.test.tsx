@@ -24,6 +24,12 @@ import {
   useMoodColors,
 } from "@catera/mobile-ui";
 
+/** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 // The customer setup has no SecureStore mock, so this file keeps its own in-memory one.
 jest.mock("expo-secure-store", () => {
   const store = new Map<string, string>();
@@ -247,6 +253,19 @@ describe("MoodToggle", () => {
 });
 
 describe("MoodHeader", () => {
+  it("at large text the top row wraps, so the toggle goes under the meta instead of squeezing it to a word a line", () => {
+    const window = jest.spyOn(require("react-native") as { useWindowDimensions: () => unknown }, "useWindowDimensions");
+    window.mockReturnValue({ width: 411, height: 860, scale: 3, fontScale: 2 });
+    const view = mount(<MoodHeader meta="Dapur Senja · Hari ini" title="Halo" toggle />);
+    expect(flat("mood-header-row")).toMatchObject({ flexDirection: "row", flexWrap: "wrap" });
+    view.unmount();
+    // At the default size (and at 1.3, 316 effective) the row is as it was: the meta takes what the toggle leaves.
+    window.mockReturnValue({ width: 411, height: 860, scale: 3, fontScale: 1.3 });
+    mount(<MoodHeader meta="Dapur Senja · Hari ini" title="Halo" toggle />);
+    expect(flat("mood-header-row").flexWrap).toBeUndefined();
+    window.mockRestore();
+  });
+
   it("cross-fades two stacked fills; Malam is fully opaque after the switch (instant under reduced motion)", () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     mount(

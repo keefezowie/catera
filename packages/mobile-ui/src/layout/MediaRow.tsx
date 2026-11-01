@@ -3,6 +3,7 @@ import { View, type TextStyle } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { Text } from "../components";
 import { PressableRow } from "../PressableRow";
+import { useRowLines } from "../stackedLayout";
 import { themedStyles, useColors } from "../theme";
 import { DecorativeIcon } from "./DecorativeIcon";
 import { rowLabel } from "./rowLabel";
@@ -50,6 +51,8 @@ export function MediaRow({
   const c = useColors();
   const styles = useStyles();
   const compact = size === "compact";
+  // One line each, or more at large text (`useRowLines`), unless the row wraps them.
+  const lines = useRowLines();
   // The default row keeps its one style object, so a customer row is drawn exactly as before.
   const rowStyle = compact ? [styles.row, styles.compact] : styles.row;
   const body = (
@@ -63,11 +66,11 @@ export function MediaRow({
         />
       )}
       <View style={styles.text}>
-        <Text variant={titleVariant} numberOfLines={wrap ? undefined : 1}>
+        <Text variant={titleVariant} numberOfLines={wrap ? undefined : lines.title}>
           {title}
         </Text>
         {meta ? (
-          <Text variant="meta" numberOfLines={wrap === true ? undefined : 1} style={metaStyle}>
+          <Text variant="meta" numberOfLines={wrap === true ? undefined : lines.meta} style={metaStyle}>
             {meta}
           </Text>
         ) : null}

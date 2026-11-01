@@ -51,6 +51,9 @@ jest.mock("expo-secure-store", () => {
 /** The phone a test draws on; by default the size React Native's jest setup reports, so other tests see no change. */
 const DEFAULT_WINDOW = { width: 750, height: 1334, scale: 2, fontScale: 2 };
 let mockWindow = DEFAULT_WINDOW;
+/** The same window at the default text size, where the type ramp's line heights hold (above 1, Android drops them). */
+const DEFAULT_TEXT = { ...DEFAULT_WINDOW, fontScale: 1 };
+afterEach(() => void (mockWindow = DEFAULT_WINDOW));
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   __esModule: true,
   default: () => mockWindow,
@@ -106,6 +109,7 @@ test.each([
   ["label", 12, 23],
   ["caption", 11, 18],
 ] as const)("%s uses the documented ramp", (variant, size, line) => {
+  mockWindow = DEFAULT_TEXT;
   render(<Text variant={variant}>x</Text>);
   const s = StyleSheet.flatten(screen.getByText("x").props.style);
   expect([s.fontSize, s.lineHeight]).toEqual([size, line]);
@@ -503,6 +507,7 @@ describe("Screen details", () => {
   });
 
   it("Screen drops its own top inset under a stack header, and on Android names itself in a content line", () => {
+    mockWindow = DEFAULT_TEXT;
     const setOptions = jest.fn();
     const navigation = { setOptions, isFocused: () => true, addListener: () => () => undefined };
     const view = render(
@@ -878,6 +883,7 @@ describe("layout scale", () => {
   });
 
   it("v2 geometry: the new type ladder", () => {
+    mockWindow = DEFAULT_TEXT;
     render(
       <>
         <Text variant="largeTitle">a</Text>

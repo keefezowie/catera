@@ -1,4 +1,4 @@
-import type { ColorValue } from "react-native";
+import { useWindowDimensions, type ColorValue } from "react-native";
 import type { NativeTabsHostNativeProps, NativeTabsLabelStyle } from "expo-router/unstable-native-tabs";
 import type { NativePalette } from "@catera/design-tokens";
 import { barTone } from "./theme";
@@ -30,13 +30,24 @@ export function tabBarColors(palette: NativePalette, os: string | undefined = pr
   };
 }
 
+/** The largest text scale an Android tab label grows to: past it, four labels in a 360-412dp bar cut to "Beran…". */
+export const TAB_LABEL_MAX_SCALE = 1.3;
+
 /**
  * Tab labels in Plus Jakarta Sans SemiBold at the platform's own size: 10 on iOS, 12 on Android (Material 3 label
- * medium). The native bar scales and speaks its labels itself, so nothing here caps text size or sets a spoken label.
- * `os` defaults to the running platform.
+ * medium). The native bar speaks its labels itself, so nothing here sets a spoken label. iOS keeps its own text-size
+ * handling (the bar's large content viewer). Android scales the label with the system font size, and a quarter-width
+ * column cannot hold "Beranda" or "Pelanggan" at the largest sizes, so above `TAB_LABEL_MAX_SCALE` the size is set
+ * back to land where 1.3 would. `os` defaults to the running platform; `fontScale` is the system font scale.
  */
-export function tabLabelStyle(os: string | undefined = process.env.EXPO_OS): NativeTabsLabelStyle {
-  return { fontFamily: fonts.semibold, fontSize: os === "ios" ? 10 : 12 };
+export function tabLabelStyle(os: string | undefined = process.env.EXPO_OS, fontScale = 1): NativeTabsLabelStyle {
+  if (os === "ios") return { fontFamily: fonts.semibold, fontSize: 10 };
+  return { fontFamily: fonts.semibold, fontSize: fontScale > TAB_LABEL_MAX_SCALE ? (12 * TAB_LABEL_MAX_SCALE) / fontScale : 12 };
+}
+
+/** `tabLabelStyle` for the running platform and the system font scale right now. */
+export function useTabLabelStyle(): NativeTabsLabelStyle {
+  return tabLabelStyle(process.env.EXPO_OS, useWindowDimensions().fontScale);
 }
 
 /**

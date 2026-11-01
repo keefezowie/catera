@@ -21,6 +21,7 @@ import {
   useMood,
   useBlockEnter,
   useScreenMargin,
+  useStackedLayout,
 } from "@catera/mobile-ui";
 import { categoryTiles } from "./categories";
 import { ArtChip } from "./CategoryTiles";
@@ -50,6 +51,8 @@ const centred = { textAlign: "center" } as const;
 const CATEGORIES = 6;
 /** The search pill sits 16 under the headline (the header's 8 plus its own 8). */
 const SEARCH_TOP = 8;
+/** Below this effective width the full placeholder would wrap, and a TextInput measures one line, so it is cut. */
+const SEARCH_SHORT_BELOW = 300;
 /** The page body is capped like the Screen body, so a tablet or foldable keeps the same measure. */
 const BODY_MAX = 760;
 /** The odd last tile of a two column grid gets this empty cell beside it, so it keeps one column's width. */
@@ -95,6 +98,7 @@ function Browse({
   const cell = useGridCell();
   const columns = useGridColumns();
   const margin = useScreenMargin();
+  const shortSearch = useStackedLayout(SEARCH_SHORT_BELOW);
   const saved = useSaved("/jelajah");
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState("");
@@ -275,7 +279,7 @@ function Browse({
                           style={{
                             flexGrow: 0,
                             flexShrink: 0,
-                            height: nativeLayout.control.icon,
+                            minHeight: nativeLayout.control.icon,
                           }}
                           contentContainerStyle={{
                             gap: nativeLayout.space.sm,
@@ -531,10 +535,11 @@ function Browse({
               accessibilityLabel={t("Cari paket", "Search packages")}
               value={search}
               onChangeText={setSearch}
-              placeholder={t(
-                "Cari menu atau katering…",
-                "Search a dish or caterer…",
-              )}
+              placeholder={
+                shortSearch
+                  ? t("Cari menu…", "Search…")
+                  : t("Cari menu atau katering…", "Search a dish or caterer…")
+              }
               placeholderTextColor={c.muted}
               returnKeyType="search"
               autoCorrect={false}
