@@ -45,7 +45,11 @@
     ".next-package-presentation/types/**/*.ts",
     ".next-package-presentation/dev/types/**/*.ts",
     ".next-registration/types/**/*.ts",
-    ".next-registration/dev/types/**/*.ts"
+    ".next-registration/dev/types/**/*.ts",
+    ".next-audit/types/**/*.ts",
+    ".next-audit/dev/types/**/*.ts",
+    ".next-x/types/**/*.ts",
+    ".next-x/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
