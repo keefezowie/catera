@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { Text } from "../components";
+import { RollingNumber } from "../motion";
 import { isNarrow } from "../stackedLayout";
 import { themedStyles } from "../theme";
 import { fontFor } from "../type";
@@ -45,13 +46,9 @@ export function FigureStrip({
       <View testID={id(`cell-${index}`)} accessible accessibilityLabel={`${value} ${label}`} style={[styles.cell, style]}>
         <Text variant="meta">{label}</Text>
         {isLead ? (
-          <Text variant="figure" selectable>
-            {value}
-          </Text>
+          <RollingNumber variant="figure" selectable value={value} />
         ) : (
-          <Text variant="section" accessibilityRole="text" selectable style={styles.sibling}>
-            {value}
-          </Text>
+          <RollingNumber variant="section" accessibilityRole="text" selectable style={styles.sibling} value={value} />
         )}
       </View>
     );

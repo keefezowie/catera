@@ -4,3 +4,4 @@ export * from "./PressableScale";
 export * from "./FadeSwap";
 export * from "./layout";
 export * from "./RowSwap";
+export * from "./RollingNumber";

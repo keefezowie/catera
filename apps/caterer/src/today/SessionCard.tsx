@@ -8,7 +8,7 @@ import {
   type SellerOperationsState,
 } from "@catera/domain";
 import { useMobile, plural } from "@catera/mobile-core";
-import { DecorativeIcon, KeyValueRow, ListCard, SectionHeader, Text, useColors } from "@catera/mobile-ui";
+import { DecorativeIcon, KeyValueRow, ListCard, RollingNumber, SectionHeader, Text, useColors } from "@catera/mobile-ui";
 import { CookingList } from "./CookingList";
 import { ActionPair, IconAction, SECTION_GAP, SUMMARY_HEIGHT, TextAction } from "./rows";
 import type { Ticks } from "./ticks";
@@ -96,9 +96,13 @@ export function SessionCard({
             style={{ minHeight: SUMMARY_HEIGHT, flexDirection: "row", alignItems: "center", gap: 12 }}
           >
             <DecorativeIcon name="checkmark" size={20} color={c.forest} />
-            <Text variant="bodyL" style={{ flex: 1, fontVariant: ["tabular-nums"] }}>
-              {t(`Sudah dimasak · ${session.portions} porsi`, `Cooked · ${plural(session.portions, "portion")}`)}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <RollingNumber
+                variant="bodyL"
+                style={{ fontVariant: ["tabular-nums"] }}
+                value={t(`Sudah dimasak · ${session.portions} porsi`, `Cooked · ${plural(session.portions, "portion")}`)}
+              />
+            </View>
           </View>
         </ListCard>
       ) : (

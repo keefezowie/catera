@@ -23,7 +23,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PaletteKey } from "@catera/design-tokens";
 import { nativeLayout } from "@catera/design-tokens";
-import { PressableScale } from "./motion";
+import { PressableScale, RollingNumber } from "./motion";
 import { useLayoutScale, useScreenMargin, useTouchTarget } from "./layoutScale";
 import { useStackedLayout } from "./stackedLayout";
 import { StatusBand } from "./StatusBand";
@@ -460,9 +460,11 @@ export function Stepper({
       >
         <RNText style={[styles.stepGlyph, scaled && v2.stepGlyph]}>−</RNText>
       </PressableScale>
-      <RNText style={[styles.body, { minWidth: 24, textAlign: "center", fontFamily: fontFor("800"), fontVariant: ["tabular-nums"] }, scaled && v2.stepValue]}>
-        {value}
-      </RNText>
+      <RollingNumber
+        value={String(value)}
+        containerStyle={{ minWidth: scaled ? 28 : 24, alignItems: "center" }}
+        style={[styles.body, { minWidth: 24, textAlign: "center", fontFamily: fontFor("800"), fontVariant: ["tabular-nums"] }, scaled && v2.stepValue]}
+      />
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={increaseLabel}

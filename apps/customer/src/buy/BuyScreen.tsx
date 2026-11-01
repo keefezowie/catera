@@ -20,7 +20,7 @@ import {
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, FadeSwap, fontFor, FormError, Screen, Stepper, Text, themedStyles, useBusy, useScreenMargin, useStackedLayout } from "@catera/mobile-ui";
+import { Button, FadeSwap, RollingNumber, fontFor, FormError, Screen, Stepper, Text, themedStyles, useBusy, useScreenMargin, useStackedLayout } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { BuySummary, FieldGlyph, FieldRow, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { FOOTER_STACK_BELOW, footerFits, PAY_MIN_WIDTH } from "./metrics";
@@ -306,9 +306,14 @@ export function BuyScreen({
           <Text variant="meta">{t("Total", "Total")}</Text>
           {/* With no price the dash would be read as "dash". The label is always set: Android keeps a label that goes back
               to undefined, so the price that arrives later would still be read as "Belum ada harga". */}
-          <Text variant="section" selectable accessibilityRole="text" accessibilityLabel={shown || quote.pending ? amountText : t("Belum ada harga", "No price yet")} style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
-            {amountText}
-          </Text>
+          {/* The price rolls to a new one; the "Menghitung…" and dash texts stay plain. */}
+          {shown ? (
+            <RollingNumber variant="section" selectable accessibilityRole="text" accessibilityLabel={amountText} value={amountText} style={[styles.amount, quote.pending && { opacity: 0.45 }]} />
+          ) : (
+            <Text variant="section" selectable accessibilityRole="text" accessibilityLabel={quote.pending ? amountText : t("Belum ada harga", "No price yet")} style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
+              {amountText}
+            </Text>
+          )}
         </View>
         <Button
           variant="primary"

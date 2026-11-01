@@ -107,10 +107,12 @@ it("shows the lunch cooking total for the day", async () => {
   // The count is the strip's lead figure, once: no second large number, and the old 40 "number" style is gone.
   expect(screen.getByText("Per paket")).toBeTruthy();
   expect(screen.getAllByText("34")).toHaveLength(1);
+  // RollingNumber keeps an invisible "0" (to measure a digit) beside the figure; only visible text counts.
   const lead = (size: number) =>
-    screen.UNSAFE_root.findAll(
-      (n) => typeof n.type === "string" && n.type === "Text" && StyleSheet.flatten(n.props.style)?.fontSize === size,
-    );
+    screen.UNSAFE_root.findAll((n) => {
+      const style = typeof n.type === "string" && n.type === "Text" ? StyleSheet.flatten(n.props.style) : undefined;
+      return style?.fontSize === size && style.opacity !== 0;
+    });
   expect(lead(32)).toHaveLength(1);
   expect(lead(40)).toHaveLength(0);
   expect(screen.queryByText("Makan siang")).toBeNull();

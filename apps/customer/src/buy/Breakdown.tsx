@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { currency, firstOperatingDayAfter, shortDate, type Locale, type Quote } from "@catera/domain";
 import { plural } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, fontFor, PressableScale, Text, themedStyles, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
+import { Button, fontFor, PressableScale, RollingNumber, Text, themedStyles, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { FieldRow } from "./BuyParts";
 import { BREAKDOWN_PAD, BREAKDOWN_ROW } from "./metrics";
 
@@ -71,9 +71,13 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
       <Text variant="bodyL" style={[styles.rowLabel, tabular]}>
         {label}
       </Text>
-      <Text variant="bodyL" selectable style={[styles.rowValue, tabular]}>
-        {value}
-      </Text>
+      {typeof value === "string" ? (
+        <RollingNumber variant="bodyL" selectable containerStyle={{ flexShrink: 0 }} style={[styles.rowValue, tabular]} value={value} />
+      ) : (
+        <Text variant="bodyL" selectable style={[styles.rowValue, tabular]}>
+          {value}
+        </Text>
+      )}
     </View>
   );
 }
