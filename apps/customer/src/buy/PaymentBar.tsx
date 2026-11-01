@@ -164,7 +164,8 @@ export function PaymentBarView({ bar, now }: { bar: Bar; now: number }) {
     transform: [{ scale: swell.value }],
   }));
   const spinStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
-  const ink = warm ? c.sunriseInk : c.cream;
+  // Warm text is charcoal, the urgent ink of direction K (Sunrise stays reserved for its four places).
+  const ink = warm ? c.charcoal : c.cream;
 
   return (
     <Animated.View
