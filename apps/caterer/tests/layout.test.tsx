@@ -251,16 +251,16 @@ describe("stack headers", () => {
     expect(screen.queryByTestId("header:impor")).toBeNull();
   });
 
-  it("declares the confirm and action sheets as native sheets sized to their content", async () => {
+  it("declares the confirm as a centred dialog and the action sheet as a native sheet sized to its content", async () => {
     await render(<RootLayout />);
     await screen.findByTestId("header:pelanggan/[id]");
-    for (const route of ["konfirmasi", "aksi"])
-      expect(mockScreenOptions[route]).toMatchObject({
-        presentation: "formSheet",
-        sheetAllowedDetents: "fitToContents",
-        sheetGrabberVisible: true,
-        headerShown: false,
-      });
+    expect(mockScreenOptions.konfirmasi).toMatchObject({ presentation: "transparentModal", animation: "fade", headerShown: false });
+    expect(mockScreenOptions.aksi).toMatchObject({
+      presentation: "formSheet",
+      sheetAllowedDetents: "fitToContents",
+      sheetGrabberVisible: true,
+      headerShown: false,
+    });
   });
 
   it("presents the short Dapur tasks as native sheets that draw their own title", async () => {

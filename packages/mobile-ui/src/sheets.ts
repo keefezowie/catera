@@ -7,8 +7,9 @@ import {
 } from "expo-router/react-navigation";
 
 /**
- * The confirm and action sheets are routes (`/konfirmasi`, `/aksi`) declared in each app's root stack with
- * `sheetOptions({ detents: "fit" })`, and so are the customer app's choice sheets. A route cannot take a callback as a
+ * The confirm dialog and the action sheet are routes (`/konfirmasi`, `/aksi`) declared in each app's root stack, the
+ * dialog with `dialogOptions()` and the sheet, like the customer app's choice sheets, with
+ * `sheetOptions({ detents: "fit" })`. A route cannot take a callback as a
  * param, so the caller's question waits in a registry (`parkQuestion`), under an id the route reads from `?id=`, until
  * the sheet answers it or closes (`useQuestionRoute`). Each question is answered exactly once: the first of the sheet's
  * own buttons, a swipe down, the hardware back or Close wins, and the entry is dropped. The answer is given once the
@@ -262,8 +263,9 @@ export function useActionRoute(os?: string) {
 }
 
 /**
- * Asks before an irreversible or customer-visible action, in the native confirm sheet (`/konfirmasi`). Resolves true on
- * the confirm button; false on cancel, Close, a swipe down or the hardware back. It resolves once the sheet has gone.
+ * Asks before an irreversible or customer-visible action, in the centred confirm dialog (`/konfirmasi`, `ConfirmDialog`).
+ * Resolves true on the confirm button; false on cancel, a tap on the scrim or the hardware back. It resolves once the
+ * dialog has gone.
  */
 export function useConfirm(): (input: ConfirmInput) => Promise<boolean> {
   return useCallback((input: ConfirmInput) => parkQuestion(confirms, CONFIRM_ROUTE, input, false), []);

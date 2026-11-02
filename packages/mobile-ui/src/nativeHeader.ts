@@ -119,6 +119,21 @@ export function sheetOptions({
   };
 }
 
+/**
+ * The options of a route drawn as a centred dialog over whatever is on screen (the confirm, `/konfirmasi`): a
+ * transparent modal that fades in, so the page or sheet under it stays visible behind its own scrim and a sheet never
+ * opens a second sheet over itself. The route draws the scrim and the card; the hardware back closes it.
+ */
+export function dialogOptions(): NativeStackNavigationOptions {
+  return {
+    presentation: "transparentModal",
+    animation: "fade",
+    gestureEnabled: false,
+    contentStyle: { backgroundColor: "transparent" },
+    headerShown: false,
+  };
+}
+
 /** The longest name a link may put in the bar, in characters, "…" included. */
 export const LINK_TITLE_MAX = 60;
 

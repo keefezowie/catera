@@ -15,6 +15,7 @@ import {
   MoodLabelsProvider,
   MoodProvider,
   navigationTheme,
+  dialogOptions,
   sheetOptions,
   statusBarStyle,
   Text,
@@ -111,8 +112,8 @@ function Navigation() {
           <Stack.Protected guard={allowed.includes(SCREEN_TAB["impor-foto"])}>
             <Stack.Screen name="impor-foto" options={{ ...modal, presentation: "fullScreenModal", title: t("Foto", "Photo") }} />
           </Stack.Protected>
-          {/* The confirm and action sheets (`useConfirm`, `useActionSheet`), sized to their content, over any screen. */}
-          <Stack.Screen name="konfirmasi" options={sheetOptions({ detents: "fit", palette })} />
+          {/* The confirm dialog (`useConfirm`), centred over any screen or sheet, and the action sheet (`useActionSheet`). */}
+          <Stack.Screen name="konfirmasi" options={dialogOptions()} />
           <Stack.Screen name="aksi" options={sheetOptions({ detents: "fit", palette })} />
         </Stack>
       </TopInsetOwner>

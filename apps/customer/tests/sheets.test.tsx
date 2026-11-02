@@ -13,7 +13,7 @@ import {
   canHoldRemoval,
   SHEET_FOCUS_FALLBACK_MS,
   SHEET_FOCUS_SETTLE_MS,
-  ConfirmSheet,
+  ConfirmDialog,
   SheetBody,
   SheetHeader,
   ThemeProvider,
@@ -263,12 +263,12 @@ describe("sheet routes", () => {
     }
   });
 
-  it("confirm and action sheets are fit-to-content sheets over everything", async () => {
+  it("the confirm is a centred dialog and the action sheet a fit-to-content sheet, both over everything", async () => {
     const app = await mount("/");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Tanya" })));
     expect(root()).toEqual(["(tabs)", "konfirmasi"]);
-    expect(screenOf("konfirmasi").props.stackPresentation).toBe("formSheet");
-    expect(screenOf("konfirmasi").props.sheetAllowedDetents).toEqual([-1]);
+    expect(screenOf("konfirmasi").props.stackPresentation).toBe("transparentModal");
+    expect(screen.getByTestId("confirm-card")).toBeTruthy();
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Batal" })));
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Pilihan" })));
     expect(root()).toEqual(["(tabs)", "aksi"]);
@@ -279,12 +279,12 @@ describe("sheet routes", () => {
 });
 
 describe("useConfirm", () => {
-  it("useConfirm resolves false when the sheet is swiped away", async () => {
+  it("useConfirm resolves false on a tap outside the dialog", async () => {
     const app = await mount("/");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Tanya" })));
     expect(screen.getByRole("header", { name: "Hapus alamat?" })).toBeTruthy();
     expect(screen.getByText("Alamat ini tidak bisa dipakai lagi.")).toBeTruthy();
-    await swipeAway("konfirmasi");
+    await go(() => fireEvent.press(screen.getByTestId("confirm-scrim", { includeHiddenElements: true })));
     expect(root()).toEqual(["(tabs)"]);
     expect(mockResults).toEqual([false]);
     await app.unmount();
@@ -438,9 +438,9 @@ describe("ActionSheet", () => {
   });
 });
 
-describe("ConfirmSheet", () => {
+describe("ConfirmDialog", () => {
   const sheet = (os: string, input: Partial<ConfirmInput> = {}) =>
-    render(<ConfirmSheet {...mockConfirmInput} {...input} onConfirm={() => {}} onCancel={() => {}} os={os} />);
+    render(<ConfirmDialog {...mockConfirmInput} {...input} onConfirm={() => {}} onCancel={() => {}} os={os} />);
   const box = (label: string) => StyleSheet.flatten(screen.getByRole("button", { name: label }).props.style);
 
   it("iOS puts the two buttons side by side, cancel first, the confirm in the danger fill", async () => {
@@ -450,6 +450,18 @@ describe("ConfirmSheet", () => {
     expect(within(row).getAllByRole("button").map((b) => b.props.accessibilityLabel)).toEqual(["Batal", "Hapus"]);
     expect(box("Batal").flex).toBe(1);
     expect(box("Hapus").backgroundColor).toBe(nativeThemes.light.danger);
+  });
+
+  it("is a centred card over a scrim: alert-sized on iOS, the Material dialog on Android", async () => {
+    const card = () => StyleSheet.flatten(screen.getByTestId("confirm-card").props.style);
+    const first = await sheet("ios");
+    expect(card()).toMatchObject({ borderRadius: 20 });
+    expect(card().width).toBeLessThanOrEqual(300);
+    expect(StyleSheet.flatten(screen.getByTestId("confirm-dialog").props.style)).toMatchObject({ alignItems: "center", justifyContent: "center" });
+    await first.unmount();
+    await sheet("android");
+    expect(card()).toMatchObject({ borderRadius: 28 });
+    expect(card().width).toBeGreaterThanOrEqual(280);
   });
 
   it("Android ends the row with a text button and a filled button", async () => {
@@ -496,7 +508,7 @@ describe("ConfirmSheet", () => {
     try {
       await render(
         <NavigationContext.Provider value={navigation as never}>
-          <ConfirmSheet {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="android" />
+          <ConfirmDialog {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="android" />
         </NavigationContext.Provider>,
       );
       // The sheet lands before the fallback: focus at once, again after the settle, and the fallback never fires.
@@ -525,7 +537,7 @@ describe("sheet states", () => {
     const dark = nativeThemes.dark;
     await render(
       <ThemeProvider storageKey="sheets-theme">
-        <ConfirmSheet {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="android" />
+        <ConfirmDialog {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="android" />
         <ActionSheet {...mockActionInput} onChoose={() => {}} os="android" />
       </ThemeProvider>,
     );
@@ -541,7 +553,7 @@ describe("sheet states", () => {
   it("at a larger font every row and button grows with its text: no fixed heights, no cut lines", async () => {
     await render(
       <>
-        <ConfirmSheet {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="ios" />
+        <ConfirmDialog {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="ios" />
         <ActionSheet {...mockActionInput} onChoose={() => {}} os="android" />
       </>,
     );

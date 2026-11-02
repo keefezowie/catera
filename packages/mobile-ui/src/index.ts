@@ -64,7 +64,7 @@ export {
   type QuestionRegistry,
   type UnsavedGuardOptions,
 } from "./sheets";
-export * from "./ConfirmSheet";
+export * from "./ConfirmDialog";
 export * from "./ActionSheet";
 export * from "./settings/SettingsRows";
 export * from "./settings/ThemeChoice";

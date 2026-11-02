@@ -16,6 +16,7 @@ import {
   MoodLabelsProvider,
   MoodProvider,
   navigationTheme,
+  dialogOptions,
   sheetOptions,
   statusBarStyle,
   Text,
@@ -135,8 +136,8 @@ function Navigation() {
             name="tomorrow"
             options={{ headerShown: false, presentation: "fullScreenModal", animation: "fade" }}
           />
-          {/* The confirm and action sheets (`useConfirm`, `useActionSheet`), sized to their content, over any screen. */}
-          <Stack.Screen name="konfirmasi" options={sheetOptions({ detents: "fit", palette })} />
+          {/* The confirm dialog (`useConfirm`), centred over any screen or sheet, and the action sheet (`useActionSheet`). */}
+          <Stack.Screen name="konfirmasi" options={dialogOptions()} />
           <Stack.Screen name="aksi" options={sheetOptions({ detents: "fit", palette })} />
           {/* The push primer after the first paid plan (polish, PushPrimer.tsx), sized to its content. */}
           <Stack.Screen name="notifikasi-primer" options={sheetOptions({ detents: "fit", palette })} />
