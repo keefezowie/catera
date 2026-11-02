@@ -43,8 +43,8 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-const renderWith = (ui: React.ReactElement) =>
-  render(
+const renderWith = async (ui: React.ReactElement) =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
       {ui}
     </MobileProvider>,
@@ -77,11 +77,11 @@ const keyboard = () => {
     (handlers[event] ??= []).push(fn);
     return { remove: jest.fn() };
   }) as never);
-  const fire = (events: string[], e?: unknown) =>
-    act(() => events.forEach((name) => handlers[name]?.forEach((fn) => fn(e as never))));
+  const fire = async (events: string[], e?: unknown) =>
+    await act(() => events.forEach((name) => handlers[name]?.forEach((fn) => fn(e as never))));
   return {
-    show: (height = 280) => fire(["keyboardDidShow", "keyboardWillShow"], { endCoordinates: { height } }),
-    hide: () => fire(["keyboardDidHide", "keyboardWillHide"]),
+    show: async (height = 280) => await fire(["keyboardDidShow", "keyboardWillShow"], { endCoordinates: { height } }),
+    hide: async () => await fire(["keyboardDidHide", "keyboardWillHide"]),
   };
 };
 const borderOf = (label: string) => StyleSheet.flatten(screen.getByLabelText(label).props.style).borderColor;
@@ -91,11 +91,11 @@ describe("Masuk, the OKX layout", () => {
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(await screen.findByTestId("masuk-error")).toBeTruthy();
     const page = order();
     const at = (s: string) => page.indexOf(s);
@@ -110,12 +110,12 @@ describe("Masuk, the OKX layout", () => {
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const before = borderOf("Kata sandi");
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     await screen.findByTestId("masuk-error");
     expect(borderOf("Kata sandi")).not.toBe(before);
     expect(screen.getByLabelText("Email").props.value).toBe("rani@example.test");
@@ -128,19 +128,19 @@ describe("Masuk, the OKX layout", () => {
   it("shows the 56dp mascot mark, gives its room back while the keyboard is up and brings it back", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const kb = keyboard();
-    renderWith(<Masuk />);
+    await renderWith(<Masuk />);
     const mark = await screen.findByTestId("mascot-melambai", { includeHiddenElements: true });
     expect(StyleSheet.flatten(mark.props.style).alignSelf).toBe("flex-start");
     expect(StyleSheet.flatten(screen.getByTestId("mascot-art", { includeHiddenElements: true }).props.style).height).toBe(56);
     const host = () => screen.getByTestId("auth-mark", { includeHiddenElements: true });
     const slot = () => StyleSheet.flatten(host().props.style);
     // Measured once, so the room it gives back is its real height.
-    fireEvent(host().children[0] as never, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 56, height: 56 } } });
+    await fireEvent(host().children[0] as never, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 56, height: 56 } } });
     expect(slot().height).toBe(56);
-    kb.show();
+    await kb.show();
     // Reduced motion: the room is gone at once, not eased or keyboard-led.
     await waitFor(() => expect(slot()).toMatchObject({ height: 0, opacity: 0 }));
-    kb.hide();
+    await kb.hide();
     await waitFor(() => expect(slot()).toMatchObject({ height: 56, opacity: 1 }));
   });
 
@@ -150,19 +150,19 @@ describe("Masuk, the OKX layout", () => {
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     // The pinned footer (Daftar and Masuk) rises by the keyboard's height; the scroll view above it shrinks.
     const lift = () => (StyleSheet.flatten(screen.getByTestId("screen-footer").props.style).marginBottom ?? 0) as number;
     expect(lift()).toBe(0);
-    kb.show(300);
+    await kb.show(300);
     expect(lift()).toBe(300);
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     await screen.findByTestId("masuk-error");
     await waitFor(() => expect(scrollToEnd).toHaveBeenCalled());
-    kb.hide();
+    await kb.hide();
     expect(lift()).toBe(0);
   });
 
@@ -170,9 +170,9 @@ describe("Masuk, the OKX layout", () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reducedMotion);
     const kb = keyboard();
     const scrollToEnd = jest.spyOn(ScrollView.prototype as never as { scrollToEnd: (o?: { animated?: boolean }) => void }, "scrollToEnd").mockImplementation(() => undefined);
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
-    kb.show(300);
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await kb.show(300);
     await new Promise((r) => setTimeout(r, 50));
     expect(scrollToEnd).not.toHaveBeenCalled();
   });
@@ -184,9 +184,9 @@ describe("Masuk, the OKX layout", () => {
     expect(src).toContain("keyboard.state}");
   });
 
-  it("keeps the window edge-to-edge in Expo Go: the keyboard hook gets both translucent flags", () => {
+  it("keeps the window edge-to-edge in Expo Go: the keyboard hook gets both translucent flags", async () => {
     const spy = jest.spyOn(Reanimated, "useAnimatedKeyboard");
-    render(<ThemeProvider><AuthHeading title="Masuk" /></ThemeProvider>);
+    await render(<ThemeProvider><AuthHeading title="Masuk" /></ThemeProvider>);
     expect(spy).toHaveBeenCalledWith({ isStatusBarTranslucentAndroid: true, isNavigationBarTranslucentAndroid: true });
     spy.mockRestore();
   });
@@ -196,12 +196,12 @@ describe("Masuk, the OKX layout", () => {
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const [e0, p0] = [borderOf("Email"), borderOf("Kata sandi")];
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     await screen.findByTestId("masuk-error");
     expect(borderOf("Email")).not.toBe(e0);
     expect(borderOf("Kata sandi")).not.toBe(p0);
@@ -209,8 +209,8 @@ describe("Masuk, the OKX layout", () => {
 
 
   it("on the email step puts the sign-up line above Masuk, as drawn", async () => {
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const page = order();
     expect(page.indexOf("button:Daftar dengan email")).toBeLessThan(page.indexOf("button:Masuk"));
     expect(page.indexOf("button:Daftar dengan email")).toBeGreaterThan(page.indexOf("button:Lupa kata sandi?"));
@@ -218,22 +218,22 @@ describe("Masuk, the OKX layout", () => {
   });
 
   it("keeps what was typed when going back to the providers and returning", async () => {
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     expect(screen.getByText("Pakai email dan kata sandi akun Catera-mu.")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
     const back = screen.getByRole("button", { name: "Kembali ke pilihan masuk" });
     expect(StyleSheet.flatten(back.props.style)).toMatchObject({ width: 48, height: 48 });
-    fireEvent.press(back);
+    await fireEvent.press(back);
     expect(screen.queryByLabelText("Email")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut dengan email" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut dengan email" }));
     expect(screen.getByLabelText("Email").props.value).toBe("rani@example.test");
     expect(screen.getByLabelText("Kata sandi").props.value).toBe("synthetic-password");
   });
 
   it("sets the title at the start, with providers as 52 pills and no method tabs", async () => {
-    renderWith(<Masuk />);
+    await renderWith(<Masuk />);
     const title = await screen.findByRole("header", { name: "Masuk ke Catera" });
     expect(StyleSheet.flatten(title.props.style).textAlign).not.toBe("center");
     expect(screen.queryByRole("tab")).toBeNull();
@@ -243,20 +243,20 @@ describe("Masuk, the OKX layout", () => {
   });
 
   it("puts Lupa kata sandi? right under the password field and gives the toggle a stateful name", async () => {
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const page = order();
     const gap = page.slice(page.indexOf("field:Kata sandi") + 1, page.indexOf("button:Lupa kata sandi?"));
     expect(page.indexOf("button:Lupa kata sandi?")).toBeGreaterThan(-1);
     expect(gap.every((s) => s === "button:Tampilkan kata sandi")).toBe(true);
     expect(screen.queryByText("Tampilkan")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Tampilkan kata sandi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tampilkan kata sandi" }));
     expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
   });
 
   it("pins Belum punya akun? Daftar dengan email and Masuk at the bottom of the email step", async () => {
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const footer = screen.getByTestId("screen-footer");
     expect(within(footer).getByRole("button", { name: "Daftar dengan email" })).toBeTruthy();
     expect(within(footer).getByRole("button", { name: "Masuk" })).toBeTruthy();
@@ -267,17 +267,17 @@ describe("Masuk, the OKX layout", () => {
     const { NavigationContext } = require("expo-router/react-navigation");
     const setOptions = jest.fn();
     const nav = { setOptions, isFocused: () => true, addListener: () => () => undefined, getParent: () => undefined, getState: () => ({ type: "stack", routes: [] }) };
-    render(
+    await render(
       <NavigationContext.Provider value={nav as never}>
         <MobileProvider runtime={runtime} linkMapper={customerLink}>
           <Masuk />
         </MobileProvider>
       </NavigationContext.Provider>,
     );
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     await waitFor(() => expect(setOptions).toHaveBeenCalled());
     expect(setOptions.mock.calls.at(-1)[0].headerLeft()).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Kembali ke pilihan masuk" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kembali ke pilihan masuk" }));
     await waitFor(() => expect(setOptions.mock.calls.at(-1)[0].headerLeft()).not.toBeNull());
   });
 
@@ -288,11 +288,11 @@ describe("Masuk, the OKX layout", () => {
       handlers.push(h);
       return { remove: () => handlers.splice(handlers.indexOf(h), 1) };
     }) as never);
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     expect(handlers).toHaveLength(1);
     let handled = false;
-    act(() => {
+    await act(() => {
       handled = handlers[0]();
     });
     expect(handled).toBe(true);
@@ -302,10 +302,10 @@ describe("Masuk, the OKX layout", () => {
   });
 
   it("shows and hides the password", async () => {
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     expect(screen.getByLabelText("Kata sandi").props.secureTextEntry).toBe(true);
-    fireEvent.press(screen.getByRole("button", { name: "Tampilkan kata sandi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tampilkan kata sandi" }));
     expect(screen.getByLabelText("Kata sandi").props.secureTextEntry).toBe(false);
     expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
   });
@@ -314,12 +314,12 @@ describe("Masuk, the OKX layout", () => {
 
 describe("Daftar, the same layout", () => {
   it("titles the screen Daftar and puts Sudah punya akun? Masuk under the primary button", async () => {
-    renderWith(<Register />);
+    await renderWith(<Register />);
     expect(await screen.findByRole("header", { name: "Daftar" })).toBeTruthy();
     const page = order();
     expect(page.indexOf("button:Masuk")).toBeGreaterThan(page.indexOf("button:Daftar"));
     expect(screen.getByText("Sudah punya akun?")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/" } });
   });
 });

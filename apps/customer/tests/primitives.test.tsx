@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ReactNative from "react-native";
 import { AccessibilityInfo, AppState, Keyboard, StyleSheet, View } from "react-native";
 import * as Reanimated from "react-native-reanimated";
@@ -27,6 +26,7 @@ import {
   useToast,
   type ToastInput,
 } from "@catera/mobile-ui";
+import { byComponent, hostsOfType, ionicons, styleOf } from "./host-tree";
 
 // ThemeProvider reads a stored choice; none is stored, so it follows the (mocked) system scheme.
 jest.mock("expo-secure-store", () => ({
@@ -41,6 +41,30 @@ afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
 });
+
+/**
+ * The timers the code under test has set and not yet cleared or fired. Counting the fake clock (`jest.getTimerCount()`)
+ * also counts the timers React and Testing Library 14 leave pending between awaited acts, so this wraps the global
+ * timer functions from the moment it is called and sees only what the app code schedules.
+ */
+function trackTimers() {
+  const live = new Set<unknown>();
+  const set = global.setTimeout;
+  const clear = global.clearTimeout;
+  jest.spyOn(global, "setTimeout").mockImplementation(((fn: () => void, ms?: number, ...args: unknown[]) => {
+    const id = set(() => {
+      live.delete(id);
+      fn(...args);
+    }, ms);
+    live.add(id);
+    return id;
+  }) as never);
+  jest.spyOn(global, "clearTimeout").mockImplementation(((id: never) => {
+    live.delete(id);
+    clear(id);
+  }) as never);
+  return { count: () => live.size };
+}
 
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
 
@@ -60,42 +84,42 @@ function fakeNavigation({ types = ["stack"], goBack = jest.fn() }: { types?: str
       return () => void listeners[event].splice(listeners[event].indexOf(cb), 1);
     },
   };
-  const setFocused = (next: boolean) => {
+  const setFocused = async (next: boolean) => {
     focused = next;
-    act(() => listeners[next ? "focus" : "blur"].forEach((cb) => cb()));
+    await act(() => listeners[next ? "focus" : "blur"].forEach((cb) => cb()));
   };
   return { navigation: navigation as never, setFocused };
 }
 
 describe("Skeleton", () => {
-  it("a fast load shows no skeleton: the blocks hold their space at opacity 0 for the first 300ms", () => {
+  it("a fast load shows no skeleton: the blocks hold their space at opacity 0 for the first 300ms", async () => {
     jest.useFakeTimers();
     const repeat = jest.spyOn(Reanimated, "withRepeat");
-    render(
+    await render(
       <SkeletonGroup label="Memuat paket">
         <Skeleton testID="block" height={20} />
       </SkeletonGroup>,
     );
     expect(flat(screen.getByTestId("block", { includeHiddenElements: true }))).toMatchObject({ height: 20, opacity: 0 });
-    act(() => jest.advanceTimersByTime(299));
+    await act(() => jest.advanceTimersByTime(299));
     expect(repeat).not.toHaveBeenCalled();
-    act(() => jest.advanceTimersByTime(1));
+    await act(() => jest.advanceTimersByTime(1));
     expect(repeat).toHaveBeenCalledTimes(1);
     jest.useRealTimers();
   });
 
-  it("skeleton blocks share one pulse and the group reads as a progress bar with its label", () => {
+  it("skeleton blocks share one pulse and the group reads as a progress bar with its label", async () => {
     jest.useFakeTimers();
     const repeat = jest.spyOn(Reanimated, "withRepeat");
     const timing = jest.spyOn(Reanimated, "withTiming");
-    render(
+    await render(
       <SkeletonGroup label="Memuat paket">
         <Skeleton testID="block" height={20} />
         <Skeleton testID="block" height={14} width="60%" />
         <Skeleton testID="block" height={120} radius={20} />
       </SkeletonGroup>,
     );
-    act(() => jest.advanceTimersByTime(300));
+    await act(() => jest.advanceTimersByTime(300));
     jest.useRealTimers();
     const group = screen.getByRole("progressbar");
     expect(group.props.accessibilityLabel).toBe("Memuat paket");
@@ -112,7 +136,7 @@ describe("Skeleton", () => {
     expect(flat(blocks[2])).toMatchObject({ height: 120, borderRadius: 20 });
   });
 
-  it("skeleton is static under reduced motion", () => {
+  it("skeleton is static under reduced motion", async () => {
     jest.useFakeTimers();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const repeat = jest.spyOn(Reanimated, "withRepeat");
@@ -122,18 +146,18 @@ describe("Skeleton", () => {
         <Skeleton testID="block" height={20} />
       </SkeletonGroup>
     );
-    const view = render(tree);
-    act(() => jest.advanceTimersByTime(300));
+    const view = await render(tree);
+    await act(() => jest.advanceTimersByTime(300));
     // The jest mock reads an animated style at render, so render again to see the value the delay set.
-    view.rerender(tree);
+    await view.rerender(tree);
     jest.useRealTimers();
     expect(repeat).not.toHaveBeenCalled();
     for (const block of screen.getAllByTestId("block", { includeHiddenElements: true }))
       expect(flat(block)).toMatchObject({ opacity: 0.75 });
   });
 
-  it("a skeleton on a mood surface takes the mood's arc track", () => {
-    render(
+  it("a skeleton on a mood surface takes the mood's arc track", async () => {
+    await render(
       <SkeletonGroup label="Memuat dapur">
         <Skeleton testID="block" height={40} onMood />
       </SkeletonGroup>,
@@ -156,54 +180,55 @@ describe("MascotLoading", () => {
   const visual = () => screen.getByTestId("mascot-loading-visual", { includeHiddenElements: true });
   const rig = () => screen.getByTestId("mascot-rig", { includeHiddenElements: true });
   const poster = () => screen.getByTestId("mascot-poster", { includeHiddenElements: true });
-  const loadLayers = () => {
-    for (const layer of screen.getAllByTestId("mascot-layer", { includeHiddenElements: true })) fireEvent(layer, "load");
+  const loadLayers = async () => {
+    for (const layer of screen.getAllByTestId("mascot-layer", { includeHiddenElements: true })) await fireEvent(layer, "load");
   };
 
-  it("mascot shows its label at once and its art after 300ms", () => {
+  it("mascot shows its label at once and its art after 300ms", async () => {
     jest.useFakeTimers();
-    render(<MascotLoading label="Menyiapkan Catera…" />);
+    await render(<MascotLoading label="Menyiapkan Catera…" />);
     // The status is spoken at once; the drawing waits 300ms so a fast answer shows nothing.
     expect(screen.getByRole("progressbar").props.accessibilityLabel).toBe("Menyiapkan Catera…");
     expect(flat(visual())).toMatchObject({ opacity: 0 });
-    act(() => jest.advanceTimersByTime(299));
+    await act(() => jest.advanceTimersByTime(299));
     expect(flat(visual())).toMatchObject({ opacity: 0 });
-    act(() => jest.advanceTimersByTime(1));
+    await act(() => jest.advanceTimersByTime(1));
     expect(flat(visual())).toMatchObject({ opacity: 1 });
     // The art is the default 140 square; it plays once every layer has loaded.
     expect(flat(screen.getByTestId("mascot-art", { includeHiddenElements: true }))).toMatchObject({ width: 140, height: 140 });
     expect(flat(rig())).toMatchObject({ opacity: 0 });
-    loadLayers();
+    await loadLayers();
     expect(flat(rig())).toMatchObject({ opacity: 1 });
     expect(flat(poster())).toMatchObject({ opacity: 0 });
   });
 
-  it("an answer before 300ms clears the reveal timer and nothing is left running", () => {
+  it("an answer before 300ms clears the reveal timer and nothing is left running", async () => {
     jest.useFakeTimers();
-    const clear = jest.spyOn(global, "clearTimeout");
+    const timers = trackTimers();
+    const clear = global.clearTimeout as jest.Mock;
     const cancel = jest.spyOn(Reanimated, "cancelAnimation");
-    const view = render(<MascotLoading label="Memeriksa kode…" />);
-    act(() => jest.advanceTimersByTime(100));
-    view.unmount();
+    const view = await render(<MascotLoading label="Memeriksa kode…" />);
+    await act(() => jest.advanceTimersByTime(100));
+    await view.unmount();
     expect(clear).toHaveBeenCalled();
     expect(cancel).toHaveBeenCalled();
-    expect(jest.getTimerCount()).toBe(0);
+    expect(timers.count()).toBe(0);
   });
 
-  it("mascot under reduced motion shows the neutral pose", () => {
+  it("mascot under reduced motion shows the neutral pose", async () => {
     jest.useFakeTimers();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const repeat = jest.spyOn(Reanimated, "withRepeat");
-    render(<MascotLoading label="Memuat" />);
-    act(() => jest.advanceTimersByTime(300));
-    loadLayers();
+    await render(<MascotLoading label="Memuat" />);
+    await act(() => jest.advanceTimersByTime(300));
+    await loadLayers();
     expect(flat(visual())).toMatchObject({ opacity: 1 });
     expect(flat(poster())).toMatchObject({ opacity: 1 });
     expect(flat(rig())).toMatchObject({ opacity: 0 });
     expect(repeat).not.toHaveBeenCalled();
   });
 
-  it("mascot pauses on the neutral pose when its screen loses focus or the app goes to the background", () => {
+  it("mascot pauses on the neutral pose when its screen loses focus or the app goes to the background", async () => {
     jest.useFakeTimers();
     let onState: (state: string) => void = () => {};
     const removeState = jest.fn();
@@ -220,35 +245,35 @@ describe("MascotLoading", () => {
         return () => void listeners[event].splice(listeners[event].indexOf(cb), 1);
       },
     };
-    const view = render(
+    const view = await render(
       <NavigationContext.Provider value={navigation as never}>
         <MascotLoading label="Memuat" />
       </NavigationContext.Provider>,
     );
-    act(() => jest.advanceTimersByTime(300));
-    act(() => onState("active"));
-    loadLayers();
+    await act(() => jest.advanceTimersByTime(300));
+    await act(() => onState("active"));
+    await loadLayers();
     expect(flat(rig())).toMatchObject({ opacity: 1 });
     focused = false;
-    act(() => listeners.blur.forEach((cb) => cb()));
+    await act(() => listeners.blur.forEach((cb) => cb()));
     expect(flat(rig())).toMatchObject({ opacity: 0 });
     expect(flat(poster())).toMatchObject({ opacity: 1 });
     focused = true;
-    act(() => listeners.focus.forEach((cb) => cb()));
+    await act(() => listeners.focus.forEach((cb) => cb()));
     expect(flat(rig())).toMatchObject({ opacity: 1 });
-    act(() => onState("background"));
+    await act(() => onState("background"));
     expect(flat(rig())).toMatchObject({ opacity: 0 });
-    act(() => onState("active"));
+    await act(() => onState("active"));
     expect(flat(rig())).toMatchObject({ opacity: 1 });
     // A layer that fails keeps the neutral poster.
-    fireEvent(screen.getAllByTestId("mascot-layer", { includeHiddenElements: true })[0], "error");
+    await fireEvent(screen.getAllByTestId("mascot-layer", { includeHiddenElements: true })[0], "error");
     expect(flat(rig())).toMatchObject({ opacity: 0 });
-    view.unmount();
+    await view.unmount();
     expect(removeState).toHaveBeenCalledTimes(1);
     expect(listeners.blur).toHaveLength(0);
   });
 
-  it("the mascot rests on the poster while the app is not active at mount, and plays once it is", () => {
+  it("the mascot rests on the poster while the app is not active at mount, and plays once it is", async () => {
     jest.useFakeTimers();
     appState.currentState = "inactive";
     let onState: (state: string) => void = () => {};
@@ -256,35 +281,35 @@ describe("MascotLoading", () => {
       onState = cb as (state: string) => void;
       return { remove: jest.fn() } as never;
     });
-    render(<MascotLoading label="Memuat" />);
-    act(() => jest.advanceTimersByTime(300));
-    loadLayers();
+    await render(<MascotLoading label="Memuat" />);
+    await act(() => jest.advanceTimersByTime(300));
+    await loadLayers();
     // "inactive" is not in front, at mount exactly as on a change.
     expect(flat(rig())).toMatchObject({ opacity: 0 });
     expect(flat(poster())).toMatchObject({ opacity: 1 });
-    act(() => onState("active"));
+    await act(() => onState("active"));
     expect(flat(rig())).toMatchObject({ opacity: 1 });
-    act(() => onState("inactive"));
+    await act(() => onState("inactive"));
     expect(flat(rig())).toMatchObject({ opacity: 0 });
   });
 
-  it("in the dark theme the mascot's words and the startup canvas read the dark palette", () => {
+  it("in the dark theme the mascot's words and the startup canvas read the dark palette", async () => {
     jest.useFakeTimers();
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const dark = nativeThemes.dark;
-    const view = render(
+    const view = await render(
       <ThemeProvider storageKey="primitives-theme">
         <MascotLoading label="Memeriksa pembayaran…" />
       </ThemeProvider>,
     );
-    act(() => jest.advanceTimersByTime(300));
+    await act(() => jest.advanceTimersByTime(300));
     expect(flat(screen.getByText("Memeriksa pembayaran…", { includeHiddenElements: true }))).toMatchObject({
       color: dark.charcoal,
     });
     // Away from launch it draws on whatever the screen paints.
     expect(flat(screen.getByTestId("mascot-loading")).backgroundColor).toBeUndefined();
-    view.unmount();
-    render(
+    await view.unmount();
+    await render(
       <ThemeProvider storageKey="primitives-theme">
         <MascotLoading label="Menyiapkan Catera…" startup />
       </ThemeProvider>,
@@ -295,9 +320,9 @@ describe("MascotLoading", () => {
     expect(flat(label).fontFamily).toBeUndefined();
   });
 
-  it("the startup mascot fills the canvas and its label uses the system font", () => {
+  it("the startup mascot fills the canvas and its label uses the system font", async () => {
     jest.useFakeTimers();
-    render(<MascotLoading label="Menyiapkan Catera…" startup size={160} />);
+    await render(<MascotLoading label="Menyiapkan Catera…" startup size={160} />);
     expect(flat(screen.getByTestId("mascot-loading"))).toMatchObject({ backgroundColor: nativeThemes.light.canvas });
     const label = screen.getByText("Menyiapkan Catera…", { includeHiddenElements: true });
     expect(flat(label).fontFamily).toBeUndefined();
@@ -352,48 +377,49 @@ describe("Toast", () => {
     });
   const lane = () => flat(screen.getByTestId("toast"));
 
-  it("a second toast replaces the first and each is announced once", () => {
+  it("a second toast replaces the first and each is announced once", async () => {
     jest.useFakeTimers();
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    mount("android");
-    act(() => toast.show({ message: "Disimpan" }));
+    await mount("android");
+    await act(() => toast.show({ message: "Disimpan" }));
     expect(screen.getByText("Disimpan")).toBeTruthy();
-    act(() => toast.show({ message: "Alamat disimpan" }));
+    await act(() => toast.show({ message: "Alamat disimpan" }));
     expect(screen.queryByText("Disimpan")).toBeNull();
     expect(screen.getByText("Alamat disimpan")).toBeTruthy();
     expect(screen.getAllByTestId("toast")).toHaveLength(1);
     expect(announce.mock.calls).toEqual([["Disimpan"], ["Alamat disimpan"]]);
   });
 
-  it("a toast with an action stays 5 seconds, without one 3 seconds", () => {
+  it("a toast with an action stays 5 seconds, without one 3 seconds", async () => {
     jest.useFakeTimers();
+    const timers = trackTimers();
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    mount("android");
-    act(() => toast.show({ message: "Alamat disimpan" }));
-    act(() => jest.advanceTimersByTime(2999));
+    await mount("android");
+    await act(() => toast.show({ message: "Alamat disimpan" }));
+    await act(() => jest.advanceTimersByTime(2999));
     expect(screen.queryByText("Alamat disimpan")).not.toBeNull();
-    act(() => jest.advanceTimersByTime(1));
+    await act(() => jest.advanceTimersByTime(1));
     expect(screen.queryByText("Alamat disimpan")).toBeNull();
 
     const onPress = jest.fn();
-    act(() => toast.show({ message: "Laporan terkirim", action: { label: "Lihat", onPress } }));
-    act(() => jest.advanceTimersByTime(4999));
+    await act(() => toast.show({ message: "Laporan terkirim", action: { label: "Lihat", onPress } }));
+    await act(() => jest.advanceTimersByTime(4999));
     expect(screen.queryByText("Laporan terkirim")).not.toBeNull();
-    act(() => jest.advanceTimersByTime(1));
+    await act(() => jest.advanceTimersByTime(1));
     expect(screen.queryByText("Laporan terkirim")).toBeNull();
 
     // The action runs once and closes the toast; nothing is left waiting.
-    act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
-    fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
+    await act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
+    await fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Dihapus dari simpanan")).toBeNull();
-    expect(jest.getTimerCount()).toBe(0);
+    expect(timers.count()).toBe(0);
   });
 
-  it("toast sits under the header on iOS and above the tab bar on Android", () => {
+  it("toast sits under the header on iOS and above the tab bar on Android", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    const ios = mount("ios");
-    act(() => toast.show({ message: "Disimpan" }));
+    const ios = await mount("ios");
+    await act(() => toast.show({ message: "Disimpan" }));
     // No inset in Jest: the 44pt bar plus an 8pt gap. The pill hugs its words in the centre of the lane.
     const iosLane = flat(screen.getByTestId("toast"));
     expect(iosLane).toMatchObject({ position: "absolute", top: 52, start: 16, end: 16, alignItems: "center" });
@@ -402,10 +428,10 @@ describe("Toast", () => {
     const pill = flat(screen.getByTestId("toast-surface"));
     expect(pill).toMatchObject({ borderRadius: 22, minHeight: 44, backgroundColor: nativeThemes.light.toast });
     expect(pill.width).toBeUndefined();
-    ios.unmount();
+    await ios.unmount();
 
-    mount("android");
-    act(() => toast.show({ message: "Disimpan" }));
+    await mount("android");
+    await act(() => toast.show({ message: "Disimpan" }));
     // The 80dp navigation bar plus an 8dp gap; the snackbar fills the lane up to 600dp.
     const androidLane = flat(screen.getByTestId("toast"));
     expect(androidLane).toMatchObject({ bottom: 88, start: 16, end: 16 });
@@ -419,18 +445,18 @@ describe("Toast", () => {
     });
   });
 
-  it("on iOS the toast lives in a full-window overlay above sheets; on Android it draws last in the app's window", () => {
+  it("on iOS the toast lives in a full-window overlay above sheets; on Android it draws last in the app's window", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    const ios = mount("ios");
-    act(() => toast.show({ message: "Disimpan" }));
-    expect(screen.UNSAFE_getAllByType(FullWindowOverlay)).toHaveLength(1);
-    ios.unmount();
-    mount("android");
-    act(() => toast.show({ message: "Disimpan" }));
-    expect(screen.UNSAFE_queryAllByType(FullWindowOverlay)).toHaveLength(0);
+    const ios = await mount("ios");
+    await act(() => toast.show({ message: "Disimpan" }));
+    expect(byComponent(FullWindowOverlay)).toHaveLength(1);
+    await ios.unmount();
+    await mount("android");
+    await act(() => toast.show({ message: "Disimpan" }));
+    expect(byComponent(FullWindowOverlay)).toHaveLength(0);
   });
 
-  it("on iOS the toast sits under a tab root's MoodHeader, and goes back to the bar's place when the screen blurs", () => {
+  it("on iOS the toast sits under a tab root's MoodHeader, and goes back to the bar's place when the screen blurs", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     const nav = fakeNavigation({ types: ["stack", "tab"] });
     const header = (owned: boolean) =>
@@ -442,24 +468,24 @@ describe("Toast", () => {
           </TopInsetOwner>
         </NavigationContext.Provider>,
       );
-    const view = render(header(false));
-    act(() => toast.show({ message: "Alamat disimpan" }));
+    const view = await render(header(false));
+    await act(() => toast.show({ message: "Alamat disimpan" }));
     // Before the header is laid out: under a standard bar, 47 + 44 + 8.
     expect(lane().top).toBe(99);
     // The header pays the status bar inside its own 196: the pill starts 8 under its bottom edge, clear of the
     // headline and the toggle.
-    layout("mood-header", 196);
+    await layout("mood-header", 196);
     expect(lane().top).toBe(204);
     // Under the demo strip the header starts below the strip (47 + 24).
-    view.rerender(header(true));
-    layout("mood-header", 149);
+    await view.rerender(header(true));
+    await layout("mood-header", 149);
     expect(lane().top).toBe(47 + 24 + 149 + 8);
     // A pushed screen covers the tab root: its anchor goes with its focus.
-    nav.setFocused(false);
+    await nav.setFocused(false);
     expect(lane().top).toBe(99);
   });
 
-  it("on iOS the toast sits under the large title and follows it as it collapses into the bar", () => {
+  it("on iOS the toast sits under the large title and follows it as it collapses into the bar", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     const stack = (height: number) =>
       tree(
@@ -472,12 +498,12 @@ describe("Toast", () => {
           </HeaderHeightContext.Provider>
         </HeaderShownContext.Provider>,
       );
-    const view = render(stack(47 + 96));
-    act(() => toast.show({ message: "Bahasa diganti" }));
+    const view = await render(stack(47 + 96));
+    await act(() => toast.show({ message: "Bahasa diganti" }));
     // The large title is out: the pill sits under it, not over it.
     expect(lane().top).toBe(47 + 96 + 8);
     // Scrolled: the native header reports the inline bar, and the pill moves up under it.
-    view.rerender(stack(47 + 44));
+    await view.rerender(stack(47 + 44));
     expect(lane().top).toBe(47 + 44 + 8);
   });
 
@@ -496,60 +522,60 @@ describe("Toast", () => {
     </HeaderShownContext.Provider>
   );
 
-  it("in an iOS sheet the toast shows at the bottom, above the home indicator and a footer", () => {
+  it("in an iOS sheet the toast shows at the bottom, above the home indicator and a footer", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     const keyboard: Record<string, (e: { endCoordinates: { height: number } }) => void> = {};
     jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: never) => {
       keyboard[event] = cb;
       return { remove: jest.fn() };
     }) as never);
-    render(tree("ios", presented("modal", stackScreen(<StickyAction label="Kirim kode" onPress={() => {}} />))));
-    act(() => toast.show({ message: "Kode terkirim" }));
+    await render(tree("ios", presented("modal", stackScreen(<StickyAction label="Kirim kode" onPress={() => {}} />))));
+    await act(() => toast.show({ message: "Kode terkirim" }));
     // Never on the sheet's own bar: no top at all, and 8 above the 34pt home indicator before the footer is laid out.
     expect(lane().top).toBeUndefined();
     expect(lane()).toMatchObject({ bottom: 34 + 8 });
     // Above the 96 footer.
-    layout("screen-footer", 96);
+    await layout("screen-footer", 96);
     expect(lane()).toMatchObject({ bottom: 34 + 96 + 8 });
     // The keyboard (336, covering the home indicator) lifts the footer and the toast with it.
-    act(() => keyboard.keyboardWillShow({ endCoordinates: { height: 336 } }));
+    await act(() => keyboard.keyboardWillShow({ endCoordinates: { height: 336 } }));
     expect(lane()).toMatchObject({ bottom: 34 + 96 + (336 - 34) + 8 });
-    act(() => keyboard.keyboardWillHide({ endCoordinates: { height: 0 } }));
+    await act(() => keyboard.keyboardWillHide({ endCoordinates: { height: 0 } }));
     expect(lane()).toMatchObject({ bottom: 34 + 96 + 8 });
   });
 
-  it("an iOS form sheet with only its SheetHeader also shows its toast at the bottom", () => {
+  it("an iOS form sheet with only its SheetHeader also shows its toast at the bottom", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    render(tree("ios", presented("formSheet", <SheetHeader title="Ada masalah" os="ios" />)));
-    act(() => toast.show({ message: "Laporan terkirim" }));
+    await render(tree("ios", presented("formSheet", <SheetHeader title="Ada masalah" os="ios" />)));
+    await act(() => toast.show({ message: "Laporan terkirim" }));
     expect(lane().top).toBeUndefined();
     expect(lane()).toMatchObject({ bottom: 34 + 8 });
   });
 
-  it("in an Android sheet the snackbar sits on the system inset: there is no tab bar under a sheet", () => {
+  it("in an Android sheet the snackbar sits on the system inset: there is no tab bar under a sheet", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    render(tree("android", presented("formSheet", <SheetHeader title="Ada masalah" os="android" />)));
-    act(() => toast.show({ message: "Laporan terkirim" }));
+    await render(tree("android", presented("formSheet", <SheetHeader title="Ada masalah" os="android" />)));
+    await act(() => toast.show({ message: "Laporan terkirim" }));
     // 8 above the 34dp gesture inset, not the 80dp tab bar's fallback.
     expect(lane()).toMatchObject({ bottom: 34 + 8 });
     expect(lane().top).toBeUndefined();
   });
 
-  it("full-screen stack screens keep the top anchor", () => {
+  it("full-screen stack screens keep the top anchor", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     for (const presentation of ["card", "fullScreenModal"]) {
-      const view = render(tree("ios", presented(presentation, stackScreen())));
-      act(() => toast.show({ message: "Disimpan" }));
+      const view = await render(tree("ios", presented(presentation, stackScreen())));
+      await act(() => toast.show({ message: "Disimpan" }));
       // Under the bar the stack reports (from the window's top on a full-screen screen).
       expect(lane()).toMatchObject({ top: 56 + 8 });
       expect(lane().bottom).toBeUndefined();
-      view.unmount();
+      await view.unmount();
     }
   });
 
-  it("on Android the snackbar sits above a StickyAction footer", () => {
+  it("on Android the snackbar sits above a StickyAction footer", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    render(
+    await render(
       tree(
         "android",
         <Screen footer={<StickyAction label="Bayar" onPress={() => {}} />}>
@@ -557,14 +583,14 @@ describe("Toast", () => {
         </Screen>,
       ),
     );
-    act(() => toast.show({ message: "Kode promo dipakai" }));
+    await act(() => toast.show({ message: "Kode promo dipakai" }));
     // Outside the tabs the screen runs to the gesture inset (34); the footer is 96 tall; 8 above it.
-    layout("screen-footer", 96);
+    await layout("screen-footer", 96);
     expect(lane()).toMatchObject({ bottom: 34 + 96 + 8 });
     expect(lane().top).toBeUndefined();
   });
 
-  it("on Android with no tab bar the snackbar sits on the system inset, and inside the tabs above the tab bar", () => {
+  it("on Android with no tab bar the snackbar sits on the system inset, and inside the tabs above the tab bar", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     const page = (types: string[]) =>
       tree(
@@ -575,53 +601,54 @@ describe("Toast", () => {
           </Screen>
         </NavigationContext.Provider>,
       );
-    const view = render(page(["stack"]));
-    act(() => toast.show({ message: "Laporan terkirim" }));
+    const view = await render(page(["stack"]));
+    await act(() => toast.show({ message: "Laporan terkirim" }));
     // A modal or full-screen flow: no 80dp tab bar to clear, only the gesture inset.
     expect(lane()).toMatchObject({ bottom: 34 + 8 });
-    view.unmount();
-    render(page(["stack", "tab", "stack"]));
-    act(() => toast.show({ message: "Laporan terkirim" }));
+    await view.unmount();
+    await render(page(["stack", "tab", "stack"]));
+    await act(() => toast.show({ message: "Laporan terkirim" }));
     expect(lane()).toMatchObject({ bottom: 34 + 80 + 8 });
   });
 
   it("with a screen reader on, an action toast speaks its action and stays for the recommended time", async () => {
     jest.useFakeTimers();
+    const timers = trackTimers();
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     jest.spyOn(AccessibilityInfo, "isScreenReaderEnabled").mockResolvedValue(true);
     const recommended = jest.spyOn(AccessibilityInfo, "getRecommendedTimeoutMillis").mockResolvedValue(20000);
-    mount("android");
+    await mount("android");
     await act(async () => {});
     const onPress = jest.fn();
-    act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
+    await act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
     expect(announce).toHaveBeenLastCalledWith("Dihapus dari simpanan, Urungkan");
     expect(recommended).toHaveBeenCalledWith(5000);
     await act(async () => {});
     // Android: the user's own accessibility timeout, not 5s.
-    act(() => jest.advanceTimersByTime(19999));
+    await act(() => jest.advanceTimersByTime(19999));
     expect(screen.queryByText("Dihapus dari simpanan")).not.toBeNull();
-    act(() => jest.advanceTimersByTime(1));
+    await act(() => jest.advanceTimersByTime(1));
     expect(screen.queryByText("Dihapus dari simpanan")).toBeNull();
 
     // A toast without an action keeps its 3s; a timeout that answers after the action toast was replaced sets nothing.
-    act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
-    act(() => toast.show({ message: "Alamat disimpan" }));
+    await act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
+    await act(() => toast.show({ message: "Alamat disimpan" }));
     expect(announce).toHaveBeenLastCalledWith("Alamat disimpan");
     await act(async () => {});
-    act(() => jest.advanceTimersByTime(3000));
+    await act(() => jest.advanceTimersByTime(3000));
     expect(screen.queryByText("Alamat disimpan")).toBeNull();
-    expect(jest.getTimerCount()).toBe(0);
+    expect(timers.count()).toBe(0);
 
     // Using the action closes it at once, and its long timeout is cleared with it (a later toast is not cut short).
-    act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
+    await act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
     await act(async () => {});
     const clear = jest.spyOn(global, "clearTimeout");
-    fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Dihapus dari simpanan")).toBeNull();
     expect(clear).toHaveBeenCalled();
-    act(() => toast.show({ message: "Alamat disimpan" }));
-    act(() => jest.advanceTimersByTime(2999));
+    await act(() => toast.show({ message: "Alamat disimpan" }));
+    await act(() => jest.advanceTimersByTime(2999));
     expect(screen.queryByText("Alamat disimpan")).not.toBeNull();
   });
 
@@ -635,26 +662,26 @@ describe("Toast", () => {
       onReader = cb;
       return { remove };
     }) as never);
-    const view = mount("ios");
+    const view = await mount("ios");
     await act(async () => {});
     // Off: the plain 5s.
-    act(() => toast.show({ message: "Laporan terkirim", action: { label: "Lihat", onPress: () => {} } }));
-    act(() => jest.advanceTimersByTime(5000));
+    await act(() => toast.show({ message: "Laporan terkirim", action: { label: "Lihat", onPress: () => {} } }));
+    await act(() => jest.advanceTimersByTime(5000));
     expect(screen.queryByText("Laporan terkirim")).toBeNull();
-    act(() => onReader(true));
-    act(() => toast.show({ message: "Laporan terkirim", action: { label: "Lihat", onPress: () => {} } }));
-    act(() => jest.advanceTimersByTime(9999));
+    await act(() => onReader(true));
+    await act(() => toast.show({ message: "Laporan terkirim", action: { label: "Lihat", onPress: () => {} } }));
+    await act(() => jest.advanceTimersByTime(9999));
     expect(screen.queryByText("Laporan terkirim")).not.toBeNull();
-    act(() => jest.advanceTimersByTime(1));
+    await act(() => jest.advanceTimersByTime(1));
     expect(screen.queryByText("Laporan terkirim")).toBeNull();
-    view.unmount();
+    await view.unmount();
     expect(remove).toHaveBeenCalledTimes(1);
   });
 
-  it("toast text wraps and its action stays on one line; an error carries its mark", () => {
+  it("toast text wraps and its action stays on one line; an error carries its mark", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    mount("android");
-    act(() => toast.show({ message: "Laporan terkirim ke katerer", action: { label: "Lihat", onPress: () => {} } }));
+    await mount("android");
+    await act(() => toast.show({ message: "Laporan terkirim ke katerer", action: { label: "Lihat", onPress: () => {} } }));
     const message = screen.getByText("Laporan terkirim ke katerer");
     expect(message.props.numberOfLines).toBeUndefined();
     expect(flat(message)).toMatchObject({ flexShrink: 1, color: nativeThemes.light.onToast });
@@ -662,15 +689,15 @@ describe("Toast", () => {
     expect(action.props.numberOfLines).toBe(1);
     expect(flat(action)).toMatchObject({ color: nativeThemes.light.toastAction });
     expect(screen.queryByTestId("toast-error")).toBeNull();
-    act(() => toast.show({ message: "Belum bisa terhubung", tone: "error" }));
+    await act(() => toast.show({ message: "Belum bisa terhubung", tone: "error" }));
     expect(screen.getByTestId("toast-error", { includeHiddenElements: true })).toBeTruthy();
   });
 
-  it("in the dark theme the toast, the skeleton and the sheet title read the dark palette", () => {
+  it("in the dark theme the toast, the skeleton and the sheet title read the dark palette", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const dark = nativeThemes.dark;
-    render(
+    await render(
       <ThemeProvider storageKey="primitives-theme">
         <ToastProvider os="android">
           <SkeletonGroup label="Memuat paket">
@@ -681,7 +708,7 @@ describe("Toast", () => {
         </ToastProvider>
       </ThemeProvider>,
     );
-    act(() => toast.show({ message: "Tampilan: Gelap", action: { label: "Lihat", onPress: () => {} } }));
+    await act(() => toast.show({ message: "Tampilan: Gelap", action: { label: "Lihat", onPress: () => {} } }));
     expect(flat(screen.getByTestId("toast-surface"))).toMatchObject({ backgroundColor: dark.toast });
     expect(flat(screen.getByText("Tampilan: Gelap"))).toMatchObject({ color: dark.onToast });
     expect(flat(screen.getByText("Lihat"))).toMatchObject({ color: dark.toastAction });
@@ -689,16 +716,16 @@ describe("Toast", () => {
     expect(flat(screen.getByRole("header"))).toMatchObject({ color: dark.charcoal });
   });
 
-  it("toast enters and leaves with motion, and appears at once under reduced motion", () => {
+  it("toast enters and leaves with motion, and appears at once under reduced motion", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    mount("android");
-    act(() => toast.show({ message: "Disimpan" }));
+    await mount("android");
+    await act(() => toast.show({ message: "Disimpan" }));
     expect(screen.getByTestId("toast").props.entering).toBeDefined();
     expect(screen.getByTestId("toast").props.exiting).toBeDefined();
-    act(() => toast.hide());
+    await act(() => toast.hide());
     expect(screen.queryByTestId("toast")).toBeNull();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    act(() => toast.show({ message: "Disimpan" }));
+    await act(() => toast.show({ message: "Disimpan" }));
     expect(screen.getByTestId("toast").props.entering).toBeUndefined();
     expect(screen.getByTestId("toast").props.exiting).toBeUndefined();
   });
@@ -711,13 +738,13 @@ describe("row motion", () => {
     return null;
   }
 
-  it("row motion is undefined under reduced motion", () => {
-    render(<Grab />);
+  it("row motion is undefined under reduced motion", async () => {
+    await render(<Grab />);
     expect(motion.entering).toBeDefined();
     expect(motion.exiting).toBeDefined();
     expect(motion.layout).toBeDefined();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    render(<Grab />);
+    await render(<Grab />);
     expect(motion).toEqual({ entering: undefined, exiting: undefined, layout: undefined });
   });
 });
@@ -747,18 +774,18 @@ describe("sheets", () => {
     expect(sheetOptions({ detents: "day", palette, os: "android" }).sheetAllowedDetents).toEqual([0.75, 1]);
   });
 
-  it("SheetHeader shows Close on iOS and a drag handle on Android", () => {
+  it("SheetHeader shows Close on iOS and a drag handle on Android", async () => {
     const onClose = jest.fn();
-    const ios = render(<SheetHeader title="Ada masalah" context="Senin 12 Okt" onClose={onClose} os="ios" />);
-    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+    const ios = await render(<SheetHeader title="Ada masalah" context="Senin 12 Okt" onClose={onClose} os="ios" />);
+    await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId("sheet-handle")).toBeNull();
     const iosTitle = screen.getByRole("header");
     expect(flat(iosTitle)).toMatchObject({ fontSize: 17, textAlign: "center", fontFamily: "Jakarta-Bold" });
     expect(screen.getByText("Senin 12 Okt")).toBeTruthy();
-    ios.unmount();
+    await ios.unmount();
 
-    render(<SheetHeader title="Ada masalah" onClose={onClose} os="android" />);
+    await render(<SheetHeader title="Ada masalah" onClose={onClose} os="android" />);
     expect(screen.queryByRole("button", { name: "Tutup" })).toBeNull();
     const handle = screen.getByTestId("sheet-handle", { includeHiddenElements: true });
     expect(flat(handle)).toMatchObject({ width: 32, height: 4 });
@@ -766,27 +793,27 @@ describe("sheets", () => {
     expect(flat(screen.getByRole("header"))).toMatchObject({ fontSize: 22, textAlign: "left", fontFamily: "Jakarta-Bold" });
   });
 
-  it("the iOS SheetHeader reads the dark palette", () => {
+  it("the iOS SheetHeader reads the dark palette", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const dark = nativeThemes.dark;
-    render(
+    await render(
       <ThemeProvider storageKey="primitives-theme">
         <SheetHeader title="Ada masalah" context="Senin 12 Okt" onClose={() => {}} os="ios" />
       </ThemeProvider>,
     );
     expect(flat(screen.getByRole("header"))).toMatchObject({ color: dark.charcoal });
     expect(flat(screen.getByText("Senin 12 Okt"))).toMatchObject({ color: dark.muted });
-    expect(screen.UNSAFE_getByType(Ionicons).props.color).toBe(dark.forest);
+    expect(styleOf(ionicons(screen.container)[0]).color).toBe(dark.forest);
   });
 
-  it("Close without onClose goes back in the sheet's stack", () => {
+  it("Close without onClose goes back in the sheet's stack", async () => {
     const goBack = jest.fn();
-    render(
+    await render(
       <NavigationContext.Provider value={fakeNavigation({ goBack }).navigation}>
         <SheetHeader title="Ada masalah" os="ios" />
       </NavigationContext.Provider>,
     );
-    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(goBack).toHaveBeenCalledTimes(1);
   });
 });

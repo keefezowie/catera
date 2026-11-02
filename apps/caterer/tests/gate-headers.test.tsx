@@ -22,8 +22,8 @@ function runtimeWith(actor: unknown): MobileRuntime {
   runtime.api = { ...runtime.api, me: jest.fn(async () => ({ actor, demo: false })) } as unknown as MobileRuntime["api"];
   return runtime;
 }
-const wrap = (runtime: MobileRuntime, ui: React.ReactElement) =>
-  render(
+const wrap = async (runtime: MobileRuntime, ui: React.ReactElement) =>
+  await render(
     <MoodProvider now={MALAM}>
       <MobileProvider runtime={runtime} linkMapper={(h) => h}>
         {ui}
@@ -41,7 +41,7 @@ const expectMalam = (id: string, title: string) => {
 
 describe("RoleGate customer-account state", () => {
   it("opens on a Malam header with the existing heading, and keeps the actions on the page", async () => {
-    wrap(runtimeWith({ id: "u-c", role: "customer" }), <RoleGate>{null}</RoleGate>);
+    await wrap(runtimeWith({ id: "u-c", role: "customer" }), <RoleGate>{null}</RoleGate>);
     expect(await screen.findByText("Gabung ke dapur")).toBeTruthy();
     const header = expectMalam("rolegate-header", "Buka aplikasi Catera");
     expect(within(header).queryByText("Gabung ke dapur")).toBeNull();
@@ -55,12 +55,12 @@ describe("RoleGate customer-account state", () => {
 describe("ScreenGuard failure state", () => {
   // Its only caller (Uang) is pushed under the native stack header, which names the screen: no band of its own here.
   // native-header.test mounts it under the real bar.
-  it("shows the plain retry state with no mood header of its own", () => {
+  it("shows the plain retry state with no mood header of its own", async () => {
     const errorLog = jest.spyOn(console, "error").mockImplementation(() => undefined);
     const Broken = () => {
       throw new Error("bad value");
     };
-    wrap(
+    await wrap(
       runtimeWith(null),
       <ScreenGuard message="Rincian uang belum bisa ditampilkan.">
         <Broken />
@@ -72,7 +72,7 @@ describe("ScreenGuard failure state", () => {
     expect(screen.queryByTestId("mood-fill-siang", { includeHiddenElements: true })).toBeNull();
     expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
     expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     errorLog.mockRestore();
   });
 });

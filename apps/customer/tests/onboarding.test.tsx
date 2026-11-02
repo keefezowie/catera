@@ -73,7 +73,7 @@ afterEach(() => {
 });
 
 const renderWith = async (ui: React.ReactElement) => {
-  const view = render(
+  const view = await render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
       {ui}
     </MobileProvider>,
@@ -137,26 +137,26 @@ describe("first-run gate", () => {
 
   it("the hook opens /mulai once ready on a fresh install, and never once it is done", async () => {
     jest.spyOn(Linking, "getInitialURL").mockResolvedValue(null);
-    const view = render(<Gate ready={false} />);
+    const view = await render(<Gate ready={false} />);
     await act(async () => {});
     expect(router.push).not.toHaveBeenCalled();
-    view.rerender(<Gate ready />);
+    await view.rerender(<Gate ready />);
     await act(async () => {});
     expect(router.push).toHaveBeenCalledWith("/mulai");
-    view.rerender(<Gate ready />);
+    await view.rerender(<Gate ready />);
     await act(async () => {});
     expect(router.push).toHaveBeenCalledTimes(1);
-    view.unmount();
+    await view.unmount();
     (router.push as jest.Mock).mockClear();
     await finishOnboarding(runtime);
-    render(<Gate ready />);
+    await render(<Gate ready />);
     await act(async () => {});
     expect(router.push).not.toHaveBeenCalled();
   });
 
   it("the hook leaves a launch from a link alone", async () => {
     jest.spyOn(Linking, "getInitialURL").mockResolvedValue("catera://claim/abc");
-    render(<Gate ready />);
+    await render(<Gate ready />);
     await act(async () => {});
     expect(router.push).not.toHaveBeenCalled();
     expect(store.get(onboardingKey(runtime))).toBeUndefined();
@@ -183,11 +183,11 @@ describe("Android back inside onboarding", () => {
       return null;
     }
     resetFirstRunForTests();
-    render(<Probe />);
+    await render(<Probe />);
     expect(seen).toBe(false);
     await renderWith(<Welcome />);
-    act(() => fireEvent(screen.getByTestId("mulai-welcome"), "layout", { nativeEvent: { layout: { width: 1, height: 1 } } }));
-    render(<Probe />);
+    await fireEvent(screen.getByTestId("mulai-welcome"), "layout", { nativeEvent: { layout: { width: 1, height: 1 } } });
+    await render(<Probe />);
     expect(seen).toBe(true);
   });
 
@@ -217,9 +217,9 @@ describe("onboarding screens", () => {
   it("welcome: Cari katering opens the area step; Lewati marks it done and lands on Beranda", async () => {
     await renderWith(<Welcome />);
     expect(screen.getByRole("header", { name: "Masakan rumahan, diantar tiap hari" })).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Cari katering" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Cari katering" }));
     expect(router.push).toHaveBeenCalledWith("/mulai/area");
-    fireEvent.press(screen.getByRole("button", { name: "Lewati" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lewati" }));
     await act(async () => {});
     expect(store.get("catera.onboarding.done")).toBe("1");
     expect(mockGoToTab).toHaveBeenCalledWith("index");
@@ -228,13 +228,13 @@ describe("onboarding screens", () => {
   it("area: step 1 of 2; with no area it offers Pilih area, with one it shows it and continues", async () => {
     const view = await renderWith(<AreaStep />);
     expect(screen.getByTestId("step-bar").props.accessibilityLabel).toBe("Langkah 1 dari 2");
-    fireEvent.press(screen.getByRole("button", { name: "Pilih area" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Pilih area" }));
     expect(router.push).toHaveBeenCalledWith("/mulai/area-pilih");
-    view.unmount();
+    await view.unmount();
     store.set(AREA_KEY, "Jakarta Selatan");
     await renderWith(<AreaStep />);
     expect(screen.getByTestId("area-chosen")).toHaveTextContent("Jakarta Selatan");
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
     expect(router.push).toHaveBeenCalledWith("/mulai/lauk");
   });
 
@@ -245,14 +245,14 @@ describe("onboarding screens", () => {
     expect(screen.getByRole("button", { name: "Lanjut" })).toBeDisabled();
     const artOpacity = (pref: string) => StyleSheet.flatten(screen.getByTestId("lauk-" + pref + "-art", hidden).props.style).opacity;
     expect(artOpacity("ayam")).toBe(1);
-    for (const name of ["Ayam", "Sayur", "Pedas", "Ikan"]) fireEvent.press(screen.getByRole("checkbox", { name }));
+    for (const name of ["Ayam", "Sayur", "Pedas", "Ikan"]) await fireEvent.press(screen.getByRole("checkbox", { name }));
     expect(screen.getByRole("checkbox", { name: "Ikan" }).props.accessibilityState).toMatchObject({ checked: false, disabled: true });
     // The limit line sits in the pinned footer, above the action.
     expect(artOpacity("ikan")).toBe(0.45);
     expect(artOpacity("ayam")).toBe(1);
     expect(screen.getByTestId("lauk-full")).toBeTruthy();
     expect(within(screen.getByTestId("lauk-footer")).getByTestId("lauk-full")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut · 3 dipilih" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut · 3 dipilih" }));
     await act(async () => {});
     expect(JSON.parse(store.get(LAUK_KEY)!)).toEqual(["ayam", "sayur", "pedas"]);
     expect(router.push).toHaveBeenCalledWith("/mulai/mencari");
@@ -300,9 +300,9 @@ describe("onboarding area sheet", () => {
 describe("Masuk food band", () => {
   it("draws five decorative tokens, hidden from a screen reader", async () => {
     const view = await renderWith(<FoodBand />);
-    fireEvent(screen.getByTestId("food-band", hidden), "layout", { nativeEvent: { layout: { width: 350, height: 0 } } });
+    await fireEvent(screen.getByTestId("food-band", hidden), "layout", { nativeEvent: { layout: { width: 350, height: 0 } } });
     expect(screen.getAllByTestId("polish-art", hidden)).toHaveLength(5);
     expect(screen.queryAllByTestId("polish-art")).toHaveLength(0);
-    view.unmount();
+    await view.unmount();
   });
 });

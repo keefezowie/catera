@@ -181,8 +181,8 @@ function Probe() {
   return null;
 }
 
-const renderToday = (runtime: MobileRuntime) =>
-  render(
+const renderToday = async (runtime: MobileRuntime) =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h} onSignedOut={clearCachedDays}>
       <Probe />
       <TodayScreen />
@@ -208,7 +208,7 @@ it("a stored kitchen paints its cached day first with mutating actions hidden", 
   const fresh = deferred<SellerOperationsState>();
   storedSession("t", owner);
   keptDay(owner);
-  renderToday(runtimeWith(owner, () => fresh.promise));
+  await renderToday(runtimeWith(owner, () => fresh.promise));
   expect(await screen.findByTestId("session-count")).toBeTruthy();
   expect(screen.getByTestId("day-refreshing")).toBeTruthy();
   expect(screen.getByText("Memperbarui…")).toBeTruthy();
@@ -224,7 +224,7 @@ it("a stored kitchen paints its cached day first with mutating actions hidden", 
 it("a failed fresh read keeps the kept day with its offline card", async () => {
   storedSession("t", owner);
   keptDay(owner);
-  renderToday(
+  await renderToday(
     runtimeWith(owner, async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
@@ -238,7 +238,7 @@ it("another account's kept day never paints, and logout forgets this one", async
   // The owner's day is kept, but the helper is the one signed in now.
   keptDay(owner);
   storedSession("t", staff);
-  const first = renderToday(runtimeWith(staff, () => new Promise(() => undefined)));
+  const first = await renderToday(runtimeWith(staff, () => new Promise(() => undefined)));
   await act(async () => {});
   expect(screen.queryByTestId("session-count")).toBeNull();
   expect(screen.getByLabelText("Memuat dapur")).toBeTruthy();
@@ -247,7 +247,7 @@ it("another account's kept day never paints, and logout forgets this one", async
   });
   // Review Focus 2: every kept day on this phone is gone with the session.
   expect([...files.keys()].filter((k) => k.includes("dapur-day-"))).toEqual([]);
-  first.unmount();
+  await first.unmount();
 });
 
 it("staff with a cached day still only see Hari ini and Menu", async () => {
@@ -256,17 +256,17 @@ it("staff with a cached day still only see Hari ini and Menu", async () => {
   const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
   const { runtime } = require("../src/runtime") as typeof import("../src/runtime");
   runtime.api = { ...runtime.api, me: jest.fn(() => new Promise(() => undefined)) } as MobileRuntime["api"];
-  const root = render(<RootLayout />);
+  const root = await render(<RootLayout />);
   // Painted from the phone before me() answers: the helper's tabs, never the owner's.
   await waitFor(() => expect(mockTriggers).toHaveLength(4));
   expect(mockTriggers.filter((t) => !t.hidden).map((t) => t.name)).toEqual(["(index)", "(menu)"]);
   expect(mockGuards).toMatchObject({ aktifkan: false, impor: false });
   expect(runtime.api.me).toHaveBeenCalledTimes(1);
-  root.unmount();
+  await root.unmount();
 
   // Hari ini for the helper paints the kept day, read-only, while the fresh read runs.
   storedSession("t", staff);
-  renderToday(runtimeWith(staff, () => new Promise(() => undefined)));
+  await renderToday(runtimeWith(staff, () => new Promise(() => undefined)));
   expect(await screen.findByTestId("session-count")).toBeTruthy();
   expect(mutatingActions()).toEqual([]);
 });
@@ -276,7 +276,7 @@ it("a fresh read that lands after logout keeps nothing on the phone", async () =
   const fresh = deferred<SellerOperationsState>();
   storedSession("t", owner);
   const runtime = runtimeWith(owner, () => fresh.promise);
-  renderToday(runtime);
+  await renderToday(runtime);
   // The owner's own read (the stored account is painted first), not the one made before it was known.
   await waitFor(() => expect(runtime.api.sellerOperations).toHaveBeenCalledWith("k-1", TODAY));
   await act(async () => {
@@ -290,7 +290,7 @@ it("a fresh read that lands after logout keeps nothing on the phone", async () =
 
 it("a fresh read in the same session is kept for the next launch", async () => {
   storedSession("t", owner);
-  renderToday(runtimeWith(owner, async () => today()));
+  await renderToday(runtimeWith(owner, async () => today()));
   expect(await screen.findByRole("button", { name: "Mulai masak" })).toBeTruthy();
   await waitFor(() => expect(files.has(`file:///doc/dapur-day-u-owner-k-1-${TODAY}.json`)).toBe(true));
 });
@@ -305,14 +305,14 @@ it("the launch gate shows the mascot once the splash lets go, even while the pho
   runtime.api = { ...runtime.api, me: jest.fn(() => new Promise(() => undefined)) } as MobileRuntime["api"];
   jest.useFakeTimers({ now: new Date("2026-10-08T03:00:00Z") });
   try {
-    const root = render(<RootLayout />);
+    const root = await render(<RootLayout />);
     await act(async () => {});
     expect(screen.queryByLabelText("Menyiapkan dapurmu…")).toBeNull();
     await act(async () => {
       jest.advanceTimersByTime(1500);
     });
     expect(screen.getByLabelText("Menyiapkan dapurmu…")).toBeTruthy();
-    root.unmount();
+    await root.unmount();
   } finally {
     secure.getItemAsync.mockImplementation(async (k: string) => (store.has(k) ? store.get(k) : null));
   }

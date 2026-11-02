@@ -1,11 +1,11 @@
 import { View } from "react-native";
-import { router } from "expo-router";
 import { currency, nutritionSummary, packageNutrition, WEEK_HEADER, type Locale, type SellerOffer } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { plural, useMobile } from "@catera/mobile-core";
 import { Button, KeyValueRow, ListCard, Screen, Text } from "@catera/mobile-ui";
 import { photoUri } from "../photo";
 import { PackagePhoto } from "./PackagePhoto";
+import { pushScreen } from "../nav";
 
 /** Whole day names, Monday first (the index is `(weekday + 6) % 7`, with Sunday as 0). */
 const FULL_DAYS = {
@@ -85,7 +85,7 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
               "Live packages are locked so customers get exactly what they bought. To change the price, contents or capacity, copy it into a new package.",
             )}
           </Text>
-          <Button variant="secondary" label={t("Salin jadi paket baru", "Copy into a new package")} onPress={() => router.push(`/paket/baru?from=${offer.id}`)} />
+          <Button variant="secondary" label={t("Salin jadi paket baru", "Copy into a new package")} onPress={() => pushScreen(`/paket/baru?from=${offer.id}`)} />
         </View>
       </View>
     </Screen>

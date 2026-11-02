@@ -4,10 +4,14 @@ import { createElement, useEffect } from "react";
 import { Text } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, Stack, useNavigationContainerRef } from "expo-router";
+import { useEnqueueRoutingIntent } from "expo-router/build/global-state/routingQueueContext";
 import { act, fireEvent, renderRouter, screen } from "expo-router/testing-library";
 import { closeSheetFor, FLOW_HREF, goToTab, leaveFor, openLink, pushSheet, registerNavigation, systemPath, tabOfPath } from "../src/nav";
 import { nativeMotion } from "@catera/design-tokens";
 import { customerLink } from "../src/links";
+
+// A cold real-router mount can pass the default 5 s under machine load, as in the other real-router suites.
+jest.setTimeout(30000);
 
 // expo-router's testing library swaps in Reanimated's own jest mock, which has no useReducedMotion (setup.cjs adds it).
 Object.assign(require("react-native-reanimated"), { useReducedMotion: () => false });
@@ -79,8 +83,11 @@ const files = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(join(dir, e.name)) : [join(dir, e.name)]));
 
 let container: ReturnType<typeof useNavigationContainerRef>;
+/** The router's routing queue, where its linking puts an OS link that arrives while the app runs. */
+let enqueue: (intent: unknown) => void;
 function Root() {
   container = useNavigationContainerRef();
+  enqueue = useEnqueueRoutingIntent() as never;
   useEffect(() => registerNavigation(container), []);
   return <Stack screenOptions={{ headerShown: false }} />;
 }
@@ -94,13 +101,10 @@ function appRoutes() {
   return routes;
 }
 
-function mount(initialUrl = "/") {
-  // A cold start has no route behind it, but the test router keeps the last render's route between renders, and the
-  // router places a path in the group of the route it is on.
-  const { storeRef } = require("expo-router/build/global-state/store");
-  if (storeRef.current) storeRef.current.routeInfo = undefined;
-  const result = renderRouter(appRoutes() as never, { initialUrl });
+async function mount(initialUrl = "/") {
+  const result = await renderRouter(appRoutes() as never, { initialUrl });
   state = () => result.getRouterState() as unknown as { routes: Nav[] };
+  await act(async () => {});
   return result;
 }
 
@@ -148,114 +152,114 @@ const press = (name: string) => fireEvent.press(screen.getByRole("button", { nam
 const tapTab = (group: string) => act(() => container.dispatch({ type: "JUMP_TO", payload: { name: group }, target: tabsState()!.key } as never));
 
 describe("each tab keeps its own stack", () => {
-  it("a cold link to a plan opens it inside Beranda with Back to Beranda", () => {
+  it("a cold link to a plan opens it inside Beranda with Back to Beranda", async () => {
     for (const [href, route] of [
       ["/subscriptions/s1", "subscriptions/[id]"],
       ["/pilih-menu/s1", "pilih-menu/[id]"],
     ]) {
-      const app = mount(customerLink(href));
+      const app = await mount(customerLink(href));
       expect(root()).toEqual(["(tabs)"]);
       expect(tab()).toBe("(index)");
       expect(stack("(index)")).toEqual(["index", route]);
-      act(() => router.back());
+      await act(() => router.back());
       expect(app.getPathname()).toBe("/");
       expect(stack("(index)")).toEqual(["index"]);
-      app.unmount();
+      await app.unmount();
     }
   });
 
-  it("a day opens above the tabs over the tab page in front, and closing it returns there", () => {
+  it("a day opens above the tabs over the tab page in front, and closing it returns there", async () => {
     for (const [group, href] of [
       ["(index)", "/"],
       ["(jadwal)", "/jadwal"],
       ["(akun)", "/akun"],
     ] as const) {
-      const app = mount(href);
-      act(() => router.push("/hari/d1"));
+      const app = await mount(href);
+      await act(() => router.push("/hari/d1"));
       // (The sheet presentation and detents are asserted on the real root layout in sheets.test and native-header.test.)
       // It is above the tabs, so it covers the tab bar; the tab keeps the page it was on.
       expect(tab()).toBe(group);
       dayOver(group);
-      act(() => router.back());
+      await act(() => router.back());
       expect(root()).toEqual(["(tabs)"]);
       expect(tab()).toBe(group);
-      app.unmount();
+      await app.unmount();
     }
   });
 
-  it("Perlu kamu urus, the full waiting list, pushes onto Beranda's stack and goes back to it", () => {
-    const app = mount("/");
-    act(() => router.push("/perlu-diurus"));
+  it("Perlu kamu urus, the full waiting list, pushes onto Beranda's stack and goes back to it", async () => {
+    const app = await mount("/");
+    await act(() => router.push("/perlu-diurus"));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(index)");
     expect(stack("(index)")).toEqual(["index", "perlu-diurus"]);
-    act(() => router.back());
+    await act(() => router.back());
     expect(app.getPathname()).toBe("/");
     expect(stack("(index)")).toEqual(["index"]);
-    app.unmount();
+    await app.unmount();
   });
 
-  it("a cold link to a day opens Beranda with the day over it, and a push tap opens it over the tab in front", () => {
+  it("a cold link to a day opens Beranda with the day over it, and a push tap opens it over the tab in front", async () => {
     // Opened cold there is no tab under the sheet, so Beranda opens first (the link rewrite), then the day over it.
     for (const open of [() => mount(customerLink("/hari/d1")), () => mount(systemPath("exp://127.0.0.1:8084/--/hari/d1", true))]) {
-      const app = open();
+      const app = await open();
       expect(tab()).toBe("(index)");
       dayOver("(index)");
       expect(rootStack().routes.at(-1)!.params).toMatchObject({ id: "d1" });
       // Closing the day leaves Beranda.
-      act(() => router.back());
+      await act(() => router.back());
       expect(root()).toEqual(["(tabs)"]);
       expect(app.getPathname()).toBe("/");
-      app.unmount();
+      await app.unmount();
     }
     // A notification or row tap while another tab is in front opens the day over that tab, not over Beranda.
-    mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => openLink(customerLink("/deliveries/d1")));
+    await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => openLink(customerLink("/deliveries/d1")));
     expect(tab()).toBe("(jadwal)");
     dayOver("(jadwal)");
     // The same day again, or another day, replaces the one in front instead of stacking under it.
-    act(() => openLink(customerLink("/deliveries/d2")));
+    await act(() => openLink(customerLink("/deliveries/d2")));
     dayOver("(jadwal)");
     expect(rootStack().routes.at(-1)!.params).toMatchObject({ id: "d2" });
   });
 
-  it("a push tap on a cold start opens the screen inside Beranda with Back to Beranda", () => {
+  it("a push tap on a cold start opens the screen inside Beranda with Back to Beranda", async () => {
     for (const [href, route] of [
       ["/subscriptions/s1", "subscriptions/[id]"],
       ["/subscriptions/s1/menu?date=2026-10-12&meal=lunch", "pilih-menu/[id]"],
     ]) {
-      const app = mount("/");
+      const app = await mount("/");
       // What MobileProvider does with a tapped push: customerLink maps it, openLink opens it.
-      act(() => openLink(customerLink(href)));
+      await act(() => openLink(customerLink(href)));
       expect(root()).toEqual(["(tabs)"]);
       expect(tab()).toBe("(index)");
       expect(stack("(index)")).toEqual(["index", route]);
-      act(() => router.back());
+      await act(() => router.back());
       expect(stack("(index)")).toEqual(["index"]);
-      app.unmount();
+      await app.unmount();
     }
   });
 
-  it("a cold masalah link opens over its Hari", () => {
+  it("a cold masalah link opens over its Hari", async () => {
     // An OS link opened cold: the sheet opens over the Hari of its delivery, never alone over Beranda.
     // The second form is what the router does with an Expo Go link: +native-intent rewrites it, then the stack opens.
     const viaIntent = () => mount(systemPath("exp://127.0.0.1:8084/--/masalah/d1?meal=lunch", true));
     for (const open of [() => mount(customerLink("/masalah/d1?meal=lunch")), viaIntent]) {
-      const app = open();
+      const app = await open();
       expect(tab()).toBe("(index)");
       overDay("(index)", "masalah/[id]");
       expect(rootStack().routes[1].params).toMatchObject({ id: "d1" });
       expect(sheetParams()).toMatchObject({ id: "d1", meal: "lunch" });
       // Closing the sheet leaves its Hari (the day sheet) in place.
-      act(() => router.back());
+      await act(() => router.back());
       dayOver("(index)");
       expect(app.getPathname()).toBe("/hari/d1");
-      app.unmount();
+      await app.unmount();
     }
   });
 
-  it("a cold link to a Task 10 sheet opens it over its parent page, never alone", () => {
+  it("a cold link to a Task 10 sheet opens it over its parent page, never alone", async () => {
     // Ubah hari over its Hari; the address form over Alamat; the help form over Bantuan.
     // Each sheet is a root-stack route above the tabs; its parent page opens in the tab beneath it.
     // Ubah hari sits over the day sheet (itself above the tabs); the others over a page of the tab.
@@ -264,200 +268,205 @@ describe("each tab keeps its own stack", () => {
       ["/alamat-form", ["index", "alamat"], ["(tabs)"], "alamat-form"],
       ["/bantuan-form?kind=help", ["index", "bantuan"], ["(tabs)"], "bantuan-form"],
     ] as const) {
-      const app = mount(systemPath(`exp://127.0.0.1:8084/--${link}`, true));
+      const app = await mount(systemPath(`exp://127.0.0.1:8084/--${link}`, true));
       expect({ link, stack: stack("(index)"), root: root() }).toEqual({ link, stack: page, root: [...under, sheet] });
       // Closing the sheet leaves its parent in place.
-      act(() => router.back());
+      await act(() => router.back());
       expect({ link, stack: stack("(index)"), root: root() }).toEqual({ link, stack: page, root: under });
-      app.unmount();
+      await app.unmount();
     }
     // The review sits over Beranda itself.
-    let app = mount(systemPath("/ulasan/s-1", true));
+    let app = await mount(systemPath("/ulasan/s-1", true));
     expect(tab()).toBe("(index)");
     overPage("(index)", ["index"], "ulasan/[id]");
-    app.unmount();
+    await app.unmount();
     // The area choice sits over Jelajah, in Jelajah's tab.
-    app = mount(systemPath("/area", true));
+    app = await mount(systemPath("/area", true));
     expect(tab()).toBe("(jelajah)");
     expect(stack("(jelajah)")).toEqual(["jelajah", "area"]);
-    act(() => router.back());
+    await act(() => router.back());
     expect(stack("(jelajah)")).toEqual(["jelajah"]);
-    app.unmount();
+    await app.unmount();
   });
 
-  it("a cold link to a purchase's address or help form, with no purchase under it, opens the tab's form over its page", () => {
+  it("a cold link to a purchase's address or help form, with no purchase under it, opens the tab's form over its page", async () => {
     // `/pembelian/alamat-form` and `/pembelian/bantuan-form` belong over a purchase. Opened alone, each gives way to the
     // tab's own copy with the link's params, over Alamat or Bantuan, never a sheet with nothing under it.
     for (const [link, page, sheet, params] of [
       ["/pembelian/alamat-form?id=a-2", ["index", "alamat"], "alamat-form", { id: "a-2" }],
       ["/pembelian/bantuan-form?kind=review&issue=i-1", ["index", "bantuan"], "bantuan-form", { kind: "review", issue: "i-1" }],
     ] as const) {
-      const app = mount(systemPath(link, true));
+      const app = await mount(systemPath(link, true));
       expect({ link, stack: stack("(index)"), root: root() }).toEqual({ link, stack: page, root: ["(tabs)", sheet] });
       expect(sheetParams()).toMatchObject(params);
-      act(() => router.back());
+      await act(() => router.back());
       expect({ link, stack: stack("(index)"), root: root() }).toEqual({ link, stack: page, root: ["(tabs)"] });
-      app.unmount();
+      await app.unmount();
     }
     // Over a purchase they stay where they are.
-    const app = mount("/");
-    act(() => router.push("/beli/p-1"));
-    act(() => router.push("/pembelian/alamat-form"));
+    const app = await mount("/");
+    await act(() => router.push("/beli/p-1"));
+    await act(() => router.push("/pembelian/alamat-form"));
     expect(root()).toEqual(["(tabs)", "beli/[id]", "pembelian/alamat-form"]);
-    app.unmount();
+    await app.unmount();
   });
 
-  it("a push tap to a Task 10 sheet opens it over its parent, and over a tab root by selecting that tab", () => {
-    mount("/");
-    act(() => goToTab("akun"));
-    act(() => openLink("/ubah-hari/d1"));
+  it("a push tap to a Task 10 sheet opens it over its parent, and over a tab root by selecting that tab", async () => {
+    await mount("/");
+    await act(() => goToTab("akun"));
+    await act(() => openLink("/ubah-hari/d1"));
     expect(tab()).toBe("(akun)");
     overDay("(akun)", "ubah-hari/[id]");
-    act(() => openLink("/area"));
+    await act(() => openLink("/area"));
     expect(tab()).toBe("(jelajah)");
     expect(stack("(jelajah)")).toEqual(["jelajah", "area"]);
     expect(root()).toEqual(["(tabs)"]);
-    act(() => openLink("/ulasan/s-1"));
+    await act(() => openLink("/ulasan/s-1"));
     expect(tab()).toBe("(index)");
     overPage("(index)", ["index"], "ulasan/[id]");
   });
 
-  it("a cold link to Pengaturan opens it inside Beranda, and its choice sheets open over it", () => {
-    let app = mount(systemPath("/pengaturan", true));
+  it("a cold link to Pengaturan opens it inside Beranda, and its choice sheets open over it", async () => {
+    let app = await mount(systemPath("/pengaturan", true));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(index)");
     expect(stack("(index)")).toEqual(["index", "pengaturan"]);
-    app.unmount();
+    await app.unmount();
     for (const sheet of ["bahasa", "tampilan"]) {
-      app = mount(systemPath(`exp://127.0.0.1:8084/--/pengaturan/${sheet}`, true));
+      app = await mount(systemPath(`exp://127.0.0.1:8084/--/pengaturan/${sheet}`, true));
       expect(tab()).toBe("(index)");
       expect(stack("(index)")).toEqual(["index", "pengaturan", `pengaturan/${sheet}`]);
       // Closing the sheet leaves Pengaturan in place.
-      act(() => router.back());
+      await act(() => router.back());
       expect(stack("(index)")).toEqual(["index", "pengaturan"]);
-      app.unmount();
+      await app.unmount();
     }
   });
 
-  it("a push tap to a Pengaturan sheet already open replaces it instead of stacking a second Pengaturan", () => {
-    mount("/");
-    act(() => goToTab("akun"));
-    act(() => router.push("/pengaturan"));
-    act(() => openLink("/pengaturan/bahasa"));
+  it("a push tap to a Pengaturan sheet already open replaces it instead of stacking a second Pengaturan", async () => {
+    await mount("/");
+    await act(() => goToTab("akun"));
+    await act(() => router.push("/pengaturan"));
+    await act(() => openLink("/pengaturan/bahasa"));
     expect(stack("(akun)")).toEqual(["akun", "pengaturan", "pengaturan/bahasa"]);
-    act(() => openLink("/pengaturan/bahasa"));
+    await act(() => openLink("/pengaturan/bahasa"));
     expect(stack("(akun)")).toEqual(["akun", "pengaturan", "pengaturan/bahasa"]);
   });
 
-  it("a warm OS link to masalah passes through: it opens over the screen in front", () => {
+  it("a warm OS link to masalah passes through: it opens over the screen in front", async () => {
     expect(systemPath("exp://127.0.0.1:8084/--/masalah/d1?meal=lunch")).toBe("exp://127.0.0.1:8084/--/masalah/d1?meal=lunch");
     // A day opened cold has no tab under it: Beranda opens, and the day opens over it once the tabs are up.
     expect(systemPath("catera://hari/d1", true)).toBe("/");
     expect(systemPath("catera://hari/d1")).toBe("catera://hari/d1");
   });
 
-  it("a push tap to masalah opens it over its Hari, and over the Hari already open without a second one", () => {
-    let app = mount("/");
-    act(() => openLink(customerLink("/masalah/d1?meal=dinner")));
+  it("a push tap to masalah opens it over its Hari, and over the Hari already open without a second one", async () => {
+    let app = await mount("/");
+    await act(() => openLink(customerLink("/masalah/d1?meal=dinner")));
     overDay("(index)", "masalah/[id]");
-    app.unmount();
-    app = mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => openLink(customerLink("/deliveries/d1")));
-    act(() => openLink(customerLink("/masalah/d1?meal=lunch")));
+    await app.unmount();
+    app = await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => openLink(customerLink("/deliveries/d1")));
+    await act(() => openLink(customerLink("/masalah/d1?meal=lunch")));
     // One day under the sheet: the day that was open closed with the sheets above the tabs and opened once.
     overDay("(jadwal)", "masalah/[id]");
-    app.unmount();
+    await app.unmount();
     // From a screen above the tabs opened cold, it lands in Beranda over its Hari.
-    app = mount("/bayar/c1");
-    act(() => openLink(customerLink("/masalah/d1?meal=lunch")));
+    app = await mount("/bayar/c1");
+    await act(() => openLink(customerLink("/masalah/d1?meal=lunch")));
     overDay("(index)", "masalah/[id]");
-    app.unmount();
+    await app.unmount();
   });
 
-  it("a push tap that arrives while the app is still loading opens once the tabs exist", () => {
+  it("a push tap that arrives while the app is still loading opens once the tabs exist", async () => {
     // Read before the app's stack is mounted (the session still loading on a cold start): it waits, then opens once.
-    act(() => openLink(customerLink("/subscriptions/s1")));
-    mount("/");
+    await act(() => openLink(customerLink("/subscriptions/s1")));
+    await mount("/");
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(index)");
     expect(stack("(index)")).toEqual(["index", "subscriptions/[id]"]);
   });
 
-  it("a push tap on a screen above the tabs opened cold opens at once, with Beranda behind it", () => {
+  it("a push tap on a screen above the tabs opened cold opens at once, with Beranda behind it", async () => {
     // Bayar, claim, Masuk and the story opened cold have no tabs under them; a tapped notification still responds.
     for (const cold of ["/bayar/c1", "/claim/t1", "/login", "/tomorrow?part=0"]) {
-      const app = mount(cold);
+      const app = await mount(cold);
       expect(root()).not.toContain("(tabs)");
-      act(() => openLink(customerLink("/subscriptions/s1")));
+      await act(() => openLink(customerLink("/subscriptions/s1")));
       expect(root()).toEqual(["(tabs)"]);
       expect(tab()).toBe("(index)");
       expect(stack("(index)")).toEqual(["index", "subscriptions/[id]"]);
-      act(() => router.back());
+      await act(() => router.back());
       expect(stack("(index)")).toEqual(["index"]);
-      app.unmount();
+      await app.unmount();
     }
     // A tab root selects that tab.
-    mount("/bayar/c1");
-    act(() => openLink(customerLink("/calendar")));
+    await mount("/bayar/c1");
+    await act(() => openLink(customerLink("/calendar")));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
     expectNoSecondRoot();
   });
 
-  it("a push tap while Bayar is open opens the screen in the tab, never in a second tab bar", () => {
-    mount("/");
-    act(() => goToTab("akun"));
-    act(() => router.push("/bayar/c1"));
-    act(() => openLink(customerLink("/subscriptions/s1")));
+  it("a push tap while Bayar is open opens the screen in the tab, never in a second tab bar", async () => {
+    await mount("/");
+    await act(() => goToTab("akun"));
+    await act(() => router.push("/bayar/c1"));
+    await act(() => openLink(customerLink("/subscriptions/s1")));
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(akun)")).toEqual(["akun", "subscriptions/[id]"]);
     // A link to a screen above the tabs still opens over them.
-    act(() => openLink(customerLink("/payment/c2")));
+    await act(() => openLink(customerLink("/payment/c2")));
     expect(root()).toEqual(["(tabs)", "bayar/[id]"]);
   });
 
-  it("a tap while another tab is open opens the screen in that tab, and each tab keeps its place", () => {
-    mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => openLink(customerLink("/subscriptions/s1")));
+  it("a tap while another tab is open opens the screen in that tab, and each tab keeps its place", async () => {
+    await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => openLink(customerLink("/subscriptions/s1")));
     expect(tab()).toBe("(jadwal)");
     expect(stack("(jadwal)")).toEqual(["jadwal", "subscriptions/[id]"]);
-    act(() => goToTab("akun"));
-    act(() => router.push("/alamat"));
+    await act(() => goToTab("akun"));
+    await act(() => router.push("/alamat"));
     expect(stack("(akun)")).toEqual(["akun", "alamat"]);
     // Tapping the Jadwal tab: the plan is still open there, and Akun keeps Alamat.
-    tapTab("(jadwal)");
+    await tapTab("(jadwal)");
     expect(tab()).toBe("(jadwal)");
     expect(stack("(jadwal)")).toEqual(["jadwal", "subscriptions/[id]"]);
     expect(stack("(akun)")).toEqual(["akun", "alamat"]);
     expect(stack("(index)")).toEqual(["index"]);
   });
 
-  it("an OS link to a tab root opens that tab", () => {
+  it("an OS link to a tab root opens that tab", async () => {
     for (const [href, group] of [
       ["/jadwal", "(jadwal)"],
       ["/jelajah", "(jelajah)"],
       ["/akun", "(akun)"],
       ["/", "(index)"],
     ]) {
-      const app = mount(href);
+      const app = await mount(href);
       expect(tab()).toBe(group);
       expectNoSecondRoot();
-      app.unmount();
+      await app.unmount();
     }
   });
 
-  it("a warm OS link to a tab root with pushed screens opens that tab at its root", () => {
-    mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => router.push("/subscriptions/s1"));
-    act(() => goToTab("index"));
+  it("a warm OS link to a tab root with pushed screens opens that tab at its root", async () => {
+    await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => router.push("/subscriptions/s1"));
+    await act(() => goToTab("index"));
     expect(stack("(jadwal)")).toEqual(["jadwal", "subscriptions/[id]"]);
-    // What the router does with an OS link while the app runs: +native-intent rewrites it, linking dispatches it.
-    const { linking } = require("expo-router/build/global-state/store").store;
-    act(() =>
-      container.dispatch(linking.getActionFromState(linking.getStateFromPath(systemPath("exp://127.0.0.1:8086/--/jadwal"), linking.config), linking.config)),
+    // What the router does with an OS link while the app runs: +native-intent rewrites it, and its linking listener
+    // queues a navigation to that path that pops back to the navigator holding it (expo-router 58's useLinking).
+    const url = "exp://127.0.0.1:8086/--/jadwal";
+    const href = systemPath(url);
+    await act(() =>
+      enqueue({
+        type: "NAVIGATE_TO_HREF",
+        payload: { href, originalHref: url, options: { event: "NAVIGATE", __internal__popToNavigator: true } },
+      }),
     );
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
@@ -465,40 +474,40 @@ describe("each tab keeps its own stack", () => {
     expectNoSecondRoot();
   });
 
-  it("a cold OS link loses the title it carried; a push tap's in-app href keeps it", () => {
+  it("a cold OS link loses the title it carried; a push tap's in-app href keeps it", async () => {
     /** The params of the top route in Beranda's stack. */
     const top = () => tabsState()!.routes.find((r) => r.name === "(index)")!.state!.routes.at(-1)!;
     // Anyone can craft an OS link, so its title never reaches the screen; its other params do.
-    let app = mount("/subscriptions/s1?title=Paket%20Palsu&from=wa");
+    let app = await mount("/subscriptions/s1?title=Paket%20Palsu&from=wa");
     expect(top().name).toBe("subscriptions/[id]");
     expect(top().params).toMatchObject({ id: "s1", from: "wa" });
     expect(top().params).not.toHaveProperty("title");
-    app.unmount();
+    await app.unmount();
     // A push or notification tap opens an href the app maps itself (customerLink, then openLink), title and all.
-    app = mount("/");
-    act(() => openLink("/subscriptions/s2?title=Makan%20Siang%20Kantor"));
+    app = await mount("/");
+    await act(() => openLink("/subscriptions/s2?title=Makan%20Siang%20Kantor"));
     expect(top().name).toBe("subscriptions/[id]");
     expect(top().params).toMatchObject({ id: "s2", title: "Makan Siang Kantor" });
-    app.unmount();
+    await app.unmount();
   });
 });
 
 describe("signing out", () => {
-  it("Keluar in Pengaturan leaves every tab at its root, so Akun opens on its sign-in prompt", () => {
-    mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => router.push("/hari/d1"));
-    act(() => goToTab("akun"));
-    act(() => router.push("/pengaturan"));
+  it("Keluar in Pengaturan leaves every tab at its root, so Akun opens on its sign-in prompt", async () => {
+    await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => router.push("/hari/d1"));
+    await act(() => goToTab("akun"));
+    await act(() => router.push("/pengaturan"));
     expect(stack("(akun)")).toEqual(["akun", "pengaturan"]);
     // What Pengaturan does once the session is gone.
-    act(() => goToTab("index", { everyTab: true }));
+    await act(() => goToTab("index", { everyTab: true }));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(index)");
     // Nothing of the last account stays stacked: not the signed-out Pengaturan, not the day it had open.
     expect(stack("(akun)")).toEqual(["akun"]);
     expect(stack("(jadwal)")).toEqual(["jadwal"]);
-    tapTab("(akun)");
+    await tapTab("(akun)");
     expect(tab()).toBe("(akun)");
     expect(stack("(akun)")).toEqual(["akun"]);
     expectNoSecondRoot();
@@ -506,16 +515,16 @@ describe("signing out", () => {
 });
 
 describe("links to tab roots select the tab", () => {
-  it("Lihat jadwal after payment selects the Jadwal tab", () => {
-    mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => router.push("/hari/d1"));
-    act(() => goToTab("jelajah"));
-    act(() => router.push("/paket/p1"));
-    act(() => router.push("/beli/p1"));
-    act(() => router.replace("/bayar/c1"));
+  it("Lihat jadwal after payment selects the Jadwal tab", async () => {
+    await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => router.push("/hari/d1"));
+    await act(() => goToTab("jelajah"));
+    await act(() => router.push("/paket/p1"));
+    await act(() => router.push("/beli/p1"));
+    await act(() => router.replace("/bayar/c1"));
     expect(root()).toEqual(["(tabs)", "bayar/[id]"]);
-    press("Lihat jadwal");
+    await press("Lihat jadwal");
     // Bayar is gone, Jadwal is selected at its root, and Jelajah keeps the package page.
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
@@ -524,88 +533,88 @@ describe("links to tab roots select the tab", () => {
     expectNoSecondRoot();
   });
 
-  it("Lihat jadwal or Ke Beranda on a Bayar opened cold opens that tab, never an empty stack", () => {
-    const jadwal = mount("/bayar/c1");
+  it("Lihat jadwal or Ke Beranda on a Bayar opened cold opens that tab, never an empty stack", async () => {
+    const jadwal = await mount("/bayar/c1");
     expect(root()).toEqual(["bayar/[id]"]);
-    press("Lihat jadwal");
+    await press("Lihat jadwal");
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
     expect(stack("(jadwal)")).toEqual(["jadwal"]);
-    jadwal.unmount();
-    const beranda = mount("/bayar/c1");
-    press("Ke Beranda");
+    await jadwal.unmount();
+    const beranda = await mount("/bayar/c1");
+    await press("Ke Beranda");
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(index)");
     expect(stack("(index)")).toEqual(["index"]);
-    beranda.unmount();
+    await beranda.unmount();
     // Pilih menu: the menu opens in Beranda with Beranda behind it (leaveFor's cold path), through the legacy menu path.
-    mount("/bayar/c1");
-    press("Pilih menu");
+    await mount("/bayar/c1");
+    await press("Pilih menu");
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(index)");
     expect(stack("(index)")).toEqual(["index", "pilih-menu/[id]"]);
-    act(() => router.back());
+    await act(() => router.back());
     expect(stack("(index)")).toEqual(["index"]);
   });
 
-  it("Ke Beranda and Pilih menu after payment leave Bayar for the tabs", () => {
-    mount("/");
-    act(() => goToTab("jelajah"));
-    act(() => router.push("/paket/p1"));
-    act(() => router.push("/bayar/c1"));
-    press("Ke Beranda");
+  it("Ke Beranda and Pilih menu after payment leave Bayar for the tabs", async () => {
+    await mount("/");
+    await act(() => goToTab("jelajah"));
+    await act(() => router.push("/paket/p1"));
+    await act(() => router.push("/bayar/c1"));
+    await press("Ke Beranda");
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(index)");
 
-    act(() => goToTab("jelajah"));
-    act(() => router.push("/paket/p1"));
-    act(() => router.push("/bayar/c1"));
-    press("Pilih menu");
+    await act(() => goToTab("jelajah"));
+    await act(() => router.push("/paket/p1"));
+    await act(() => router.push("/bayar/c1"));
+    await press("Pilih menu");
     // Pilih menu opens in the tab that started the purchase, above the package page; Bayar is gone.
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jelajah)");
     expect(stack("(jelajah)")).toEqual(["jelajah", "paket/[id]", "pilih-menu/[id]"]);
-    act(() => router.back());
+    await act(() => router.back());
     expect(stack("(jelajah)")).toEqual(["jelajah", "paket/[id]"]);
   });
 
-  it("Cari paket from an empty home selects Jelajah", () => {
-    mount("/");
-    act(() => goToTab("jelajah"));
-    act(() => router.push("/paket/p1"));
-    act(() => goToTab("index"));
-    press("Cari paket");
+  it("Cari paket from an empty home selects Jelajah", async () => {
+    await mount("/");
+    await act(() => goToTab("jelajah"));
+    await act(() => router.push("/paket/p1"));
+    await act(() => goToTab("index"));
+    await press("Cari paket");
     expect(tab()).toBe("(jelajah)");
     expect(stack("(jelajah)")).toEqual(["jelajah"]);
     expect(stack("(index)")).toEqual(["index"]);
     expectNoSecondRoot();
   });
 
-  it("a link to /calendar or another tab root selects that tab from anywhere", () => {
-    mount("/");
-    act(() => router.push("/subscriptions/s1"));
-    act(() => openLink(customerLink("/calendar")));
+  it("a link to /calendar or another tab root selects that tab from anywhere", async () => {
+    await mount("/");
+    await act(() => router.push("/subscriptions/s1"));
+    await act(() => openLink(customerLink("/calendar")));
     expect(tab()).toBe("(jadwal)");
     expect(stack("(index)")).toEqual(["index", "subscriptions/[id]"]);
-    act(() => router.push("/bayar/c1"));
-    act(() => openLink(customerLink("/#packages")));
+    await act(() => router.push("/bayar/c1"));
+    await act(() => openLink(customerLink("/#packages")));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jelajah)");
-    act(() => openLink(customerLink("/account")));
+    await act(() => openLink(customerLink("/account")));
     expect(tab()).toBe("(akun)");
-    act(() => openLink(customerLink("/today")));
+    await act(() => openLink(customerLink("/today")));
     expect(tab()).toBe("(index)");
     // Beranda is back at its root; the other tabs were never given a second root.
     expect(stack("(index)")).toEqual(["index"]);
     expectNoSecondRoot();
   });
 
-  it("a link to a tab root with a query selects that tab instead of pushing a second root", () => {
-    mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => router.push("/hari/d1"));
-    act(() => goToTab("index"));
-    act(() => openLink("/jadwal?d=1"));
+  it("a link to a tab root with a query selects that tab instead of pushing a second root", async () => {
+    await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => router.push("/hari/d1"));
+    await act(() => goToTab("index"));
+    await act(() => openLink("/jadwal?d=1"));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
     expect(stack("(jadwal)")).toEqual(["jadwal"]);
@@ -615,49 +624,49 @@ describe("links to tab roots select the tab", () => {
 });
 
 describe("legacy paths and the screens above the tabs", () => {
-  it("every legacy path still lands on its screen", () => {
+  it("every legacy path still lands on its screen", async () => {
     for (const [href, route] of [
       ["/saved", "disimpan"],
       ["/addresses", "alamat"],
       ["/package/p1", "paket/[id]"],
       ["/subscriptions/s1/menu?date=2026-10-12&meal=lunch", "pilih-menu/[id]"],
     ]) {
-      const cold = mount(href);
+      const cold = await mount(href);
       expect(tab()).toBe("(index)");
       expect(stack("(index)")).toEqual(["index", route]);
-      cold.unmount();
+      await cold.unmount();
       // Opened while Jadwal is open, it lands in Jadwal.
-      const warm = mount("/");
-      act(() => goToTab("jadwal"));
-      act(() => router.push(href));
+      const warm = await mount("/");
+      await act(() => goToTab("jadwal"));
+      await act(() => router.push(href));
       expect(stack("(jadwal)")).toEqual(["jadwal", route]);
-      warm.unmount();
+      await warm.unmount();
     }
-    const menu = mount("/subscriptions/s1/menu?date=2026-10-12&meal=lunch");
+    const menu = await mount("/subscriptions/s1/menu?date=2026-10-12&meal=lunch");
     const chosen = tabsState()?.routes.find((r) => r.name === "(index)")?.state?.routes[1];
     expect(chosen?.params).toMatchObject({ id: "s1", date: "2026-10-12", meal: "lunch" });
-    menu.unmount();
+    await menu.unmount();
 
     // /discover is Jelajah. An OS link opens the tab directly and leaves Beranda alone.
-    const cold = mount("/discover");
+    const cold = await mount("/discover");
     expect(tab()).toBe("(jelajah)");
     expect(stack("(jelajah)")).toEqual(["jelajah"]);
     expect(stack("(index)")).not.toContain("discover");
-    cold.unmount();
+    await cold.unmount();
     // Opened inside a tab, it selects Jelajah, and steps back out of that tab once the tab is shown again.
-    mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => router.push("/subscriptions/s1"));
-    act(() => router.push("/discover"));
+    await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => router.push("/subscriptions/s1"));
+    await act(() => router.push("/discover"));
     expect(tab()).toBe("(jelajah)");
-    tapTab("(jadwal)");
+    await tapTab("(jadwal)");
     expect(stack("(jadwal)")).toEqual(["jadwal", "subscriptions/[id]"]);
     expectNoSecondRoot();
   });
 
-  it("login, Beli, Bayar, claim and the story open above the tabs", () => {
-    mount("/");
-    act(() => goToTab("jelajah"));
+  it("login, Beli, Bayar, claim and the story open above the tabs", async () => {
+    await mount("/");
+    await act(() => goToTab("jelajah"));
     for (const [href, route] of [
       ["/login", "login"],
       ["/beli/p1", "beli/[id]"],
@@ -666,197 +675,198 @@ describe("legacy paths and the screens above the tabs", () => {
       ["/claim/t1", "claim/[token]"],
       ["/tomorrow?part=0", "tomorrow"],
     ]) {
-      act(() => router.push(href));
+      await act(() => router.push(href));
       expect(root()).toEqual(["(tabs)", route]);
-      act(() => router.back());
+      await act(() => router.back());
       expect(root()).toEqual(["(tabs)"]);
       expect(tab()).toBe("(jelajah)");
     }
   });
 
-  it("Alamat from Beli and Bantuan from Bayar open over the purchase, with one tab bar", () => {
-    mount("/");
-    act(() => goToTab("jelajah"));
-    act(() => router.push("/paket/p1"));
-    act(() => router.push("/beli/p1"));
+  it("Alamat from Beli and Bantuan from Bayar open over the purchase, with one tab bar", async () => {
+    await mount("/");
+    await act(() => goToTab("jelajah"));
+    await act(() => router.push("/paket/p1"));
+    await act(() => router.push("/beli/p1"));
     // Beli's Tambah alamat and Kelola alamat.
-    act(() => router.push(FLOW_HREF.alamat as never));
+    await act(() => router.push(FLOW_HREF.alamat as never));
     expect(root()).toEqual(["(tabs)", "beli/[id]", "pembelian/alamat"]);
     expect(stack("(jelajah)")).toEqual(["jelajah", "paket/[id]"]);
     // Close returns to Beli.
-    act(() => router.back());
+    await act(() => router.back());
     expect(root()).toEqual(["(tabs)", "beli/[id]"]);
 
-    act(() => router.replace("/bayar/c1"));
+    await act(() => router.replace("/bayar/c1"));
     // Bayar's Bantuan pembayaran: payment help for this checkout.
-    act(() => router.push({ pathname: FLOW_HREF.bantuan, params: { checkoutId: "c1" } } as never));
+    await act(() => router.push({ pathname: FLOW_HREF.bantuan, params: { checkoutId: "c1" } } as never));
     expect(root()).toEqual(["(tabs)", "bayar/[id]", "pembelian/bantuan"]);
     expect(rootStack().routes[2].params).toMatchObject({ checkoutId: "c1" });
-    act(() => router.back());
+    await act(() => router.back());
     expect(root()).toEqual(["(tabs)", "bayar/[id]"]);
     expectNoSecondRoot();
 
     // The bare paths still open the tab's own screens: Akun's rows and links from a notification.
-    act(() => goToTab("akun"));
-    act(() => router.push("/alamat"));
+    await act(() => goToTab("akun"));
+    await act(() => router.push("/alamat"));
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(akun)")).toEqual(["akun", "alamat"]);
-    act(() => openLink(customerLink("/support?checkoutId=c1")));
+    await act(() => openLink(customerLink("/support?checkoutId=c1")));
     expect(stack("(akun)")).toEqual(["akun", "alamat", "bantuan"]);
   });
 
-  it("a cold link to Alamat or Bantuan opens the tab's screen, not the copy over a purchase", () => {
+  it("a cold link to Alamat or Bantuan opens the tab's screen, not the copy over a purchase", async () => {
     for (const [href, route] of [
       ["/alamat", "alamat"],
       ["/bantuan?checkoutId=c1", "bantuan"],
     ]) {
-      const app = mount(href);
+      const app = await mount(href);
       expect(root()).toEqual(["(tabs)"]);
       expect(stack("(index)")).toEqual(["index", route]);
-      app.unmount();
+      await app.unmount();
     }
   });
 
-  it("signing in returns to the tab or the screen that asked for it", () => {
+  it("signing in returns to the tab or the screen that asked for it", async () => {
     // Signed out on Jadwal: SignInFirst opens Masuk with next=/jadwal.
-    const jadwal = mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => router.push({ pathname: "/login", params: { next: "/jadwal" } }));
+    const jadwal = await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => router.push({ pathname: "/login", params: { next: "/jadwal" } }));
     expect(root()).toEqual(["(tabs)", "login"]);
-    act(() => leaveFor("/jadwal"));
+    await act(() => leaveFor("/jadwal"));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
     expect(stack("(jadwal)")).toEqual(["jadwal"]);
-    jadwal.unmount();
+    await jadwal.unmount();
 
     // A plan link that needed an account: it opens in the current tab once Masuk is gone.
-    const akun = mount("/");
-    act(() => goToTab("akun"));
-    act(() => router.push("/login"));
-    act(() => leaveFor("/subscriptions/s1"));
+    const akun = await mount("/");
+    await act(() => goToTab("akun"));
+    await act(() => router.push("/login"));
+    await act(() => leaveFor("/subscriptions/s1"));
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(akun)")).toEqual(["akun", "subscriptions/[id]"]);
-    akun.unmount();
+    await akun.unmount();
 
     // Masuk opened cold: the plan opens in Beranda with Beranda behind it.
-    mount("/login");
-    act(() => leaveFor("/subscriptions/s1"));
+    await mount("/login");
+    await act(() => leaveFor("/subscriptions/s1"));
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index", "subscriptions/[id]"]);
   });
 
-  it("a help link from a sheet opens Bantuan in the tab the sheet sat in, not the first group that declares it", () => {
-    mount("/");
-    act(() => goToTab("jadwal"));
-    act(() => openLink("/masalah/d1?meal=lunch"));
+  it("a help link from a sheet opens Bantuan in the tab the sheet sat in, not the first group that declares it", async () => {
+    await mount("/");
+    await act(() => goToTab("jadwal"));
+    await act(() => openLink("/masalah/d1?meal=lunch"));
     overDay("(jadwal)", "masalah/[id]");
     // Bantuan is a page of the tab: the report and its day sheet both close, and it opens in the tab the sheets sat over.
-    act(() => closeSheetFor("/bantuan"));
+    await act(() => closeSheetFor("/bantuan"));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
     expect(stack("(jadwal)")).toEqual(["jadwal", "bantuan"]);
     expect(stack("(index)")).toEqual(["index"]);
   });
 
-  it("pushing the same root sheet twice in a row opens it once; another sheet or another day still opens", () => {
-    mount("/");
-    act(() => router.push("/hari/d1"));
-    act(() => {
+  it("pushing the same root sheet twice in a row opens it once; another sheet or another day still opens", async () => {
+    await mount("/");
+    await act(() => router.push("/hari/d1"));
+    await act(() => {
       pushSheet("/masalah/d1?meal=lunch");
       pushSheet("/masalah/d1?meal=lunch");
     });
     overDay("(index)", "masalah/[id]");
-    act(() => router.back());
+    await act(() => router.back());
     dayOver("(index)");
-    act(() => pushSheet("/masalah/d1?meal=lunch"));
+    await act(() => pushSheet("/masalah/d1?meal=lunch"));
     overDay("(index)", "masalah/[id]");
-    act(() => pushSheet("/ubah-hari/d1"));
+    await act(() => pushSheet("/ubah-hari/d1"));
     expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "ubah-hari/[id]"]);
     // The day's own link pushed twice in a row is one sheet too.
-    act(() => router.back());
-    act(() => router.back());
-    act(() => {
+    await act(() => router.back());
+    await act(() => router.back());
+    await act(() => {
       pushSheet("/hari/d1");
       pushSheet("/hari/d1");
     });
     dayOver("(index)");
   });
 
-  it("back from Masuk with a malformed id in the link does not throw: the sheets close and nothing reopens over a day it cannot match", () => {
-    mount("/");
-    act(() => router.push("/hari/d1"));
-    act(() => router.push({ pathname: "/login", params: { next: "/masalah/%E0%A4%A?meal=lunch" } }));
+  it("back from Masuk with a malformed id in the link does not throw: the sheets close and nothing reopens over a day it cannot match", async () => {
+    await mount("/");
+    await act(() => router.push("/hari/d1"));
+    await act(() => router.push({ pathname: "/login", params: { next: "/masalah/%E0%A4%A?meal=lunch" } }));
     expect(root()).toEqual(["(tabs)", "hari/[id]", "login"]);
-    expect(() => act(() => leaveFor("/masalah/%E0%A4%A?meal=lunch"))).not.toThrow();
+    // Does not throw: a throw would reject the act and fail the test here.
+    await act(() => leaveFor("/masalah/%E0%A4%A?meal=lunch"));
     // No open day carries that id, so the sheet is not opened over another: the screens above the tabs just close.
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index"]);
   });
 
-  it("back from Masuk opens a form sheet again only over the page that opened it, never a new page over Beranda", () => {
-    mount("/");
-    act(() => leaveFor("/masalah/d1?meal=lunch"));
+  it("back from Masuk opens a form sheet again only over the page that opened it, never a new page over Beranda", async () => {
+    await mount("/");
+    await act(() => leaveFor("/masalah/d1?meal=lunch"));
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index"]);
     // The review sits over Beranda itself, so Beranda in front is its parent.
-    act(() => leaveFor("/ulasan/s-1"));
+    await act(() => leaveFor("/ulasan/s-1"));
     overPage("(index)", ["index"], "ulasan/[id]");
   });
 
-  it("back from Masuk over a Plate-opened Ada masalah clears the stack above the tabs, even when its Hari is not open", () => {
+  it("back from Masuk over a Plate-opened Ada masalah clears the stack above the tabs, even when its Hari is not open", async () => {
     // Beranda's plate opens the sheet with no Hari under it; Masuk sits above the sheet. Leaving Masuk must not leave
     // a signed-in Masuk (or the sheet) on screen, and must not push a new Hari over Beranda.
-    mount("/");
-    act(() => pushSheet("/masalah/d1?meal=lunch"));
-    act(() => router.push({ pathname: "/login", params: { next: "/masalah/d1?meal=lunch" } }));
+    await mount("/");
+    await act(() => pushSheet("/masalah/d1?meal=lunch"));
+    await act(() => router.push({ pathname: "/login", params: { next: "/masalah/d1?meal=lunch" } }));
     expect(root()).toEqual(["(tabs)", "masalah/[id]", "login"]);
-    act(() => leaveFor("/masalah/d1?meal=lunch"));
+    await act(() => leaveFor("/masalah/d1?meal=lunch"));
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index"]);
   });
 
-  it("a warm purchase form with no purchase under it is cleared when its tab form has no page to open over", () => {
-    mount("/");
-    act(() => router.push("/pembelian/alamat-form"));
+  it("a warm purchase form with no purchase under it is cleared when its tab form has no page to open over", async () => {
+    await mount("/");
+    await act(() => router.push("/pembelian/alamat-form"));
     expect(root()).toEqual(["(tabs)", "pembelian/alamat-form"]);
-    act(() => leaveFor("/bantuan-form?kind=help"));
+    await act(() => leaveFor("/bantuan-form?kind=help"));
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index"]);
   });
 
-  it("the same sheet pushed again after the repeat window opens again; a failed push does not block the next", () => {
+  it("the same sheet pushed again after the repeat window opens again; a failed push does not block the next", async () => {
     jest.useFakeTimers();
     try {
-      mount("/");
-      act(() => pushSheet("/masalah/d1?meal=lunch"));
-      act(() => router.back());
-      act(() => void jest.advanceTimersByTime(nativeMotion.content + 1));
-      act(() => pushSheet("/masalah/d1?meal=lunch"));
+      await mount("/");
+      await act(() => pushSheet("/masalah/d1?meal=lunch"));
+      await act(() => router.back());
+      await act(() => void jest.advanceTimersByTime(nativeMotion.content + 1));
+      await act(() => pushSheet("/masalah/d1?meal=lunch"));
       expect(root()).toEqual(["(tabs)", "masalah/[id]"]);
-      act(() => router.back());
+      await act(() => router.back());
       const push = jest.spyOn(router, "push").mockImplementationOnce(() => {
         throw new Error("not ready");
       });
       expect(() => pushSheet("/ubah-hari/d1")).toThrow();
       push.mockRestore();
-      act(() => pushSheet("/ubah-hari/d1"));
+      await act(() => pushSheet("/ubah-hari/d1"));
       expect(root()).toEqual(["(tabs)", "ubah-hari/[id]"]);
     } finally {
       jest.useRealTimers();
     }
   });
 
-  it("signing in from the signed-out Ada masalah sheet returns to that sheet, not a second Hari and sheet", () => {
+  it("signing in from the signed-out Ada masalah sheet returns to that sheet, not a second Hari and sheet", async () => {
     // Signed out, Ada masalah over its Hari offers Masuk with next=/masalah/{id}. After sign-in the sheet on top is the
     // one that asked: it closes with Masuk and opens again (now signed in, with the link's params), never stacked
     // under another Hari or another sheet.
-    mount("/");
-    act(() => router.push("/hari/d1"));
-    act(() => router.push("/masalah/d1?meal=lunch"));
+    await mount("/");
+    await act(() => router.push("/hari/d1"));
+    await act(() => router.push("/masalah/d1?meal=lunch"));
     overDay("(index)", "masalah/[id]");
-    act(() => router.push({ pathname: "/login", params: { next: "/masalah/d1?meal=lunch&jenis=belum" } }));
+    await act(() => router.push({ pathname: "/login", params: { next: "/masalah/d1?meal=lunch&jenis=belum" } }));
     expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "login"]);
-    act(() => leaveFor("/masalah/d1?meal=lunch&jenis=belum"));
+    await act(() => leaveFor("/masalah/d1?meal=lunch&jenis=belum"));
     overDay("(index)", "masalah/[id]");
     expect(rootStack().routes[1].params).toMatchObject({ id: "d1" });
     expect(sheetParams()).toMatchObject({ id: "d1", meal: "lunch", jenis: "belum" });
@@ -864,13 +874,13 @@ describe("legacy paths and the screens above the tabs", () => {
 });
 
 describe("paths", () => {
-  it("names the tab a path is the root of", () => {
+  it("names the tab a path is the root of", async () => {
     expect(
       ["/", "/jadwal", "/jelajah", "/akun", "/jadwal/", "/index", "/jadwal?d=1", "/akun#top", "/?x=1", "/hari/d1", "/hari/d1?x=1"].map(tabOfPath),
     ).toEqual(["index", "jadwal", "jelajah", "akun", "jadwal", null, "jadwal", "akun", "index", null, null]);
   });
 
-  it("points OS links to a tab root at that tab and leaves every other link alone", () => {
+  it("points OS links to a tab root at that tab and leaves every other link alone", async () => {
     expect(systemPath("exp://127.0.0.1:8084/--/jadwal")).toBe("/(tabs)/(jadwal)/jadwal");
     expect(systemPath("catera://jelajah")).toBe("/(tabs)/(jelajah)/jelajah");
     expect(systemPath("/akun")).toBe("/(tabs)/(akun)/akun");
@@ -883,7 +893,7 @@ describe("paths", () => {
       expect(systemPath(url)).toBe(url);
   });
 
-  it("drops the title from every OS link and keeps the rest of it", () => {
+  it("drops the title from every OS link and keeps the rest of it", async () => {
     expect(systemPath("catera://subscriptions/s1?title=Paket%20Palsu")).toBe("catera://subscriptions/s1");
     expect(systemPath("exp://127.0.0.1:8084/--/hari/d1?title=Senin&x=1#top")).toBe("exp://127.0.0.1:8084/--/hari/d1?x=1#top");
     expect(systemPath("https://catera.example/paket/p1?utm=wa&title=Promo+Palsu")).toBe("https://catera.example/paket/p1?utm=wa");

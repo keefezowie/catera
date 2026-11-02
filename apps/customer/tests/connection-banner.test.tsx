@@ -10,11 +10,11 @@ const english = { t: (_id: string, en: string) => en };
 
 type NetState = { isConnected: boolean | null; isInternetReachable?: boolean | null };
 const net = NetInfo as unknown as { __emit: (s: NetState) => void; __set: (s?: NetState) => void; __listeners: Set<unknown> };
-const emit = (state: NetState) => act(() => net.__emit(state));
+const emit = async (state: NetState) => await act(() => net.__emit(state));
 const OFFLINE = { isConnected: false, isInternetReachable: false };
 const ONLINE = { isConnected: true, isInternetReachable: true };
 /** Lets the first `NetInfo.fetch()` settle. */
-const settle = () => act(async () => {});
+const settle = async () => await act(async () => {});
 let os: string | undefined;
 
 beforeEach(() => {
@@ -28,14 +28,17 @@ afterEach(() => {
 });
 
 describe("ConnectionBanner", () => {
-  it("renders nothing until NetInfo has reported", () => {
-    net.__set(OFFLINE);
-    render(<ConnectionBanner os={os} onRetry={() => {}} />);
+  it("renders nothing until NetInfo has reported", async () => {
+    // Awaiting render now flushes the first fetch, so hold it open to see the state before NetInfo has reported.
+    (NetInfo.fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => {}));
+    await render(<ConnectionBanner os={os} onRetry={() => {}} />);
     expect(screen.queryByTestId("connection-banner")).toBeNull();
+    await emit(OFFLINE);
+    expect(screen.getByTestId("connection-banner")).toBeTruthy();
   });
 
   it("an online phone never reads Tidak ada koneksi, even when the server failed", async () => {
-    render(<ConnectionBanner os={os} lastSeen={new Date(2026, 9, 13, 9, 5)} onRetry={() => {}} />);
+    await render(<ConnectionBanner os={os} lastSeen={new Date(2026, 9, 13, 9, 5)} onRetry={() => {}} />);
     await settle();
     expect(screen.queryByTestId("connection-banner")).toBeNull();
     expect(screen.queryByText("Tidak ada koneksi")).toBeNull();
@@ -44,49 +47,49 @@ describe("ConnectionBanner", () => {
   it("shows the title, the time of the data and the retry when the first report is offline", async () => {
     net.__set(OFFLINE);
     const onRetry = jest.fn();
-    render(<ConnectionBanner os={os} lastSeen={new Date(2026, 9, 13, 9, 5)} onRetry={onRetry} />);
+    await render(<ConnectionBanner os={os} lastSeen={new Date(2026, 9, 13, 9, 5)} onRetry={onRetry} />);
     await settle();
     expect(screen.getByText("Tidak ada koneksi")).toBeTruthy();
     expect(screen.getByText("Menampilkan data terakhir, 09.05")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it("counts a connected phone with no internet as offline", async () => {
     net.__set({ isConnected: true, isInternetReachable: false });
-    render(<ConnectionBanner os={os} onRetry={() => {}} />);
+    await render(<ConnectionBanner os={os} onRetry={() => {}} />);
     await settle();
     expect(screen.getByTestId("connection-banner")).toBeTruthy();
     // Reachability not yet known is not offline.
-    emit({ isConnected: true, isInternetReachable: null });
+    await emit({ isConnected: true, isInternetReachable: null });
     expect(screen.queryByTestId("connection-banner")).toBeNull();
   });
 
   it("with nothing cached it leaves the time line out", async () => {
     net.__set(OFFLINE);
-    render(<ConnectionBanner os={os} onRetry={() => {}} />);
+    await render(<ConnectionBanner os={os} onRetry={() => {}} />);
     await settle();
     expect(screen.getByText("Tidak ada koneksi")).toBeTruthy();
     expect(screen.queryByText(/Menampilkan data terakhir/)).toBeNull();
   });
 
   it("an event before the first fetch settles wins over the fetch", async () => {
-    render(<ConnectionBanner os={os} onRetry={() => {}} />);
-    emit(OFFLINE);
+    await render(<ConnectionBanner os={os} onRetry={() => {}} />);
+    await emit(OFFLINE);
     net.__set(ONLINE);
     await settle();
     expect(screen.getByTestId("connection-banner")).toBeTruthy();
   });
 
   it("shows again on every offline transition while mounted", async () => {
-    render(<ConnectionBanner os={os} onRetry={() => {}} />);
+    await render(<ConnectionBanner os={os} onRetry={() => {}} />);
     await settle();
     expect(screen.queryByTestId("connection-banner")).toBeNull();
-    emit(OFFLINE);
+    await emit(OFFLINE);
     expect(screen.getByTestId("connection-banner")).toBeTruthy();
-    emit(ONLINE);
+    await emit(ONLINE);
     expect(screen.queryByTestId("connection-banner")).toBeNull();
-    emit(OFFLINE);
+    await emit(OFFLINE);
     expect(screen.getByTestId("connection-banner")).toBeTruthy();
   });
 
@@ -94,43 +97,43 @@ describe("ConnectionBanner", () => {
     os = "ios";
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     const lastSeen = new Date(2026, 9, 13, 14, 30);
-    const view = render(<ConnectionBanner os={os} lastSeen={lastSeen} onRetry={() => {}} />);
+    const view = await render(<ConnectionBanner os={os} lastSeen={lastSeen} onRetry={() => {}} />);
     await settle();
     expect(announce).not.toHaveBeenCalled();
-    emit(OFFLINE);
+    await emit(OFFLINE);
     expect(announce).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith("Tidak ada koneksi. Menampilkan data terakhir, 14.30");
     expect(screen.getByTestId("connection-banner").props.accessibilityLiveRegion).toBe("polite");
     // Still offline, a re-render and a repeated report: no second announcement.
-    view.rerender(<ConnectionBanner os={os} lastSeen={new Date(2026, 9, 13, 14, 30)} onRetry={() => {}} />);
-    emit(OFFLINE);
+    await view.rerender(<ConnectionBanner os={os} lastSeen={new Date(2026, 9, 13, 14, 30)} onRetry={() => {}} />);
+    await emit(OFFLINE);
     expect(announce).toHaveBeenCalledTimes(1);
-    emit(ONLINE);
+    await emit(ONLINE);
     expect(screen.queryByTestId("connection-banner")).toBeNull();
-    emit(OFFLINE);
+    await emit(OFFLINE);
     expect(announce).toHaveBeenCalledTimes(2);
   });
 
   it("the banner retries once on each reconnect", async () => {
     const onRetry = jest.fn();
-    render(<ConnectionBanner os={os} onRetry={onRetry} />);
+    await render(<ConnectionBanner os={os} onRetry={onRetry} />);
     await settle();
     // A phone that was already online does not retry by itself.
-    emit(ONLINE);
+    await emit(ONLINE);
     expect(onRetry).not.toHaveBeenCalled();
-    emit(OFFLINE);
-    emit(ONLINE);
+    await emit(OFFLINE);
+    await emit(ONLINE);
     expect(onRetry).toHaveBeenCalledTimes(1);
-    emit(ONLINE);
+    await emit(ONLINE);
     expect(onRetry).toHaveBeenCalledTimes(1);
-    emit(OFFLINE);
-    emit(ONLINE);
+    await emit(OFFLINE);
+    await emit(ONLINE);
     expect(onRetry).toHaveBeenCalledTimes(2);
   });
 
   it("hides its icon from accessibility", async () => {
     net.__set(OFFLINE);
-    render(<ConnectionBanner os={os} onRetry={() => {}} />);
+    await render(<ConnectionBanner os={os} onRetry={() => {}} />);
     await settle();
     expect(screen.queryByTestId("connection-banner-icon")).toBeNull();
     const icon = screen.getByTestId("connection-banner-icon", { includeHiddenElements: true });
@@ -143,7 +146,7 @@ describe("ConnectionBanner", () => {
     (useMobile as jest.Mock).mockReturnValue(english);
     try {
       net.__set(OFFLINE);
-      render(<ConnectionBanner os={os} lastSeen={new Date(2026, 9, 13, 9, 5)} onRetry={() => {}} />);
+      await render(<ConnectionBanner os={os} lastSeen={new Date(2026, 9, 13, 9, 5)} onRetry={() => {}} />);
       await settle();
       expect(screen.getByText("No connection")).toBeTruthy();
       expect(screen.getByText("Showing data from 09.05")).toBeTruthy();
@@ -152,24 +155,24 @@ describe("ConnectionBanner", () => {
     }
   });
 
-  it("stops listening when it leaves", () => {
-    const view = render(<ConnectionBanner os={os} onRetry={() => {}} />);
+  it("stops listening when it leaves", async () => {
+    const view = await render(<ConnectionBanner os={os} onRetry={() => {}} />);
     expect(net.__listeners.size).toBe(1);
-    view.unmount();
+    await view.unmount();
     expect(net.__listeners.size).toBe(0);
   });
 });
 
 describe("FormError", () => {
-  it("shows the message with an icon and a polite live region", () => {
-    render(<FormError os={os} message="Nomor belum cocok." />);
+  it("shows the message with an icon and a polite live region", async () => {
+    await render(<FormError os={os} message="Nomor belum cocok." />);
     expect(screen.getByText("Nomor belum cocok.")).toBeTruthy();
     expect(screen.getByTestId("form-error").props.accessibilityLiveRegion).toBe("polite");
     expect(screen.queryByRole("button", { name: "Coba lagi" })).toBeNull();
   });
 
-  it("hides its icon from accessibility", () => {
-    render(<FormError os={os} message="Nomor belum cocok." />);
+  it("hides its icon from accessibility", async () => {
+    await render(<FormError os={os} message="Nomor belum cocok." />);
     expect(screen.queryByTestId("form-error-icon")).toBeNull();
     const icon = screen.getByTestId("form-error-icon", { includeHiddenElements: true });
     expect(icon.props.accessible).toBe(false);
@@ -177,61 +180,61 @@ describe("FormError", () => {
     expect(icon.props.accessibilityElementsHidden).toBe(true);
   });
 
-  it("offers Coba lagi when it can retry", () => {
+  it("offers Coba lagi when it can retry", async () => {
     const retry = jest.fn();
-    render(<FormError os={os} message="Belum tersimpan." retry={retry} />);
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await render(<FormError os={os} message="Belum tersimpan." retry={retry} />);
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(retry).toHaveBeenCalledTimes(1);
   });
 
-  it("announces on iOS, once per message", () => {
+  it("announces on iOS, once per message", async () => {
     os = "ios";
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    const view = render(<FormError os={os} message="Belum tersimpan." />);
-    view.rerender(<FormError os={os} message="Belum tersimpan." />);
+    const view = await render(<FormError os={os} message="Belum tersimpan." />);
+    await view.rerender(<FormError os={os} message="Belum tersimpan." />);
     expect(announce).toHaveBeenCalledTimes(1);
-    view.rerender(<FormError os={os} message="Kode salah." />);
+    await view.rerender(<FormError os={os} message="Kode salah." />);
     expect(announce).toHaveBeenLastCalledWith("Kode salah.");
   });
 
-  it("a repeated identical failure announces again on iOS when failureKey changes", () => {
+  it("a repeated identical failure announces again on iOS when failureKey changes", async () => {
     os = "ios";
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    const view = render(<FormError os={os} message="Belum tersimpan." failureKey={1} />);
-    view.rerender(<FormError os={os} message="Belum tersimpan." failureKey={1} />);
+    const view = await render(<FormError os={os} message="Belum tersimpan." failureKey={1} />);
+    await view.rerender(<FormError os={os} message="Belum tersimpan." failureKey={1} />);
     expect(announce).toHaveBeenCalledTimes(1);
-    view.rerender(<FormError os={os} message="Belum tersimpan." failureKey={2} />);
+    await view.rerender(<FormError os={os} message="Belum tersimpan." failureKey={2} />);
     expect(announce).toHaveBeenCalledTimes(2);
     expect(announce).toHaveBeenLastCalledWith("Belum tersimpan.");
   });
 
-  it("a repeated identical failure re-mounts the text inside the Android live region", () => {
+  it("a repeated identical failure re-mounts the text inside the Android live region", async () => {
     os = "android";
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    const view = render(<FormError os={os} message="Belum tersimpan." failureKey={1} />);
+    const view = await render(<FormError os={os} message="Belum tersimpan." failureKey={1} />);
     const first = screen.getByText("Belum tersimpan.");
-    view.rerender(<FormError os={os} message="Belum tersimpan." failureKey={1} />);
+    await view.rerender(<FormError os={os} message="Belum tersimpan." failureKey={1} />);
     expect(screen.getByText("Belum tersimpan.")).toBe(first);
-    view.rerender(<FormError os={os} message="Belum tersimpan." failureKey={2} />);
+    await view.rerender(<FormError os={os} message="Belum tersimpan." failureKey={2} />);
     // A new node is a content change, so TalkBack reads the region again.
     expect(screen.getByText("Belum tersimpan.")).not.toBe(first);
     expect(screen.getByTestId("form-error").props.accessibilityLiveRegion).toBe("polite");
     expect(announce).not.toHaveBeenCalled();
   });
 
-  it("does not call announce on Android: the live region speaks", () => {
+  it("does not call announce on Android: the live region speaks", async () => {
     os = "android";
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    render(<FormError os={os} message="Belum tersimpan." />);
+    await render(<FormError os={os} message="Belum tersimpan." />);
     expect(announce).not.toHaveBeenCalled();
   });
 });
 
 describe("ReadError", () => {
-  it("is shared from mobile-ui with its retry", () => {
+  it("is shared from mobile-ui with its retry", async () => {
     const onRetry = jest.fn();
-    render(<ReadError message="Data belum bisa dimuat." onRetry={onRetry} />);
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await render(<ReadError message="Data belum bisa dimuat." onRetry={onRetry} />);
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

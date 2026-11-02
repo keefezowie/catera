@@ -108,12 +108,12 @@ let mockParams: Record<string, string> = {};
 const SHEETS = { "/ulasan": ReviewRoute };
 const toParams = (params: Record<string, string>) => void (mockParams = params);
 
-function mount(
+async function mount(
   runtime: MobileRuntime,
   { now = morningOf(DEMO_TODAY), scheme = "light" as "light" | "dark", node = <Beranda />, v2 = false } = {},
 ) {
   jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
-  return render(
+  return await render(
     <ThemeProvider storageKey="beranda-sections-test">
       <LayoutScaleProvider value={v2 ? "v2" : "classic"}>
         <MoodProvider now={() => now}>
@@ -128,11 +128,11 @@ function mount(
 }
 
 /** The full waiting list, the pushed screen "Perlu kamu urus". */
-const mountList = (runtime: MobileRuntime, options: Parameters<typeof mount>[1] = {}) =>
-  mount(runtime, { ...options, node: <PerluDiurus /> });
+const mountList = async (runtime: MobileRuntime, options: Parameters<typeof mount>[1] = {}) =>
+  await mount(runtime, { ...options, node: <PerluDiurus /> });
 
 /** Lets the reads and storage reads land inside act. */
-const settle = () => act(async () => void (await new Promise((r) => setTimeout(r, 10))));
+const settle = async () => await act(async () => void (await new Promise((r) => setTimeout(r, 10))));
 const color = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never).color;
 const title = () => screen.getByTestId("home-title").props.children;
 
@@ -165,7 +165,7 @@ describe("the hero pager", () => {
 
   it("two lunches are two equal heroes with 1 dari 2", async () => {
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => undefined);
-    mount(demo().runtime);
+    await mount(demo().runtime);
     const pager = await screen.findByTestId("hero-pager");
     expect(title()).toBe("Siang ini, 2 pengantaran.");
     const heroes = within(pager).getAllByTestId("plate-hero");
@@ -195,27 +195,27 @@ describe("the hero pager", () => {
     const control = screen.getByRole("adjustable");
     expect(control.props.accessibilityLabel).toBe("Makan siang");
     expect(control.props.accessibilityValue).toEqual({ text: "1 dari 2, Dapur Senja" });
-    fireEvent(control, "accessibilityAction", { nativeEvent: { actionName: "increment" } });
+    await fireEvent(control, "accessibilityAction", { nativeEvent: { actionName: "increment" } });
     expect(screen.getByRole("adjustable").props.accessibilityLabel).toBe("Makan siang");
     expect(screen.getByRole("adjustable").props.accessibilityValue).toEqual({ text: "2 dari 2, Dapur Contoh" });
     expect(screen.getByText("2 dari 2")).toBeTruthy();
     expect(announce).not.toHaveBeenCalled();
-    fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
+    await fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
     expect(screen.getByRole("adjustable").props.accessibilityValue).toEqual({ text: "1 dari 2, Dapur Senja" });
-    fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "increment" } });
+    await fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "increment" } });
 
     // A swipe back to the first card moves the counter with it.
-    fireEvent.scroll(scroller, {
+    await fireEvent.scroll(scroller, {
       nativeEvent: { contentOffset: { x: 0, y: 0 }, contentSize: { width: 1000, height: 300 }, layoutMeasurement: { width: 400, height: 300 } },
     });
-    fireEvent(scroller, "momentumScrollEnd", { nativeEvent: { contentOffset: { x: 0, y: 0 } } });
+    await fireEvent(scroller, "momentumScrollEnd", { nativeEvent: { contentOffset: { x: 0, y: 0 } } });
     expect(screen.getByText("1 dari 2")).toBeTruthy();
-    fireEvent(scroller, "momentumScrollEnd", { nativeEvent: { contentOffset: { x: widths[0] + 12, y: 0 } } });
+    await fireEvent(scroller, "momentumScrollEnd", { nativeEvent: { contentOffset: { x: widths[0] + 12, y: 0 } } });
     expect(screen.getByText("2 dari 2")).toBeTruthy();
   });
 
   it("each page keeps its own content height: nothing stretches or grows a card to the tallest page", async () => {
-    mount(demo().runtime);
+    await mount(demo().runtime);
     const pager = await screen.findByTestId("hero-pager");
     // Top-aligned pages in the scroll's content, so a shorter card is not stretched.
     const content = StyleSheet.flatten(screen.getByTestId("hero-pager-scroll").props.contentContainerStyle);
@@ -234,7 +234,7 @@ describe("the hero pager", () => {
 
   it("the pager's value reads in English", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
-    mount(demo().runtime);
+    await mount(demo().runtime);
     await screen.findByTestId("hero-pager");
     const control = screen.getByRole("adjustable");
     expect(control.props.accessibilityLabel).toBe("Lunch");
@@ -244,7 +244,7 @@ describe("the hero pager", () => {
 
   it("one plan with one meal keeps today's single hero, with no counter", async () => {
     const { runtime } = runtimeWith(async () => onePlanOneMeal());
-    mount(runtime);
+    await mount(runtime);
     expect(await screen.findByTestId("plate-hero")).toBeTruthy();
     expect(screen.queryByTestId("hero-pager")).toBeNull();
     expect(screen.queryByText(/dari \d/)).toBeNull();
@@ -260,15 +260,15 @@ describe("the hero pager", () => {
       d.meals = [{ meal: "lunch", status: "preparing", cooking_started_at: `${DEMO_TODAY}T01:10:00Z` }];
     }
     const { runtime, usage } = runtimeWith(async () => state);
-    mount(runtime);
+    await mount(runtime);
     await screen.findByTestId("hero-pager");
     const viewed = () => usage.mock.calls.filter(([name]) => name === "journey_viewed");
     await waitFor(() => expect(viewed()).toHaveLength(1));
     await settle();
     expect(viewed()).toHaveLength(1);
-    fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "increment" } });
+    await fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "increment" } });
     await waitFor(() => expect(viewed()).toHaveLength(2));
-    fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
+    await fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
     await settle();
     expect(viewed()).toHaveLength(2);
   });
@@ -287,7 +287,7 @@ describe("the hero pager", () => {
       state.deliveries.push(planDelivery(second, DEMO_TODAY));
     }
     const { runtime } = runtimeWith(async () => state, async () => ({ total: actions.length, items: actions }));
-    mount(runtime, { scheme, now: mood === "siang" ? morningOf(DEMO_TODAY) : eveningOf(DEMO_TODAY) });
+    await mount(runtime, { scheme, now: mood === "siang" ? morningOf(DEMO_TODAY) : eveningOf(DEMO_TODAY) });
     await screen.findByTestId("hero-pager");
     const palette = nativeThemes[scheme];
     const dots = screen.getAllByTestId(/^hero-dot-/, { includeHiddenElements: true });
@@ -301,7 +301,7 @@ describe("the other meal's stop", () => {
   it("counts the other meal's deliveries and a tap switches to it", async () => {
     // The morning clock keeps both lunches still to come; the mood is Malam, so one dinner is the hero.
     pin(morningOf(DEMO_TODAY));
-    mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
+    await mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
     await screen.findByTestId("plate-hero");
     expect(screen.queryByTestId("hero-pager")).toBeNull();
     expect(screen.queryByTestId("other-meal-row")).toBeNull();
@@ -309,7 +309,7 @@ describe("the other meal's stop", () => {
     expect(stop.getByText("Siang")).toBeTruthy();
     expect(stop.getByText("2 pengantaran")).toBeTruthy();
     // A tap switches to Siang, where both lunches are the pager and the dinner is the other stop.
-    fireEvent.press(screen.getByTestId("status-stop-lunch"));
+    await fireEvent.press(screen.getByTestId("status-stop-lunch"));
     expect(await screen.findByTestId("hero-pager")).toBeTruthy();
     expect(within(screen.getByTestId("status-stop-dinner")).getByText("Malam")).toBeTruthy();
     expect(within(screen.getByTestId("status-stop-dinner")).getByText("Sate ayam madura")).toBeTruthy();
@@ -323,7 +323,7 @@ describe("the other meal's stop", () => {
   it("splits the pill evenly between the two meals, with no track between them, on a phone with room", async () => {
     const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style);
     pin(morningOf(DEMO_TODAY));
-    mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
+    await mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
     await screen.findByTestId("plate-hero");
     expect(flatOf("status-stop-lunch")).toMatchObject({ flex: 1 });
     expect(flatOf("status-stop-dinner")).toMatchObject({ flex: 1 });
@@ -335,7 +335,7 @@ describe("the other meal's stop", () => {
     mockWindow = { width: 360, height: 780, scale: 3, fontScale: 1.3 };
     try {
       pin(morningOf(DEMO_TODAY));
-      mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
+      await mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
       await screen.findByTestId("plate-hero");
       expect(StyleSheet.flatten(screen.getByTestId("status-stops").props.style)).toMatchObject({ flexDirection: "row" });
       expect(screen.queryByTestId("status-stops-track", { includeHiddenElements: true })).toBeNull();
@@ -349,7 +349,7 @@ describe("the other meal's stop", () => {
 
   it("says the lunches should have arrived once their window is past, in place of the count", async () => {
     pin(eveningOf(DEMO_TODAY));
-    mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
+    await mount(demo().runtime, { now: eveningOf(DEMO_TODAY) });
     await screen.findByTestId("plate-hero");
     expect(within(screen.getByTestId("status-stop-lunch")).getByText("Belum sampai")).toBeTruthy();
   });
@@ -370,7 +370,7 @@ describe("the other meal's stop", () => {
   it("names the main dish, not the first item on the menu", async () => {
     pin(morningOf(DEMO_TODAY));
     const { runtime } = runtimeWith(async () => riceFirst());
-    mount(runtime, { now: eveningOf(DEMO_TODAY) });
+    await mount(runtime, { now: eveningOf(DEMO_TODAY) });
     const row = within(await screen.findByTestId("status-stop-lunch"));
     expect(row.getByText("Rendang sapi")).toBeTruthy();
     expect(row.queryByText("Nasi putih")).toBeNull();
@@ -379,7 +379,7 @@ describe("the other meal's stop", () => {
   it("names the package, never a dish, while the menu is not set", async () => {
     pin(morningOf(DEMO_TODAY));
     const { runtime } = runtimeWith(async () => riceFirst(pendingMenu("lunch")));
-    mount(runtime, { now: eveningOf(DEMO_TODAY) });
+    await mount(runtime, { now: eveningOf(DEMO_TODAY) });
     const row = within(await screen.findByTestId("status-stop-lunch"));
     expect(row.getByText("Makan Siang Rumahan")).toBeTruthy();
     expect(row.queryByText(/Nasi|Rendang/)).toBeNull();
@@ -391,7 +391,7 @@ describe("Perlu kamu urus (the full list)", () => {
 
   it("waiting rows are one list with a single sunrise action", async () => {
     const { runtime, usage } = demo();
-    mountList(runtime);
+    await mountList(runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     expect(within(screen.getByTestId("screen-native-title")).getByText("Perlu kamu urus")).toBeTruthy();
     // The review row appears once its dismissal mark has been read.
@@ -423,18 +423,18 @@ describe("Perlu kamu urus (the full list)", () => {
     // Titles wrap at large text: none is held to one line.
     for (const t of list.getAllByTestId("waiting-title")) expect(t.props.numberOfLines).toBeUndefined();
 
-    fireEvent.press(rows[0]);
+    await fireEvent.press(rows[0]);
     expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-kantor?date=2026-10-13&meal=lunch");
-    fireEvent.press(rows[3]);
+    await fireEvent.press(rows[3]);
     expect(router.push).toHaveBeenLastCalledWith("/renew/s-sehat");
     await waitFor(() => expect(usage.mock.calls.filter(([n]) => n === "renew_started")).toHaveLength(1));
-    fireEvent.press(rows[4]);
+    await fireEvent.press(rows[4]);
     expect(router.push).toHaveBeenLastCalledWith("/paket/p-s-coba-1?title=Coba%20Nasi%20Bakar");
   });
 
   it("stacks the action under the text at 360dp and font scale 1.3, so a package name wraps whole words", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    mountList(demo().runtime);
+    await mountList(demo().runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     for (const row of list.getAllByTestId("waiting-row")) {
       const text = within(row).getByTestId("waiting-text");
@@ -444,14 +444,14 @@ describe("Perlu kamu urus (the full list)", () => {
 
   it("keeps the action beside the text on a 360dp phone at the default text size", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
-    mountList(demo().runtime);
+    await mountList(demo().runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     for (const row of list.getAllByTestId("waiting-row"))
       expect(within(within(row).getByTestId("waiting-text")).queryByTestId("waiting-action")).toBeNull();
   });
 
   it("the renewal row calls its price the last price, never the renewal's", async () => {
-    mountList(demo().runtime);
+    await mountList(demo().runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     // The snapshot price is what the last plan cost; the server quotes the renewal at today's price.
     const detail = list.getByText(`Dapur Hijau · harga terakhir ${currency(30000, "id")} per porsi`);
@@ -460,10 +460,16 @@ describe("Perlu kamu urus (the full list)", () => {
   });
 
   it("each kind of row carries its own icon: the trial takes the packages bag, not the renewal's arrow", async () => {
-    mountList(demo().runtime);
+    await mountList(demo().runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     await list.findByText("Gimana Dapur Hijau selama ini?");
-    const icons = list.getAllByTestId("waiting-row").map((row) => within(row).UNSAFE_getByType(Ionicons).props.name);
+    const icons = list.getAllByTestId("waiting-row").map((row) => {
+      // Ionicons draws one host Text in the "ionicons" font; its glyph maps back to the icon's name.
+      const glyphs = row.queryAll((n) => (StyleSheet.flatten(n.props.style) as { fontFamily?: string } | undefined)?.fontFamily === "ionicons");
+      expect(glyphs).toHaveLength(1);
+      const code = String(glyphs[0].children[0]).codePointAt(0);
+      return Object.entries(Ionicons.glyphMap).find(([, point]) => point === code)?.[0];
+    });
     expect(icons).toEqual([
       "reorder-three-outline",
       "reorder-three-outline",
@@ -478,20 +484,20 @@ describe("Perlu kamu urus (the full list)", () => {
   it("a menu row opens its soonest day, whatever order the action feed lists it in", async () => {
     const { state, actions } = demoCustomer();
     const reversed = [...actions].reverse();
-    mountList(runtimeWith(async () => state, async () => ({ total: reversed.length, items: reversed })).runtime);
+    await mountList(runtimeWith(async () => state, async () => ({ total: reversed.length, items: reversed })).runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     const rumahan = list.getByRole("button", { name: /^Pilih menu Rabu dan Kamis/ });
-    fireEvent.press(rumahan);
+    await fireEvent.press(rumahan);
     expect(router.push).toHaveBeenLastCalledWith(
       `/pilih-menu/s-rumahan?date=${addDays(DEMO_TODAY, 4)}&meal=lunch`,
     );
-    fireEvent.press(list.getByRole("button", { name: /^Pilih menu 3 hari/ }));
+    await fireEvent.press(list.getByRole("button", { name: /^Pilih menu 3 hari/ }));
     expect(router.push).toHaveBeenLastCalledWith(`/pilih-menu/s-malam?date=${addDays(DEMO_TODAY, 6)}&meal=dinner`);
   });
 
   it("reads in English", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
-    mountList(demo().runtime);
+    await mountList(demo().runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     await list.findByText("How has Dapur Hijau been so far?");
     expect(list.getAllByTestId("waiting-row").map((r) => r.props.accessibilityLabel)).toEqual([
@@ -508,7 +514,7 @@ describe("Perlu kamu urus (the full list)", () => {
 
   it("nothing waiting says so instead of leaving the screen blank", async () => {
     const { runtime } = runtimeWith(async () => onePlanOneMeal());
-    mountList(runtime);
+    await mountList(runtime);
     expect(await screen.findByText("Tidak ada yang perlu kamu urus sekarang.")).toBeTruthy();
     expect(screen.queryByTestId("waiting-list")).toBeNull();
   });
@@ -516,7 +522,7 @@ describe("Perlu kamu urus (the full list)", () => {
   it("loading shows the list's own skeleton, then the rows", async () => {
     let release: (state: CustomerState) => void = () => undefined;
     const { runtime } = runtimeWith(() => new Promise<CustomerState>((resolve) => (release = resolve)));
-    mountList(runtime);
+    await mountList(runtime);
     expect(await screen.findByTestId("waiting-skeleton")).toBeTruthy();
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     expect(screen.getAllByTestId("waiting-skeleton-row")).toHaveLength(3);
@@ -532,17 +538,17 @@ describe("Perlu kamu urus (the full list)", () => {
       if (fail) throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
       return demoCustomer().state;
     });
-    mountList(runtime);
+    await mountList(runtime);
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     fail = false;
-    fireEvent.press(retry);
+    await fireEvent.press(retry);
     expect(await screen.findByTestId("waiting-list")).toBeTruthy();
   });
 
   it("signed out asks to sign in first", async () => {
     const { runtime } = runtimeWith(async () => demoCustomer().state);
     (runtime.api.me as jest.Mock).mockResolvedValue({ actor: null, demo: false });
-    mountList(runtime);
+    await mountList(runtime);
     expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
   });
 
@@ -556,7 +562,7 @@ describe("Perlu kamu urus (the full list)", () => {
       async () => ({ total: actions.length, items: actions }),
     );
     goOffline();
-    mountList(runtime);
+    await mountList(runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     expect(await screen.findByText(keptLine(`${DEMO_TODAY}T01:12:00.000Z`))).toBeTruthy();
     expect(list.queryByText(/^Pilih menu/)).toBeNull();
@@ -574,7 +580,7 @@ describe("Perlu kamu urus (the full list)", () => {
         throw new Error("REQUEST_TIMEOUT");
       },
     );
-    mountList(runtime);
+    await mountList(runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     expect(await list.findByText("Gimana Dapur Hijau selama ini?")).toBeTruthy();
     expect(list.queryByText(/^Pilih menu/)).toBeNull();
@@ -583,17 +589,17 @@ describe("Perlu kamu urus (the full list)", () => {
 
   it("review opens its form in a sheet", async () => {
     const { runtime } = demo();
-    mountList(runtime);
-    fireEvent.press(await screen.findByRole("button", { name: /^Gimana Dapur Hijau selama ini\?/ }));
+    await mountList(runtime);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Gimana Dapur Hijau selama ini\?/ }));
     // A native form sheet over Beranda (`/ulasan/{id}`), not a sheet inside the list.
     expect(router.push).toHaveBeenCalledWith("/ulasan/s-sehat");
     const sheet = within(await screen.findByTestId("review-sheet"));
-    fireEvent.press(sheet.getByRole("button", { name: "4 bintang" }));
+    await fireEvent.press(sheet.getByRole("button", { name: "4 bintang" }));
     expect(sheet.getByRole("button", { name: "4 bintang" }).props.accessibilityState.selected).toBe(true);
     expect(sheet.getByRole("button", { name: "5 bintang" }).props.accessibilityState.selected).toBe(false);
-    fireEvent.changeText(sheet.getByLabelText("Cerita singkat (opsional)"), "Enak dan tepat waktu");
+    await fireEvent.changeText(sheet.getByLabelText("Cerita singkat (opsional)"), "Enak dan tepat waktu");
     // "Kirim ulasan" is pinned under the form, outside the scrolling content.
-    fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "review.save",
@@ -606,10 +612,10 @@ describe("Perlu kamu urus (the full list)", () => {
   });
 
   it("Nanti saja in the sheet hides the review row for good", async () => {
-    mountList(demo().runtime);
-    fireEvent.press(await screen.findByRole("button", { name: /^Gimana Dapur Hijau selama ini\?/ }));
+    await mountList(demo().runtime);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Gimana Dapur Hijau selama ini\?/ }));
     await screen.findByTestId("review-sheet");
-    fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
     await waitFor(() => expect(screen.queryByText("Gimana Dapur Hijau selama ini?")).toBeNull());
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-sehat", "dismissed");
   });
@@ -617,11 +623,11 @@ describe("Perlu kamu urus (the full list)", () => {
   it("a review error stays in the sheet", async () => {
     const { runtime } = demo();
     (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("NOPE"), { code: "NOPE" }));
-    mountList(runtime);
-    fireEvent.press(await screen.findByRole("button", { name: /^Gimana Dapur Hijau selama ini\?/ }));
+    await mountList(runtime);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Gimana Dapur Hijau selama ini\?/ }));
     await screen.findByTestId("review-sheet");
-    fireEvent.press(screen.getByRole("button", { name: "5 bintang" }));
-    fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "5 bintang" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
     expect(await screen.findByText("Ulasannya belum terkirim. Coba lagi.")).toBeTruthy();
     // The stars stay as they were, so trying again is one tap.
     expect(screen.getByRole("button", { name: "5 bintang" }).props.accessibilityState.selected).toBe(true);
@@ -655,7 +661,7 @@ describe("the live slot", () => {
 
   it("shows only the first waiting item, with its own action and how many more wait", async () => {
     const { state, actions } = fiveWaiting();
-    mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
+    await mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
     const slot = within(await screen.findByTestId("live-slot"));
     // The order is the domain's: the soonest menu first.
     const row = slot.getByTestId("live-slot-row");
@@ -675,37 +681,37 @@ describe("the live slot", () => {
     expect(card).toMatchObject({ borderRadius: 16, backgroundColor: light.surface });
     expect(card).toMatchObject({ borderWidth: 1, borderColor: light.cardBorder, boxShadow: light.cardShadow });
     // The existing action and its side effect.
-    fireEvent.press(row);
+    await fireEvent.press(row);
     expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-kantor?date=2026-10-13&meal=lunch");
   });
 
   it("n hal lainnya opens the full list", async () => {
     const { state, actions } = fiveWaiting();
-    mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
+    await mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
     const link = await screen.findByTestId("live-slot-more");
     // Its own 44 target, a sibling of the row (not inside it), so a touch near it cannot run the row's action.
     expect(StyleSheet.flatten(link.props.style).minHeight).toBeGreaterThanOrEqual(44);
     expect(within(screen.getByTestId("live-slot-row")).queryByTestId("live-slot-more")).toBeNull();
-    fireEvent.press(link);
+    await fireEvent.press(link);
     expect(router.push).toHaveBeenLastCalledWith("/perlu-diurus");
     // The row's own action did not run with it.
     expect(router.push).toHaveBeenCalledTimes(1);
     expect(router.push).not.toHaveBeenCalledWith(expect.stringContaining("/pilih-menu"));
     // And the row's own press does not open the list.
-    fireEvent.press(screen.getByTestId("live-slot-row"));
+    await fireEvent.press(screen.getByTestId("live-slot-row"));
     expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-kantor?date=2026-10-13&meal=lunch");
     expect(router.push).toHaveBeenCalledTimes(2);
     // TalkBack reaches the same link as an action on the row.
     const row = screen.getByTestId("live-slot-row");
     expect(row.props.accessibilityActions).toEqual([{ name: "more", label: "4 hal lainnya" }]);
-    fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: "more" } });
+    await fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: "more" } });
     expect(router.push).toHaveBeenCalledTimes(3);
     expect(router.push).toHaveBeenLastCalledWith("/perlu-diurus");
   });
 
   it("one waiting item has no n hal lainnya, and its action keeps its side effect", async () => {
     const { runtime, usage } = runtimeWith(async () => oneWaiting());
-    mount(runtime, v2);
+    await mount(runtime, v2);
     const slot = within(await screen.findByTestId("live-slot"));
     expect(slot.getByText("Makan Siang Rumahan, sisa 2 hari")).toBeTruthy();
     expect(slot.queryByText(/hal lainnya/)).toBeNull();
@@ -713,13 +719,13 @@ describe("the live slot", () => {
     expect(screen.getByTestId("live-slot-row").props.accessibilityActions).toBeUndefined();
     // Only the renewal is charcoal; it is the urgent one.
     expect(color(slot.getByTestId("waiting-action"))).toBe(light.charcoal);
-    fireEvent.press(slot.getByTestId("live-slot-row"));
+    await fireEvent.press(slot.getByTestId("live-slot-row"));
     expect(router.push).toHaveBeenLastCalledWith("/renew/s-1");
     await waitFor(() => expect(usage.mock.calls.filter(([n]) => n === "renew_started")).toHaveLength(1));
   });
 
   it("nothing waiting hides the slot", async () => {
-    mount(runtimeWith(async () => quietPlan()).runtime, v2);
+    await mount(runtimeWith(async () => quietPlan()).runtime, v2);
     await screen.findByTestId("plate-hero");
     await settle();
     expect(screen.queryByTestId("live-slot")).toBeNull();
@@ -728,7 +734,7 @@ describe("the live slot", () => {
 
   it("keeps a 32 section gap after the hero and before the next block", async () => {
     const { runtime } = runtimeWith(async () => oneWaiting());
-    mount(runtime, v2);
+    await mount(runtime, v2);
     // The page body gaps blocks by 16; the slot adds 16 more.
     expect(StyleSheet.flatten((await screen.findByTestId("live-slot")).props.style).marginTop).toBe(16);
   });
@@ -736,11 +742,11 @@ describe("the live slot", () => {
   it("a review is the slot only when it is first; until its mark is read it is not counted", async () => {
     const state = quietPlan(2);
     state.deliveries.push({ ...state.deliveries[0], id: "d-done", service_date: "2026-10-09", status: "delivered" });
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const slot = within(await screen.findByTestId("live-slot"));
     // The renewal leads; once the mark is read the review row is the one more.
     expect(await slot.findByText("1 hal lainnya")).toBeTruthy();
-    fireEvent.press(slot.getByText("1 hal lainnya"));
+    await fireEvent.press(slot.getByText("1 hal lainnya"));
     expect(router.push).toHaveBeenLastCalledWith("/perlu-diurus");
   });
 
@@ -754,7 +760,7 @@ describe("the live slot", () => {
       async () => ({ total: actions.length, items: actions }),
     );
     goOffline();
-    mount(runtime, v2);
+    await mount(runtime, v2);
     const slot = within(await screen.findByTestId("live-slot"));
     expect(slot.getByText("Paket Sehat, sisa 2 hari")).toBeTruthy();
     // The renewal, the trial: one more.
@@ -765,7 +771,7 @@ describe("the live slot", () => {
   it("reads in English", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
     const { state, actions } = fiveWaiting();
-    mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
+    await mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
     const slot = within(await screen.findByTestId("live-slot"));
     expect(slot.getByText("4 more")).toBeTruthy();
     expect(slot.getByText("Choose the menu for Tue 13 Oct")).toBeTruthy();
@@ -774,7 +780,7 @@ describe("the live slot", () => {
   it("drops the action under the text at 360dp and font scale 1.3, and lets the title grow", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     const { state, actions } = fiveWaiting();
-    mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
+    await mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
     const slot = within(await screen.findByTestId("live-slot"));
     expect(within(slot.getByTestId("live-slot-text")).getByTestId("waiting-action")).toBeTruthy();
     expect(slot.getByText("Pilih menu Selasa 13 Okt").props.numberOfLines).toBeUndefined();
@@ -783,7 +789,7 @@ describe("the live slot", () => {
   it("keeps the action beside the text at 360dp and the default text size", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
     const { state, actions } = fiveWaiting();
-    mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
+    await mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
     const slot = within(await screen.findByTestId("live-slot"));
     expect(within(slot.getByTestId("live-slot-text")).queryByTestId("waiting-action")).toBeNull();
   });
@@ -829,7 +835,7 @@ describe("Berikutnya", () => {
     state.deliveries.push(
       ...[1, 2, 3, 4].map((o) => planDelivery(state.subscriptions[0], addDays(DEMO_TODAY, o))),
     );
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const days = await daysBlock();
     expect(days.getByText("Berikutnya")).toBeTruthy();
     // At most three days, in one list card; no day label of its own.
@@ -862,11 +868,11 @@ describe("Berikutnya", () => {
   it("tomorrow's row opens the existing story, any other day its sheet", async () => {
     const state = scheduled({});
     state.deliveries.push(...[1, 2].map((o) => planDelivery(state.subscriptions[0], addDays(DEMO_TODAY, o))));
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const days = await daysBlock();
-    fireEvent.press(days.getByTestId("upcoming-row-d-s-1-2026-10-11-lunch"));
+    await fireEvent.press(days.getByTestId("upcoming-row-d-s-1-2026-10-11-lunch"));
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
-    fireEvent.press(days.getByTestId("upcoming-row-d-s-1-2026-10-12-lunch"));
+    await fireEvent.press(days.getByTestId("upcoming-row-d-s-1-2026-10-12-lunch"));
     expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-1-2026-10-12?title=Senin%2012%20Okt");
   });
 
@@ -875,25 +881,25 @@ describe("Berikutnya", () => {
     const days = upcomingDays(state, morningOf(DEMO_TODAY), 3, "id");
     // The story knows only the second delivery; the first falls back to its own sheet.
     const tomorrow = { date: addDays(DEMO_TODAY, 1), parts: [{ deliveryId: "d-s-2-2026-10-11", meal: "lunch" as const }] };
-    mount(runtimeWith(async () => state).runtime, { v2: true, node: <UpcomingDays days={days} apiBase="" tomorrow={tomorrow} /> });
+    await mount(runtimeWith(async () => state).runtime, { v2: true, node: <UpcomingDays days={days} apiBase="" tomorrow={tomorrow} /> });
     const block = await daysBlock();
-    fireEvent.press(block.getByTestId("upcoming-tile-d-s-1-2026-10-11-lunch"));
+    await fireEvent.press(block.getByTestId("upcoming-tile-d-s-1-2026-10-11-lunch"));
     expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-1-2026-10-11?title=Minggu%2011%20Okt");
-    fireEvent.press(block.getByTestId("upcoming-tile-d-s-2-2026-10-11-lunch"));
+    await fireEvent.press(block.getByTestId("upcoming-tile-d-s-2-2026-10-11-lunch"));
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
   });
 
   it("Lihat jadwal goes to the Jadwal tab", async () => {
-    mount(runtimeWith(async () => scheduled({ 2: 1 })).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({ 2: 1 })).runtime, v2);
     const days = await daysBlock();
-    fireEvent.press(days.getByRole("button", { name: "Lihat jadwal" }));
+    await fireEvent.press(days.getByRole("button", { name: "Lihat jadwal" }));
     expect(goToTab).toHaveBeenLastCalledWith("jadwal");
     expect(color(days.getByText("Lihat jadwal"))).toBe(light.forest);
   });
 
   it("a menu not set is its picture tile and says the menu is not chosen or announced, never a dish", async () => {
     const state = scheduled({ 2: 1 }, { "s-1": [pendingMenu("lunch")] });
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const days = await daysBlock();
     const row = days.getByTestId("upcoming-row-d-s-1-2026-10-12-lunch");
     expect(within(row).getByText(/^Menu belum (dipilih|diumumkan)$/)).toBeTruthy();
@@ -903,7 +909,7 @@ describe("Berikutnya", () => {
   });
 
   it("a day with several deliveries is a block: two photo tiles, then how many more", async () => {
-    mount(runtimeWith(async () => scheduled({ 2: 3 })).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({ 2: 3 })).runtime, v2);
     const days = await daysBlock();
     expect(days.getByText("Senin 12 Okt")).toBeTruthy();
     expect(days.getByTestId("upcoming-day-count").props.children).toBe("3 pengantaran");
@@ -926,24 +932,24 @@ describe("Berikutnya", () => {
     // The third delivery is one tap away; it is the dinner, one delivery, so its own sheet opens.
     const more = days.getByRole("button", { name: "+1 lagi" });
     expect(StyleSheet.flatten(more.props.style).minHeight).toBeGreaterThanOrEqual(36);
-    fireEvent.press(more);
+    await fireEvent.press(more);
     expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-3-2026-10-12?title=Senin%2012%20Okt");
-    fireEvent.press(tiles[1]);
+    await fireEvent.press(tiles[1]);
     expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-2-2026-10-12?title=Senin%2012%20Okt");
   });
 
   it("four deliveries a day: two tiles and +2 lagi, which opens the schedule where all four are", async () => {
-    mount(runtimeWith(async () => scheduled({ 2: 4 })).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({ 2: 4 })).runtime, v2);
     const days = await daysBlock();
     expect(days.getAllByTestId(/^upcoming-tile-.*-lunch$/)).toHaveLength(2);
     expect(days.queryByText("Salmon teriyaki")).toBeNull();
     expect(days.getByTestId("upcoming-day-count").props.children).toBe("4 pengantaran");
-    fireEvent.press(days.getByRole("button", { name: "+2 lagi" }));
+    await fireEvent.press(days.getByRole("button", { name: "+2 lagi" }));
     expect(goToTab).toHaveBeenLastCalledWith("jadwal");
   });
 
   it("a day with one delivery beside a busy one keeps its block, with the empty meal said", async () => {
-    mount(runtimeWith(async () => scheduled({ 2: 3, 3: 1 })).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({ 2: 3, 3: 1 })).runtime, v2);
     const days = await daysBlock();
     const tuesday = within(days.getByTestId("upcoming-day-2026-10-13"));
     expect(tuesday.getByText("Selasa 13 Okt")).toBeTruthy();
@@ -960,7 +966,7 @@ describe("Berikutnya", () => {
     state.deliveries.push(planDelivery(state.subscriptions[2], addDays(DEMO_TODAY, 2)));
     state.deliveries.push(planDelivery(state.subscriptions[0], addDays(DEMO_TODAY, 3)));
     state.deliveries.push(planDelivery(state.subscriptions[1], addDays(DEMO_TODAY, 3)));
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
     const labels = monday.getAllByText(/tidak ada pengantaran$|^Malam · /);
     expect(labels.map((l) => l.props.children)).toEqual(["Siang tidak ada pengantaran", "Malam · Dapur Bulan"]);
@@ -971,7 +977,7 @@ describe("Berikutnya", () => {
       { 2: 4 },
       { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")], "s-3": [pendingMenu("dinner")] },
     );
-    mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
+    await mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
     const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
     expect(monday.getByTestId("upcoming-day-count").props.children).toBe("4 pengantaran");
     // One row for the three unpicked; no dashed tile per delivery, and nothing left behind "+n lagi".
@@ -988,13 +994,13 @@ describe("Berikutnya", () => {
     // One action, to the first unpicked delivery's menu.
     const pick = within(rows[0]).getAllByRole("button", { name: "Pilih menu" });
     expect(pick).toHaveLength(1);
-    fireEvent.press(pick[0]);
+    await fireEvent.press(pick[0]);
     expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-1?date=2026-10-12&meal=lunch");
   });
 
   it("a day with nothing picked is the one row and no tiles", async () => {
     const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] });
-    mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
+    await mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
     const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
     expect(monday.getByText("2 pengantaran belum ada menu")).toBeTruthy();
     expect(monday.queryByTestId("upcoming-grid-2026-10-12")).toBeNull();
@@ -1003,20 +1009,20 @@ describe("Berikutnya", () => {
 
   it("one unpicked delivery reads Menu belum dipilih", async () => {
     const state = scheduled({ 2: 2 }, { "s-2": [pendingMenu("lunch")] });
-    mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
+    await mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
     const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
     const row = within(monday.getByTestId("day-unpicked-row"));
     expect(row.getByText("Menu belum dipilih")).toBeTruthy();
     expect(monday.queryByText(/belum ada menu$/)).toBeNull();
     expect(monday.getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch")).toBeTruthy();
-    fireEvent.press(row.getByRole("button", { name: "Pilih menu" }));
+    await fireEvent.press(row.getByRole("button", { name: "Pilih menu" }));
     expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-2?date=2026-10-12&meal=lunch");
   });
 
   it("the unpicked row at 360dp and font 1.3 grows instead of clipping", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     const state = scheduled({ 2: 3 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] });
-    mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
+    await mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
     const row = (await daysBlock()).getByTestId("day-unpicked-row");
     expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(48);
     expect(within(row).getByText("2 pengantaran belum ada menu").props.numberOfLines).toBeUndefined();
@@ -1028,7 +1034,7 @@ describe("Berikutnya", () => {
 
   it("the unpicked row takes its inks from the dark theme", async () => {
     const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")] });
-    mount(runtimeWith(async () => ownMenus(state)).runtime, { ...v2, scheme: "dark" });
+    await mount(runtimeWith(async () => ownMenus(state)).runtime, { ...v2, scheme: "dark" });
     const row = within((await daysBlock()).getByTestId("day-unpicked-row"));
     expect(color(row.getByText("Pilih menu"))).toBe(nativeThemes.dark.forest);
     // The picture tile sits on the small-fill tone, as the one-delivery rows' tile does.
@@ -1038,7 +1044,7 @@ describe("Berikutnya", () => {
 
   it("a caterer-chosen menu not announced yet has no Pilih menu", async () => {
     const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")] });
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
     const row = within(monday.getByTestId("day-unannounced-row"));
     expect(row.getByText("Menu belum diumumkan")).toBeTruthy();
@@ -1049,13 +1055,13 @@ describe("Berikutnya", () => {
   it("a day with both kinds keeps Pilih menu for the pick-your-own one only", async () => {
     const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] });
     state.subscriptions[1].snapshot.offer.menuSelectionMode = "customer";
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
     expect(within(monday.getByTestId("day-unpicked-row")).getByText("Menu belum dipilih")).toBeTruthy();
     expect(within(monday.getByTestId("day-unannounced-row")).getByText("Menu belum diumumkan")).toBeTruthy();
     const pick = monday.getAllByRole("button", { name: "Pilih menu" });
     expect(pick).toHaveLength(1);
-    fireEvent.press(pick[0]);
+    await fireEvent.press(pick[0]);
     expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-2?date=2026-10-12&meal=lunch");
   });
 
@@ -1064,14 +1070,14 @@ describe("Berikutnya", () => {
     state.deliveries = state.deliveries.map((d) =>
       d.service_date === "2026-10-12" ? { ...d, cutoff_at: "2026-10-09T10:00:00Z" } : d,
     );
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
     expect(within(monday.getByTestId("day-unpicked-row")).getByText("2 pengantaran belum ada menu")).toBeTruthy();
     expect(monday.queryByRole("button", { name: "Pilih menu" })).toBeNull();
   });
 
   it("shows at most three days, however many have a delivery", async () => {
-    mount(runtimeWith(async () => scheduled({ 2: 2, 3: 2, 4: 2, 5: 2, 6: 2 })).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({ 2: 2, 3: 2, 4: 2, 5: 2, 6: 2 })).runtime, v2);
     const days = await daysBlock();
     expect(days.getAllByTestId("upcoming-day-label").map((n) => n.props.children)).toEqual([
       "Senin 12 Okt",
@@ -1081,18 +1087,18 @@ describe("Berikutnya", () => {
   });
 
   it("tomorrow's tiles and +n lagi open the story at their own part", async () => {
-    mount(runtimeWith(async () => scheduled({ 1: 4 })).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({ 1: 4 })).runtime, v2);
     const days = await daysBlock();
     expect(days.getByText("Besok, Minggu 11 Okt")).toBeTruthy();
-    fireEvent.press(days.getByTestId("upcoming-tile-d-s-2-2026-10-11-lunch"));
+    await fireEvent.press(days.getByTestId("upcoming-tile-d-s-2-2026-10-11-lunch"));
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=1");
     // The first hidden part is the third in the story's own order (lunch, lunch, dinner by window, dinner).
-    fireEvent.press(days.getByRole("button", { name: "+2 lagi" }));
+    await fireEvent.press(days.getByRole("button", { name: "+2 lagi" }));
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=2");
   });
 
   it("is gone when nothing is coming, and the old Menu besok row never returns", async () => {
-    mount(runtimeWith(async () => scheduled({})).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({})).runtime, v2);
     await screen.findByTestId("plate-hero");
     await settle();
     expect(screen.queryByTestId("upcoming-days")).toBeNull();
@@ -1102,7 +1108,7 @@ describe("Berikutnya", () => {
 
   it("on a Saturday with nothing today, names Monday and lists it first", async () => {
     const { runtime } = runtimeWith(async () => quietSaturday());
-    mount(runtime, v2);
+    await mount(runtime, v2);
     await screen.findByTestId("home-title");
     expect(title()).toBe("Siang ini, tidak ada pengantaran.");
     expect(screen.queryByTestId("plate-hero")).toBeNull();
@@ -1114,7 +1120,7 @@ describe("Berikutnya", () => {
 
   it("at 360dp and font scale 1.3 the tiles take a column each and the dish may wrap", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    mount(runtimeWith(async () => scheduled({ 2: 2 })).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({ 2: 2 })).runtime, v2);
     const days = await daysBlock();
     expect(StyleSheet.flatten(days.getByTestId("upcoming-grid-2026-10-12").props.style).flexDirection).toBe("column");
     expect(days.getByText("Ayam panggang").props.numberOfLines).toBeUndefined();
@@ -1122,14 +1128,14 @@ describe("Berikutnya", () => {
 
   it("keeps two columns at 360dp and the default text size", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
-    mount(runtimeWith(async () => scheduled({ 2: 2 })).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({ 2: 2 })).runtime, v2);
     const days = await daysBlock();
     expect(StyleSheet.flatten(days.getByTestId("upcoming-grid-2026-10-12").props.style).flexDirection).toBe("row");
   });
 
   it("reads in English", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
-    mount(runtimeWith(async () => scheduled({ 2: 3, 3: 1 })).runtime, v2);
+    await mount(runtimeWith(async () => scheduled({ 2: 3, 3: 1 })).runtime, v2);
     const days = await daysBlock();
     expect(days.getByText("Coming up")).toBeTruthy();
     expect(days.getByText("See schedule")).toBeTruthy();
@@ -1147,7 +1153,7 @@ describe("Paket kamu", () => {
   beforeEach(() => pin(morningOf(DEMO_TODAY)));
 
   it("one plan is one 72 row: its photo, name and kitchen with the days left", async () => {
-    mount(runtimeWith(async () => quietPlan(8)).runtime, v2);
+    await mount(runtimeWith(async () => quietPlan(8)).runtime, v2);
     const plans = within(await screen.findByTestId("plans"));
     expect(plans.getByText("Paket kamu")).toBeTruthy();
     expect(plans.queryByText("Lihat semua")).toBeNull();
@@ -1158,7 +1164,7 @@ describe("Paket kamu", () => {
     expect(within(row).getByText("Dapur Contoh · sisa 8 hari")).toBeTruthy();
     expect(within(row).queryByTestId("plan-row-s-1-chevron")).toBeNull(); // chevron is iOS-only
     expect(StyleSheet.flatten(within(row).getByTestId("plan-row-s-1-thumb").props.style)).toMatchObject({ width: 56, height: 56 });
-    fireEvent.press(row);
+    await fireEvent.press(row);
     expect(router.push).toHaveBeenLastCalledWith("/subscriptions/s-1?title=Makan%20Siang%20Rumahan");
   });
 
@@ -1166,7 +1172,7 @@ describe("Paket kamu", () => {
     const state = quietPlan(8);
     const other = plan("s-2", { name: "Makan Malam Hemat", caterer: "Dapur Bulan", meal: "dinner", remaining: 2, today: DEMO_TODAY });
     state.subscriptions.push(other);
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const plans = within(await screen.findByTestId("plans"));
     expect(plans.getAllByTestId("list-card")).toHaveLength(1);
     expect(planIds(plans.getAllByTestId(/^plan-row-s-\d$/))).toEqual(["plan-row-s-2", "plan-row-s-1"]);
@@ -1187,7 +1193,7 @@ describe("Paket kamu", () => {
   }
 
   it("eight plans are a heading with Lihat semua over a rail of 168 cards, soonest end first", async () => {
-    mount(runtimeWith(async () => ending()).runtime, v2);
+    await mount(runtimeWith(async () => ending()).runtime, v2);
     const plans = within(await screen.findByTestId("plans"));
     expect(plans.getByText("8 paket aktif")).toBeTruthy();
     expect(plans.queryByTestId("list-card")).toBeNull();
@@ -1221,20 +1227,20 @@ describe("Paket kamu", () => {
     expect(StyleSheet.flatten(rail.props.contentContainerStyle)).toMatchObject({ paddingHorizontal: 16, gap: 8 });
     expect(rail.props.horizontal).toBe(true);
     expect(rail.props.showsHorizontalScrollIndicator).toBe(false);
-    fireEvent.press(cards[0]);
+    await fireEvent.press(cards[0]);
     expect(router.push).toHaveBeenLastCalledWith("/subscriptions/s-h?title=Nasi%20Bakar");
     // Every plan is one tap away through the list.
-    fireEvent.press(plans.getByRole("button", { name: "Lihat semua" }));
+    await fireEvent.press(plans.getByRole("button", { name: "Lihat semua" }));
     expect(router.push).toHaveBeenLastCalledWith("/paket-saya");
   });
 
   it("on a 360 phone the rail cards shrink so a sliver of the third card always peeks; at 412 they stay 168", async () => {
     const widthsAt = async (width: number) => {
       mockWindow = { ...mockWindow, width };
-      mount(runtimeWith(async () => ending()).runtime, v2);
+      await mount(runtimeWith(async () => ending()).runtime, v2);
       const plans = within(await screen.findByTestId("plans"));
       const widths = plans.getAllByTestId(/^plan-card-s-[a-z0-9]+$/).map((c) => StyleSheet.flatten(c.props.style).width as number);
-      screen.unmount();
+      await screen.unmount();
       return widths;
     };
     const saved = mockWindow;
@@ -1256,7 +1262,7 @@ describe("Paket kamu", () => {
       plan("s-2", { name: "Makan Malam Hemat", caterer: "Dapur Bulan", meal: "dinner", remaining: 5, today: DEMO_TODAY }),
       plan("s-3", { name: "Paket Sehat", caterer: "Dapur Hijau", remaining: 20, today: DEMO_TODAY }),
     );
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     const plans = within(await screen.findByTestId("plans"));
     expect(plans.getByText("3 paket aktif")).toBeTruthy();
     expect(planIds(plans.getAllByTestId(/^plan-card-s-[a-z0-9]+$/))).toEqual(["plan-card-s-2", "plan-card-s-1", "plan-card-s-3"]);
@@ -1265,12 +1271,12 @@ describe("Paket kamu", () => {
   it("a plan that ended is not listed, and no plan hides the section", async () => {
     const state = quietPlan(8);
     state.subscriptions.push(plan("s-9", { name: "Paket Lama", caterer: "Dapur Lama", status: "completed", remaining: 0, today: DEMO_TODAY }));
-    const view = mount(runtimeWith(async () => state).runtime, v2);
+    const view = await mount(runtimeWith(async () => state).runtime, v2);
     const plans = within(await screen.findByTestId("plans"));
     expect(plans.queryByText("Paket Lama")).toBeNull();
-    view.unmount();
+    await view.unmount();
     state.subscriptions[0].status = "completed";
-    mount(runtimeWith(async () => state).runtime, v2);
+    await mount(runtimeWith(async () => state).runtime, v2);
     await screen.findByTestId("plate-hero");
     await settle();
     expect(screen.queryByTestId("plans")).toBeNull();
@@ -1278,7 +1284,7 @@ describe("Paket kamu", () => {
 
   it("reads in English: active plans, See all, ends tomorrow, days left", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
-    mount(runtimeWith(async () => ending()).runtime, v2);
+    await mount(runtimeWith(async () => ending()).runtime, v2);
     const plans = within(await screen.findByTestId("plans"));
     expect(plans.getByText("8 active plans")).toBeTruthy();
     expect(plans.getByText("See all")).toBeTruthy();
@@ -1287,7 +1293,7 @@ describe("Paket kamu", () => {
   });
 
   it("the last block of the page, after the days", async () => {
-    mount(runtimeWith(async () => ending()).runtime, v2);
+    await mount(runtimeWith(async () => ending()).runtime, v2);
     await screen.findByTestId("plans");
     const tree = JSON.stringify(screen.toJSON(), (key, value) => (key === "refreshControl" ? undefined : value));
     expect(tree.lastIndexOf("8 paket aktif")).toBeGreaterThan(tree.lastIndexOf("Berikutnya"));
@@ -1318,7 +1324,7 @@ describe("the lower blocks in dark and at Malam", () => {
       plan("s-5", { name: "Paket Lima", caterer: "Dapur Lima", remaining: 4, today: DEMO_TODAY }),
       plan("s-6", { name: "Paket Enam", caterer: "Dapur Enam", remaining: 5, today: DEMO_TODAY }),
     );
-    mount(runtimeWith(async () => state).runtime, { v2: true, scheme, now: mood === "siang" ? morningOf(DEMO_TODAY) : eveningOf(DEMO_TODAY) });
+    await mount(runtimeWith(async () => state).runtime, { v2: true, scheme, now: mood === "siang" ? morningOf(DEMO_TODAY) : eveningOf(DEMO_TODAY) });
     const palette = nativeThemes[scheme];
     const slot = await screen.findByTestId("live-slot");
     expect(StyleSheet.flatten(slot.props.style).backgroundColor).toBe(palette.surface);
@@ -1355,7 +1361,7 @@ describe("the +n lagi row", () => {
       changeUntil: null,
     });
     const day = { date: "2026-10-28", label: "Rabu", meals: [meal(1), meal(2), meal(3)] };
-    mount(runtimeWith(async () => customerState({})).runtime, {
+    await mount(runtimeWith(async () => customerState({})).runtime, {
       v2: true,
       node: <DayBlocks days={[day as never]} apiBase="" onOpen={() => undefined} onMore={() => undefined} onPick={() => undefined} />,
     });

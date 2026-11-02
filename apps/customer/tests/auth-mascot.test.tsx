@@ -11,7 +11,7 @@ const poses: MascotPose[] = ["bingung", "merayakan", "membaca", "mencari", "mela
 const durations = { bingung: 520, merayakan: 560, membaca: 480, mencari: 640, melambai: 520 };
 /** Renders and lets MascotArt's warm-up image load settle, as mascot-art.test.tsx does. */
 const mount = async (ui: React.ReactElement) => {
-  const view = render(ui);
+  const view = await render(ui);
   await act(async () => {});
   return view;
 };
@@ -27,7 +27,7 @@ describe("AuthMascot", () => {
   it("a pose change renders the new pose testID", async () => {
     const view = await mount(<AuthMascot pose="melambai" />);
     expect(screen.getByTestId("auth-mascot-melambai", hidden)).toBeTruthy();
-    view.rerender(<AuthMascot pose="bingung" />);
+    await view.rerender(<AuthMascot pose="bingung" />);
     expect(screen.getByTestId("auth-mascot-bingung", hidden)).toBeTruthy();
     expect(screen.queryByTestId("auth-mascot-melambai", hidden)).toBeNull();
   });
@@ -41,7 +41,7 @@ describe("AuthMascot", () => {
     for (const pose of [...poses, "melambai" as const]) {
       if (pose === last) continue;
       timing.mockClear();
-      view.rerender(<AuthMascot pose={pose} />);
+      await view.rerender(<AuthMascot pose={pose} />);
       expect(timing).toHaveBeenCalledTimes(1);
       expect(timing.mock.calls[0][1]).toMatchObject({ duration: durations[pose] });
       last = pose;
@@ -52,8 +52,8 @@ describe("AuthMascot", () => {
   it("the same pose again starts no animation", async () => {
     const timing = jest.spyOn(Reanimated, "withTiming");
     const view = await mount(<AuthMascot pose="bingung" />);
-    view.rerender(<AuthMascot pose="bingung" />);
-    view.rerender(<AuthMascot pose="bingung" base={40} />);
+    await view.rerender(<AuthMascot pose="bingung" />);
+    await view.rerender(<AuthMascot pose="bingung" base={40} />);
     expect(timing).not.toHaveBeenCalled();
   });
 
@@ -61,7 +61,7 @@ describe("AuthMascot", () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const timing = jest.spyOn(Reanimated, "withTiming");
     const view = await mount(<AuthMascot pose="melambai" />);
-    view.rerender(<AuthMascot pose="merayakan" />);
+    await view.rerender(<AuthMascot pose="merayakan" />);
     expect(screen.getByTestId("auth-mascot-merayakan", hidden)).toBeTruthy();
     expect(timing).not.toHaveBeenCalled();
   });
@@ -83,9 +83,9 @@ describe("AuthOutcome", () => {
     expect(screen.getByTestId("auth-outcome")).toBeTruthy();
     expect(screen.getByText("Email terverifikasi")).toBeTruthy();
     expect(screen.getByText("Akunmu sudah siap, Sari.")).toBeTruthy();
-    fireEvent.press(screen.getByText("Mulai"));
+    await fireEvent.press(screen.getByText("Mulai"));
     expect(onPrimary).toHaveBeenCalledTimes(1);
-    fireEvent.press(screen.getByText("Nanti"));
+    await fireEvent.press(screen.getByText("Nanti"));
     expect(onSecondary).toHaveBeenCalledTimes(1);
   });
 
@@ -117,7 +117,7 @@ describe("AuthOutcome", () => {
         <AuthOutcome title="Kata sandi diganti" body="Masuk lagi." primary={primary(onPress)} play />
       </ThemeProvider>,
     );
-    fireEvent.press(screen.getByRole("button", { name: "Mulai" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai" }));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
@@ -126,8 +126,8 @@ describe("AuthOutcome", () => {
     const onPrimary = jest.fn();
     const onSecondary = jest.fn();
     await mount(<AuthOutcome title="Dapurmu siap" body="Kedai Sari sudah terdaftar. Mulai dengan menambah menu." primary={primary(onPrimary)} secondary={{ label: "Nanti", onPress: onSecondary }} play={false} />);
-    fireEvent.press(screen.getByRole("button", { name: "Mulai" }));
-    fireEvent.press(screen.getByRole("button", { name: "Nanti" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Nanti" }));
     expect(onPrimary).toHaveBeenCalledTimes(1);
     expect(onSecondary).toHaveBeenCalledTimes(1);
   });

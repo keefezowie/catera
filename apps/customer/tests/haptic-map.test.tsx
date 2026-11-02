@@ -4,10 +4,10 @@ import * as Haptics from "expo-haptics";
 import { LayoutScaleProvider, SaveHeart, SettingsSwitchRow, ThemeProvider, ToastProvider, useToast, type ToastInput } from "@catera/mobile-ui";
 
 // The haptic map: a toast plays the haptic its tone means, once; a switch and a heart tick.
-const flush = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
+const flush = async () => await act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
 
-const shell = (ui: React.ReactElement) =>
-  render(
+const shell = async (ui: React.ReactElement) =>
+  await render(
     <ThemeProvider storageKey="haptic-map-test">
       <LayoutScaleProvider>
         <ToastProvider>{ui}</ToastProvider>
@@ -22,7 +22,7 @@ function Show({ input }: { input: ToastInput }) {
 }
 
 async function toastWith(input: ToastInput) {
-  shell(<Show input={input} />);
+  await shell(<Show input={input} />);
   await flush();
 }
 
@@ -61,18 +61,18 @@ describe("toast haptics", () => {
 });
 
 describe("switch row and save heart", () => {
-  it("toggling a switch row ticks once and reports the change", () => {
+  it("toggling a switch row ticks once and reports the change", async () => {
     const onValueChange = jest.fn();
-    shell(<SettingsSwitchRow label="Notifikasi" supporting="Kabar" value={false} onValueChange={onValueChange} />);
-    fireEvent(screen.getByRole("switch", { name: "Notifikasi" }), "valueChange", true);
+    await shell(<SettingsSwitchRow label="Notifikasi" supporting="Kabar" value={false} onValueChange={onValueChange} />);
+    await fireEvent(screen.getByRole("switch", { name: "Notifikasi" }), "valueChange", true);
     expect(selected).toHaveBeenCalledTimes(1);
     expect(onValueChange).toHaveBeenCalledWith(true);
   });
 
-  it.each([false, true])("pressing a heart that is saved=%s ticks once", (saved) => {
+  it.each([false, true])("pressing a heart that is saved=%s ticks once", async (saved) => {
     const onToggle = jest.fn();
-    shell(<SaveHeart saved={saved} onToggle={onToggle} label="Simpan" />);
-    fireEvent.press(screen.getByLabelText("Simpan"));
+    await shell(<SaveHeart saved={saved} onToggle={onToggle} label="Simpan" />);
+    await fireEvent.press(screen.getByLabelText("Simpan"));
     expect(selected).toHaveBeenCalledTimes(1);
     expect(onToggle).toHaveBeenCalledTimes(1);
   });

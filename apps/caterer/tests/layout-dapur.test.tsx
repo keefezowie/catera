@@ -14,8 +14,8 @@ const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props
 
 // Without a provider the shared components keep the classic geometry. Dapur screen tests mount without the root, so
 // they still render classic; this case fails if a v2 value leaks into a default.
-test("without a layout scale the shared components keep the classic geometry", () => {
-  render(
+test("without a layout scale the shared components keep the classic geometry", async () => {
+  await render(
     <Screen>
       <Button label="Simpan" onPress={() => {}} />
       <Chip label="Halal" selected={false} onPress={() => {}} />
@@ -48,8 +48,8 @@ test("nativeLayout gains the Dapur keys and keeps the existing ones", () => {
 
 // The Dapur root provides `v2` with a 48 touch target (spec 2.1, 2.2).
 describe("under the Dapur scale", () => {
-  test("Screen, Button, Field and Card take the v2 geometry", () => {
-    render(
+  test("Screen, Button, Field and Card take the v2 geometry", async () => {
+    await render(
       withDapurScale(
         <Screen>
           <Button label="Simpan" onPress={() => {}} />
@@ -69,8 +69,8 @@ describe("under the Dapur scale", () => {
     expect((card.borderWidth ?? 0) + (card.padding as number)).toBe(16);
   });
 
-  test("a chip and each segment are 34 with a 48 target: hitSlop 7 above and below", () => {
-    render(
+  test("a chip and each segment are 34 with a 48 target: hitSlop 7 above and below", async () => {
+    await render(
       withDapurScale(
         <>
           <Chip label="Halal" selected={false} onPress={() => {}} />
@@ -88,8 +88,8 @@ describe("under the Dapur scale", () => {
     }
   });
 
-  test("the Stepper buttons are 44 circles with hitSlop 2 on every side", () => {
-    render(
+  test("the Stepper buttons are 44 circles with hitSlop 2 on every side", async () => {
+    await render(
       withDapurScale(
         <Stepper label="Porsi" decreaseLabel="Kurangi porsi" increaseLabel="Tambah porsi" value={3} onChange={() => {}} />,
       ),
@@ -101,8 +101,8 @@ describe("under the Dapur scale", () => {
     }
   });
 
-  test("the figure variant is 32/40 at 800 with tabular figures, charcoal, and not a header", () => {
-    render(withDapurScale(<Text variant="figure">1.240</Text>));
+  test("the figure variant is 32/40 at 800 with tabular figures, charcoal, and not a header", async () => {
+    await render(withDapurScale(<Text variant="figure">1.240</Text>));
     const figure = screen.getByText("1.240");
     expect(flat(figure)).toMatchObject({
       fontSize: 32,

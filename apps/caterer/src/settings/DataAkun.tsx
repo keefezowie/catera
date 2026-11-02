@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Linking, View } from "react-native";
-import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import {
   changePassword,
@@ -16,6 +15,7 @@ import { Button, Card, Field, FormError, ReadError, Screen, SettingsRow, Setting
 import { waCheck } from "../auth/checks";
 import { e164Indonesia, waLink } from "../onboarding";
 import { accountMessage } from "./accountMessages";
+import { pushScreen } from "../nav";
 
 /** The kitchen's stored +62 number as people type it (0812…). */
 const localNumber = (e164: string | null) => (e164 ? "0" + e164.replace(/^\+62/, "") : "");
@@ -365,7 +365,7 @@ export function DataAkun() {
           </Section>
         ) : null}
         <SettingsSection>
-          <SettingsRow label={t("Hapus akun", "Delete account")} tone="danger" onPress={() => router.push("/pengaturan/hapus-akun" as never)} />
+          <SettingsRow label={t("Hapus akun", "Delete account")} tone="danger" onPress={() => pushScreen("/pengaturan/hapus-akun")} />
         </SettingsSection>
       </View>
     </Screen>

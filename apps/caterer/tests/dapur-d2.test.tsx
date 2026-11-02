@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { RefreshControl, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
@@ -72,9 +72,9 @@ function runtimeWith(overrides: Record<string, unknown> = {}): MobileRuntime {
   return runtime;
 }
 
-function show(runtime: MobileRuntime, ui: React.ReactNode, { dark = false } = {}) {
+async function show(runtime: MobileRuntime, ui: React.ReactNode, { dark = false } = {}) {
   if (dark) jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-  return render(
+  return await render(
     withDapurScale(
       <ThemeProvider storageKey="d2.theme">
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
@@ -86,20 +86,34 @@ function show(runtime: MobileRuntime, ui: React.ReactNode, { dark = false } = {}
 }
 
 const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
+/** The chevron-forward icons drawn under a node: the icon font renders each as a Text holding its glyph. */
+const chevronGlyph = String.fromCodePoint(Ionicons.glyphMap["chevron-forward"]);
 const chevrons = (node: Parameters<typeof within>[0]) =>
-  within(node).UNSAFE_queryAllByType(Ionicons).filter((i) => i.props.name === "chevron-forward");
+  within(node).queryAllByText(chevronGlyph, { includeHiddenElements: true });
+/** Pulls the screen to refresh: the scroll view host carries the refresh control element and its `onRefresh`. */
+const pull = () => {
+  const [scroll] = screen.container.queryAll((n) => n.props.refreshControl !== undefined);
+  scroll.props.refreshControl.props.onRefresh();
+};
 const withReport = (extra: Record<string, unknown> = {}) =>
   runtimeWith({ request: jest.fn(async (p: string) => (p.startsWith("delivery-issues") ? [report(extra)] : [])) });
+
+describe("the chevron query", () => {
+  it("finds an icon-font chevron, so the iOS-only checks below are not vacuous", async () => {
+    await render(<Ionicons name="chevron-forward" size={16} />);
+    await waitFor(() => expect(chevrons(screen.container)).toHaveLength(1));
+  });
+});
 
 describe("the report page", () => {
   it("guards a typed reply like the sheet does, and sending clears it without closing the page", async () => {
     const runtime = withReport();
-    show(runtime, <ReportScreen id="i-1" />);
+    await show(runtime, <ReportScreen id="i-1" />);
     const field = await screen.findByLabelText("Balasan untuk pelanggan");
     expect(lastGuard()).toBeNull();
-    fireEvent.changeText(field, "Sebentar lagi sampai.");
+    await fireEvent.changeText(field, "Sebentar lagi sampai.");
     expect(lastGuard()).toEqual({ noun: "balasan", voice: "kamu", nounEn: "reply" });
-    fireEvent.press(screen.getByRole("button", { name: "Balas" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Balas" }));
     expect(await screen.findByText("Balasan terkirim")).toBeTruthy();
     expect(router.back).not.toHaveBeenCalled();
     await waitFor(() => expect(lastGuard()).toBeNull());
@@ -107,15 +121,15 @@ describe("the report page", () => {
 
   it("keeps a typed reply after the page is left without sending", async () => {
     const runtime = withReport();
-    const first = show(runtime, <ReportScreen id="i-1" />);
-    fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Sebentar lagi sampai.");
-    first.unmount();
-    show(runtime, <ReportScreen id="i-1" />);
+    const first = await show(runtime, <ReportScreen id="i-1" />);
+    await fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Sebentar lagi sampai.");
+    await first.unmount();
+    await show(runtime, <ReportScreen id="i-1" />);
     expect((await screen.findByLabelText("Balasan untuk pelanggan")).props.value).toBe("Sebentar lagi sampai.");
   });
 
   it("sets the day and meal line selectable and tabular, and the status pill fully round", async () => {
-    show(withReport(), <ReportScreen id="i-1" />);
+    await show(withReport(), <ReportScreen id="i-1" />);
     const line = await screen.findByText("Kamis 8 Okt · Makan siang");
     expect(line.props.selectable).toBe(true);
     expect(flat(line).fontVariant).toContain("tabular-nums");
@@ -123,7 +137,7 @@ describe("the report page", () => {
   });
 
   it("draws the WhatsApp chevron on iOS only (Jest compiles the Android build)", async () => {
-    show(withReport(), <ReportScreen id="i-1" />);
+    await show(withReport(), <ReportScreen id="i-1" />);
     await screen.findByText("Chat WhatsApp");
     expect(chevrons(screen.getByRole("button", { name: /Chat WhatsApp/ }))).toHaveLength(0);
   });
@@ -138,12 +152,12 @@ describe("Hari ini", () => {
   };
 
   it("draws the report and link-card chevrons on iOS only (Jest compiles the Android build)", async () => {
-    show(withReport(), <TodayScreen />);
+    await show(withReport(), <TodayScreen />);
     expect(chevrons(await screen.findByRole("button", { name: "Buka laporan: Nadia Putri" }))).toHaveLength(0);
   });
 
   it("draws the attention link chevron on iOS only (Jest compiles the Android build)", async () => {
-    show(runtimeWith({ sellerAttention: jest.fn(async () => attentionItems) }), <TodayScreen />);
+    await show(runtimeWith({ sellerAttention: jest.fn(async () => attentionItems) }), <TodayScreen />);
     expect(chevrons(await screen.findByRole("link", { name: /Ada pembayaran yang perlu dicek/ }))).toHaveLength(0);
   });
 
@@ -151,7 +165,7 @@ describe("Hari ini", () => {
     ["light", false],
     ["dark", true],
   ] as const)("steps the second and third setup tiles off their card in %s, with continuous corners", async (name, dark) => {
-    show(runtimeWith({ sellerOperations: jest.fn(async () => emptyDay()) }), <TodayScreen />, { dark });
+    await show(runtimeWith({ sellerOperations: jest.fn(async () => emptyDay()) }), <TodayScreen />, { dark });
     const tile = await screen.findByRole("button", { name: /Impor pelanggan lama/ });
     const palette = nativeThemes[name];
     expect(flat(tile).backgroundColor).toBe(palette.well);
@@ -168,21 +182,21 @@ describe("Hari ini", () => {
       if (down) throw new Error("offline");
       return day;
     });
-    show(runtimeWith({ sellerOperations }), <TodayScreen />);
+    await show(runtimeWith({ sellerOperations }), <TodayScreen />);
     await screen.findByTestId("session-count");
     down = true;
     await act(async () => {
-      screen.UNSAFE_getByType(RefreshControl).props.onRefresh();
+      pull();
     });
     expect(await screen.findByText("Belum bisa memperbarui. Tarik lagi untuk mencoba.")).toBeTruthy();
     expect(screen.getByTestId("session-count")).toBeTruthy();
   });
 
   it("does not toast a pull that worked", async () => {
-    show(runtimeWith(), <TodayScreen />);
+    await show(runtimeWith(), <TodayScreen />);
     await screen.findByTestId("session-count");
     await act(async () => {
-      screen.UNSAFE_getByType(RefreshControl).props.onRefresh();
+      pull();
     });
     expect(screen.queryByText("Belum bisa memperbarui. Tarik lagi untuk mencoba.")).toBeNull();
   });
@@ -193,10 +207,10 @@ describe("Hari ini", () => {
       if (down) throw new Error("offline");
       return attentionItems;
     });
-    show(runtimeWith({ sellerAttention }), <TodayScreen />);
+    await show(runtimeWith({ sellerAttention }), <TodayScreen />);
     expect(await screen.findByText("Hal yang perlu dicek belum bisa dimuat.")).toBeTruthy();
     down = false;
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(screen.queryByText("Hal yang perlu dicek belum bisa dimuat.")).toBeNull());
     expect(await screen.findByRole("link", { name: /Ada pembayaran yang perlu dicek/ })).toBeTruthy();
   });
@@ -209,14 +223,14 @@ describe("the stop sheet", () => {
     d.operationalDate = TODAY;
     const id = d.deliveries[0].id;
     (runtime.api.sellerOperations as jest.Mock).mockResolvedValue(d);
-    show(runtime, <ExceptionSheet id={id} meal="lunch" date={TODAY} />);
+    await show(runtime, <ExceptionSheet id={id} meal="lunch" date={TODAY} />);
     await screen.findByText("Tandai gagal diantar");
     return runtime;
   }
 
   it("asks before marking a delivery not delivered, and sends nothing until yes", async () => {
     const runtime = await open();
-    fireEvent.press(screen.getByRole("button", { name: "Tandai gagal diantar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tandai gagal diantar" }));
     const asked = lastConfirm();
     expect(asked.tone).toBe("danger");
     expect(asked.title).toBe("Tandai gagal diantar?");
@@ -229,7 +243,7 @@ describe("the stop sheet", () => {
 
   it("sends nothing when the question is cancelled", async () => {
     const runtime = await open();
-    fireEvent.press(screen.getByRole("button", { name: "Tandai gagal diantar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tandai gagal diantar" }));
     const asked = lastConfirm();
     await asked.press(asked.cancelLabel);
     expect(runtime.api.command).not.toHaveBeenCalled();
@@ -246,7 +260,7 @@ describe("the cooked summary", () => {
     const day = canvasDay();
     day.operationalDate = TODAY;
     day.deliveries = day.deliveries.map((x) => ({ ...x, status: "out_for_delivery", meals: [{ meal: "lunch", status: "out_for_delivery" }] })) as typeof day.deliveries;
-    show(runtimeWith({ sellerOperations: jest.fn(async () => day) }), <TodayScreen />);
+    await show(runtimeWith({ sellerOperations: jest.fn(async () => day) }), <TodayScreen />);
     const summary = await screen.findByTestId("cooked-summary");
     expect(flat(within(summary).getByText(/Sudah dimasak · \d+ porsi/))).toMatchObject({ fontVariant: expect.arrayContaining(["tabular-nums"]) });
   });

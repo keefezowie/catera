@@ -58,7 +58,7 @@ const store = () => (SecureStore as unknown as { __store: Map<string, string> })
 const permissions = Notifications.getPermissionsAsync as jest.Mock;
 const request = Notifications.requestPermissionsAsync as jest.Mock;
 
-const wrapPrimer = (ui: React.ReactElement) => render(<ToastProvider os="android">{ui}</ToastProvider>);
+const wrapPrimer = async (ui: React.ReactElement) => await render(<ToastProvider os="android">{ui}</ToastProvider>);
 /** Lets the session read, the actor and the primer's phone reads all answer. */
 const settle = async () => {
   for (let i = 0; i < 8; i += 1) await act(async () => {});
@@ -80,10 +80,10 @@ describe("the push primer", () => {
         [true, { status: "denied", canAskAgain: false }],
       ] as const) {
         permissions.mockResolvedValue(permission);
-        wrapPrimer(<PushPrimerTrigger eligible={eligible} />);
+        await wrapPrimer(<PushPrimerTrigger eligible={eligible} />);
         await settle();
         await act(async () => void jest.advanceTimersByTime(1000));
-        screen.unmount();
+        await screen.unmount();
       }
       expect(router.push).not.toHaveBeenCalled();
       expect(store().has("catera.push.primer")).toBe(false);
@@ -95,7 +95,7 @@ describe("the push primer", () => {
   it("opens once as a native sheet after the first paid plan when the phone was never asked", async () => {
     jest.useFakeTimers({ doNotFake: ["nextTick", "queueMicrotask", "setImmediate"] });
     try {
-      wrapPrimer(<PushPrimerTrigger eligible />);
+      await wrapPrimer(<PushPrimerTrigger eligible />);
       await waitFor(() => expect(store().get("catera.push.primer")).toBe("shown"));
       // The paid moment settles first; then the sheet route opens.
       expect(router.push).not.toHaveBeenCalled();
@@ -104,7 +104,7 @@ describe("the push primer", () => {
       // The phone remembers it: a second paid moment opens nothing.
       (router.push as jest.Mock).mockClear();
       store().set("catera.push.primer", "shown");
-      wrapPrimer(<PushPrimerTrigger eligible />);
+      await wrapPrimer(<PushPrimerTrigger eligible />);
       await settle();
       await act(async () => void jest.advanceTimersByTime(1000));
       expect(router.push).not.toHaveBeenCalled();
@@ -114,22 +114,22 @@ describe("the push primer", () => {
   });
 
   it("the sheet says cooking, on the way and arrived, never promos; Nanti saja closes it without asking the phone", async () => {
-    wrapPrimer(<PushPrimerRoute />);
+    await wrapPrimer(<PushPrimerRoute />);
     await settle();
     expect(screen.getByRole("header", { name: "Tahu kapan makananmu jalan" })).toBeTruthy();
     expect(screen.getByText(/dimasak, diantar dan sampai/)).toBeTruthy();
     expect(screen.queryByText(/promo/i)).toBeNull();
     // It scrolls when a large font outgrows the fit sheet.
     expect(screen.getByTestId("sheet-fit-body")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
     expect(router.back).toHaveBeenCalled();
     expect(request).not.toHaveBeenCalled();
   });
 
   it("Nyalakan notifikasi closes the sheet, asks the phone and registers it as Pengaturan's switch does", async () => {
-    wrapPrimer(<PushPrimerRoute />);
+    await wrapPrimer(<PushPrimerRoute />);
     await settle();
-    fireEvent.press(screen.getByRole("button", { name: "Nyalakan notifikasi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Nyalakan notifikasi" }));
     await settle();
     expect(router.back).toHaveBeenCalled();
     expect(request).toHaveBeenCalled();
@@ -172,8 +172,8 @@ describe("Berikutnya pictures", () => {
 
 describe("the art track on the hero", () => {
   const { MoodProvider, RantangTrack, ThemeProvider } = jest.requireActual("@catera/mobile-ui") as typeof import("@catera/mobile-ui");
-  const wrapTrack = (stage: "preparing" | "issue", caption?: string) =>
-    render(
+  const wrapTrack = async (stage: "preparing" | "issue", caption?: string) =>
+    await render(
       <ThemeProvider storageKey="polish-track">
         <MoodProvider now={() => new Date("2026-10-09T03:00:00Z")}>
           <RantangTrack size="art" stage={stage} caption={caption} />
@@ -182,7 +182,7 @@ describe("the art track on the hero", () => {
     );
 
   it("draws each stop as its picture, under a headline over the caption's time", async () => {
-    wrapTrack("preparing", "Dimasak 09.10");
+    await wrapTrack("preparing", "Dimasak 09.10");
     await act(async () => {});
     expect(screen.getByTestId("rantang-track-headline").props.children).toBe("Lagi dimasak");
     expect(screen.getByText("Dimasak 09.10")).toBeTruthy();
@@ -195,7 +195,7 @@ describe("the art track on the hero", () => {
   });
 
   it("says the stage once: a caption without a time stays in the accessibility value only", async () => {
-    wrapTrack("preparing", "Dimasak");
+    await wrapTrack("preparing", "Dimasak");
     await act(async () => {});
     expect(screen.getByText("Lagi dimasak")).toBeTruthy();
     expect(screen.queryByTestId("rantang-track-caption")).toBeNull();
@@ -203,38 +203,38 @@ describe("the art track on the hero", () => {
   });
 
   it("a failed meal says Gagal diantar once", async () => {
-    wrapTrack("issue");
+    await wrapTrack("issue");
     await act(async () => {});
     expect(screen.getAllByText("Gagal diantar")).toHaveLength(1);
   });
 });
 
 describe("Selamat makan on the delivered slot", () => {
-  const card = () =>
-    wrapPrimer(<SelamatMakanCard subscriptionId="s-1" ink="#2E2E2E" quiet="#555B54" edge="#BDBAAE" />);
+  const card = async () =>
+    await wrapPrimer(<SelamatMakanCard subscriptionId="s-1" ink="#2E2E2E" quiet="#555B54" edge="#BDBAAE" />);
 
   it("offers the review with the moment art and opens the sheet only on tap", async () => {
-    card();
+    await card();
     await settle();
     // The track headline already says "Selamat makan" (re-gate N1): the card only asks for the review.
     expect(screen.queryByText("Selamat makan")).toBeNull();
     expect(screen.getByText("Ulas paketnya untuk pelanggan lain")).toBeTruthy();
     expect(router.push).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByRole("button", { name: "Tulis ulasan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tulis ulasan" }));
     expect(router.push).toHaveBeenCalledWith("/ulasan/s-1");
   });
 
   it("stays away once the review was given or put off, and leaves when the sheet marks it", async () => {
     store().set("catera.review.s-1", "done");
-    card();
+    await card();
     await settle();
     expect(screen.queryByTestId("selamat-makan")).toBeNull();
-    screen.unmount();
+    await screen.unmount();
     store().clear();
-    card();
+    await card();
     await settle();
     expect(screen.getByTestId("selamat-makan")).toBeTruthy();
-    act(() => markReview("catera.review.s-1", "dismissed"));
+    await act(() => markReview("catera.review.s-1", "dismissed"));
     expect(screen.queryByTestId("selamat-makan")).toBeNull();
   });
 });

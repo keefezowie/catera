@@ -1,8 +1,11 @@
 import { Text } from "react-native";
 import { act, fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
-import { appRoutes, navigationContainer, resetRouterStore } from "./real-router";
-import { router, useIsFocused, useLocalSearchParams } from "expo-router";
+import { appRoutes, navigationContainer } from "./real-router";
+import { useIsFocused, useLocalSearchParams } from "expo-router";
 import { useMobile, type MobileContextValue } from "@catera/mobile-core";
+
+/** A push the way the app makes one from a tab (`pushScreen`): a shared-folder screen opens in the tab in front. */
+const pushScreen = (href: string) => (require("../src/nav") as typeof import("../src/nav")).pushScreen(href);
 
 /** The account the session read returns; each test sets its role. */
 const mockMe: { actor: { id: string; role: string; name: string; catererId: string } | null } = { actor: null };
@@ -70,9 +73,10 @@ const routes = appRoutes(stub);
 function open(initialUrl = "/") {
   return renderRouter(routes, { initialUrl });
 }
+type Opened = Awaited<ReturnType<typeof open>>;
 
 /** What the router holds now: the root stack's routes, the tab bar's tabs, the focused tab and that tab's stack. */
-function snapshot(r: ReturnType<typeof open>) {
+function snapshot(r: Opened) {
   type S = { index?: number; routes: { name: string; state?: S }[] };
   const container = r.getRouterState() as S;
   const root = container.routes[0].state!;
@@ -89,7 +93,7 @@ function snapshot(r: ReturnType<typeof open>) {
 /** Delivers a notification tap to the app, the way expo-notifications does while it runs. */
 function tap(href: string, identifier = `n-${href}`) {
   const { __responders } = require("expo-notifications") as { __responders: ((r: unknown) => void)[] };
-  act(() => {
+  return act(() => {
     __responders[__responders.length - 1]({
       actionIdentifier: "default",
       notification: { request: { identifier, content: { data: { href } } } },
@@ -106,7 +110,7 @@ function tapTab(name: string) {
   type S = { key: string; index: number; routes: { name: string; state?: S }[] };
   let state = ref.getRootState() as S | undefined;
   while (state && !state.routes.some((route) => route.name === name)) state = state.routes[state.index]?.state;
-  act(() => ref.dispatch({ type: "JUMP_TO", payload: { name }, target: state!.key }));
+  return act(() => ref.dispatch({ type: "JUMP_TO", payload: { name }, target: state!.key }));
 }
 
 /**
@@ -118,23 +122,22 @@ function headerBack() {
   type S = { key: string; index: number; routes: { key: string; state?: S }[] };
   let stack = ref.getRootState() as S;
   while (stack.routes[stack.index]?.state) stack = stack.routes[stack.index].state!;
-  act(() => ref.dispatch({ type: "POP", payload: { count: 1 }, source: stack.routes[stack.index].key, target: stack.key }));
+  const source = stack.routes[stack.index].key;
+  return act(() => ref.dispatch({ type: "POP", payload: { count: 1 }, source, target: stack.key }));
 }
 
 /** The native header react-native-screens draws for a route (the last screen of that name, the one in front). */
 function nativeHeaderOf(route: string) {
-  type Host = { props: Record<string, any>; findAll: (f: (n: { type: unknown }) => boolean) => Host[] };
-  const screens = screen.UNSAFE_root.findAll(
-    (n) => n.type === "RNSScreen" && String(n.props.screenId).startsWith(`${route}-`),
-  ) as unknown as Host[];
-  return screens.at(-1)!.findAll((n) => n.type === "RNSScreenStackHeaderConfig")[0];
+  const screens = screen.container.queryAll(
+    (n) => n.type === "RNSScreen" && String(n.props.screenId).startsWith(`${route}:`),
+  );
+  return screens.at(-1)!.queryAll((n) => n.type === "RNSScreenStackHeaderConfig")[0];
 }
 
 beforeEach(() => {
   mockMe.actor = owner;
   mockLaunch.response = null;
   mockStaffTabs.tabs = null;
-  resetRouterStore();
 });
 
 describe("each tab keeps its own stack", () => {
@@ -144,7 +147,7 @@ describe("each tab keeps its own stack", () => {
       actionIdentifier: "default",
       notification: { request: { identifier: "cold", content: { data: { href: `/seller/support?issue=${ISSUE}` } } } },
     };
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(r.getPathname()).toBe(`/laporan/${ISSUE}`));
     expect(r.getSegments()).toEqual(["(tabs)", "(index)", "laporan", "[id]"]);
     // Inside the Hari ini tab, so the tab bar stays, with Hari ini under the report.
@@ -153,7 +156,7 @@ describe("each tab keeps its own stack", () => {
     // The native bar with the platform back; the report names itself once it loads (`Screen nativeTitle`).
     expect(nativeHeaderOf("laporan/[id]").props).toMatchObject({ hidden: false, hideBackButton: false });
 
-    headerBack();
+    await headerBack();
     await waitFor(() => expect(r.getPathname()).toBe("/"));
     expect(snapshot(r)).toMatchObject({ tab: "(index)", stack: ["index"] });
     expect(shown()).toBe("index");
@@ -161,41 +164,41 @@ describe("each tab keeps its own stack", () => {
 
   it("an opened link to a report keeps Hari ini behind it", async () => {
     // The same screen opened from outside the app (a link, not a notification).
-    const r = open(`/laporan/${ISSUE}`);
+    const r = await open(`/laporan/${ISSUE}`);
     await waitFor(() => expect(r.getPathname()).toBe(`/laporan/${ISSUE}`));
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index", "laporan/[id]"] });
     await waitFor(() => expect(shown()).toBe("laporan/[id]"));
-    headerBack();
+    await headerBack();
     await waitFor(() => expect(shown()).toBe("index"));
   });
 
   it("a detail screen opened on Menu stays in Menu, and Hari ini keeps its own place", async () => {
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
-    act(() => router.push(`/laporan/${ISSUE}`));
+    await act(() => pushScreen(`/laporan/${ISSUE}`));
     await waitFor(() => expect(shown()).toBe("laporan/[id]"));
-    act(() => require("../src/nav").goToTab("menu"));
+    await act(() => require("../src/nav").goToTab("menu"));
     await waitFor(() => expect(r.getSegments()).toEqual(["(tabs)", "(menu)", "menu"]));
-    act(() => router.push("/menu/2030-01-03?pkg=p-1&meal=lunch"));
+    await act(() => pushScreen("/menu/2030-01-03?pkg=p-1&meal=lunch"));
     await waitFor(() => expect(r.getSegments()).toEqual(["(tabs)", "(menu)", "menu", "[date]"]));
     expect(snapshot(r)).toMatchObject({ tab: "(menu)", stack: ["menu", "menu/[date]"] });
     // Back on Hari ini through the tab bar, it still holds the report it was showing.
-    tapTab("(index)");
+    await tapTab("(index)");
     await waitFor(() => expect(snapshot(r).tab).toBe("(index)"));
     expect(snapshot(r).stack).toEqual(["index", "laporan/[id]"]);
   });
 
   it("a link to a tab root selects that tab at its root instead of pushing a second copy", async () => {
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
     // Pelanggan already holds a customer.
-    act(() => require("../src/nav").goToTab("pelanggan"));
-    act(() => router.push("/pelanggan/c-1"));
+    await act(() => require("../src/nav").goToTab("pelanggan"));
+    await act(() => pushScreen("/pelanggan/c-1"));
     await waitFor(() => expect(snapshot(r)).toMatchObject({ tab: "(pelanggan)", stack: ["pelanggan", "pelanggan/[id]"] }));
-    act(() => require("../src/nav").goToTab("index"));
+    await act(() => require("../src/nav").goToTab("index"));
     await waitFor(() => expect(snapshot(r).tab).toBe("(index)"));
     // A notification for the customer list, tapped on Hari ini.
-    tap("/seller/customers");
+    await tap("/seller/customers");
     await waitFor(() => expect(r.getSegments()).toEqual(["(tabs)", "(pelanggan)", "pelanggan"]));
     expect(snapshot(r)).toMatchObject({ tab: "(pelanggan)", stack: ["pelanggan"] });
     // Hari ini was not given a Pelanggan screen of its own.
@@ -206,11 +209,11 @@ describe("each tab keeps its own stack", () => {
   });
 
   it("a schedule notification tapped on Menu opens Hari ini on that day", async () => {
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
-    act(() => require("../src/nav").goToTab("menu"));
+    await act(() => require("../src/nav").goToTab("menu"));
     await waitFor(() => expect(snapshot(r).tab).toBe("(menu)"));
-    tap("/seller/schedule?date=2030-01-04");
+    await tap("/seller/schedule?date=2030-01-04");
     await waitFor(() => expect(shown()).toBe("index 2030-01-04"));
     expect(snapshot(r)).toMatchObject({ tab: "(index)", stack: ["index"] });
     expect(snapshot(r).tabs).toEqual(["(index)", "(pelanggan)", "(menu)", "(usaha)"]);
@@ -223,18 +226,18 @@ describe("staff", () => {
   });
 
   it("staff cannot open Usaha routes", async () => {
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
     // The bar holds Hari ini and Menu only.
     expect(snapshot(r).tabs).toEqual(["(index)", "(menu)"]);
     for (const href of ["/usaha", "/uang", "/tim", "/paket/baru", "/paket/p-1", "/aktifkan", "/impor", "/pelanggan", "/pelanggan/c-1"]) {
-      act(() => router.push(href as never));
+      await act(() => pushScreen(href));
       await act(async () => {});
       expect({ href, path: r.getPathname(), shown: shown() }).toEqual({ href, path: "/", shown: "index" });
     }
     // A notification meant for an owner's settings changes nothing either.
-    tap("/seller/settings");
-    tap("/seller/customers");
+    await tap("/seller/settings");
+    await tap("/seller/customers");
     await act(async () => {});
     expect(r.getPathname()).toBe("/");
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index"] });
@@ -243,7 +246,7 @@ describe("staff", () => {
   it.each(["/uang", "/tim", "/paket/p-1", "/pelanggan/c-1"])(
     "an opened link to an owner screen (%s) lands staff on Hari ini, never the owner screen",
     async (link) => {
-      const r = open(link);
+      const r = await open(link);
       await waitFor(() => expect(shown()).toBe("index"));
       expect(r.getPathname()).toBe("/");
       expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index"] });
@@ -253,44 +256,44 @@ describe("staff", () => {
   it("every screen follows the role's tabs: granted Pelanggan, staff open a customer", async () => {
     // The guards read tabsForRole, so a policy that gives helpers Pelanggan opens its screens and nothing else.
     mockStaffTabs.tabs = ["index", "pelanggan", "menu"];
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
     expect(snapshot(r).tabs).toEqual(["(index)", "(pelanggan)", "(menu)"]);
-    act(() => require("../src/nav").goToTab("pelanggan"));
+    await act(() => require("../src/nav").goToTab("pelanggan"));
     await waitFor(() => expect(snapshot(r).tab).toBe("(pelanggan)"));
-    act(() => router.push("/pelanggan/c-1"));
+    await act(() => pushScreen("/pelanggan/c-1"));
     await waitFor(() => expect(snapshot(r)).toMatchObject({ tab: "(pelanggan)", stack: ["pelanggan", "pelanggan/[id]"] }));
     expect(shown()).toBe("pelanggan/[id]");
     // Impor belongs to Pelanggan; Usaha's screens stay closed.
-    act(() => router.push("/impor"));
+    await act(() => pushScreen("/impor"));
     await waitFor(() => expect(r.getSegments()).toEqual(["impor"]));
-    act(() => require("../src/nav").goToTab("pelanggan"));
+    await act(() => require("../src/nav").goToTab("pelanggan"));
     await waitFor(() => expect(snapshot(r).root).toEqual(["(tabs)"]));
     for (const href of ["/usaha", "/uang", "/tim", "/paket/p-1", "/aktifkan"]) {
-      act(() => router.push(href as never));
+      await act(() => pushScreen(href));
       await act(async () => {});
       expect({ href, shown: shown() }).toEqual({ href, shown: "pelanggan" });
     }
   });
 
   it("staff still open reports and the day's menu inside their tabs", async () => {
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
-    tap(`/seller/support?issue=${ISSUE}`);
+    await tap(`/seller/support?issue=${ISSUE}`);
     await waitFor(() => expect(r.getSegments()).toEqual(["(tabs)", "(index)", "laporan", "[id]"]));
-    act(() => require("../src/nav").goToTab("menu"));
-    act(() => router.push("/menu/2030-01-03?pkg=p-1&meal=lunch"));
+    await act(() => require("../src/nav").goToTab("menu"));
+    await act(() => pushScreen("/menu/2030-01-03?pkg=p-1&meal=lunch"));
     await waitFor(() => expect(r.getSegments()).toEqual(["(tabs)", "(menu)", "menu", "[date]"]));
   });
 });
 
 describe("screens above the tabs", () => {
   it("Impor opens above the tabs", async () => {
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
-    act(() => require("../src/nav").goToTab("pelanggan"));
+    await act(() => require("../src/nav").goToTab("pelanggan"));
     await waitFor(() => expect(snapshot(r).tab).toBe("(pelanggan)"));
-    act(() => router.push("/impor"));
+    await act(() => pushScreen("/impor"));
     await waitFor(() => expect(r.getSegments()).toEqual(["impor"]));
     // A modal in the root stack: it covers the tab bar, with its own header and Close.
     expect(snapshot(r).root).toEqual(["(tabs)", "impor"]);
@@ -298,63 +301,63 @@ describe("screens above the tabs", () => {
     expect(screen.getByRole("button", { name: "Tutup" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
     // "Lihat Pelanggan" after saving: Impor closes and Pelanggan shows its list.
-    act(() => require("../src/nav").goToTab("pelanggan"));
+    await act(() => require("../src/nav").goToTab("pelanggan"));
     await waitFor(() => expect(r.getSegments()).toEqual(["(tabs)", "(pelanggan)", "pelanggan"]));
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(pelanggan)", stack: ["pelanggan"] });
   });
 
   it("Aktifkan opens above the tabs, also from a payout notification", async () => {
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
-    tap("/seller/settings#payout");
+    await tap("/seller/settings#payout");
     await waitFor(() => expect(r.getSegments()).toEqual(["aktifkan"]));
     expect(snapshot(r).root).toEqual(["(tabs)", "aktifkan"]);
     expect(nativeHeaderOf("aktifkan").props).toMatchObject({ title: "Aktifkan pembayaran", hideBackButton: true });
     // A modal, so it closes with Close rather than going Back.
-    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     await waitFor(() => expect(r.getPathname()).toBe("/"));
     expect(snapshot(r).root).toEqual(["(tabs)"]);
   });
 
   it("a report tapped while Aktifkan is open opens in the tabs, not a second tab bar", async () => {
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
-    act(() => router.push("/aktifkan"));
+    await act(() => pushScreen("/aktifkan"));
     await waitFor(() => expect(r.getSegments()).toEqual(["aktifkan"]));
-    tap(`/seller/support?issue=${ISSUE}`);
+    await tap(`/seller/support?issue=${ISSUE}`);
     await waitFor(() => expect(r.getSegments()).toEqual(["(tabs)", "(index)", "laporan", "[id]"]));
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], stack: ["index", "laporan/[id]"] });
   });
 
   it("signed out, every link lands on Masuk", async () => {
     mockMe.actor = null;
-    const r = open(`/laporan/${ISSUE}`);
+    const r = await open(`/laporan/${ISSUE}`);
     await waitFor(() => expect(r.getSegments()).toEqual(["(auth)", "masuk"]));
   });
 });
 
 describe("signing out", () => {
   it("a tap that arrives signed out never opens for the next account", async () => {
-    const r = open("/");
+    const r = await open("/");
     await waitFor(() => expect(shown()).toBe("index"));
     // Keluar: the owner signs out and lands on Masuk.
     mockMe.actor = null;
     await act(() => session.logout());
     await waitFor(() => expect(r.getSegments()).toEqual(["(auth)", "masuk"]));
     // A report notification for the owner, tapped on Masuk.
-    tap(`/seller/support?issue=${ISSUE}`);
+    await tap(`/seller/support?issue=${ISSUE}`);
     await act(async () => {});
     // A helper signs in on the same phone, as Masuk does, and gets Hari ini without the owner's report.
     mockMe.actor = staff;
     await act(() => session.signedIn(staff as never));
-    act(() => require("../src/nav").goToTab("index"));
+    await act(() => require("../src/nav").goToTab("index"));
     await waitFor(() => expect(shown()).toBe("index"));
     await act(async () => {});
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index"] });
   });
 
   it("a screen left open on a tab when the owner signs out is gone for the next account (no pop needed)", async () => {
-    const r = open(`/laporan/${ISSUE}`);
+    const r = await open(`/laporan/${ISSUE}`);
     await waitFor(() => expect(shown()).toBe("laporan/[id]"));
     expect(snapshot(r)).toMatchObject({ tab: "(index)", stack: ["index", "laporan/[id]"] });
     mockMe.actor = null;
@@ -363,7 +366,7 @@ describe("signing out", () => {
     // Masuk lands on Hari ini with goToTab; the tabs mount fresh, so the owner's report is not under the next account.
     mockMe.actor = staff;
     await act(() => session.signedIn(staff as never));
-    act(() => require("../src/nav").goToTab("index"));
+    await act(() => require("../src/nav").goToTab("index"));
     await waitFor(() => expect(r.getSegments()[0]).toBe("(tabs)"));
     await act(async () => {});
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index"] });
@@ -374,7 +377,7 @@ describe("links from the system", () => {
   const { redirectSystemPath } = require("../src/nav") as typeof import("../src/nav");
   const rewrite = (path: string) => redirectSystemPath({ path, initial: true });
 
-  it("names a bare tab root's own group, from any link form", () => {
+  it("names a bare tab root's own group, from any link form", async () => {
     expect(rewrite("/")).toBe("/(tabs)/(index)");
     expect(rewrite("/?date=2030-01-04")).toBe("/(tabs)/(index)?date=2030-01-04");
     expect(rewrite("/pelanggan")).toBe("/(tabs)/(pelanggan)/pelanggan");
@@ -386,7 +389,7 @@ describe("links from the system", () => {
     expect(rewrite("exp://192.168.1.2:8081/--/usaha")).toBe("/(tabs)/(usaha)/usaha");
   });
 
-  it("names the group of the tab a screen belongs to, from any link form", () => {
+  it("names the group of the tab a screen belongs to, from any link form", async () => {
     expect(rewrite("/uang")).toBe("/(tabs)/(usaha)/uang");
     expect(rewrite(`/laporan/${ISSUE}`)).toBe(`/(tabs)/(index)/laporan/${ISSUE}`);
     expect(rewrite("/atur-antaran/d-1?meal=lunch&date=2030-01-04")).toBe("/(tabs)/(index)/atur-antaran/d-1?meal=lunch&date=2030-01-04");
@@ -396,7 +399,7 @@ describe("links from the system", () => {
     expect(rewrite("https://dapur.example.test/tim/")).toBe("/(tabs)/(usaha)/tim");
   });
 
-  it("covers every screen of the shared tab folder from the role table, so a new screen needs no rewrite rule", () => {
+  it("covers every screen of the shared tab folder from the role table, so a new screen needs no rewrite rule", async () => {
     // The screens above the tabs live in the root stack, not in a tab's group.
     const above = ["aktifkan", "impor", "impor-baris", "impor-foto", "pindah-tanggal", "auth"];
     const { SCREEN_TAB } = require("../src/roles") as typeof import("../src/roles");
@@ -409,22 +412,22 @@ describe("links from the system", () => {
     }
   });
 
-  it("passes the screens above the tabs through unchanged", () => {
+  it("passes the screens above the tabs through unchanged", async () => {
     for (const path of ["/aktifkan", "/impor", "/impor-baris?n=1", "/impor-foto?i=1", "/masuk", "/aksi", "/konfirmasi"]) expect(rewrite(path)).toBe(path);
   });
 
-  it("sends a path the app has no screen for to Hari ini, never an unmatched route", () => {
+  it("sends a path the app has no screen for to Hari ini, never an unmatched route", async () => {
     for (const path of ["/index", "/apa-ini", "/laporan", "/uang/lain", "https://dapur.example.test/halaman/baru", "catera-dapur://tidak-ada?x=1", "/pelanggan/a/b"])
       expect(rewrite(path)).toBe("/(tabs)/(index)");
   });
 
-  it("has an unmatched-route screen that redirects to Hari ini", () => {
+  it("has an unmatched-route screen that redirects to Hari ini", async () => {
     const element = require("../app/+not-found").default();
     expect(element.type).toBe(require("expo-router").Redirect);
     expect(element.props.href).toBe("/");
   });
 
-  it("drops the title from every OS link and keeps the rest of it", () => {
+  it("drops the title from every OS link and keeps the rest of it", async () => {
     // Anyone can craft an OS link, so only the app's own links may name a screen before its record loads.
     expect(rewrite("catera-dapur://pelanggan/c-1?title=Nama%20Palsu")).toBe("/(tabs)/(pelanggan)/pelanggan/c-1");
     expect(rewrite(`/laporan/${ISSUE}?title=Palsu&from=wa`)).toBe(`/(tabs)/(index)/laporan/${ISSUE}?from=wa`);
@@ -441,7 +444,7 @@ describe("links from the system", () => {
     const nav = require("../src/nav");
     const spy = jest.spyOn(nav, "redirectSystemPath");
     try {
-      open("/menu");
+      await open("/menu");
       await waitFor(() => expect(shown()).toBe("menu"));
       expect(spy).toHaveBeenCalledWith({ path: "/menu", initial: true });
       expect(spy).toHaveReturnedWith("/(tabs)/(menu)/menu");
@@ -456,7 +459,7 @@ describe("links from the system", () => {
     ["/usaha", "(usaha)", "usaha"],
     ["/", "(index)", "index"],
   ])("a cold link to %s opens that tab at its root", async (link, tab, root) => {
-    const r = open(link);
+    const r = await open(link);
     await waitFor(() => expect(shown()).toBe(root));
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab, stack: [root] });
   });
@@ -470,17 +473,17 @@ describe("links from the system", () => {
     ["/menu/2030-01-03?pkg=p-1&meal=lunch", "(menu)", ["menu", "menu/[date]"]],
     ["/pelanggan/c-1", "(pelanggan)", ["pelanggan", "pelanggan/[id]"]],
   ])("an owner's cold link to %s opens in its own tab, with that tab's root behind it", async (link, tab, stack) => {
-    const r = open(link);
+    const r = await open(link);
     await waitFor(() => expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab, stack }));
     // The stand-in screen adds the date it was opened with after its name.
     await waitFor(() => expect(shown().split(" ")[0]).toBe(stack[1]));
     // Back returns to the tab's root, in the same tab.
-    headerBack();
+    await headerBack();
     await waitFor(() => expect(shown().split(" ")[0]).toBe(stack[0]));
     expect(snapshot(r)).toMatchObject({ tab, stack: [stack[0]] });
   });
 
-  it("names Hari ini's group for Pengaturan and its choice sheets: every role has that tab", () => {
+  it("names Hari ini's group for Pengaturan and its choice sheets: every role has that tab", async () => {
     expect(redirectSystemPath({ path: "/pengaturan", initial: true })).toBe("/(tabs)/(index)/pengaturan");
     expect(redirectSystemPath({ path: "catera-dapur://pengaturan/bahasa", initial: true })).toBe("/(tabs)/(index)/pengaturan/bahasa");
     expect(redirectSystemPath({ path: "/pengaturan/tampilan", initial: true })).toBe("/(tabs)/(index)/pengaturan/tampilan");
@@ -491,10 +494,10 @@ describe("links from the system", () => {
     ["a helper", staff],
   ])("%s's cold link to Pengaturan opens it in Hari ini, with Hari ini behind it", async (_who, actor) => {
     mockMe.actor = actor;
-    const r = open("/pengaturan");
+    const r = await open("/pengaturan");
     await waitFor(() => expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index", "pengaturan"] }));
     await waitFor(() => expect(shown()).toBe("pengaturan"));
-    headerBack();
+    await headerBack();
     await waitFor(() => expect(shown()).toBe("index"));
   });
 });

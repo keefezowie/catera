@@ -1,4 +1,4 @@
-import { useEffect, type ComponentType } from "react";
+import { useEffect, useLayoutEffect, useState, type ComponentType } from "react";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { leaveFor } from "./nav";
 
@@ -12,7 +12,9 @@ export function flowSheet(Form: ComponentType, tabPath: "/alamat-form" | "/bantu
   return function FlowSheet() {
     const navigation = useNavigation();
     const params = useLocalSearchParams<Record<string, string | string[]>>();
-    const alone = !navigation.canGoBack();
+    // The stack holds this route only once it has committed, so what is under it is read then, before the first paint.
+    const [alone, setAlone] = useState<boolean>();
+    useLayoutEffect(() => setAlone(!navigation.canGoBack()), [navigation]);
     useEffect(() => {
       if (!alone) return;
       const query = new URLSearchParams(
@@ -22,6 +24,6 @@ export function flowSheet(Form: ComponentType, tabPath: "/alamat-form" | "/bantu
       // Once: the params are the link's.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [alone]);
-    return alone ? null : <Form />;
+    return alone === false ? <Form /> : null;
   };
 }

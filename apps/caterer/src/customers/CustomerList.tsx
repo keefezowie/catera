@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Linking, RefreshControl, ScrollView, View } from "react-native";
 import Animated from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { addDays, jakartaDay, whatsappUrl, type CustomerSubscription, type Locale, type SellerCustomer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
@@ -30,6 +29,7 @@ import { useImportCommits } from "../import/commits";
 import { customerHref } from "../hrefs";
 import { ReadError } from "../ReadError";
 import { ListSkeleton } from "../skeletons";
+import { pushScreen } from "../nav";
 
 /** The chat button's 48 target pulls 8 into the card's side padding, so its glyph ends where the other rows' text does. */
 const CHAT_PULL = -8;
@@ -162,7 +162,7 @@ export function CustomerList() {
               accessibilityRole="button"
               accessibilityLabel={addLabel}
               haptic="tap"
-              onPress={() => router.push("/impor" as never)}
+              onPress={() => pushScreen("/impor")}
               style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 8, paddingRight: 0 }}
             >
               <Ionicons name="add" size={20} color={palette.forest} />
@@ -247,7 +247,7 @@ export function CustomerList() {
                       <TwoLineRow
                         title={c.name}
                         meta={meta}
-                        onPress={() => router.push(customerHref(c.id, c.name) as never)}
+                        onPress={() => pushScreen(customerHref(c.id, c.name))}
                         trailing={
                           c.phone ? (
                             <PressableScale

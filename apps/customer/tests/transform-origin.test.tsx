@@ -38,8 +38,8 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
-it("MascotReading: both eyes and the magnifier pivot where the rig says, and RN parses each", () => {
-  const view = render(<MascotReading size={120} />);
+it("MascotReading: both eyes and the magnifier pivot where the rig says, and RN parses each", async () => {
+  const view = await render(<MascotReading size={120} />);
   const canvas = mascotArtFrame(readingRigBox, 120).canvas;
   const [left, right] = readingRig.eyePivots;
   const result = parsedOrigins(view.toJSON());
@@ -49,8 +49,8 @@ it("MascotReading: both eyes and the magnifier pivot where the rig says, and RN 
   expectPoints(result[2], points(readingRig.magnifierPivot, canvas));
 });
 
-it("SuccessRig: body, lid and badge pivot in canvas points, the sparkles at the centre, and RN parses each", () => {
-  const view = render(<SuccessRig size={180} play={false} />);
+it("SuccessRig: body, lid and badge pivot in canvas points, the sparkles at the centre, and RN parses each", async () => {
+  const view = await render(<SuccessRig size={180} play={false} />);
   const canvas = mascotArtFrame(successRigBox, 180).canvas;
   const result = parsedOrigins(view.toJSON());
   expect(result).toHaveLength(4);
@@ -60,10 +60,10 @@ it("SuccessRig: body, lid and badge pivot in canvas points, the sparkles at the 
   expect(result[3]).toEqual(["50%", "50%", 0]);
 });
 
-it("MascotLoading: the body turns on 50% 80% and the sparkles grow from 84% 39%, and RN parses each", () => {
+it("MascotLoading: the body turns on 50% 80% and the sparkles grow from 84% 39%, and RN parses each", async () => {
   jest.useFakeTimers();
-  const view = render(<MascotLoading label="Memuat" />);
-  act(() => jest.advanceTimersByTime(300));
+  const view = await render(<MascotLoading label="Memuat" />);
+  await act(() => jest.advanceTimersByTime(300));
   expect(parsedOrigins(view.toJSON())).toEqual([
     ["50%", "80%", 0],
     ["84%", "39%", 0],

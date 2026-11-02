@@ -2,8 +2,6 @@ import { fireEvent, render, screen, within } from "@testing-library/react-native
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 // PhotoRing, the calendar cell and the story cover all draw their photos through Photo (expo-image).
-import { Image as PhotoImage } from "expo-image";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { contrastRatio, nativeMood, nativeThemes } from "@catera/design-tokens";
 import { CalendarPhotoCell, MoodProvider, PhotoRing, StoryCover, Text, ThemeProvider } from "@catera/mobile-ui";
@@ -20,6 +18,14 @@ jest.mock("expo-secure-store", () => {
 
 const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
 const gone = (id: string) => screen.queryByTestId(id, { includeHiddenElements: true }) === null;
+// Photo draws through expo-image, which the setup stands in for with a host View that keeps `source`; Ionicons draws a host Text in the "ionicons" font.
+const photoImages = () => screen.container.queryAll((n) => "source" in n.props);
+const photo = () => {
+  const found = photoImages();
+  expect(found).toHaveLength(1);
+  return found[0];
+};
+const icons = () => screen.container.queryAll((n) => (StyleSheet.flatten(n.props.style) as { fontFamily?: string } | undefined)?.fontFamily === "ionicons");
 
 // React Native's jest environment reports a font scale of 2, so every case states the one it means. The hook module is
 // replaced rather than spied on: the components read it through react-native's lazy export, which a spy does not reach.
@@ -41,8 +47,8 @@ beforeEach(() => {
 describe("PhotoRing", () => {
   const base = { uri: "https://example.test/a.jpg", size: 60 as const, accessibilityLabel: "Soto" };
 
-  it("draws a 3dp dinner ring in the theme's ink (Sunrise is not spent on rings)", () => {
-    render(<PhotoRing {...base} ring="dinner" />);
+  it("draws a 3dp dinner ring in the theme's ink (Sunrise is not spent on rings)", async () => {
+    await render(<PhotoRing {...base} ring="dinner" />);
     expect(flat("photo-ring")).toMatchObject({
       borderWidth: 3,
       borderColor: nativeThemes.light.charcoal,
@@ -54,12 +60,12 @@ describe("PhotoRing", () => {
 
   // Direction K rule 3: forest is the selection (a selected ring). The meal cue stays neutral and the two meals
   // read at least 3:1 apart in both themes (charcoal on forest was 1.13:1).
-  it("keeps forest for the selected ring and tells lunch from dinner in neutral rings", () => {
-    const view = render(<PhotoRing {...base} size={66} ring="selected" />);
+  it("keeps forest for the selected ring and tells lunch from dinner in neutral rings", async () => {
+    const view = await render(<PhotoRing {...base} size={66} ring="selected" />);
     expect(flat("photo-ring")).toMatchObject({ borderColor: nativeThemes.light.forest, width: 66, height: 66 });
-    view.rerender(<PhotoRing {...base} size={66} ring="lunch" />);
+    await view.rerender(<PhotoRing {...base} size={66} ring="lunch" />);
     expect(flat("photo-ring").borderColor).toBe(nativeThemes.light.controlRing);
-    view.rerender(<PhotoRing {...base} size={66} ring="dinner" />);
+    await view.rerender(<PhotoRing {...base} size={66} ring="dinner" />);
     expect(flat("photo-ring").borderColor).toBe(nativeThemes.light.charcoal);
     for (const p of [nativeThemes.light, nativeThemes.dark]) {
       expect(contrastRatio(p.charcoal, p.controlRing)).toBeGreaterThanOrEqual(3);
@@ -67,65 +73,65 @@ describe("PhotoRing", () => {
     }
   });
 
-  it("draws no visible ring for none, at the same size", () => {
-    const view = render(<PhotoRing {...base} size={66} ring="selected" />);
-    view.unmount();
-    render(<PhotoRing {...base} size={66} ring="none" />);
+  it("draws no visible ring for none, at the same size", async () => {
+    const view = await render(<PhotoRing {...base} size={66} ring="selected" />);
+    await view.unmount();
+    await render(<PhotoRing {...base} size={66} ring="none" />);
     expect(flat("photo-ring")).toMatchObject({ borderColor: "transparent", width: 66, height: 66 });
   });
 
-  it("shows the photo cover-fit", () => {
-    render(<PhotoRing {...base} ring="dinner" />);
-    const image = screen.UNSAFE_getByType(PhotoImage);
+  it("shows the photo cover-fit", async () => {
+    await render(<PhotoRing {...base} ring="dinner" />);
+    const image = photo();
     expect(image.props.source).toEqual({ uri: base.uri });
     expect(image.props.contentFit).toBe("cover");
   });
 
-  it("covered shows a cream disc with the closed lunchbox and no photo", () => {
-    render(<PhotoRing {...base} ring="dinner" covered />);
-    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
+  it("covered shows a cream disc with the closed lunchbox and no photo", async () => {
+    await render(<PhotoRing {...base} ring="dinner" covered />);
+    expect(photoImages()).toHaveLength(0);
     expect(flat("photo-ring-covered").backgroundColor).toBe(nativeThemes.light.cream);
     expect(screen.getByTestId("photo-ring-lunchbox", { includeHiddenElements: true })).toBeTruthy();
   });
 
-  it("an empty uri renders the ring's ground and no Image", () => {
-    render(<PhotoRing {...base} uri="" ring="dinner" />);
-    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
+  it("an empty uri renders the ring's ground and no Image", async () => {
+    await render(<PhotoRing {...base} uri="" ring="dinner" />);
+    expect(photoImages()).toHaveLength(0);
     expect(flat("photo-ring")).toMatchObject({ borderColor: nativeThemes.light.charcoal, width: 60, height: 60 });
     expect(screen.getByTestId("photo-ring")).toBeTruthy();
   });
 
-  it("without onPress it is not a button", () => {
-    render(<PhotoRing {...base} ring="dinner" label="Soto" />);
+  it("without onPress it is not a button", async () => {
+    await render(<PhotoRing {...base} ring="dinner" label="Soto" />);
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.getByText("Soto")).toBeTruthy();
   });
 
-  it("with onPress it is a button that fires the select haptic and exposes selected", () => {
+  it("with onPress it is a button that fires the select haptic and exposes selected", async () => {
     const onPress = jest.fn();
-    const view = render(<PhotoRing {...base} ring="selected" label="Soto" selected onPress={onPress} />);
+    const view = await render(<PhotoRing {...base} ring="selected" label="Soto" selected onPress={onPress} />);
     const button = screen.getByRole("button", { name: "Soto" });
     expect(button.props.accessibilityState.selected).toBe(true);
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
-    view.rerender(<PhotoRing {...base} ring="selected" label="Soto" selected={false} onPress={onPress} />);
+    await view.rerender(<PhotoRing {...base} ring="selected" label="Soto" selected={false} onPress={onPress} />);
     expect(screen.getByRole("button", { name: "Soto" }).props.accessibilityState.selected).toBe(false);
   });
 
-  it("the pressable target is at least 48dp whatever the size", () => {
-    render(<PhotoRing {...base} ring="selected" onPress={() => {}} />);
+  it("the pressable target is at least 48dp whatever the size", async () => {
+    await render(<PhotoRing {...base} ring="selected" onPress={() => {}} />);
     const style = StyleSheet.flatten(screen.getByRole("button").props.style);
     expect(style.minHeight).toBeGreaterThanOrEqual(48);
     expect(style.minWidth).toBeGreaterThanOrEqual(48);
   });
 
-  it("the label is bold when selected and caption weight otherwise, and wraps", () => {
-    const view = render(<PhotoRing {...base} ring="selected" label="Soto" selected onPress={() => {}} />);
+  it("the label is bold when selected and caption weight otherwise, and wraps", async () => {
+    const view = await render(<PhotoRing {...base} ring="selected" label="Soto" selected onPress={() => {}} />);
     const selected = StyleSheet.flatten(screen.getByText("Soto").props.style);
     expect(selected.fontSize).toBe(12);
     expect(selected.color).toBe(nativeThemes.light.forest);
-    view.rerender(<PhotoRing {...base} ring="selected" label="Soto" onPress={() => {}} />);
+    await view.rerender(<PhotoRing {...base} ring="selected" label="Soto" onPress={() => {}} />);
     const quiet = StyleSheet.flatten(screen.getByText("Soto").props.style);
     expect(quiet.fontSize).toBe(11);
     expect(quiet.color).toBe(nativeThemes.light.muted);
@@ -147,21 +153,21 @@ describe("CalendarPhotoCell", () => {
     accessibilityLabel: "12 Oktober",
   };
 
-  it("is a 52dp, radius 12 button of at least 48dp that fires the select haptic", () => {
+  it("is a 52dp, radius 12 button of at least 48dp that fires the select haptic", async () => {
     const onPress = jest.fn();
-    render(<CalendarPhotoCell {...base} onPress={onPress} selected />);
+    await render(<CalendarPhotoCell {...base} onPress={onPress} selected />);
     const button = screen.getByRole("button", { name: "12 Oktober" });
     expect(StyleSheet.flatten(button.props.style)).toMatchObject({ height: 52, borderRadius: 12 });
     expect(StyleSheet.flatten(button.props.style).minWidth).toBeGreaterThanOrEqual(48);
     expect(button.props.accessibilityState.selected).toBe(true);
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 
-  it("with a photo and a menu it shows the image and the day in a neutral pill, with no dashed border", () => {
-    render(<CalendarPhotoCell {...base} />);
-    expect(screen.UNSAFE_getByType(PhotoImage).props.source).toEqual({ uri: base.uri });
+  it("with a photo and a menu it shows the image and the day in a neutral pill, with no dashed border", async () => {
+    await render(<CalendarPhotoCell {...base} />);
+    expect(photo().props.source).toEqual({ uri: base.uri });
     expect(gone("cell-dashed")).toBe(true);
     expect(flat("cell-number-pill")).toMatchObject({
       // Direction K (rules 1, 3): a month of day numbers spends no forest; the pill is the page neutral, the number ink.
@@ -174,7 +180,7 @@ describe("CalendarPhotoCell", () => {
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(nativeThemes.light.charcoal);
   });
 
-  it("the day pills and the moon badge are neutral and readable in both themes", () => {
+  it("the day pills and the moon badge are neutral and readable in both themes", async () => {
     for (const t of [nativeThemes.light, nativeThemes.dark]) {
       expect(contrastRatio(t.charcoal, t.canvas)).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(t.surface, t.muted)).toBeGreaterThanOrEqual(4.5);
@@ -182,9 +188,9 @@ describe("CalendarPhotoCell", () => {
     }
   });
 
-  it("menu not set draws a dashed 1.5dp markerIdle border and a sun, and no image", () => {
-    render(<CalendarPhotoCell {...base} menuSet={false} />);
-    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
+  it("menu not set draws a dashed 1.5dp markerIdle border and a sun, and no image", async () => {
+    await render(<CalendarPhotoCell {...base} menuSet={false} />);
+    expect(photoImages()).toHaveLength(0);
     expect(flat("cell-dashed")).toMatchObject({
       borderStyle: "dashed",
       borderWidth: 1.5,
@@ -196,45 +202,46 @@ describe("CalendarPhotoCell", () => {
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
   });
 
-  it("no meal shows the plain number in headerMeta, with no image, border or sun", () => {
-    render(<CalendarPhotoCell {...base} uri={null} menuSet={false} />);
-    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
+  it("no meal shows the plain number in headerMeta, with no image, border or sun", async () => {
+    await render(<CalendarPhotoCell {...base} uri={null} menuSet={false} />);
+    expect(photoImages()).toHaveLength(0);
     expect(gone("cell-dashed")).toBe(true);
     expect(gone("cell-sun")).toBe(true);
     expect(gone("cell-number-pill")).toBe(true);
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
   });
 
-  it("dinnerToo adds the charcoal moon badge; without it there is none", () => {
-    const view = render(<CalendarPhotoCell {...base} dinnerToo />);
+  it("dinnerToo adds the charcoal moon badge; without it there is none", async () => {
+    const view = await render(<CalendarPhotoCell {...base} dinnerToo />);
     expect(flat("cell-moon").backgroundColor).toBe(nativeThemes.light.charcoal);
-    expect(screen.UNSAFE_getByType(Ionicons).props.color).toBe(nativeThemes.light.surface);
+    expect(icons()).toHaveLength(1);
+    expect((StyleSheet.flatten(icons()[0].props.style) as { color?: string }).color).toBe(nativeThemes.light.surface);
     expect(flat("cell-moon")).toMatchObject({ position: "absolute", top: 4, right: 4 });
-    view.rerender(<CalendarPhotoCell {...base} />);
+    await view.rerender(<CalendarPhotoCell {...base} />);
     expect(gone("cell-moon")).toBe(true);
   });
 
-  it("past dims the photo to 0.5 and turns the pill muted with surface text", () => {
-    const view = render(<CalendarPhotoCell {...base} />);
+  it("past dims the photo to 0.5 and turns the pill muted with surface text", async () => {
+    const view = await render(<CalendarPhotoCell {...base} />);
     expect(flat("cell-photo").opacity).toBe(1);
-    view.rerender(<CalendarPhotoCell {...base} past />);
+    await view.rerender(<CalendarPhotoCell {...base} past />);
     expect(flat("cell-photo").opacity).toBe(0.5);
     expect(flat("cell-number-pill").backgroundColor).toBe(nativeThemes.light.muted);
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(nativeThemes.light.surface);
   });
 
-  it("today adds a 2.5dp todayRing outline and selected a 2.5dp forest (toggleActive) one", () => {
-    const view = render(<CalendarPhotoCell {...base} />);
+  it("today adds a 2.5dp todayRing outline and selected a 2.5dp forest (toggleActive) one", async () => {
+    const view = await render(<CalendarPhotoCell {...base} />);
     expect(gone("cell-outline-today")).toBe(true);
     expect(gone("cell-outline-selected")).toBe(true);
-    view.rerender(<CalendarPhotoCell {...base} today />);
+    await view.rerender(<CalendarPhotoCell {...base} today />);
     expect(flat("cell-outline-today")).toMatchObject({
       borderWidth: 2.5,
       borderColor: siang.todayRing,
       borderRadius: 12,
     });
     expect(gone("cell-outline-selected")).toBe(true);
-    view.rerender(<CalendarPhotoCell {...base} selected />);
+    await view.rerender(<CalendarPhotoCell {...base} selected />);
     // The chosen date is a selection (direction K rule 3): forest, never the charcoal ink.
     expect(flat("cell-outline-selected")).toMatchObject({
       borderWidth: 2.5,
@@ -245,15 +252,15 @@ describe("CalendarPhotoCell", () => {
     expect(gone("cell-outline-today")).toBe(true);
   });
 
-  it("today and selected together keep both outlines, the selected one inside", () => {
-    render(<CalendarPhotoCell {...base} today selected />);
+  it("today and selected together keep both outlines, the selected one inside", async () => {
+    await render(<CalendarPhotoCell {...base} today selected />);
     expect(flat("cell-outline-today").borderColor).toBe(siang.todayRing);
     expect(flat("cell-outline-selected").borderColor).toBe(siang.toggleActive);
     expect(flat("cell-outline-selected").top).toBeGreaterThan(flat("cell-outline-today").top as number);
   });
 
-  it("under light Malam the outlines read the mood tokens that stay visible on the pale sage header", () => {
-    render(
+  it("under light Malam the outlines read the mood tokens that stay visible on the pale sage header", async () => {
+    await render(
       <MoodProvider now={() => new Date("2026-10-09T08:00:00Z")}>
         <CalendarPhotoCell {...base} today selected />
       </MoodProvider>,
@@ -264,62 +271,62 @@ describe("CalendarPhotoCell", () => {
     expect(contrastRatio("#163D2E", nativeMood.light.malam.header)).toBeGreaterThanOrEqual(3);
   });
 
-  it("outlines never take touches", () => {
-    render(<CalendarPhotoCell {...base} today selected />);
+  it("outlines never take touches", async () => {
+    await render(<CalendarPhotoCell {...base} today selected />);
     expect(screen.getByTestId("cell-outline-today", { includeHiddenElements: true }).props.pointerEvents).toBe("none");
     expect(screen.getByTestId("cell-outline-selected", { includeHiddenElements: true }).props.pointerEvents).toBe("none");
   });
 
-  it("at font scale 1.3 a photo cell falls back to the number with a 6dp photo dot", () => {
+  it("at font scale 1.3 a photo cell falls back to the number with a 6dp photo dot", async () => {
     setFontScale(1.3);
-    render(<CalendarPhotoCell {...base} />);
-    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
+    await render(<CalendarPhotoCell {...base} />);
+    expect(photoImages()).toHaveLength(0);
     expect(flat("cell-photo-dot")).toMatchObject({ width: 6, height: 6, borderRadius: 3 });
     expect(gone("cell-number-pill")).toBe(true);
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
   });
 
-  it("at font scale 1.3 dinner becomes a small moon beside the photo dot, with no corner badge", () => {
+  it("at font scale 1.3 dinner becomes a small moon beside the photo dot, with no corner badge", async () => {
     setFontScale(1.3);
-    const view = render(<CalendarPhotoCell {...base} day={28} dinnerToo />);
+    const view = await render(<CalendarPhotoCell {...base} day={28} dinnerToo />);
     expect(gone("cell-moon")).toBe(true);
     expect(screen.getByTestId("cell-moon-dot", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeTruthy();
-    view.rerender(<CalendarPhotoCell {...base} day={28} />);
+    await view.rerender(<CalendarPhotoCell {...base} day={28} />);
     expect(gone("cell-moon-dot")).toBe(true);
     expect(screen.getByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeTruthy();
   });
 
-  it("a covered day whose uri is empty falls back to the number with the dot, and renders no Image", () => {
-    const view = render(<CalendarPhotoCell {...base} uri="" />);
-    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
+  it("a covered day whose uri is empty falls back to the number with the dot, and renders no Image", async () => {
+    const view = await render(<CalendarPhotoCell {...base} uri="" />);
+    expect(photoImages()).toHaveLength(0);
     expect(gone("cell-photo")).toBe(true);
     expect(gone("cell-number-pill")).toBe(true);
     expect(gone("cell-dashed")).toBe(true);
     expect(screen.getByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeTruthy();
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
     // Dinner shows as the moon dot here too, never as the corner badge over a photo that is not there.
-    view.rerender(<CalendarPhotoCell {...base} uri="" dinnerToo />);
+    await view.rerender(<CalendarPhotoCell {...base} uri="" dinnerToo />);
     expect(gone("cell-moon")).toBe(true);
     expect(screen.getByTestId("cell-moon-dot", { includeHiddenElements: true })).toBeTruthy();
   });
 
-  it("an empty uri on a day whose menu is not set is still the dashed cell", () => {
-    render(<CalendarPhotoCell {...base} uri="" menuSet={false} />);
-    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
+  it("an empty uri on a day whose menu is not set is still the dashed cell", async () => {
+    await render(<CalendarPhotoCell {...base} uri="" menuSet={false} />);
+    expect(photoImages()).toHaveLength(0);
     expect(flat("cell-dashed").borderStyle).toBe("dashed");
     expect(gone("cell-photo-dot")).toBe(true);
   });
 
-  it("below font scale 1.3 the photo stays, and the empty and unset cells never get the dot", () => {
+  it("below font scale 1.3 the photo stays, and the empty and unset cells never get the dot", async () => {
     setFontScale(1.29);
-    const view = render(<CalendarPhotoCell {...base} />);
-    expect(screen.UNSAFE_getByType(PhotoImage)).toBeTruthy();
+    const view = await render(<CalendarPhotoCell {...base} />);
+    expect(photo()).toBeTruthy();
     expect(gone("cell-photo-dot")).toBe(true);
     setFontScale(2);
-    view.rerender(<CalendarPhotoCell {...base} uri={null} menuSet={false} />);
+    await view.rerender(<CalendarPhotoCell {...base} uri={null} menuSet={false} />);
     expect(gone("cell-photo-dot")).toBe(true);
-    view.rerender(<CalendarPhotoCell {...base} menuSet={false} />);
+    await view.rerender(<CalendarPhotoCell {...base} menuSet={false} />);
     expect(gone("cell-photo-dot")).toBe(true);
     expect(flat("cell-dashed").borderStyle).toBe("dashed");
   });
@@ -332,7 +339,7 @@ describe("CalendarPhotoCell", () => {
       ["dark", "malam", "2026-10-09T08:00:00Z"],
     ] as const;
 
-    it.each(combos)("in %s %s the selected cell has the bar and today and plain cells do not", (scheme, mood, now) => {
+    it.each(combos)("in %s %s the selected cell has the bar and today and plain cells do not", async (scheme, mood, now) => {
       jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
       const palette = nativeMood[scheme][mood];
       const mount = (state: { today?: boolean; selected?: boolean }) => (
@@ -342,7 +349,7 @@ describe("CalendarPhotoCell", () => {
           </MoodProvider>
         </ThemeProvider>
       );
-      const view = render(mount({ selected: true }));
+      const view = await render(mount({ selected: true }));
       // The bar runs across the bottom inside the cell, 4dp tall and rounded, in the selection's forest.
       expect(flat("cell-selected-bar")).toMatchObject({
         position: "absolute",
@@ -358,33 +365,33 @@ describe("CalendarPhotoCell", () => {
       // The selected ring is still there as well.
       expect(flat("cell-outline-selected").borderColor).toBe(palette.toggleActive);
       // Today alone keeps its ring and gets no bar; a plain cell has neither.
-      view.rerender(mount({ today: true }));
+      await view.rerender(mount({ today: true }));
       expect(flat("cell-outline-today").borderColor).toBe(palette.todayRing);
       expect(gone("cell-selected-bar")).toBe(true);
-      view.rerender(mount({}));
+      await view.rerender(mount({}));
       expect(gone("cell-selected-bar")).toBe(true);
       // Today and selected together: both rings, and the bar because it is selected.
-      view.rerender(mount({ today: true, selected: true }));
+      await view.rerender(mount({ today: true, selected: true }));
       expect(screen.getByTestId("cell-selected-bar", { includeHiddenElements: true })).toBeTruthy();
       expect(gone("cell-outline-today")).toBe(false);
     });
 
-    it("leaves the number pill alone, so a selected future day does not look like a past one", () => {
-      const view = render(<CalendarPhotoCell {...base} />);
+    it("leaves the number pill alone, so a selected future day does not look like a past one", async () => {
+      const view = await render(<CalendarPhotoCell {...base} />);
       const plain = flat("cell-number-pill").backgroundColor;
       const plainInk = StyleSheet.flatten(screen.getByText("12").props.style).color;
       expect(plain).toBe(nativeThemes.light.canvas);
-      view.rerender(<CalendarPhotoCell {...base} selected />);
+      await view.rerender(<CalendarPhotoCell {...base} selected />);
       expect(flat("cell-number-pill").backgroundColor).toBe(plain);
       expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(plainInk);
       expect(flat("cell-number-pill").backgroundColor).not.toBe(nativeThemes.light.muted);
       // A past day stays muted, selected or not.
-      view.rerender(<CalendarPhotoCell {...base} past selected />);
+      await view.rerender(<CalendarPhotoCell {...base} past selected />);
       expect(flat("cell-number-pill").backgroundColor).toBe(nativeThemes.light.muted);
     });
 
-    it("a selected number-only day gets the bar and no pill", () => {
-      render(<CalendarPhotoCell {...base} uri={null} menuSet={false} selected />);
+    it("a selected number-only day gets the bar and no pill", async () => {
+      await render(<CalendarPhotoCell {...base} uri={null} menuSet={false} selected />);
       expect(screen.getByTestId("cell-selected-bar", { includeHiddenElements: true })).toBeTruthy();
       expect(gone("cell-number-pill")).toBe(true);
       expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
@@ -393,8 +400,8 @@ describe("CalendarPhotoCell", () => {
     it.each([
       ["selected", { selected: true }],
       ["today and selected", { today: true, selected: true }],
-    ])("the bar of a %s cell is clear of the corners, the ring and the number pill", (_name, state) => {
-      render(<CalendarPhotoCell {...base} {...state} />);
+    ])("the bar of a %s cell is clear of the corners, the ring and the number pill", async (_name, state) => {
+      await render(<CalendarPhotoCell {...base} {...state} />);
       const bar = flat("cell-selected-bar");
       // Inset past the 12dp corner radius, so it never runs into a rounded corner.
       expect(bar.left).toBeGreaterThanOrEqual(12);
@@ -409,11 +416,11 @@ describe("CalendarPhotoCell", () => {
 
     it.each([1.3, 1.5, 2])(
       "at font scale %s the dots sit above the bar, for a selected and a today-and-selected cell with dinner",
-      (scale) => {
+      async (scale) => {
         setFontScale(scale);
-        const view = render(<CalendarPhotoCell {...base} dinnerToo selected />);
+        const view = await render(<CalendarPhotoCell {...base} dinnerToo selected />);
         for (const state of [{ selected: true }, { today: true, selected: true }]) {
-          view.rerender(<CalendarPhotoCell {...base} dinnerToo {...state} />);
+          await view.rerender(<CalendarPhotoCell {...base} dinnerToo {...state} />);
           const bar = flat("cell-selected-bar");
           const column = flat("cell-content");
           // The dots live in a column that reserves the bar's zone: it ends at the cell's bottom edge and its padding
@@ -435,22 +442,22 @@ describe("CalendarPhotoCell", () => {
 
     it.each([1.3, 1.5])(
       "at font scale %s an unset or meal-less cell keeps its number truly centred, away from the sun corner",
-      (scale) => {
+      async (scale) => {
         setFontScale(scale);
         for (const cell of [{ menuSet: false }, { uri: null, menuSet: false }]) {
-          const view = render(<CalendarPhotoCell {...base} {...cell} />);
+          const view = await render(<CalendarPhotoCell {...base} {...cell} />);
           // No dot row, so nothing needs the bar's zone reserved: the column does not lift the number into the sun.
           expect(flat("cell-content").paddingBottom ?? 0).toBe(0);
           // Selecting the day does not move it either.
-          view.rerender(<CalendarPhotoCell {...base} {...cell} selected />);
+          await view.rerender(<CalendarPhotoCell {...base} {...cell} selected />);
           expect(flat("cell-content").paddingBottom ?? 0).toBe(0);
-          view.rerender(<CalendarPhotoCell {...base} {...cell} today selected />);
+          await view.rerender(<CalendarPhotoCell {...base} {...cell} today selected />);
           expect(flat("cell-content").paddingBottom ?? 0).toBe(0);
           // Centred in 52dp, the capped number still ends above the highest the bar can go.
           const bar = flat("cell-selected-bar");
           const numberHeight = 18 * Math.min(scale, 1.5);
           expect((52 + numberHeight) / 2).toBeLessThanOrEqual(52 - (bar.bottom as number) - (bar.height as number));
-          view.unmount();
+          await view.unmount();
         }
       },
     );
@@ -459,26 +466,26 @@ describe("CalendarPhotoCell", () => {
       ["a photo cell at font scale 1.3", 1.3, { uri: base.uri }],
       ["a photo cell at font scale 1.5", 1.5, { uri: base.uri }],
       ["a meal with no photo", 1, { uri: "" }],
-    ])("%s keeps the 10dp lift for its dot row, selected or not", (_name, scale, cell) => {
+    ])("%s keeps the 10dp lift for its dot row, selected or not", async (_name, scale, cell) => {
       setFontScale(scale);
-      const view = render(<CalendarPhotoCell {...base} {...cell} />);
+      const view = await render(<CalendarPhotoCell {...base} {...cell} />);
       expect(screen.getByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeTruthy();
       expect(flat("cell-content").paddingBottom).toBe(10);
-      view.rerender(<CalendarPhotoCell {...base} {...cell} selected />);
+      await view.rerender(<CalendarPhotoCell {...base} {...cell} selected />);
       expect(flat("cell-content").paddingBottom).toBe(10);
     });
 
-    it("the number pill text stops growing at 1.15x so it never reaches the moon badge", () => {
-      render(<CalendarPhotoCell {...base} dinnerToo />);
+    it("the number pill text stops growing at 1.15x so it never reaches the moon badge", async () => {
+      await render(<CalendarPhotoCell {...base} dinnerToo />);
       expect(screen.getByText("12").props.maxFontSizeMultiplier).toBe(1.15);
     });
 
-    it("the number pill does not move when a day is selected or is today", () => {
-      const view = render(<CalendarPhotoCell {...base} />);
+    it("the number pill does not move when a day is selected or is today", async () => {
+      const view = await render(<CalendarPhotoCell {...base} />);
       const rest = flat("cell-number-pill").bottom;
-      view.rerender(<CalendarPhotoCell {...base} selected />);
+      await view.rerender(<CalendarPhotoCell {...base} selected />);
       expect(flat("cell-number-pill").bottom).toBe(rest);
-      view.rerender(<CalendarPhotoCell {...base} today selected />);
+      await view.rerender(<CalendarPhotoCell {...base} today selected />);
       expect(flat("cell-number-pill").bottom).toBe(rest);
     });
   });
@@ -487,24 +494,24 @@ describe("CalendarPhotoCell", () => {
 describe("StoryCover", () => {
   const base = { uri: "https://example.test/a.jpg", title: "Menu hari ini", segments: 4, active: 2, width: 200, height: 320 };
 
-  it("is the requested size with a cover-fit photo", () => {
-    render(<StoryCover {...base} />);
+  it("is the requested size with a cover-fit photo", async () => {
+    await render(<StoryCover {...base} />);
     expect(flat("story-cover")).toMatchObject({ width: 200, height: 320 });
-    const image = screen.UNSAFE_getByType(PhotoImage);
+    const image = photo();
     expect(image.props.source).toEqual({ uri: base.uri });
     expect(image.props.contentFit).toBe("cover");
   });
 
-  it("an empty uri keeps the dark ground, the bars and the title, with no Image", () => {
-    render(<StoryCover {...base} uri="" />);
-    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
+  it("an empty uri keeps the dark ground, the bars and the title, with no Image", async () => {
+    await render(<StoryCover {...base} uri="" />);
+    expect(photoImages()).toHaveLength(0);
     expect(flat("story-cover").backgroundColor).toBe(nativeThemes.light.photoGround);
     expect(screen.getByTestId("story-segment-3", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByText("Menu hari ini")).toBeTruthy();
   });
 
-  it("renders one bar per segment, the first `active` at full opacity and the rest at 0.4, all cream", () => {
-    render(<StoryCover {...base} />);
+  it("renders one bar per segment, the first `active` at full opacity and the rest at 0.4, all cream", async () => {
+    await render(<StoryCover {...base} />);
     const opacities = [0, 1, 2, 3].map((i) => flat(`story-segment-${i}`).opacity);
     expect(opacities).toEqual([1, 1, 0.4, 0.4]);
     expect(gone("story-segment-4")).toBe(true);
@@ -512,23 +519,23 @@ describe("StoryCover", () => {
     expect(flat("story-segment-3").backgroundColor).toBe(nativeThemes.light.cream);
   });
 
-  it("lays a bottom gradient over the photo", () => {
-    render(<StoryCover {...base} />);
+  it("lays a bottom gradient over the photo", async () => {
+    await render(<StoryCover {...base} />);
     expect(flat("story-gradient").experimental_backgroundImage).toBe(
       "linear-gradient(rgba(27,27,26,0) 40%, rgba(27,27,26,0.9))",
     );
   });
 
-  it("shows the title in cream label type, wrapping rather than truncating", () => {
-    render(<StoryCover {...base} />);
+  it("shows the title in cream label type, wrapping rather than truncating", async () => {
+    await render(<StoryCover {...base} />);
     const title = screen.getByText("Menu hari ini");
     expect(StyleSheet.flatten(title.props.style)).toMatchObject({ color: nativeThemes.light.cream, fontSize: 12 });
     expect(title.props.numberOfLines).toBeUndefined();
   });
 
-  it("keeps the same cream inks in the dark theme, because they sit on a photo", () => {
+  it("keeps the same cream inks in the dark theme, because they sit on a photo", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    render(
+    await render(
       <ThemeProvider storageKey="photo-parts-test">
         <StoryCover {...base} />
         <Text testID="theme-probe">Gelap</Text>

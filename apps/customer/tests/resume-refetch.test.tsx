@@ -68,7 +68,7 @@ afterEach(() => jest.restoreAllMocks());
 
 /** Mounted, the launch me() answered (it moves the revision once) and every read settled. */
 async function ready(loader: jest.Mock) {
-  mount(loader);
+  await mount(loader);
   await waitFor(() => expect(rt.api.me).toHaveBeenCalled());
   await waitFor(() => expect(last()).toMatchObject({ data: "first", loading: false }));
   await act(async () => undefined);
@@ -154,14 +154,14 @@ describe("useData on resume", () => {
     loader.mockImplementationOnce(() => new Promise<string>((r) => (release = r)));
     await resume();
     const other = jest.fn(() => new Promise<string>(() => undefined));
-    view.rerender(tree(rt, other, "other"));
+    await view.rerender(tree(rt, other, "other"));
     await act(async () => release("stale"));
     expect(last().data).toBeNull();
   });
 
   it("does nothing while the screen has no data yet", async () => {
     const loader = jest.fn(() => new Promise<string>(() => undefined));
-    mount(loader);
+    await mount(loader);
     await waitFor(() => expect(rt.api.me).toHaveBeenCalled());
     await act(async () => undefined);
     const calls = loader.mock.calls.length;
@@ -177,7 +177,7 @@ describe("an error screen on resume", () => {
       if (fail) throw new Error("NETWORK");
       return "back";
     });
-    mount(loader);
+    await mount(loader);
     await waitFor(() => expect(rt.api.me).toHaveBeenCalled());
     await waitFor(() => expect(last()).toMatchObject({ data: null, loading: false }));
     expect(last().error).not.toBe("");

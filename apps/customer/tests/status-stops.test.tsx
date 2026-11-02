@@ -62,8 +62,18 @@ const nodeOf = (id: string) => {
 const flat = (id: string) => StyleSheet.flatten(nodeOf(id).props.style);
 const flatOf = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
 /** The pill learns its width from layout; the door is sized from it. */
-const layout = (width: number) =>
-  act(() => fireEvent(screen.getByTestId("status-stops"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width, height: 60 } } }));
+const layout = async (width: number) =>
+  await act(async () => await fireEvent(screen.getByTestId("status-stops"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width, height: 60 } } }));
+/** Ionicons draws a host Text in the "ionicons" font: read back the glyph's name, colour and size from it. */
+const iconsIn = (node: ReturnType<typeof screen.getByTestId>) =>
+  node
+    .queryAll((n) => flatOf(n).fontFamily === "ionicons", { includeHiddenElements: true })
+    .map((n) => {
+      const style = flatOf(n);
+      const code = String(n.children[0]).codePointAt(0);
+      const name = Object.entries(Ionicons.glyphMap).find(([, point]) => point === code)?.[0];
+      return { name, color: style.color, size: style.fontSize };
+    });
 const translateX = (node: { props: { style?: unknown } }) =>
   ((flatOf(node).transform as { translateX?: number }[] | undefined) ?? []).find((t) => "translateX" in t)?.translateX;
 
@@ -73,9 +83,9 @@ function Probe() {
   return null;
 }
 
-function mount(ui: React.ReactElement, { now = SIANG_NOW, scheme = "light" as "light" | "dark" } = {}) {
+async function mount(ui: React.ReactElement, { now = SIANG_NOW, scheme = "light" as "light" | "dark" } = {}) {
   jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
-  return render(
+  return await render(
     <ThemeProvider storageKey="status-stops-test">
       <MoodProvider now={now}>
         <LayoutScaleProvider value="v2">
@@ -110,7 +120,7 @@ const Stops = (props: React.ComponentProps<typeof StatusStops>) => (
 
 /** Mounts and lets the provider's boot read settle inside act, so no update lands after the test. */
 async function settled(ui: React.ReactElement, options?: Parameters<typeof mount>[1]) {
-  const view = mount(ui, options);
+  const view = await mount(ui, options);
   await act(async () => {});
   return view;
 }
@@ -132,7 +142,7 @@ describe("StatusStops", () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
     // No width yet, so no door to size.
     expect(screen.queryByTestId("status-stops-door", { includeHiddenElements: true })).toBeNull();
-    layout(303);
+    await layout(303);
     const door = () => screen.getByTestId("status-stops-door", { includeHiddenElements: true });
     // Inside the 1.5 edges the pill is 300 wide: the door is half of it less the 4 gap, and starts over Siang.
     expect(flatOf(door())).toMatchObject({ width: 146, backgroundColor: nativeMood.light.siang.toggleActive, borderRadius: 999 });
@@ -141,19 +151,20 @@ describe("StatusStops", () => {
     expect(door().props.pointerEvents).toBe("none");
     expect(screen.queryByTestId("status-stops-door")).toBeNull();
     // Under reduced motion it jumps the whole way.
-    fireEvent.press(screen.getByTestId("status-stop-dinner"));
+    await fireEvent.press(screen.getByTestId("status-stop-dinner"));
     expect(translateX(door())).toBe(146);
   });
 
   it("puts a sun on the Siang half and a moon on the Malam half, and the door carries its own copy of both in onToggleActive", async () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
-    layout(303);
+    await layout(303);
     const palette = nativeMood.light.siang;
-    const glyph = (id: string) => within(screen.getByTestId(`status-stop-${id}`)).UNSAFE_getByType(Ionicons).props;
+    const glyph = (id: string) => iconsIn(screen.getByTestId(`status-stop-${id}`))[0];
     expect(glyph("lunch")).toMatchObject({ name: "sunny", color: palette.heroText });
     expect(glyph("dinner")).toMatchObject({ name: "moon", color: palette.heroText });
-    const door = within(screen.getByTestId("status-stops-door", { includeHiddenElements: true }));
-    expect(door.UNSAFE_getAllByType(Ionicons).map((g) => [g.props.name, g.props.color])).toEqual([
+    const doorNode = screen.getByTestId("status-stops-door", { includeHiddenElements: true });
+    const door = within(doorNode);
+    expect(iconsIn(doorNode).map((g) => [g.name, g.color])).toEqual([
       ["sunny", palette.onToggleActive],
       ["moon", palette.onToggleActive],
     ]);
@@ -166,10 +177,10 @@ describe("StatusStops", () => {
 
   it("pressing the Malam stop sets the app-wide mood and fires the select haptic once; the chosen stop confirms nothing", async () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
-    fireEvent.press(screen.getByTestId("status-stop-lunch"));
+    await fireEvent.press(screen.getByTestId("status-stop-lunch"));
     expect(Haptics.selectionAsync).not.toHaveBeenCalled();
     expect(seen.mood).toBe("siang");
-    fireEvent.press(screen.getByTestId("status-stop-dinner"));
+    await fireEvent.press(screen.getByTestId("status-stop-dinner"));
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
     expect(seen.mood).toBe("malam");
     expect(screen.getByTestId("status-stop-dinner").props.accessibilityState).toMatchObject({ selected: true });
@@ -178,7 +189,7 @@ describe("StatusStops", () => {
 
   it("follows a mood set elsewhere (Jelajah's meal tabs are the same mood)", async () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
-    act(() => seen.setMood("malam"));
+    await act(() => seen.setMood("malam"));
     expect(screen.getByTestId("status-stop-dinner").props.accessibilityState).toMatchObject({ selected: true });
   });
 
@@ -212,7 +223,7 @@ describe("StatusStops", () => {
   it.each(["light", "dark"] as const)("paints the pill from the %s theme's toggle tokens, the door over the chosen Malam", async (scheme) => {
     jest.spyOn(require("react-native-reanimated"), "useReducedMotion").mockReturnValue(true);
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />, { scheme, now: MALAM_NOW });
-    layout(303);
+    await layout(303);
     const palette = nativeMood[scheme].malam;
     expect(flat("status-stops")).toMatchObject({ backgroundColor: palette.toggleTrack, borderColor: palette.heroEdge });
     const door = screen.getByTestId("status-stops-door", { includeHiddenElements: true });
@@ -222,7 +233,7 @@ describe("StatusStops", () => {
     expect(flatOf(door).backgroundColor).not.toBe(palette.stopActive);
   });
 
-  it("withAlpha turns a hex colour into the same colour at a fraction of its strength", () => {
+  it("withAlpha turns a hex colour into the same colour at a fraction of its strength", async () => {
     expect(withAlpha("#2E2E2E", 0.16)).toBe("rgba(46,46,46,0.16)");
     expect(withAlpha("#F5F1E8", 1)).toBe("rgba(245,241,232,1)");
   });
@@ -233,7 +244,7 @@ describe("StatusStops", () => {
     const ink = { color: nativeMood.light.siang.heroText, fontFamily: "Jakarta-Bold" };
     expect(label("lunch")).toMatchObject(ink);
     expect(label("dinner")).toMatchObject(ink);
-    fireEvent.press(screen.getByTestId("status-stop-dinner"));
+    await fireEvent.press(screen.getByTestId("status-stop-dinner"));
     expect(label("lunch")).toMatchObject(ink);
     expect(label("dinner")).toMatchObject(ink);
     expect(screen.getByTestId("status-stop-dinner").props.accessibilityState).toMatchObject({ selected: true });
@@ -251,12 +262,20 @@ describe("StatusStops", () => {
 
   it("each tab is the press: no scale feedback, the door moving is the answer", async () => {
     await settled(<Stops lunch={LUNCH} dinner={DINNER} />);
-    const { PressableScale } = require("@catera/mobile-ui");
-    const tabs = screen.UNSAFE_getAllByType(PressableScale);
-    expect(tabs.map((t) => [t.props.testID, t.props.pressFeedback, t.props.haptic])).toEqual([
-      ["status-stop-lunch", false, "none"],
-      ["status-stop-dinner", false, "select"],
-    ]);
+    // PressableScale is no longer a node of the tree, so read its props through what they do: a press-in leaves the
+    // tab uncompressed and undimmed (pressFeedback false), and only the dinner tab ticks the selection haptic.
+    for (const id of ["status-stop-lunch", "status-stop-dinner"]) {
+      const before = JSON.stringify(flatOf(screen.getByTestId(id)));
+      await fireEvent(screen.getByTestId(id), "pressIn");
+      expect(JSON.stringify(flatOf(screen.getByTestId(id)))).toBe(before);
+      await fireEvent(screen.getByTestId(id), "pressOut");
+    }
+    const tick = Haptics.selectionAsync as jest.Mock;
+    tick.mockClear();
+    await fireEvent.press(screen.getByTestId("status-stop-lunch"));
+    expect(tick).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByTestId("status-stop-dinner"));
+    expect(tick).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -282,7 +301,7 @@ describe("the words for each Plate state", () => {
     expect(statement.toLowerCase()).toContain("makan siang");
   });
 
-  it("names the dinner in the statement of a dinner plate", () => {
+  it("names the dinner in the statement of a dinner plate", async () => {
     expect(statementFor(plate("on_the_way", "dinner"), id)).toBe("Makan malam sedang diantar.");
     expect(statementFor(plate("on_the_way", "dinner"), en)).toBe("Dinner is on the way.");
   });
@@ -316,8 +335,8 @@ describe("Beranda hero, band and status line", () => {
     return runtime;
   }
 
-  const home = (state: CustomerState, now = SIANG_NOW) =>
-    mount(
+  const home = async (state: CustomerState, now = SIANG_NOW) =>
+    await mount(
       <MobileProvider runtime={runtimeWith(state)} linkMapper={customerLink}>
         <Beranda />
       </MobileProvider>,
@@ -346,7 +365,7 @@ describe("Beranda hero, band and status line", () => {
   const title = () => screen.getByTestId("home-title");
 
   it("the band holds the date in meta with a glyph and the statement in section, over a 104 overlap", async () => {
-    home(bothMeals());
+    await home(bothMeals());
     await screen.findByTestId("plate-hero");
     const band = within(screen.getByTestId("mood-header"));
     expect(flatOf(title())).toMatchObject({ fontSize: 20, lineHeight: 26 });
@@ -356,25 +375,27 @@ describe("Beranda hero, band and status line", () => {
     expect(screen.getByTestId("plate-dishes").props.children).toBe("Ayam bakar madu");
     const date = band.getByText(/^(Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu) \d+ \w+$/);
     expect(flatOf(date)).toMatchObject({ fontSize: 13, lineHeight: 18 });
-    const glyph = within(band.getByTestId("home-meta-glyph", { includeHiddenElements: true })).UNSAFE_getByProps({ name: "sunny" });
-    expect(glyph.props.size).toBe(18);
+    const glyph = iconsIn(band.getByTestId("home-meta-glyph", { includeHiddenElements: true }))[0];
+    expect(glyph.name).toBe("sunny");
+    expect(glyph.size).toBe(18);
     expect(HERO_BAND_OVERLAP).toBe(104);
     expect(flatOf(screen.getByTestId("mood-header")).paddingBottom).toBe(16 + HERO_BAND_OVERLAP);
     // The hero rides up the overlap plus the body's own 16 top padding.
-    expect(StyleSheet.flatten(screen.UNSAFE_getByType(require("@catera/mobile-ui").FadeSwap).props.style)).toMatchObject({
-      marginTop: -(HERO_BAND_OVERLAP + nativeLayout.space.lg),
-    });
+    // The page block is the FadeSwap's host view: the one 16-gap view that carries a margin.
+    const page = screen.container.queryAll((n) => flatOf(n).gap === 16 && typeof flatOf(n).marginTop === "number");
+    expect(page).toHaveLength(1);
+    expect(flatOf(page[0])).toMatchObject({ marginTop: -(HERO_BAND_OVERLAP + nativeLayout.space.lg) });
   });
 
   it("shows the moon glyph in the Malam band", async () => {
-    home(bothMeals(), MALAM_NOW);
+    await home(bothMeals(), MALAM_NOW);
     await screen.findByTestId("plate-hero");
     const glyph = within(screen.getByTestId("mood-header")).getByTestId("home-meta-glyph", { includeHiddenElements: true });
-    expect(within(glyph).UNSAFE_getByProps({ name: "moon" })).toBeTruthy();
+    expect(iconsIn(glyph)[0].name).toBe("moon");
   });
 
   it("the hero is a 16 radius card with the 1.5 edge and no frame padding, its photo 16:10 at the card's inner width", async () => {
-    home(bothMeals());
+    await home(bothMeals());
     await screen.findByTestId("plate-hero");
     const frame = flat("plate-hero");
     expect(frame.borderRadius).toBe(nativeLayout.radius.card);
@@ -393,7 +414,7 @@ describe("Beranda hero, band and status line", () => {
   it("the photo is as wide as the card's inner width: the 1.5 inset is on the layer round it, never on the photo that has the ratio", async () => {
     // A node with both a margin and an aspect ratio lays itself out narrower than its slot on Android (the margin taken
     // off twice: 4px in on the left, 14 to 17px short on the right), so the two live on different layers.
-    home(bothMeals());
+    await home(bothMeals());
     await screen.findByTestId("plate-hero");
     const photo = flat("plate-photo");
     const inset = flat("plate-photo-inset");
@@ -407,7 +428,7 @@ describe("Beranda hero, band and status line", () => {
   });
 
   it("sets the dish in heroTitle, the meal line in meta, in a body of 16 padding and 12 gap", async () => {
-    home(bothMeals());
+    await home(bothMeals());
     await screen.findByTestId("plate-hero");
     expect(flatOf(screen.getByTestId("plate-dishes"))).toMatchObject({ fontSize: 24, lineHeight: 30 });
     const meal = within(screen.getByTestId("plate-hero")).getByText(/^Makan siang · /);
@@ -416,7 +437,7 @@ describe("Beranda hero, band and status line", () => {
   });
 
   it("puts the two-stop status line on the band under the statement, not in the hero, and no other-meal row anywhere", async () => {
-    home(bothMeals());
+    await home(bothMeals());
     await screen.findByTestId("plate-hero");
     const band = within(screen.getByTestId("mood-header"));
     expect(band.getByTestId("status-stops")).toBeTruthy();
@@ -424,21 +445,21 @@ describe("Beranda hero, band and status line", () => {
     // Statement first, then the 40 row: the status line follows the title in the band's content.
     const ids = screen
       .getByTestId("mood-header-content")
-      .findAll((n) => typeof n.type === "string" && !!n.props.testID)
+      .queryAll((n) => typeof n.type === "string" && !!n.props.testID)
       .map((n) => n.props.testID);
     expect(ids.indexOf("status-stops")).toBeGreaterThan(ids.indexOf("home-title"));
     expect(screen.queryByTestId("other-meal-row")).toBeNull();
     expect(screen.queryByTestId("mood-arc")).toBeNull();
     expect(
-      screen.UNSAFE_root.findAll((n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist"),
+      screen.container.queryAll((n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist"),
     ).toHaveLength(1);
   });
 
   it("pressing the Malam stop sets mood malam and the hero shows the dinner plate", async () => {
-    home(bothMeals());
+    await home(bothMeals());
     await screen.findByTestId("plate-hero");
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan siang · /)).toBeTruthy();
-    fireEvent.press(screen.getByTestId("status-stop-dinner"));
+    await fireEvent.press(screen.getByTestId("status-stop-dinner"));
     expect(seen.mood).toBe("malam");
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan malam · /)).toBeTruthy();
     expect(title().props.children).toBe("Makan malam terjadwal.");
@@ -447,7 +468,7 @@ describe("Beranda hero, band and status line", () => {
   });
 
   it("the other meal's name and dish are its stop's label and meta line, its window in the tab's spoken name", async () => {
-    home(bothMeals());
+    await home(bothMeals());
     await screen.findByTestId("plate-hero");
     const dinner = within(screen.getByTestId("status-stop-dinner"));
     expect(dinner.getByTestId("status-stop-dinner-label").props.children).toBe("Malam");
@@ -459,7 +480,7 @@ describe("Beranda hero, band and status line", () => {
     // Lunch is long past its window and nobody tapped it: it should have arrived. The mood is Malam.
     const state = bothMeals([{ meal: "lunch", status: "scheduled" }, { meal: "dinner", status: "scheduled" }]);
     state.deliveries[0].offer = { ...state.deliveries[0].offer, windows: { lunch: "00.01–00.30", dinner: "23.59–23.59" } };
-    home(state, MALAM_NOW);
+    await home(state, MALAM_NOW);
     await screen.findByTestId("plate-hero");
     const lunch = within(screen.getByTestId("status-stop-lunch"));
     expect(lunch.getByTestId("status-stop-lunch-label").props.children).toBe("Siang");
@@ -468,13 +489,13 @@ describe("Beranda hero, band and status line", () => {
     expect(screen.queryByTestId("other-meal-row")).toBeNull();
     // The actions stay on the dinner hero until the stop is pressed.
     expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
-    fireEvent.press(screen.getByTestId("status-stop-lunch"));
+    await fireEvent.press(screen.getByTestId("status-stop-lunch"));
     expect(screen.getByRole("button", { name: "Sudah sampai" })).toBeTruthy();
   });
 
   it("a meal with no delivery says Tidak ada and with no hero the status line sits alone under the band", async () => {
     const state = customerState({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` });
-    home(state, MALAM_NOW);
+    await home(state, MALAM_NOW);
     await screen.findByTestId("home-title");
     expect(screen.queryByTestId("plate-hero")).toBeNull();
     expect(within(screen.getByTestId("status-stop-dinner")).getByText("Tidak ada")).toBeTruthy();
@@ -495,7 +516,7 @@ describe("Beranda hero, band and status line", () => {
       delivery("d-l-0", TODAY, {}, { meals: [{ meal: "lunch", status: "scheduled" }] }),
       delivery("d-l-1", TODAY, {}, { offer: second, meals: [{ meal: "lunch", status: "scheduled" }] }),
     );
-    home(state);
+    await home(state);
     await screen.findAllByTestId("plate-hero");
     expect(screen.getAllByTestId("plate-hero")).toHaveLength(2);
     expect(screen.getAllByTestId("status-stops")).toHaveLength(1);
@@ -534,8 +555,8 @@ describe("Beranda statement and stops", () => {
     } as unknown as MobileRuntime["api"];
     return runtime;
   }
-  const home = (state: CustomerState, now = SIANG_NOW) =>
-    mount(
+  const home = async (state: CustomerState, now = SIANG_NOW) =>
+    await mount(
       <MobileProvider runtime={runtimeWith(state)} linkMapper={customerLink}>
         <Beranda />
       </MobileProvider>,
@@ -565,7 +586,7 @@ describe("Beranda statement and stops", () => {
         ]),
       ],
     });
-    home(lunches(o));
+    await home(lunches(o));
     await screen.findByTestId("plate-hero");
     // The dish is the hero's title, once; the band says the state.
     expect(title()).toBe("Makan siang belum sampai.");
@@ -576,14 +597,14 @@ describe("Beranda statement and stops", () => {
 
   it("never names a dish in the band, whether the menu is set or not", async () => {
     const o = offer({ menus: [menu("lunch", [{ id: "l-1", name: "Ayam bakar madu" }], { selectionStatus: "pending" })] });
-    home(lunches(o));
+    await home(lunches(o));
     await screen.findByTestId("plate-hero");
     expect(title()).toBe("Makan siang belum sampai.");
     expect(title()).not.toMatch(/ayam bakar madu|makan siang rumahan/i);
   });
 
   it("speaks a window that does not start with a time as the caterer wrote it, in the stop's tab name", async () => {
-    home(lunches(offer({ windows: { lunch: "siang hari", dinner: "17.00–19.00" } })));
+    await home(lunches(offer({ windows: { lunch: "siang hari", dinner: "17.00–19.00" } })));
     await screen.findByTestId("plate-hero");
     expect(screen.getByTestId("status-stop-lunch").props.accessibilityLabel).toMatch(/^Makan siang, siang hari, /);
     expect(screen.getByTestId("status-stop-lunch-label").props.children).toBe("Siang");
@@ -591,7 +612,7 @@ describe("Beranda statement and stops", () => {
 
   it("counts two lunches in the statement and on the Siang stop, which has no single window", async () => {
     const second = offer({ id: "p-sehat", name: "Paket Sehat", windows: { lunch: "12.00–13.00", dinner: "17.00–19.00" } });
-    home(lunches(offer(), second));
+    await home(lunches(offer(), second));
     await screen.findAllByTestId("plate-hero");
     expect(title()).toBe("Siang ini, 2 pengantaran.");
     expect(screen.getByRole("tab", { name: "Makan siang, 2 pengantaran", selected: true })).toBeTruthy();
@@ -602,7 +623,7 @@ describe("Beranda statement and stops", () => {
     // Both lunches open late in the day, so neither is due and the stop counts them rather than saying a sentence.
     const late = { windows: { lunch: "23.59–23.59", dinner: "23.59–23.59" } };
     const second = offer({ id: "p-sehat", name: "Paket Sehat", ...late });
-    home(lunches(offer(late), second), MALAM_NOW);
+    await home(lunches(offer(late), second), MALAM_NOW);
     await screen.findByTestId("home-title");
     expect(title()).toBe("Dinner tonight, no delivery.");
     expect(screen.getByRole("tab", { name: "Lunch, 2 deliveries", selected: false })).toBeTruthy();
@@ -612,7 +633,7 @@ describe("Beranda statement and stops", () => {
   });
 
   it("says the state once: the band's statement, the shown stop's short label, and no state sentence in the hero body", async () => {
-    home(bothTodayForState());
+    await home(bothTodayForState());
     await screen.findByTestId("plate-hero");
     expect(title()).toBe("Makan siang sedang diantar.");
     expect(within(screen.getByTestId("status-stop-lunch")).getByText("Sedang diantar")).toBeTruthy();
@@ -645,7 +666,7 @@ describe("Beranda statement and stops", () => {
       { meal: "lunch", status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` },
       { meal: "dinner", status: "scheduled" },
     ];
-    home(state);
+    await home(state);
     await screen.findByTestId("plate-hero");
     expect(screen.getByTestId("status-stop-lunch").props.accessibilityState).toMatchObject({ selected: true });
     expect(screen.getByTestId("status-stop-dinner").props.accessibilityState).toMatchObject({ selected: false });
@@ -741,7 +762,7 @@ describe("every Plate state under the food-led hero", () => {
   ] as [string, Record<string, unknown>, string, "now" | "next" | "done", string, string, string][])(
     "%s: each fact is said once in its own region and the Siang stop is the chosen one",
     async (_state, meal, window, _status, label, statement, detail) => {
-      mount(
+      await mount(
         <MobileProvider runtime={runtimeFor(lunch(meal, window))} linkMapper={customerLink}>
           <Beranda />
         </MobileProvider>,
@@ -764,7 +785,7 @@ describe("every Plate state under the food-led hero", () => {
   );
 
   it("no delivery for the chosen meal: the status line alone under the band, both stops Tidak ada", async () => {
-    mount(
+    await mount(
       <MobileProvider runtime={runtimeFor(customerState(null))} linkMapper={customerLink}>
         <Beranda />
       </MobileProvider>,
@@ -786,7 +807,7 @@ describe("every Plate state under the food-led hero", () => {
     (runtime.api.customer as jest.Mock).mockImplementation(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
-    mount(
+    await mount(
       <MobileProvider runtime={runtime} linkMapper={customerLink}>
         <Beranda />
       </MobileProvider>,
@@ -796,7 +817,7 @@ describe("every Plate state under the food-led hero", () => {
     expect(screen.queryByTestId("header-more")).toBeNull();
     expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
     expect(within(screen.getByTestId("mood-header")).getByTestId("status-stops")).toBeTruthy();
-    fireEvent.press(screen.getByTestId("status-stop-dinner"));
+    await fireEvent.press(screen.getByTestId("status-stop-dinner"));
     expect(seen.mood).toBe("malam");
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValue(null);
   });
@@ -821,7 +842,7 @@ describe("every Plate state under the food-led hero", () => {
           ],
         }),
       );
-      mount(
+      await mount(
         <MobileProvider runtime={runtimeFor(state)} linkMapper={customerLink}>
           <Beranda />
         </MobileProvider>,
@@ -839,8 +860,8 @@ describe("every Plate state under the food-led hero", () => {
 });
 
 describe("HeroPager under the layout scale", () => {
-  const pager = (scale: "classic" | "v2") =>
-    render(
+  const pager = async (scale: "classic" | "v2") =>
+    await render(
       <ThemeProvider storageKey="pager-scale-test">
         <LayoutScaleProvider value={scale}>
           <HeroPager count={2} accessibilityLabelFor={() => "Makan siang"} counterLabel={(i) => String(i + 1)}>
@@ -856,19 +877,19 @@ describe("HeroPager under the layout scale", () => {
     return { width, side: StyleSheet.flatten(scroll.props.contentContainerStyle).paddingHorizontal as number };
   };
 
-  it("reaches the screen's margin (20, or 16 under v2) and peeks the next card 32 either way", () => {
-    const classic = pager("classic");
+  it("reaches the screen's margin (20, or 16 under v2) and peeks the next card 32 either way", async () => {
+    const classic = await pager("classic");
     const before = measure();
-    classic.unmount();
-    pager("v2");
+    await classic.unmount();
+    await pager("v2");
     const after = measure();
     expect([before.side, after.side]).toEqual([20, 16]);
     // The card is the pager's width minus the margin, the 12 gap and the 32 peek: 64 at a 20 margin (as it always was), 60 at 16.
     expect(before.width - after.width).toBe(-4);
   });
 
-  it("keeps each page at its own height, top-aligned, instead of stretching every card to the tallest", () => {
-    pager("v2");
+  it("keeps each page at its own height, top-aligned, instead of stretching every card to the tallest", async () => {
+    await pager("v2");
     const content = StyleSheet.flatten(screen.getByTestId("hero-pager-scroll").props.contentContainerStyle);
     expect(content.alignItems).toBe("flex-start");
     for (const page of screen.getAllByTestId("hero-page")) expect(StyleSheet.flatten(page.props.style).height).toBeUndefined();

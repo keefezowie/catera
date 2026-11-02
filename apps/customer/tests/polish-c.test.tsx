@@ -73,13 +73,13 @@ beforeEach(() => {
 });
 
 describe("shared mobile-ui primitives", () => {
-  it("C1: Text passes accessibilityLiveRegion through", () => {
-    render(<Text accessibilityLiveRegion="polite">Tersimpan</Text>);
+  it("C1: Text passes accessibilityLiveRegion through", async () => {
+    await render(<Text accessibilityLiveRegion="polite">Tersimpan</Text>);
     expect(screen.getByText("Tersimpan").props.accessibilityLiveRegion).toBe("polite");
   });
 
-  it("C2: Field hides its visible label from screen readers and announces its error politely", () => {
-    render(<Field label="Email" error="Email belum benar." value="" onChangeText={() => undefined} />);
+  it("C2: Field hides its visible label from screen readers and announces its error politely", async () => {
+    await render(<Field label="Email" error="Email belum benar." value="" onChangeText={() => undefined} />);
     const visible = screen.getByText("Email", { includeHiddenElements: true });
     expect(visible.props.importantForAccessibility).toBe("no");
     expect(visible.props.accessibilityElementsHidden).toBe(true);
@@ -88,8 +88,8 @@ describe("shared mobile-ui primitives", () => {
     expect(screen.getByText("Email belum benar.").props.accessibilityLiveRegion).toBe("polite");
   });
 
-  it("C3: the Stepper count grows past its width and is exposed to screen readers", () => {
-    render(<Stepper label="Porsi" value={12} onChange={() => undefined} decreaseLabel="Kurangi Porsi" increaseLabel="Tambah Porsi" />);
+  it("C3: the Stepper count grows past its width and is exposed to screen readers", async () => {
+    await render(<Stepper label="Porsi" value={12} onChange={() => undefined} decreaseLabel="Kurangi Porsi" increaseLabel="Tambah Porsi" />);
     const count = screen.getByText("12");
     expect(flat(count).width).toBeUndefined();
     expect(flat(count).minWidth).toBeGreaterThanOrEqual(24);
@@ -98,17 +98,17 @@ describe("shared mobile-ui primitives", () => {
     expect(screen.getByRole("button", { name: "Kurangi Porsi" }).props.accessibilityValue).toEqual({ text: "12" });
   });
 
-  it("C4: ReadError announces its message politely", () => {
-    render(<ReadError message="Belum bisa dimuat." onRetry={() => undefined} />);
+  it("C4: ReadError announces its message politely", async () => {
+    await render(<ReadError message="Belum bisa dimuat." onRetry={() => undefined} />);
     expect(screen.getByText("Belum bisa dimuat.").props.accessibilityLiveRegion).toBe("polite");
   });
 
-  it("C5: a SettingsRow reads its supporting line and value after the label", () => {
-    render(<SettingsRow label="Kata sandi" supporting="Terakhir diubah bulan lalu" onPress={() => undefined} os="android" />);
+  it("C5: a SettingsRow reads its supporting line and value after the label", async () => {
+    await render(<SettingsRow label="Kata sandi" supporting="Terakhir diubah bulan lalu" onPress={() => undefined} os="android" />);
     expect(screen.getByRole("button", { name: "Kata sandi, Terakhir diubah bulan lalu" })).toBeTruthy();
-    render(<SettingsRow label="Bahasa" value="Indonesia" supporting="Untuk seluruh aplikasi" onPress={() => undefined} os="ios" />);
+    await render(<SettingsRow label="Bahasa" value="Indonesia" supporting="Untuk seluruh aplikasi" onPress={() => undefined} os="ios" />);
     expect(screen.getByRole("button", { name: "Bahasa, Indonesia, Untuk seluruh aplikasi" })).toBeTruthy();
-    render(<SettingsRow label="Nama" onPress={() => undefined} os="ios" />);
+    await render(<SettingsRow label="Nama" onPress={() => undefined} os="ios" />);
     expect(screen.getByRole("button", { name: "Nama" })).toBeTruthy();
   });
 });
@@ -124,7 +124,7 @@ describe("Notifikasi accessibility", () => {
   });
 
   it("C6: an unread row says so in its label, with body and time; a read row does not", async () => {
-    renderWith(runtimeWith({ notifications: [note("n-1", false), note("n-2", true)] as never }), <NotificationsScreen />);
+    await renderWith(runtimeWith({ notifications: [note("n-1", false), note("n-2", true)] as never }), <NotificationsScreen />);
     expect(await screen.findByRole("button", { name: "Belum dibaca, Kabar n-1, 10.15" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Kabar n-2, 10.15" })).toBeTruthy();
   });
@@ -133,10 +133,10 @@ describe("Notifikasi accessibility", () => {
     const runtime = runtimeWith({ notifications: [note("n-1", false)] as never });
     let release: () => void = () => undefined;
     (runtime.api.command as jest.Mock).mockImplementation(() => new Promise<object>((done) => (release = () => done({}))));
-    renderWith(runtime, <NotificationsScreen />);
+    await renderWith(runtime, <NotificationsScreen />);
     const row = await screen.findByRole("button", { name: /Kabar n-1/ });
-    fireEvent.press(row);
-    fireEvent.press(row);
+    await fireEvent.press(row);
+    await fireEvent.press(row);
     await act(async () => release());
     await waitFor(() => expect(router.push).toHaveBeenCalledTimes(1));
     expect(runtime.api.command).toHaveBeenCalledTimes(1);
@@ -147,7 +147,7 @@ describe("Riwayat pembayaran", () => {
   it("C7: a failed feed shows its retry and not the empty state", async () => {
     const runtime = runtimeWith({ subscriptions: [] });
     (runtime.api.customerActions as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
-    renderWith(runtime, <Payments />);
+    await renderWith(runtime, <Payments />);
     expect(await screen.findByText("Pembayaran yang menunggu belum bisa dimuat. Cek koneksi lalu coba lagi.")).toBeTruthy();
     expect(screen.queryByText("Belum ada pembayaran.")).toBeNull();
   });
@@ -167,7 +167,7 @@ describe("Riwayat pembayaran", () => {
         } as never,
       ],
     );
-    renderWith(runtime, <Payments />);
+    await renderWith(runtime, <Payments />);
     expect(flat(await screen.findByText(/^Jangan bayar lagi\./)).fontSize).toBe(13);
     expect(flat(screen.getByText(/150\.000/)).fontSize).toBe(13);
   });
@@ -175,7 +175,7 @@ describe("Riwayat pembayaran", () => {
 
 describe("Simpan alamat fields", () => {
   it("C9: the street and instructions fields top-align, and the street field offers autofill", async () => {
-    renderWith(runtimeWith(), <AddressForm />);
+    await renderWith(runtimeWith(), <AddressForm />);
     const street = await screen.findByLabelText("Jalan, nomor, detail");
     expect(flat(street).textAlignVertical).toBe("top");
     expect(flat(street).paddingTop).toBe(12);
@@ -192,22 +192,22 @@ describe("return keys", () => {
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
-    renderWith(runtime, <Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderWith(runtime, <Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     const email = screen.getByLabelText("Email");
     const password = screen.getByLabelText("Kata sandi");
     expect(email.props.returnKeyType).toBe("next");
     expect(password.props.returnKeyType).toBe("go");
     const focus = jest.spyOn(TextInput.prototype, "focus").mockImplementation(() => undefined);
-    fireEvent(email, "submitEditing");
+    await fireEvent(email, "submitEditing");
     expect(focus).toHaveBeenCalledTimes(1);
     focus.mockRestore();
 
-    fireEvent.changeText(email, "rani@example.test");
-    fireEvent(password, "submitEditing");
+    await fireEvent.changeText(email, "rani@example.test");
+    await fireEvent(password, "submitEditing");
     expect(runtime.signInPassword).not.toHaveBeenCalled();
-    fireEvent.changeText(password, "synthetic-password");
-    fireEvent(password, "submitEditing");
+    await fireEvent.changeText(password, "synthetic-password");
+    await fireEvent(password, "submitEditing");
     await waitFor(() => expect(runtime.signInPassword).toHaveBeenCalledTimes(1));
   });
 
@@ -227,7 +227,7 @@ describe("return keys", () => {
       channel: () => ({ on() { return this; }, subscribe() { return this; } }),
       removeChannel: async () => undefined,
     };
-    renderWith(runtime, <Register />);
+    await renderWith(runtime, <Register />);
     const name = await screen.findByLabelText("Nama");
     const email = screen.getByLabelText("Email");
     const password = screen.getByLabelText("Kata sandi");
@@ -236,18 +236,18 @@ describe("return keys", () => {
     expect(email.props.returnKeyType).toBe("next");
     expect(password.props.returnKeyType).toBe("go");
     const focus = jest.spyOn(TextInput.prototype, "focus").mockImplementation(() => undefined);
-    fireEvent(name, "submitEditing");
-    fireEvent(email, "submitEditing");
+    await fireEvent(name, "submitEditing");
+    await fireEvent(email, "submitEditing");
     expect(focus).toHaveBeenCalledTimes(2);
     focus.mockRestore();
 
-    fireEvent.changeText(name, "Rani Contoh");
-    fireEvent.changeText(email, "rani@example.test");
-    fireEvent.changeText(password, "short");
-    fireEvent(password, "submitEditing");
+    await fireEvent.changeText(name, "Rani Contoh");
+    await fireEvent.changeText(email, "rani@example.test");
+    await fireEvent.changeText(password, "short");
+    await fireEvent(password, "submitEditing");
     expect(signUp).not.toHaveBeenCalled();
-    fireEvent.changeText(password, "synthetic-password");
-    fireEvent(password, "submitEditing");
+    await fireEvent.changeText(password, "synthetic-password");
+    await fireEvent(password, "submitEditing");
     await waitFor(() => expect(signUp).toHaveBeenCalledTimes(1));
   });
 });

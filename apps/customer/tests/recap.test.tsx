@@ -26,8 +26,8 @@ jest.mock("expo-router", () => ({
       () => mockFocus.value,
     ),
 }));
-const setFocused = (value: boolean) =>
-  act(async () => {
+const setFocused = async (value: boolean) =>
+  await act(async () => {
     mockFocus.value = value;
     mockFocus.listeners.forEach((l) => l());
   });
@@ -124,22 +124,22 @@ function runtimeWith(read: () => Promise<unknown>, usage: UsageMock = jest.fn(as
   return runtime;
 }
 
-const mount = (runtime: MobileRuntime) =>
-  render(
+const mount = async (runtime: MobileRuntime) =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
       <Beranda />
     </MobileProvider>,
   );
 
 /** Lets the session read and the storage reads land inside act, so a test never ends mid-update. */
-const settle = () => act(async () => void (await new Promise((r) => setTimeout(r, 10))));
+const settle = async () => await act(async () => void (await new Promise((r) => setTimeout(r, 10))));
 
 /** The plans block at the end of Beranda ("Paket kamu"), one row for the one running plan. */
 const PLANS = "plans";
 
 /** Beranda with the plans row on screen, and every storage read settled. */
 async function home(runtime: MobileRuntime) {
-  const view = mount(runtime);
+  const view = await mount(runtime);
   await screen.findByTestId(PLANS);
   await settle();
   return view;
@@ -188,7 +188,7 @@ describe("the Paket selesai recap", () => {
     expect(store.get(RECAP_KEY)).toBe("seen");
     await settle();
     expect(screen.getByTestId("recap-card")).toBeTruthy();
-    first.unmount();
+    await first.unmount();
 
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
     expect(screen.queryByTestId("recap-card")).toBeNull();
@@ -196,8 +196,8 @@ describe("the Paket selesai recap", () => {
 
   it("renders nothing until the seen mark has been read, so it never flashes", async () => {
     let answer: (v: string | null) => void = () => undefined;
-    (SecureStore.getItemAsync as jest.Mock).mockImplementation((k: string) =>
-      k === RECAP_KEY ? new Promise<string | null>((r) => (answer = r)) : readStore(k),
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation(async (k: string) =>
+      k === RECAP_KEY ? new Promise<string | null>((r) => (answer = r)) : await readStore(k),
     );
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
     expect(SecureStore.getItemAsync).toHaveBeenCalledWith(RECAP_KEY);
@@ -245,7 +245,7 @@ describe("the Paket selesai recap", () => {
 
   it("Tutup hides the card at once", async () => {
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
-    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(screen.queryByTestId("recap-card")).toBeNull();
     expect(screen.getByTestId("plan-row-s-1")).toBeTruthy();
   });
@@ -254,9 +254,9 @@ describe("the Paket selesai recap", () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()]), usage));
     const renew = screen.getByRole("button", { name: "Perpanjang" });
-    fireEvent.press(renew);
+    await fireEvent.press(renew);
     expect(router.push).toHaveBeenCalledWith("/renew/s-old");
-    fireEvent.press(renew);
+    await fireEvent.press(renew);
     expect(router.push).toHaveBeenCalledTimes(2);
     const renewals = usage.mock.calls.filter(([name]) => name === "renew_started");
     expect(renewals).toEqual([
@@ -308,12 +308,12 @@ describe("the Paket selesai recap", () => {
       }),
     );
     expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
-    fireEvent.press(within(screen.getByTestId("recap-card")).getByRole("button", { name: "Perpanjang" }));
+    await fireEvent.press(within(screen.getByTestId("recap-card")).getByRole("button", { name: "Perpanjang" }));
     expect(router.push).toHaveBeenCalledWith("/renew/s-old");
   });
 
   it("shows on a Beranda with no running plan, above the catalogue invitation", async () => {
-    mount(runtimeWith(async () => stateWith([endedPlan()], false)));
+    await mount(runtimeWith(async () => stateWith([endedPlan()], false)));
     expect(await screen.findByTestId("recap-card")).toBeTruthy();
     // The page order as text; the pull-to-refresh element on the scroll view is a React element, not page content.
     const tree = JSON.stringify(screen.toJSON(), (key, value) => (key === "refreshControl" ? undefined : value));
@@ -327,7 +327,7 @@ describe("the Paket selesai recap", () => {
     expect(screen.getAllByTestId("recap-card")).toHaveLength(1);
     expect(screen.getByText("Senin 21 Sep sampai Rabu 7 Okt")).toBeTruthy();
     expect(store.get("catera.recap.s-older")).toBeUndefined();
-    first.unmount();
+    await first.unmount();
 
     await home(runtimeWith(async () => state()));
     expect(screen.getAllByTestId("recap-card")).toHaveLength(1);
@@ -337,7 +337,7 @@ describe("the Paket selesai recap", () => {
 
   it("speaks English", async () => {
     store.set("catera.locale", "en");
-    mount(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
+    await mount(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
     const card = within(await screen.findByTestId("recap-card"));
     expect(card.getByText("Plan finished")).toBeTruthy();
     expect(card.getByText("Mon 21 Sep to Wed 7 Oct")).toBeTruthy();
@@ -353,7 +353,7 @@ describe("the plans block", () => {
     await home(runtimeWith(async () => stateWith([livePlan()])));
     const row = screen.getByTestId("plan-row-s-1");
     expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(72);
-    fireEvent.press(row);
+    await fireEvent.press(row);
     expect(router.push).toHaveBeenCalledWith("/subscriptions/s-1?title=Makan%20Siang%20Rumahan");
   });
 
@@ -365,7 +365,7 @@ describe("the plans block", () => {
       ends_on: addDays(TODAY, 10),
       remaining: 9,
     });
-    mount(runtimeWith(async () => stateWith([livePlan(), second])));
+    await mount(runtimeWith(async () => stateWith([livePlan(), second])));
     const plans = within(await screen.findByTestId(PLANS));
     expect(plans.getByTestId("plan-row-s-1")).toBeTruthy();
     expect(plans.getByTestId("plan-row-s-2")).toBeTruthy();
@@ -379,12 +379,12 @@ describe("the renewal row", () => {
   it("Perpanjang opens the renewal and counts renew_started on each tap", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     const due = subscription({ id: "s-1", starts_on: addDays(TODAY, -8), ends_on: addDays(TODAY, 3), remaining: 3 });
-    mount(runtimeWith(async () => stateWith([due]), usage));
+    await mount(runtimeWith(async () => stateWith([due]), usage));
     const renew = await screen.findByRole("button", { name: /, Perpanjang$/ });
     await settle();
-    fireEvent.press(renew);
+    await fireEvent.press(renew);
     expect(router.push).toHaveBeenCalledWith("/renew/s-1");
-    fireEvent.press(renew);
+    await fireEvent.press(renew);
     expect(router.push).toHaveBeenCalledTimes(2);
     const renewals = usage.mock.calls.filter(([name]) => name === "renew_started");
     expect(renewals).toEqual([

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { router, useNavigation } from "expo-router";
+import { pushScreen } from "../nav";
 
 /** The longest the hand-off waits for the stop's sheet to finish leaving before it opens the next sheet anyway. */
 export const HANDOFF_WAIT_MS = 1000;
@@ -48,7 +49,7 @@ export function pushAfterClose(href: string, options: { sheet?: { events: SheetE
   function open() {
     if (done) return;
     finish();
-    router.push(href as never);
+    pushScreen(href);
   }
   const handoff = {
     open,

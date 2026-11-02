@@ -106,10 +106,7 @@ const pinMalam = () =>
   });
 
 async function mount(initialUrl = "/") {
-  // A cold start has no route behind it; the test router keeps the last render's route between renders.
-  const { storeRef } = require("expo-router/build/global-state/store");
-  if (storeRef.current) storeRef.current.routeInfo = undefined;
-  const result = renderRouter(appRoutes() as never, { initialUrl });
+  const result = await renderRouter(appRoutes() as never, { initialUrl });
   state = () => result.getRouterState() as unknown as { routes: Nav[] };
   await act(async () => {});
   return result;
@@ -121,21 +118,27 @@ const rootStack = () => {
 const root = () => rootStack().routes.map((r) => r.name);
 const tabsState = () => rootStack().routes.find((r) => r.name === "(tabs)")?.state;
 const tab = () => tabsState()?.routes[tabsState()!.index].name;
-const go = async (work: () => void) => {
-  act(work);
+const go = async (work: () => unknown) => {
+  await act(async () => void (await work()));
   await act(async () => {});
 };
 
 /** The native header the stack hands to react-native-screens, by the title it shows. */
-type Host = { type: unknown; props: Record<string, unknown>; parent: Host | null; children: unknown[] };
-const hosts = (type: string) => (screen.UNSAFE_root.findAll((n) => n.type === type) as unknown as Host[]);
+type Host = {
+  type: unknown;
+  props: Record<string, unknown>;
+  parent: Host | null;
+  children: unknown[];
+  queryAll: (match: (n: Host) => boolean) => Host[];
+};
+const hosts = (type: string) => (screen.container.queryAll((n) => n.type === type) as unknown as Host[]);
 const headers = () => hosts("RNSScreenStackHeaderConfig");
 /** The header of the screen in front: the last one the root stack or the selected tab's stack rendered. */
 const headerOf = (route: string) => {
-  const screens = hosts("RNSScreen").filter((s) => String(s.props.screenId).startsWith(`${route}-`));
+  const screens = hosts("RNSScreen").filter((s) => String(s.props.screenId).startsWith(`${route}:`));
   const own = screens.at(-1);
   if (!own) throw new Error(`no screen for ${route}`);
-  return own.findAll((n: Host) => n.type === "RNSScreenStackHeaderConfig")[0] as Host;
+  return own.queryAll((n: Host) => n.type === "RNSScreenStackHeaderConfig")[0] as Host;
 };
 /** The screen scroll view a node sits in. */
 const scrollAround = (node: unknown) => {
@@ -144,7 +147,7 @@ const scrollAround = (node: unknown) => {
   if (!scroll) throw new Error("not in a screen scroll view");
   return scroll as never;
 };
-const screenOf = (route: string) => hosts("RNSScreen").filter((s) => String(s.props.screenId).startsWith(`${route}-`)).at(-1)!;
+const screenOf = (route: string) => hosts("RNSScreen").filter((s) => String(s.props.screenId).startsWith(`${route}:`)).at(-1)!;
 
 /** The status bar style in effect: React Native merges every mounted StatusBar and the newest one wins. */
 const statusGlyphs = () => {
@@ -186,7 +189,7 @@ describe("native headers on pushed screens", () => {
     });
 
     // Every stack's options are the shared helper's, plus the canvas behind the scenes.
-    const { result } = renderHook(() => useStackScreenOptions(false));
+    const { result } = await renderHook(() => useStackScreenOptions(false));
     expect(result.current).toEqual({
       ...nativeHeaderOptions({ palette: light, demo: false }),
       contentStyle: { backgroundColor: light.canvas },
@@ -235,7 +238,7 @@ describe("native headers on pushed screens", () => {
     const header = headerOf("login");
     expect(header.props.hideBackButton).toBe(true);
     // The close sits in the header's leading slot, icon only, spoken "Tutup".
-    const leading = header.findAll((n: Host) => n.type === "RNSScreenStackHeaderSubview" && n.props.type === "left")[0] as Host;
+    const leading = header.queryAll((n: Host) => n.type === "RNSScreenStackHeaderSubview" && n.props.type === "left")[0] as Host;
     expect(leading).toBeTruthy();
     const close = within(leading as never).getByRole("button", { name: "Tutup" });
     // One spoken button, a full 48dp target inside the slot (the toolbar only delivers touches inside it).
@@ -414,7 +417,7 @@ describe("paid is final", () => {
     // The native header's back (a pop naming the screen) goes home, never back to Beli or the package.
     const bayar = rootStack().routes.find((r) => r.name === "bayar/[id]")!;
     await go(() =>
-      require("expo-router/build/global-state/store").store.navigationRef.current.dispatch({
+      require("expo-router/build/global-state/navigationRef").navigationRef.current.dispatch({
         type: "POP",
         payload: { count: 1 },
         source: bayar.key,
@@ -422,14 +425,14 @@ describe("paid is final", () => {
       }),
     );
     expectHome(app);
-    app.unmount();
+    await app.unmount();
 
     // Close in the header (a back) goes home too.
     app = await paidAfterPurchase();
     const close = within(headerOf("bayar/[id]") as never).getByRole("button", { name: "Tutup" });
     await go(() => fireEvent.press(close));
     expectHome(app);
-    app.unmount();
+    await app.unmount();
 
     // The hardware back.
     const back = hardwareBack();
@@ -464,7 +467,8 @@ describe("tab roots", () => {
   /** Each tab root's mood header: the container, its top row and what the row holds. */
   function moodHeaders() {
     return screen.getAllByTestId("mood-header-row", { includeHiddenElements: true }).map((row) => {
-      const content = (row as unknown as Host).parent as Host;
+      // The row's own box (its gap between the meta and the heart); its parent is the header's content box.
+      const content = row as unknown as Host;
       return { row, content };
     });
   }

@@ -1,10 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
 import { withMobile as withMobileBare } from "./with-mobile";
 import { withDapurScale } from "./dapur-scale";
+import { findAll, hostsOf, oneIcon, oneImage } from "./host-queries";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { ActivityIndicator, StyleSheet } from "react-native";
-import { Image as PhotoImage } from "expo-image";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import type { LibraryDish, MealMenu } from "@catera/domain";
 import { contrastRatio, nativeMood, nativeThemes } from "@catera/design-tokens";
@@ -132,8 +131,8 @@ describe("weekDates", () => {
   });
 });
 
-it("SlotEditor draws one section header per group with its count, and no Save button: Simpan menu is the screen's pinned footer", () => {
-  render(
+it("SlotEditor draws one section header per group with its count, and no Save button: Simpan menu is the screen's pinned footer", async () => {
+  await render(
     withMobile(<SlotEditor
       composition={composition}
       items={[item("a", "g-nasi", "rice", "Nasi putih"), item("b", "g-lauk", "main", "Ayam goreng kremes"), item("c", "g-sayur", "vegetable", "Sayur asem")]}
@@ -162,7 +161,7 @@ it("does not offer helpers package creation on an empty menu", async () => {
     me: jest.fn(async () => ({ actor: { id: "u-2", role: "staff", catererId: "k-1" }, demo: false })),
     sellerOperations: jest.fn(async () => ({ offers: [], dishes: [], datedMenus: [], caterer: { name: "Dapur" } })),
   } as unknown as typeof runtime.api;
-  render(
+  await render(
     <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
       <MenuWeek />
     </MobileProvider>,
@@ -171,9 +170,9 @@ it("does not offer helpers package creation on an empty menu", async () => {
   expect(screen.queryByRole("button", { name: "Buat paket" })).toBeNull();
 });
 
-it("gives a re-added dish a free slot id instead of reusing a taken one", () => {
+it("gives a re-added dish a free slot id instead of reusing a taken one", async () => {
   const onChange = jest.fn();
-  render(
+  await render(
     withMobile(<SlotEditor
       composition={composition}
       items={[item("g-lauk-2", "g-lauk", "main", "Tempe bacem")]}
@@ -184,8 +183,8 @@ it("gives a re-added dish a free slot id instead of reusing a taken one", () => 
       canEdit
     />),
   );
-  fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
-  fireEvent.press(screen.getByText("Ikan bakar"));
+  await fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
+  await fireEvent.press(screen.getByText("Ikan bakar"));
   const ids = (onChange.mock.calls[0][0] as { id: string }[]).map((i) => i.id);
   expect(new Set(ids).size).toBe(ids.length);
 });
@@ -229,7 +228,7 @@ describe("menu reads", () => {
   it("asks the API for the month as YYYY-MM-01", async () => {
     const menuMonth = jest.fn(async () => ({ dates: [], categories: [] }));
     const { wrap, MenuWeek } = setup(menuMonth);
-    render(wrap(<MenuWeek />));
+    await render(wrap(<MenuWeek />));
     await waitFor(() => expect(menuMonth).toHaveBeenCalled());
     for (const call of menuMonth.mock.calls as unknown as unknown[][]) {
       expect(call[0]).toBe("p-1");
@@ -251,7 +250,7 @@ describe("menu reads", () => {
 
     it("shows localized dates, never raw ones", async () => {
       const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
-      render(wrap(<MenuWeek />));
+      await render(wrap(<MenuWeek />));
       expect(await screen.findByText("5–9 Okt")).toBeTruthy();
       // Today is selected, so its card carries the full date; every strip button names its day.
       expect(await screen.findByText("Kamis 8 Okt")).toBeTruthy();
@@ -269,10 +268,10 @@ describe("menu reads", () => {
           categories: [],
         })),
       );
-      render(wrap(<MenuWeek />));
+      await render(wrap(<MenuWeek />));
       // Friday is open to fill: a to-do with its action.
       await screen.findByText("5–9 Okt");
-      fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
+      await fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
       expect(await screen.findByText("Belum diisi")).toBeTruthy();
       // A status, not an error: bold charcoal, never a bare danger caption.
       expect(StyleSheet.flatten(screen.getByText("Belum diisi").props.style)).toMatchObject({
@@ -281,7 +280,7 @@ describe("menu reads", () => {
       });
       expect(screen.getByRole("button", { name: "Ubah menu" })).toBeTruthy();
       // Monday is behind us: it says so and offers no editor.
-      fireEvent.press(screen.getByTestId("menu-day-2026-10-05"));
+      await fireEvent.press(screen.getByTestId("menu-day-2026-10-05"));
       expect(StyleSheet.flatten(screen.getByText("Lewat").props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
       expect(screen.queryByText("Belum diisi")).toBeNull();
       expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
@@ -290,7 +289,7 @@ describe("menu reads", () => {
 
   it("MenuDayScreen's only headings are its groups: the header carries the date, never a second raw one", async () => {
     const { wrap, MenuDayScreen } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
-    render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
+    await render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
     expect(await screen.findByText("Makan Siang Rumahan · Makan siang")).toBeTruthy();
     expect(screen.queryByText("2026-10-07")).toBeNull();
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Nasi", "Lauk", "Sayur"]);
@@ -299,7 +298,7 @@ describe("menu reads", () => {
   it("reads a single day with the same month format", async () => {
     const menuMonth = jest.fn(async () => ({ dates: [], categories: [] }));
     const { wrap, MenuDayScreen } = setup(menuMonth);
-    render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
+    await render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
     await waitFor(() => expect(menuMonth).toHaveBeenCalled());
     expect((menuMonth.mock.calls[0] as unknown as unknown[])[2]).toBe("2026-10-01");
   });
@@ -310,12 +309,12 @@ describe("menu reads", () => {
       .mockRejectedValueOnce(Object.assign(new Error("400"), { code: "VALIDATION_FAILED" }))
       .mockResolvedValue({ dates: [], categories: [] });
     const { wrap, MenuWeek } = setup(menuMonth);
-    render(wrap(<MenuWeek />));
+    await render(wrap(<MenuWeek />));
     const message = await screen.findByText("Menu belum bisa dimuat.");
     // Same as every Dapur read error: the message in the error colour and a text "Coba lagi".
     expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
     expect(StyleSheet.flatten(screen.getByRole("button", { name: "Coba lagi" }).props.style).backgroundColor).not.toBe(require("@catera/design-tokens").nativeThemes.light.forest);
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(screen.queryByText("Menu belum bisa dimuat.")).toBeNull());
     expect(menuMonth.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
@@ -323,7 +322,7 @@ describe("menu reads", () => {
   it("shows the same retry state on the day screen instead of loading forever", async () => {
     const menuMonth = jest.fn().mockRejectedValue(new Error("400"));
     const { wrap, MenuDayScreen } = setup(menuMonth);
-    render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
+    await render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
     const message = await screen.findByText("Menu belum bisa dimuat.");
     expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
     // The pushed screen keeps its header as the only heading.
@@ -346,20 +345,20 @@ describe("menu day with an unknown package", () => {
       sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur" }, dishes: [], datedMenus: [], offers: [] })),
       menuMonth: jest.fn(async () => ({ dates: [], categories: [] })),
     } as unknown as typeof runtime.api;
-    render(
+    await render(
       <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
         <MenuDayScreen date="2026-10-07" packageId="p-gone" meal="lunch" />
       </MobileProvider>,
     );
     expect(await screen.findByText("Paket ini tidak ditemukan.")).toBeTruthy();
     expect(screen.queryByText("Memuat…")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
     expect(router.back).toHaveBeenCalled();
   });
 });
 
 describe("menu loading and sharing states", () => {
-  function runtimeFor(menuMonth: jest.Mock, sellerOperations?: jest.Mock) {
+  async function runtimeFor(menuMonth: jest.Mock, sellerOperations?: jest.Mock) {
     const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
     const MobileProvider = scaled(BaseProvider);
     const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
@@ -387,7 +386,7 @@ describe("menu loading and sharing states", () => {
         })),
       menuMonth,
     } as unknown as typeof runtime.api;
-    return render(
+    return await render(
       <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
         <MenuWeek />
       </MobileProvider>,
@@ -396,7 +395,7 @@ describe("menu loading and sharing states", () => {
   const disabled = (name: string) => screen.getByRole("button", { name }).props.accessibilityState.disabled;
 
   it("Menu actions wait for data", async () => {
-    runtimeFor(jest.fn(() => new Promise(() => undefined)));
+    await runtimeFor(jest.fn(() => new Promise(() => undefined)));
     await screen.findByRole("button", { name: "Bagikan menu" });
     expect(screen.getByLabelText("Memuat menu")).toBeTruthy();
     expect(disabled("Salin minggu lalu")).toBe(true);
@@ -405,20 +404,20 @@ describe("menu loading and sharing states", () => {
   });
 
   it("shows the menu skeleton while the packages load, with no actions", async () => {
-    runtimeFor(jest.fn(), jest.fn(() => new Promise(() => undefined)));
+    await runtimeFor(jest.fn(), jest.fn(() => new Promise(() => undefined)));
     expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Bagikan menu" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Salin minggu lalu" })).toBeNull();
   });
 
   it("Bagikan menu disabled when nothing to share", async () => {
-    runtimeFor(jest.fn(async () => ({ dates: [], categories: [] })));
+    await runtimeFor(jest.fn(async () => ({ dates: [], categories: [] })));
     expect(await screen.findByText("Belum ada menu untuk dibagikan")).toBeTruthy();
     expect(disabled("Bagikan menu")).toBe(true);
   });
 
   it("Salin minggu lalu is disabled with a reason when last week has no menu", async () => {
-    runtimeFor(jest.fn(async () => ({ dates: [], categories: [] })));
+    await runtimeFor(jest.fn(async () => ({ dates: [], categories: [] })));
     expect(await screen.findByText("Minggu lalu belum ada menu untuk disalin")).toBeTruthy();
     expect(disabled("Salin minggu lalu")).toBe(true);
     expect(screen.queryByText(/hari disalin/)).toBeNull();
@@ -436,7 +435,7 @@ describe("menu loading and sharing states", () => {
       const menuMonth = jest.fn((_offer: string, _rev: number, month: string) =>
         month === "2026-11-01" ? Promise.resolve({ dates: [], categories: [] }) : lastWeek,
       );
-      runtimeFor(menuMonth as unknown as jest.Mock);
+      await runtimeFor(menuMonth as unknown as jest.Mock);
       expect(await screen.findByText("Memuat minggu lalu…")).toBeTruthy();
       expect(disabled("Salin minggu lalu")).toBe(true);
       await act(async () => release({ dates: [], categories: [] }));
@@ -469,7 +468,7 @@ describe("menu loading and sharing states", () => {
           },
         }),
       );
-      runtimeFor(jest.fn(async () => ({ dates: lastWeek, categories: [] })));
+      await runtimeFor(jest.fn(async () => ({ dates: lastWeek, categories: [] })));
       await waitFor(() => expect(disabled("Salin minggu lalu")).toBe(false));
       expect(screen.queryByText("Minggu lalu belum ada menu untuk disalin")).toBeNull();
     } finally {
@@ -495,15 +494,15 @@ describe("menu loading and sharing states", () => {
         },
       };
     });
-    runtimeFor(jest.fn(async () => ({ dates, categories: [] })));
+    await runtimeFor(jest.fn(async () => ({ dates, categories: [] })));
     await waitFor(() => expect(disabled("Bagikan menu")).toBe(false));
     expect(screen.queryByText("Belum ada menu untuk dibagikan")).toBeNull();
   });
 });
 
 describe("SlotEditor touch targets", () => {
-  it("remove and suggestion controls are 48dp", () => {
-    render(
+  it("remove and suggestion controls are 48dp", async () => {
+    await render(
       withMobile(<SlotEditor
         composition={composition}
         items={[item("g-lauk-1", "g-lauk", "main", "Tempe bacem")]}
@@ -520,7 +519,7 @@ describe("SlotEditor touch targets", () => {
     expect(StyleSheet.flatten(screen.getByTestId("menu-slot-row-body").props.style)).toMatchObject({ minHeight: 48 });
     expect(within(screen.getAllByTestId("list-card")[1]).getByTestId("menu-slot-row-body")).toBeTruthy();
     expect(StyleSheet.flatten(screen.getByLabelText("Tambah lauk").props.style).minHeight).toBe(48);
-    fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
+    await fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
     expect(StyleSheet.flatten(screen.getByRole("button", { name: /Ikan bakar/ }).props.style).minHeight).toBeGreaterThanOrEqual(48);
     const create = screen.getByRole("button", { name: /Buat hidangan baru/ });
     expect(StyleSheet.flatten(create.props.style).minHeight).toBeGreaterThanOrEqual(48);
@@ -608,7 +607,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
   });
   const bothOffer = () => offerOf({ meal: "both", menus: [template("lunch"), template("dinner")] });
 
-  function mount({
+  async function mount({
     offers = [offerOf()],
     dates = [] as unknown[],
     role = "owner",
@@ -646,7 +645,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       menuMonth,
       command,
     } as unknown as typeof runtime.api;
-    render(
+    await render(
       <MoodProvider now={() => new Date(launch)}>
         <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
           <Refresher />
@@ -654,21 +653,21 @@ describe("Menu week header, strip, day card and photo prompt", () => {
         </MobileProvider>
       </MoodProvider>,
     );
-    return { runtime, menuMonth, command, refresh: () => act(async () => void (await refresh())) };
+    return { runtime, menuMonth, command, refresh: async () => await act(async () => void (await refresh())) };
   }
   const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
   const mealsAsked = (menuMonth: jest.Mock) => [...new Set((menuMonth.mock.calls as unknown as unknown[][]).map((c) => c[3]))];
 
   describe("header", () => {
     it("titles the header with the week range", async () => {
-      mount();
+      await mount();
       const title = await screen.findByText("5–9 Okt");
       expect(title.props.accessibilityRole).toBe("header");
       expect(StyleSheet.flatten(title.props.style).color).toBe(nativeMood.light.siang.headerText);
     });
 
     it("sets the week range in heroTitle (24/30) between two 44 chevrons, in one 44 row", async () => {
-      mount();
+      await mount();
       const title = await screen.findByText("5–9 Okt");
       expect(StyleSheet.flatten(title.props.style)).toMatchObject({ fontSize: 24, lineHeight: 30, textAlign: "center" });
       const row = screen.getByTestId("menu-title-row");
@@ -685,26 +684,26 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("steps to the other week and renames the range", async () => {
-      mount();
+      await mount();
       await screen.findByText("5–9 Okt");
-      fireEvent.press(screen.getByRole("button", { name: "Minggu berikutnya" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Minggu berikutnya" }));
       expect(await screen.findByText("12–16 Okt")).toBeTruthy();
-      fireEvent.press(screen.getByRole("button", { name: "Minggu sebelumnya" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Minggu sebelumnya" }));
       expect(await screen.findByText("5–9 Okt")).toBeTruthy();
     });
 
     it("a helper's loaded week keeps the Pengaturan gear in the header row, and the Siang / Malam toggle in its own 48 frame", async () => {
-      const { menuMonth } = mount({ offers: [bothOffer()], role: "staff" });
+      const { menuMonth } = await mount({ offers: [bothOffer()], role: "staff" });
       await screen.findByText("5–9 Okt");
       const row = screen.getByTestId("mood-header-row");
       // The week label and the gear share the 44 row; the toggle is not in it any more.
       expect(within(row).getAllByRole("button").map((n) => n.props.accessibilityLabel)).toEqual(["Pengaturan"]);
       expect(within(row).queryAllByRole("tab")).toHaveLength(0);
-      fireEvent.press(within(row).getByRole("button", { name: "Pengaturan" }));
+      await fireEvent.press(within(row).getByRole("button", { name: "Pengaturan" }));
       expect(require("expo-router").router.push).toHaveBeenLastCalledWith("/pengaturan");
       // The toggle still picks the meal, from its frame under the week range.
       const frame = screen.getByTestId("menu-meal-frame");
-      fireEvent.press(within(frame).getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(within(frame).getByRole("tab", { name: "Malam" }));
       expect(within(frame).getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
       await waitFor(() => expect(mealsAsked(menuMonth)).toContain("dinner"));
       await act(async () => {});
@@ -712,7 +711,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
     it("sits on the v2 header: a 48 top row (Dapur's touch target), a 12 gap, the mood band behind it", async () => {
       // Dapur's root mounts the v2 scale with a 48 target, so the shared header's row is 48 (the customer app's 44 target keeps 44).
-      mount({ offers: [bothOffer()] });
+      await mount({ offers: [bothOffer()] });
       await screen.findByText("5–9 Okt");
       expect(StyleSheet.flatten(screen.getByTestId("mood-header-row").props.style)).toMatchObject({ minHeight: 48 });
       expect(StyleSheet.flatten(screen.getByTestId("mood-header-content").props.style)).toMatchObject({ gap: 12, paddingHorizontal: 16 });
@@ -721,7 +720,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("puts Siang / Malam in a 48 frame, only for a package that serves both meals", async () => {
-      mount({ offers: [bothOffer()] });
+      await mount({ offers: [bothOffer()] });
       await screen.findByText("5–9 Okt");
       await act(async () => {});
       const frame = screen.getByTestId("menu-meal-frame");
@@ -735,10 +734,10 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("draws the toggle compact in the frame: a 34 track of a whole-dp width (so centring never lands on a half pixel), tabs reaching 48 by hitSlop 7", async () => {
-      mount({ offers: [bothOffer()] });
+      await mount({ offers: [bothOffer()] });
       await screen.findByText("5–9 Okt");
       const frame = screen.getByTestId("menu-meal-frame");
-      const [track] = frame.findAll((n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist");
+      const [track] = findAll(frame, (n) => n.props.accessibilityRole === "tablist");
       const style = StyleSheet.flatten(track.props.style);
       expect(style).toMatchObject({ borderWidth: 1, padding: 1 });
       expect(Number.isInteger(style.width)).toBe(true);
@@ -751,38 +750,38 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("draws no meal frame for a single-meal package", async () => {
-      mount();
+      await mount();
       await screen.findByText("5–9 Okt");
       expect(screen.queryByTestId("menu-meal-frame")).toBeNull();
       expect(screen.queryAllByRole("tab")).toHaveLength(0);
     });
 
     it("the toggle picks the meal for a package that serves both", async () => {
-      const { menuMonth } = mount({ offers: [bothOffer()] });
+      const { menuMonth } = await mount({ offers: [bothOffer()] });
       await screen.findByText("5–9 Okt");
       expect(mealsAsked(menuMonth)).toEqual(["lunch"]);
       expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(true);
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       await waitFor(() => expect(mealsAsked(menuMonth)).toContain("dinner"));
       expect(screen.queryByText(/hanya untuk/)).toBeNull();
     });
 
     it("opens in Malam when the launch mood is Malam", async () => {
-      const { menuMonth } = mount({ offers: [bothOffer()], launch: MALAM });
+      const { menuMonth } = await mount({ offers: [bothOffer()], launch: MALAM });
       await screen.findByText("5–9 Okt");
       expect(mealsAsked(menuMonth)).toEqual(["dinner"]);
       expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
     });
 
     it("a lunch-only package keeps its own meal in Malam, with a caption and no toggle", async () => {
-      const { menuMonth } = mount({ launch: MALAM });
+      const { menuMonth } = await mount({ launch: MALAM });
       expect(await screen.findByText("Paket ini hanya untuk makan siang")).toBeTruthy();
       expect(mealsAsked(menuMonth)).toEqual(["lunch"]);
       expect(screen.queryAllByRole("tab")).toHaveLength(0);
     });
 
     it("a dinner-only package keeps its own meal in Siang", async () => {
-      const { menuMonth } = mount({ offers: [offerOf({ meal: "dinner", menus: [template("dinner")] })] });
+      const { menuMonth } = await mount({ offers: [offerOf({ meal: "dinner", menus: [template("dinner")] })] });
       expect(await screen.findByText("Paket ini hanya untuk makan malam")).toBeTruthy();
       expect(mealsAsked(menuMonth)).toEqual(["dinner"]);
     });
@@ -797,7 +796,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
         me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
         sellerOperations: jest.fn(() => new Promise(() => undefined)),
       } as unknown as typeof runtime.api;
-      render(
+      await render(
         <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
           <MenuWeek />
         </MobileProvider>,
@@ -810,7 +809,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
   describe("day strip", () => {
     it("renders one 56dp tile per delivery date, with weekday, date and a 6dp dot for a filled day", async () => {
-      mount({ dates: [filled("2026-10-08")] });
+      await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("5–9 Okt");
       const buttons = screen.getAllByTestId(/^menu-day-/);
       expect(buttons.map((b) => b.props.testID)).toEqual([
@@ -835,7 +834,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("draws today with a forest ring and the selected day with a filled chip", async () => {
-      mount();
+      await mount();
       await screen.findByText("5–9 Okt");
       const light = nativeThemes.light;
       // Today starts selected.
@@ -852,15 +851,15 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("reads the mood's ring colour on a Malam header", async () => {
-      mount({ launch: MALAM });
+      await mount({ launch: MALAM });
       await screen.findByText("5–9 Okt");
       expect(flatOf("menu-day-2026-10-08").borderColor).toBe(nativeMood.light.malam.todayRing);
     });
 
     it("tapping a day selects it without leaving the screen", async () => {
-      mount();
+      await mount();
       await screen.findByText("5–9 Okt");
-      fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
+      await fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
       expect(flatOf("menu-day-2026-10-09")).toMatchObject({
         backgroundColor: nativeMood.light.siang.toggleActive,
         borderColor: nativeMood.light.siang.toggleActive,
@@ -874,7 +873,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("shows the selected day on a Malam header: a forest fill that stands out, in the mood's own tokens", async () => {
-      mount({ launch: MALAM });
+      await mount({ launch: MALAM });
       await screen.findByText("5–9 Okt");
       const malam = nativeMood.light.malam;
       // Today (selected) keeps its ring and takes the selected segment's fill and ink.
@@ -884,7 +883,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(contrastRatio(malam.toggleActive, malam.header)).toBeGreaterThanOrEqual(3);
       expect(contrastRatio(malam.onToggleActive, malam.toggleActive)).toBeGreaterThanOrEqual(4.5);
       // A selected day that is not today is filled and outlined in the same token.
-      fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
+      await fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
       expect(flatOf("menu-day-2026-10-09")).toMatchObject({ backgroundColor: malam.toggleActive, borderColor: malam.toggleActive });
       // An unselected day has no fill.
       expect(flatOf("menu-day-2026-10-06").backgroundColor).toBe("transparent");
@@ -896,10 +895,10 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       [412, 380, 51],
       [360, 328, 44],
     ])("lays seven delivery days in one row at %idp (strip %i): tile width (inner - 6 x 4) / 7, about %i, height 56", async (_dp, inner, about) => {
-      mount({ offers: [offerOf({ weekdays: [0, 1, 2, 3, 4, 5, 6] })] });
+      await mount({ offers: [offerOf({ weekdays: [0, 1, 2, 3, 4, 5, 6] })] });
       await screen.findByText("5–11 Okt");
       // The strip's own width is the window less the 16 margins: 412 - 32 = 380, 360 - 32 = 328.
-      fireEvent(screen.getByTestId("menu-strip"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: inner, height: 56 } } });
+      await fireEvent(screen.getByTestId("menu-strip"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: inner, height: 56 } } });
       const strip = flatOf("menu-strip");
       expect(strip).toMatchObject({ flexDirection: "row", gap: 4 });
       expect(strip.flexWrap).not.toBe("wrap");
@@ -915,9 +914,9 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("keeps one row of equal tiles for five days, by the same formula", async () => {
-      mount();
+      await mount();
       await screen.findByText("5–9 Okt");
-      fireEvent(screen.getByTestId("menu-strip"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 380, height: 56 } } });
+      await fireEvent(screen.getByTestId("menu-strip"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 380, height: 56 } } });
       const widths = screen.getAllByTestId(/^menu-day-/).map((b) => StyleSheet.flatten(b.props.style).width as number);
       expect(widths).toHaveLength(5);
       for (const w of widths) expect(w).toBeCloseTo((380 - 4 * 4) / 5, 5);
@@ -925,7 +924,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("does not call a day unfilled before the week has been read", async () => {
-      mount({ unread: true });
+      await mount({ unread: true });
       await screen.findByText("5–9 Okt");
       const buttons = screen.getAllByTestId(/^menu-day-/);
       for (const b of buttons) {
@@ -940,7 +939,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     const twoOffers = () => [offerOf(), offerOf({ id: "p-2", name: "Rantang Nusantara" })];
 
     it("holds the package chips in a 48 frame that scrolls sideways, each chip 34 with a 7 slop", async () => {
-      mount({ offers: twoOffers() });
+      await mount({ offers: twoOffers() });
       await screen.findByText("5–9 Okt");
       const chips = screen.getByTestId("menu-package-chips");
       expect(chips.props.horizontal).toBe(true);
@@ -954,7 +953,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("an owner has Salin minggu lalu and Bagikan menu side by side, two 50 secondary buttons", async () => {
-      mount();
+      await mount();
       await screen.findByText("5–9 Okt");
       const row = screen.getByTestId("menu-actions");
       expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: "row", gap: 8 });
@@ -966,7 +965,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("stacks Salin minggu lalu over Bagikan menu below 400 effective width (360dp at font scale 1.3), each on its own line", async () => {
       mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
       try {
-        mount();
+        await mount();
         await screen.findByText("5–9 Okt");
         const row = screen.getByTestId("menu-actions");
         expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: "column", gap: 8 });
@@ -984,7 +983,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("keeps the pair side by side from 400 effective width (412dp at font scale 1.0), the same rule the customer's pair uses", async () => {
       mockWindow = { width: 412, height: 860, scale: 3, fontScale: 1 };
       try {
-        mount();
+        await mount();
         await screen.findByText("5–9 Okt");
         expect(StyleSheet.flatten(screen.getByTestId("menu-actions").props.style).flexDirection).toBe("row");
         for (const b of within(screen.getByTestId("menu-actions")).getAllByRole("button")) expect(StyleSheet.flatten(b.props.style).flex).toBe(1);
@@ -996,7 +995,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("a helper's lone Bagikan menu keeps its full-width row even where an owner's pair stacks", async () => {
       mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
       try {
-        mount({ role: "staff" });
+        await mount({ role: "staff" });
         await screen.findByText("5–9 Okt");
         expect(StyleSheet.flatten(screen.getByTestId("menu-actions").props.style).flexDirection).toBe("row");
         expect(StyleSheet.flatten(within(screen.getByTestId("menu-actions")).getByRole("button").props.style).flex).toBe(1);
@@ -1006,7 +1005,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("a helper has Bagikan menu alone, across the full width", async () => {
-      mount({ role: "staff" });
+      await mount({ role: "staff" });
       await screen.findByText("5–9 Okt");
       const buttons = within(screen.getByTestId("menu-actions")).getAllByRole("button");
       expect(buttons.map((b) => b.props.accessibilityLabel)).toEqual(["Bagikan menu"]);
@@ -1017,7 +1016,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
   describe("day card", () => {
     it("lists the dishes under their composition group, with a dashed camera tile where a photo is missing", async () => {
-      mount({ dates: [filled("2026-10-08")] });
+      await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
       // Each group is a meta label over its own list card.
       for (const label of ["Nasi", "Lauk", "Sayur"]) expect(StyleSheet.flatten(screen.getByText(label).props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
@@ -1032,12 +1031,12 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(screen.getByText("Tempe bacem")).toBeTruthy();
       // The not-set tile is a 48 dashed square with the camera glyph, radius 8, like Thumb's.
       expect(flatOf("menu-photo-tile-i-ayam")).toMatchObject({ width: 48, height: 48, borderRadius: 8, borderStyle: "dashed", borderColor: nativeThemes.light.controlRing });
-      expect(within(screen.getByTestId("menu-photo-tile-i-ayam")).UNSAFE_getByType(Ionicons).props.name).toBe("camera-outline");
+      expect(oneIcon(screen.getByTestId("menu-photo-tile-i-ayam")).name).toBe("camera-outline");
       expect(screen.getByTestId("menu-photo-tile-i-sayur", { includeHiddenElements: true })).toBeTruthy();
       // The dishes that have a photo show it in a 48 r8 thumb and offer nothing.
       expect(screen.queryByTestId("menu-photo-tile-i-nasi", { includeHiddenElements: true })).toBeNull();
       expect(flatOf("menu-dish-photo-i-nasi")).toMatchObject({ width: 48, height: 48, borderRadius: 8 });
-      const photo = within(screen.getByTestId("menu-dish-photo-i-nasi")).UNSAFE_getByType(PhotoImage);
+      const photo = oneImage(screen.getByTestId("menu-dish-photo-i-nasi"));
       expect(photo.props.source).toEqual({ uri: "https://cdn.test/nasi.jpg" });
       // The corners are rounded by the image itself, and no ancestor clips it: on Android a photo that finishes loading
       // inside an `overflow: hidden` rounded view stayed blank until the screen was reopened (so no Thumb, no ListCard).
@@ -1049,7 +1048,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("every dish row is a 64 compact media row, with a photo or without", async () => {
-      mount({ dates: [filled("2026-10-08")] });
+      await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
       for (const id of ["i-nasi", "i-ayam", "i-tempe", "i-sayur"]) {
         expect(flatOf(`menu-dish-${id}`)).toMatchObject({ minHeight: 64, flexDirection: "row", alignItems: "center" });
@@ -1060,14 +1059,14 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
     it("a dish row's one meta line is its serving, when it has one", async () => {
       const served = dishes.map((d) => (d.id === "i-nasi" ? { ...d, serving: "180 g" } : d));
-      mount({ dates: [filled("2026-10-08", served)] });
+      await mount({ dates: [filled("2026-10-08", served)] });
       await screen.findByText("Nasi putih");
       expect(within(screen.getByTestId("menu-dish-i-nasi")).getByText("180 g")).toBeTruthy();
       expect(StyleSheet.flatten(screen.getByText("180 g").props.style)).toMatchObject({ fontSize: 13 });
     });
 
     it("the day's header holds its date and, for an owner, Ubah menu in its trailing slot", async () => {
-      mount({ dates: [filled("2026-10-08")] });
+      await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
       const header = screen.getAllByTestId("section-header").find((h) => within(h).queryByText("Kamis 8 Okt"))!;
       const edit = within(within(header).getByTestId("section-header-trailing")).getByRole("button", { name: "Ubah menu" });
@@ -1080,7 +1079,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
     it("calls an empty day past its change cutoff closed, in muted ink with no action", async () => {
       // Today in production: the cutoff was yesterday, so nothing can be filled and nothing is asked of the caterer.
-      mount({ dates: [{ date: "2026-10-08", version: 0, editable: false, details: null }] });
+      await mount({ dates: [{ date: "2026-10-08", version: 0, editable: false, details: null }] });
       const label = await screen.findByText("Sudah tidak bisa diubah");
       expect(StyleSheet.flatten(label.props.style)).toMatchObject({ color: nativeThemes.light.muted, fontSize: 13, lineHeight: 18 });
       expect(screen.queryByText("Belum diisi")).toBeNull();
@@ -1092,21 +1091,21 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("a helper's day header stays one heading line, as its skeleton is", async () => {
-      mount({ dates: [filled("2026-10-08")], role: "staff" });
+      await mount({ dates: [filled("2026-10-08")], role: "staff" });
       await screen.findByText("Nasi putih");
       const header = screen.getAllByTestId("section-header").find((h) => within(h).queryByText("Kamis 8 Okt"))!;
       expect(StyleSheet.flatten(header.props.style).minHeight).toBeUndefined();
     });
 
     it("Ubah menu opens the day editor", async () => {
-      mount({ dates: [filled("2026-10-08")] });
+      await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
-      fireEvent.press(screen.getByRole("button", { name: "Ubah menu" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Ubah menu" }));
       expect(require("expo-router").router.push).toHaveBeenCalledWith("/menu/2026-10-08?pkg=p-1&meal=lunch");
     });
 
     it("offers a helper no editing and no photo prompt", async () => {
-      mount({ dates: [filled("2026-10-08")], role: "staff" });
+      await mount({ dates: [filled("2026-10-08")], role: "staff" });
       await screen.findByText("Nasi putih");
       expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
       expect(screen.queryByRole("button", { name: /^Tambah foto/ })).toBeNull();
@@ -1114,13 +1113,13 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(flatOf("menu-dish-i-ayam").minHeight).toBe(64);
       const tile = screen.getByTestId("menu-photo-tile-i-ayam-not-set", { includeHiddenElements: true });
       expect(flatOf("menu-photo-tile-i-ayam-not-set")).toMatchObject({ width: 48, height: 48, borderRadius: 8, borderStyle: "dashed" });
-      expect(within(tile).UNSAFE_getByType(Ionicons).props.name).toBe("restaurant-outline");
+      expect(oneIcon(tile).name).toBe("restaurant-outline");
       expect(screen.queryByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true })).toBeNull();
       expect(within(screen.getByTestId("menu-dish-i-ayam")).queryByRole("button")).toBeNull();
     });
 
     it("an owner sees the same utensils tile, not the camera action, on a day that can no longer change", async () => {
-      mount({ dates: [filled("2026-10-08", dishes, false)] });
+      await mount({ dates: [filled("2026-10-08", dishes, false)] });
       await screen.findByText("Nasi putih");
       expect(screen.getByTestId("menu-photo-tile-i-ayam-not-set", { includeHiddenElements: true })).toBeTruthy();
       expect(screen.queryByRole("button", { name: /^Tambah foto/ })).toBeNull();
@@ -1131,7 +1130,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       const long = "Ayam panggang bumbu rempah";
       mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
       try {
-        mount({ dates: [filled("2026-10-08", dishes.map((d) => (d.id === "i-ayam" ? { ...d, name: long } : d)))] });
+        await mount({ dates: [filled("2026-10-08", dishes.map((d) => (d.id === "i-ayam" ? { ...d, name: long } : d)))] });
         const title = await screen.findByText(long);
         // Not limited to one line: the name grows the row only when it needs to.
         expect(title.props.numberOfLines).toBeUndefined();
@@ -1151,9 +1150,9 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("uploads the picked photo, then saves that day's item only", async () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockResolvedValue("https://cdn.test/ayam.jpg");
-      const { runtime, command } = mount({ dates: [filled("2026-10-08")] });
+      const { runtime, command } = await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       await waitFor(() => expect(command).toHaveBeenCalled());
       expect(pick).toHaveBeenCalledWith({ mediaTypes: ["images"], quality: 0.8 });
       expect(upload).toHaveBeenCalledWith(runtime, asset, false);
@@ -1183,9 +1182,9 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("says Mengunggah… on the dish while the photo is on its way", async () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockReturnValue(new Promise(() => undefined));
-      const { command } = mount({ dates: [filled("2026-10-08")] });
+      const { command } = await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       expect(await screen.findByText("Mengunggah…")).toBeTruthy();
       expect(command).not.toHaveBeenCalled();
       // One photo at a time: the other pill waits.
@@ -1195,9 +1194,9 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("shows a selectable danger message when the upload fails, and saves nothing", async () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockRejectedValue(Object.assign(new Error("UPLOAD_FAILED"), { code: "UPLOAD_FAILED" }));
-      const { command } = mount({ dates: [filled("2026-10-08")] });
+      const { command } = await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       const message = await screen.findByText("Foto gagal diunggah. Coba lagi.");
       expect(message.props.selectable).toBe(true);
       expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
@@ -1208,9 +1207,9 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
     it("does nothing when the picker is cancelled", async () => {
       pick.mockResolvedValue({ canceled: true, assets: null });
-      const { command } = mount({ dates: [filled("2026-10-08")] });
+      const { command } = await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       await waitFor(() => expect(pick).toHaveBeenCalled());
       expect(upload).not.toHaveBeenCalled();
       expect(command).not.toHaveBeenCalled();
@@ -1221,11 +1220,11 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("shows a failed save and reads the day again so a conflict can be retried", async () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockResolvedValue("https://cdn.test/ayam.jpg");
-      const { command, menuMonth } = mount({ dates: [filled("2026-10-08")] });
+      const { command, menuMonth } = await mount({ dates: [filled("2026-10-08")] });
       command.mockRejectedValue(Object.assign(new Error("boom"), { code: "CONFLICT" }));
       await screen.findByText("Nasi putih");
       const reads = menuMonth.mock.calls.length;
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       await waitFor(() => expect(command).toHaveBeenCalled());
       const message = await screen.findByText("Ada yang berubah. Muat ulang, lalu coba lagi.");
       expect(message.props.selectable).toBe(true);
@@ -1238,13 +1237,13 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
     it("opens the picker once when the pill is tapped twice before anything re-renders", async () => {
       pick.mockReturnValue(new Promise(() => undefined));
-      mount({ dates: [filled("2026-10-08")] });
+      await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
       const pill = ayamPill();
       // Both taps land inside one act, so the pill has not had the chance to disable itself: only the guard stops the second.
-      act(() => {
-        fireEvent.press(pill);
-        fireEvent.press(pill);
+      await act(async () => {
+        await fireEvent.press(pill);
+        await fireEvent.press(pill);
       });
       expect(pick).toHaveBeenCalledTimes(1);
     });
@@ -1255,7 +1254,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       // The first read after the save still has the old week (no photo, same version); a later one has the photo.
       let phase: "before" | "stale" | "fresh" = "before";
       const withPhoto = dishes.map((d) => (d.id === "i-ayam" ? { ...d, image: "https://cdn.test/ayam.jpg" } : d));
-      const { command, menuMonth, refresh } = mount({
+      const { command, menuMonth, refresh } = await mount({
         dates: () => [{ ...filled("2026-10-08", phase === "fresh" ? withPhoto : dishes), version: phase === "fresh" ? 4 : 3 }],
       });
       command.mockImplementation(async (action: string) => {
@@ -1264,7 +1263,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       });
       await screen.findByText("Nasi putih");
       const reads = menuMonth.mock.calls.length;
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       await waitFor(() => expect(command).toHaveBeenCalled());
       // The read that follows the save lands without the photo.
       await waitFor(() => expect(menuMonth.mock.calls.length).toBeGreaterThan(reads));
@@ -1280,7 +1279,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       phase = "fresh";
       await refresh();
       await waitFor(() => expect(screen.queryByRole("button", { name: "Tambah foto, Ayam goreng" })).toBeNull());
-      expect(within(screen.getByTestId("menu-dish-photo-i-ayam")).UNSAFE_getByType(PhotoImage).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
+      expect(oneImage(screen.getByTestId("menu-dish-photo-i-ayam")).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
       expect(screen.queryByText("Mengunggah…")).toBeNull();
       expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBeFalsy();
     });
@@ -1289,11 +1288,11 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockReturnValue(new Promise(() => undefined));
       // Friday has the same slots as Thursday, so the same dish ids.
-      mount({ dates: [filled("2026-10-08"), filled("2026-10-09")] });
+      await mount({ dates: [filled("2026-10-08"), filled("2026-10-09")] });
       await screen.findByText("Nasi putih");
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       expect(await screen.findByText("Mengunggah…")).toBeTruthy();
-      fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
+      await fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
       await screen.findByText("Jumat 9 Okt");
       expect(screen.queryByText("Mengunggah…")).toBeNull();
       expect(screen.queryByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeNull();
@@ -1301,7 +1300,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       // Still one photo at a time: Friday's pill waits too.
       expect(ayamPill().props.accessibilityState.disabled).toBe(true);
       // Back on Thursday the upload is still shown.
-      fireEvent.press(screen.getByTestId("menu-day-2026-10-08"));
+      await fireEvent.press(screen.getByTestId("menu-day-2026-10-08"));
       expect(await screen.findByText("Mengunggah…")).toBeTruthy();
       expect(screen.getByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeTruthy();
     });
@@ -1310,22 +1309,22 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockResolvedValue("https://cdn.test/ayam.jpg");
       // Every read after the save is stale (no photo, same version), so the wait lasts.
-      const { command, menuMonth } = mount({ dates: () => [filled("2026-10-08"), filled("2026-10-09")] });
+      const { command, menuMonth } = await mount({ dates: () => [filled("2026-10-08"), filled("2026-10-09")] });
       await screen.findByText("Nasi putih");
       const reads = menuMonth.mock.calls.length;
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       await waitFor(() => expect(command).toHaveBeenCalled());
       await waitFor(() => expect(menuMonth.mock.calls.length).toBeGreaterThan(reads));
       await act(async () => undefined);
       await act(async () => undefined);
       expect(screen.getByText("Mengunggah…")).toBeTruthy();
-      fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
+      await fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
       await screen.findByText("Jumat 9 Okt");
       expect(screen.queryByText("Mengunggah…")).toBeNull();
       expect(screen.queryByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeNull();
       expect(screen.getByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true })).toBeTruthy();
       expect(ayamPill().props.accessibilityState.disabled).toBe(true);
-      fireEvent.press(screen.getByTestId("menu-day-2026-10-08"));
+      await fireEvent.press(screen.getByTestId("menu-day-2026-10-08"));
       expect(await screen.findByText("Mengunggah…")).toBeTruthy();
       expect(screen.getByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeTruthy();
     });
@@ -1333,10 +1332,10 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("shows a hidden system spinner in the tile while uploading, and none otherwise", async () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockReturnValue(new Promise(() => undefined));
-      mount({ dates: [filled("2026-10-08")] });
+      await mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
-      expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
-      fireEvent.press(ayamPill());
+      expect(hostsOf("ActivityIndicator")).toHaveLength(0);
+      await fireEvent.press(ayamPill());
       await screen.findByText("Mengunggah…");
       const spinner = screen.getByTestId("menu-photo-spinner-i-ayam", { includeHiddenElements: true });
       expect(spinner.props.size).toBe("small");
@@ -1345,14 +1344,14 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(spinner.props.importantForAccessibility).toBe("no-hide-descendants");
       // It sits inside the tile, and only on the dish being uploaded.
       expect(within(ayamPill()).getByTestId("menu-photo-spinner-i-ayam", { includeHiddenElements: true })).toBeTruthy();
-      expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(1);
+      expect(hostsOf("ActivityIndicator")).toHaveLength(1);
     });
 
     it("gives the pills back when the read after the save fails, so the caterer is never stuck", async () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockResolvedValue("https://cdn.test/ayam.jpg");
       let failing = false;
-      const { command } = mount({
+      const { command } = await mount({
         dates: () => {
           if (failing) throw Object.assign(new Error("offline"), { code: "REQUEST_TIMEOUT" });
           return [filled("2026-10-08")];
@@ -1363,7 +1362,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
         return {};
       });
       await screen.findByText("Nasi putih");
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       await waitFor(() => expect(command).toHaveBeenCalled());
       await waitFor(() => expect(screen.queryByText("Mengunggah…")).toBeNull());
       expect(ayamPill().props.accessibilityState.disabled).toBeFalsy();
@@ -1374,9 +1373,9 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       let choose: (value: unknown) => void = () => undefined;
       pick.mockReturnValue(new Promise((resolve) => (choose = resolve)));
       upload.mockResolvedValue("https://cdn.test/ayam.jpg");
-      const { command, menuMonth, refresh } = mount({ dates: () => [{ ...filled("2026-10-08"), version }] });
+      const { command, menuMonth, refresh } = await mount({ dates: () => [{ ...filled("2026-10-08"), version }] });
       await screen.findByText("Nasi putih");
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       // While the picker is open, someone else changes the day: it moves to version 4 and the week is read again.
       version = 4;
       const reads = menuMonth.mock.calls.length;
@@ -1394,11 +1393,11 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       let choose: (value: unknown) => void = () => undefined;
       pick.mockReturnValue(new Promise((resolve) => (choose = resolve)));
       upload.mockResolvedValue("https://cdn.test/ayam.jpg");
-      const { command, menuMonth, refresh } = mount({
+      const { command, menuMonth, refresh } = await mount({
         dates: () => [filled("2026-10-08", gone ? dishes.filter((d) => d.id !== "i-ayam") : dishes)],
       });
       await screen.findByText("Nasi putih");
-      fireEvent.press(ayamPill());
+      await fireEvent.press(ayamPill());
       gone = true;
       const reads = menuMonth.mock.calls.length;
       await refresh();
@@ -1416,10 +1415,10 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
   describe("story preview", () => {
     it("shows the cover customers will see, from the main dish photo, with the caption", async () => {
-      mount({ dates: [filled("2026-10-08", [{ ...dishes[1], image: "https://cdn.test/ayam.jpg" }, dishes[0], dishes[2], dishes[3]])] });
+      await mount({ dates: [filled("2026-10-08", [{ ...dishes[1], image: "https://cdn.test/ayam.jpg" }, dishes[0], dishes[2], dishes[3]])] });
       expect(await screen.findByText("Tampilan di aplikasi pelanggan")).toBeTruthy();
       const cover = screen.getByTestId("story-cover");
-      expect(within(cover).UNSAFE_getByType(PhotoImage).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
+      expect(oneImage(cover).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
       expect(
         screen.getByText("Foto lauk utama jadi sampul menu besok. Menu tanpa foto memakai foto paket."),
       ).toBeTruthy();
@@ -1427,9 +1426,9 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
     it("falls back to the package photo for a menu without photos", async () => {
       const bare = dishes.map((d) => ({ ...d, image: "" }));
-      mount({ dates: [filled("2026-10-08", bare)] });
+      await mount({ dates: [filled("2026-10-08", bare)] });
       await screen.findByText("Tampilan di aplikasi pelanggan");
-      expect(within(screen.getByTestId("story-cover")).UNSAFE_getByType(PhotoImage).props.source).toEqual({
+      expect(oneImage(screen.getByTestId("story-cover")).props.source).toEqual({
         uri: "https://cdn.test/paket.jpg",
       });
     });
@@ -1438,7 +1437,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     const segmentCount = () => screen.queryAllByTestId(/^story-segment-/, { includeHiddenElements: true }).length;
 
     it("mirrors the customer story: two slides for a package that serves both, lunch active in Siang", async () => {
-      mount({ offers: [bothOffer()], dates: [filled("2026-10-08")] });
+      await mount({ offers: [bothOffer()], dates: [filled("2026-10-08")] });
       await screen.findByText("Tampilan di aplikasi pelanggan");
       expect(segmentCount()).toBe(2);
       expect(segment(0).opacity).toBe(1);
@@ -1446,7 +1445,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("has dinner active in Malam", async () => {
-      mount({ offers: [bothOffer()], dates: [filled("2026-10-08")], launch: MALAM });
+      await mount({ offers: [bothOffer()], dates: [filled("2026-10-08")], launch: MALAM });
       await screen.findByText("Tampilan di aplikasi pelanggan");
       expect(segmentCount()).toBe(2);
       expect(segment(0).opacity).toBe(1);
@@ -1454,14 +1453,14 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("is a single slide for a single-meal package", async () => {
-      mount({ dates: [filled("2026-10-08")], launch: MALAM });
+      await mount({ dates: [filled("2026-10-08")], launch: MALAM });
       await screen.findByText("Tampilan di aplikasi pelanggan");
       expect(segmentCount()).toBe(1);
       expect(segment(0).opacity).toBe(1);
     });
 
     it("has no preview for a day without a menu", async () => {
-      mount({ dates: [{ date: "2026-10-08", version: 0, editable: true, details: null }] });
+      await mount({ dates: [{ date: "2026-10-08", version: 0, editable: true, details: null }] });
       await screen.findByText("Belum diisi");
       expect(screen.queryByTestId("story-cover")).toBeNull();
       expect(screen.queryByText("Tampilan di aplikasi pelanggan")).toBeNull();
@@ -1481,14 +1480,14 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       menuMonth: jest.fn(async () => ({ dates: [{ ...filled("2026-10-07", [dishes[0], dishes[1], food("i-oseng", "g-lauk", "main", "Oseng"), dishes[3]]) }], categories: [] })),
       command,
     } as unknown as typeof runtime.api;
-    render(
+    await render(
       <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
         <MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />
       </MobileProvider>,
     );
     const save = await screen.findByRole("button", { name: "Simpan menu" });
     await waitFor(() => expect(screen.getByRole("button", { name: "Simpan menu" }).props.accessibilityState.disabled).toBeFalsy());
-    fireEvent.press(save);
+    await fireEvent.press(save);
     await waitFor(() => expect(command).toHaveBeenCalled());
     const [action, payload] = command.mock.calls[0] as unknown as [string, { dates: unknown; details: { items: unknown[]; contentModel: string } }];
     expect(action).toBe("menu.saveBatch");
@@ -1499,7 +1498,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
   });
 
   describe("day editor footer", () => {
-    function mountDay(role: string, items: typeof dishes) {
+    async function mountDay(role: string, items: typeof dishes) {
       const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
       const MobileProvider = scaled(BaseProvider);
       const { MenuDayScreen } = jest.requireActual("../src/menu/MenuDayScreen") as typeof import("../src/menu/MenuDayScreen");
@@ -1511,7 +1510,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
         menuMonth: jest.fn(async () => ({ dates: [filled("2026-10-07", items)], categories: [] })),
         command: jest.fn(async () => ({})),
       } as unknown as typeof runtime.api;
-      render(
+      await render(
         <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
           <MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />
         </MobileProvider>,
@@ -1519,7 +1518,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     }
 
     it("pins Simpan menu in the screen footer for an owner, disabled until every group is filled", async () => {
-      mountDay("owner", [dishes[0], dishes[1], dishes[3]]);
+      await mountDay("owner", [dishes[0], dishes[1], dishes[3]]);
       const footer = await screen.findByTestId("screen-footer");
       const save = within(footer).getByRole("button", { name: "Simpan menu" });
       expect(save.props.accessibilityState.disabled).toBe(true);
@@ -1531,13 +1530,13 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("enables Simpan menu once the day is complete", async () => {
-      mountDay("owner", dishes);
+      await mountDay("owner", dishes);
       const footer = await screen.findByTestId("screen-footer");
       await waitFor(() => expect(within(footer).getByRole("button", { name: "Simpan menu" }).props.accessibilityState.disabled).toBeFalsy());
     });
 
     it("a helper's day editor is read-only: no footer, no Simpan menu, no remove, no input", async () => {
-      mountDay("staff", dishes);
+      await mountDay("staff", dishes);
       await screen.findByText("Ayam goreng");
       expect(screen.queryByTestId("screen-footer")).toBeNull();
       expect(screen.queryByRole("button", { name: "Simpan menu" })).toBeNull();

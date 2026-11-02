@@ -349,7 +349,7 @@ const state = (name: string) => STATES.find((s) => s.name === name)!;
 async function open(state: State) {
   mockParams = state.params ?? {};
   const runtime = state.runtime();
-  render(state.bare ? <AppProviders runtime={runtime}>{state.ui}</AppProviders> : wrap(runtime, state.ui));
+  await render(state.bare ? <AppProviders runtime={runtime}>{state.ui}</AppProviders> : wrap(runtime, state.ui));
   await state.reach?.();
   return screen.findByTestId(`mascot-${state.pose}`, hidden, { timeout: 4000 });
 }
@@ -389,12 +389,12 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     for (const state of ["Notifikasi that could not load", "Disimpan that could not load", "Belum bisa terhubung"].map((n) => STATES.find((s) => s.name === n)!)) {
       const art = await open(state);
       expect(artHeight(art)).toBe(72);
-      screen.unmount();
+      await screen.unmount();
     }
     // Enlarged text on a wider phone, or a 360dp phone at the default size, keeps 88.
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
     expect(artHeight(await open(state("Disimpan that could not load")))).toBe(88);
-    screen.unmount();
+    await screen.unmount();
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
     expect(artHeight(await open(state("Disimpan that could not load")))).toBe(88);
   });
@@ -424,7 +424,7 @@ it("mascot art is hidden from screen readers", async () => {
     expect(art.props.accessible).toBe(false);
     expect(art.props.importantForAccessibility).toBe("no-hide-descendants");
     expect(art.props.accessibilityElementsHidden).toBe(true);
-    screen.unmount();
+    await screen.unmount();
   }
 });
 
@@ -435,7 +435,7 @@ describe("no mascot art next to a food photo", () => {
 
   it("Beranda with today's plate leads with the hero photo, never the mascot", async () => {
     const runtime = runtimeWith({ customer: jest.fn(async () => customerState({ status: "scheduled" })) });
-    render(wrap(runtime, <Beranda />));
+    await render(wrap(runtime, <Beranda />));
     expect(await screen.findByTestId("plate-hero", hidden, { timeout: 4000 })).toBeTruthy();
     noArt();
   });
@@ -443,7 +443,7 @@ describe("no mascot art next to a food photo", () => {
   it("the plan detail's hero photo stands alone", async () => {
     mockParams = { id: "s-1" };
     const runtime = runtimeWith({ customer: jest.fn(async () => customerState({ status: "scheduled" })) });
-    render(wrap(runtime, <PlanDetailScreen />));
+    await render(wrap(runtime, <PlanDetailScreen />));
     await waitFor(() => expect(screen.getByTestId("plan-hero", hidden)).toBeTruthy(), { timeout: 4000 });
     noArt();
   });
@@ -453,7 +453,7 @@ describe("no mascot art next to a food photo", () => {
     const runtime = runtimeWith({
       customer: jest.fn(async () => ({ ...customerState(null), subscriptions: [ended], deliveries: [] })),
     });
-    render(wrap(runtime, <Beranda />));
+    await render(wrap(runtime, <Beranda />));
     await screen.findByText("Mau makan apa minggu ini?", {}, { timeout: 4000 });
     expect(await screen.findByTestId("recap-photo", hidden)).toBeTruthy();
     noArt();
@@ -473,7 +473,7 @@ describe("no mascot art next to a food photo", () => {
   };
 
   it("a Beranda with nothing today or next leaves the resting mascot out while the Paket selesai photo shows", async () => {
-    render(wrap(runtimeWith({ customer: jest.fn(async () => quietWithRecap()) }), <Beranda />));
+    await render(wrap(runtimeWith({ customer: jest.fn(async () => quietWithRecap()) }), <Beranda />));
     expect(await screen.findByTestId("recap-photo", hidden, { timeout: 4000 })).toBeTruthy();
     expect(screen.getByText(/tidak ada pengantaran\.$/)).toBeTruthy();
     noArt();
@@ -483,7 +483,7 @@ describe("no mascot art next to a food photo", () => {
   it("keeps the resting mascot out of that Beranda once the recap was already seen too", async () => {
     const runtime = runtimeWith({ customer: jest.fn(async () => quietWithRecap()) });
     secureStoreMap().set(runtime.storageKey("recap.s-old"), "1");
-    render(wrap(runtime, <Beranda />));
+    await render(wrap(runtime, <Beranda />));
     expect(await screen.findByText(/tidak ada pengantaran.$/, {}, { timeout: 4000 })).toBeTruthy();
     expect(screen.queryByTestId("recap-photo", hidden)).toBeNull();
     noArt();
@@ -491,14 +491,14 @@ describe("no mascot art next to a food photo", () => {
   });
 
   it("a Beranda with nothing today or next and no recap draws no resting mascot either", async () => {
-    render(wrap(runtimeWith({ customer: jest.fn(async () => nothingNext()) }), <Beranda />));
+    await render(wrap(runtimeWith({ customer: jest.fn(async () => nothingNext()) }), <Beranda />));
     expect(await screen.findByText(/tidak ada pengantaran.$/, {}, { timeout: 4000 })).toBeTruthy();
     noArt();
     expect(screen.queryByTestId("mascot-tidur-slot", hidden)).toBeNull();
   });
 
   it("an empty Jadwal month draws no resting mascot", async () => {
-    render(wrap(runtimeWith({ customer: jest.fn(async () => ({ ...customerState(null), deliveries: [] })) }), <Jadwal />));
+    await render(wrap(runtimeWith({ customer: jest.fn(async () => ({ ...customerState(null), deliveries: [] })) }), <Jadwal />));
     expect(await screen.findByText("Tidak ada pengantaran di minggu ini", {}, { timeout: 4000 })).toBeTruthy();
     noArt();
   });
@@ -512,7 +512,7 @@ describe("no mascot art next to a food photo", () => {
     expect(within(row).getByText("Mau makan apa minggu ini?")).toBe(title);
     expect(StyleSheet.flatten(title.props.style).textAlign).not.toBe("center");
     expect(artHeight(art)).toBe(64);
-    screen.unmount();
+    await screen.unmount();
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     expect(artHeight(await open(state("EmptyHome")))).toBe(52);
   });
@@ -534,7 +534,7 @@ describe("EmptyHome while the recap's seen marks are read", () => {
     store.getItemAsync.mockImplementation((key: string) => (key.includes("recap.") ? marks : original(key)));
     const timing = jest.spyOn(Reanimated, "withTiming");
     try {
-      render(wrap(runtime, <Beranda />));
+      await render(wrap(runtime, <Beranda />));
       await screen.findByText("Mau makan apa minggu ini?", {}, { timeout: 4000 });
       // Not known yet: the art's box is held where the art will stand, the mascot invisible in it.
       const slot = screen.getByTestId("mascot-melambai-slot", hidden);
@@ -573,7 +573,7 @@ describe("EmptyHome while the recap's seen marks are read", () => {
     store.getItemAsync.mockImplementation((key: string) => (key.includes("recap.") ? marks : original(key)));
     const timing = jest.spyOn(Reanimated, "withTiming");
     try {
-      render(wrap(runtime, <Beranda />));
+      await render(wrap(runtime, <Beranda />));
       await screen.findByTestId("mascot-melambai-slot", hidden, { timeout: 4000 });
       timing.mockClear();
       await act(async () => release("1"));
@@ -596,7 +596,7 @@ describe("art leaves with its section", () => {
     });
     let answer: (state: CustomerState) => void = () => undefined;
     const fresh = new Promise<CustomerState>((resolve) => (answer = resolve));
-    render(wrap(runtimeWith({ customer: jest.fn(() => fresh) }), <Beranda />));
+    await render(wrap(runtimeWith({ customer: jest.fn(() => fresh) }), <Beranda />));
     const art = await screen.findByTestId("mascot-melambai", hidden, { timeout: 4000 });
     for (const el of [art, within(art).getByTestId("mascot-art-fade", hidden)]) {
       expect(el.props.exiting).toBeUndefined();

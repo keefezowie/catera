@@ -38,8 +38,8 @@ const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props
 
 describe("rows at large text", () => {
   const lines = (text: string) => screen.getByText(text).props.numberOfLines;
-  const rows = () =>
-    render(
+  const rows = async () =>
+    await render(
       withDapurScale(
         <>
           <TwoLineRow title="Budi Contoh" meta="Rantang Nusantara · Berakhir hari ini" />
@@ -49,16 +49,16 @@ describe("rows at large text", () => {
       ),
     );
 
-  it("keep one line each at 360dp and font scale 1.3, as the Dapur spec set", () => {
+  it("keep one line each at 360dp and font scale 1.3, as the Dapur spec set", async () => {
     phone(360, 1.3);
-    rows();
+    await rows();
     for (const text of ["Budi Contoh", "Rantang Nusantara · Berakhir hari ini", "Ayam Panggang", "Rp 35.000 / makan · tayang", "Jl. Melati 1"])
       expect(lines(text)).toBe(1);
   });
 
-  it("at font scale 2.0 give the title two lines and the meta three before they cut", () => {
+  it("at font scale 2.0 give the title two lines and the meta three before they cut", async () => {
     phone(411, 2);
-    rows();
+    await rows();
     for (const text of ["Budi Contoh", "Ayam Panggang"]) expect(lines(text)).toBe(2);
     for (const text of ["Rantang Nusantara · Berakhir hari ini", "Rp 35.000 / makan · tayang", "Jl. Melati 1"]) expect(lines(text)).toBe(3);
     expect(screen.getByTestId("sr-title").props.numberOfLines).toBe(2);
@@ -66,8 +66,8 @@ describe("rows at large text", () => {
 });
 
 describe("MediaRow compact (Menu dish rows)", () => {
-  it("is 64 tall with a 48 r8 thumb, a rowTitle title and one meta line", () => {
-    render(withDapurScale(<MediaRow size="compact" testID="dish" image="https://x/y.jpg" title="Ayam panggang" meta="Lauk" />));
+  it("is 64 tall with a 48 r8 thumb, a rowTitle title and one meta line", async () => {
+    await render(withDapurScale(<MediaRow size="compact" testID="dish" image="https://x/y.jpg" title="Ayam panggang" meta="Lauk" />));
     expect(flat(screen.getByTestId("dish")).minHeight).toBe(64);
     expect(flat(screen.getByTestId("dish-thumb"))).toMatchObject({ width: 48, height: 48, borderRadius: 8 });
     const title = screen.getByText("Ayam panggang");
@@ -76,30 +76,30 @@ describe("MediaRow compact (Menu dish rows)", () => {
     expect(screen.getByText("Lauk").props.numberOfLines).toBe(1);
   });
 
-  it("takes a bodyStrong title, and its not-set thumb is 48 too", () => {
-    render(withDapurScale(<MediaRow size="compact" testID="dish" notSet titleVariant="bodyStrong" title="Belum ada foto" />));
+  it("takes a bodyStrong title, and its not-set thumb is 48 too", async () => {
+    await render(withDapurScale(<MediaRow size="compact" testID="dish" notSet titleVariant="bodyStrong" title="Belum ada foto" />));
     expect(flat(screen.getByText("Belum ada foto"))).toMatchObject({ fontSize: 15, lineHeight: 22 });
     expect(flat(screen.getByTestId("dish-thumb-not-set"))).toMatchObject({ width: 48, height: 48 });
     expect(flat(screen.getByTestId("dish")).minHeight).toBe(64);
   });
 
-  it("the default size is unchanged: 72 with a 56 thumb", () => {
-    render(<MediaRow testID="row" title="Nasi ayam" />);
+  it("the default size is unchanged: 72 with a 56 thumb", async () => {
+    await render(<MediaRow testID="row" title="Nasi ayam" />);
     expect(flat(screen.getByTestId("row")).minHeight).toBe(72);
     expect(flat(screen.getByTestId("row-thumb"))).toMatchObject({ width: 56, height: 56 });
   });
 
-  it("Thumb takes 48, and the compact separator inset is the 48 thumb plus the 12 gap", () => {
-    render(<Thumb size={48} testID="t" />);
+  it("Thumb takes 48, and the compact separator inset is the 48 thumb plus the 12 gap", async () => {
+    await render(<Thumb size={48} testID="t" />);
     expect(flat(screen.getByTestId("t"))).toMatchObject({ width: 48, height: 48, borderRadius: 8 });
     expect(COMPACT_MEDIA_INSET).toBe(nativeLayout.thumb.compact + nativeLayout.space.md);
   });
 });
 
 describe("TwoLineRow", () => {
-  it("is 64 tall with a 12 gap, a one-line rowTitle and a one-line meta, named by both", () => {
+  it("is 64 tall with a 12 gap, a one-line rowTitle and a one-line meta, named by both", async () => {
     const onPress = jest.fn();
-    render(withDapurScale(<TwoLineRow testID="row" title="Bu Sari" meta="Jl. Melati 3" onPress={onPress} />));
+    await render(withDapurScale(<TwoLineRow testID="row" title="Bu Sari" meta="Jl. Melati 3" onPress={onPress} />));
     const row = screen.getByTestId("row");
     expect(flat(row)).toMatchObject({ minHeight: 64, gap: 12, flexDirection: "row", alignItems: "center" });
     expect(row.props.accessibilityLabel).toBe("Bu Sari, Jl. Melati 3");
@@ -110,18 +110,18 @@ describe("TwoLineRow", () => {
     const meta = screen.getByText("Jl. Melati 3");
     expect(flat(meta)).toMatchObject({ fontSize: 13, lineHeight: 18 });
     expect(meta.props.numberOfLines).toBe(1);
-    fireEvent.press(row);
+    await fireEvent.press(row);
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves no empty part in its label when the meta is empty", () => {
-    render(withDapurScale(<TwoLineRow testID="row" title="Bu Sari" meta="" onPress={() => {}} />));
+  it("leaves no empty part in its label when the meta is empty", async () => {
+    await render(withDapurScale(<TwoLineRow testID="row" title="Bu Sari" meta="" onPress={() => {}} />));
     expect(screen.getByTestId("row").props.accessibilityLabel).toBe("Bu Sari");
     expect(screen.queryByText("")).toBeNull();
   });
 
-  it("holds its trailing node in a fixed column the width of its children, and takes a leading node", () => {
-    render(
+  it("holds its trailing node in a fixed column the width of its children, and takes a leading node", async () => {
+    await render(
       withDapurScale(
         <TwoLineRow
           testID="row"
@@ -140,16 +140,16 @@ describe("TwoLineRow", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("takes an accessibilityLabel over its texts", () => {
-    render(<TwoLineRow testID="row" title="Bu Sari" meta="Paket" accessibilityLabel="Bu Sari, sisa 3 hari" onPress={() => {}} />);
+  it("takes an accessibilityLabel over its texts", async () => {
+    await render(<TwoLineRow testID="row" title="Bu Sari" meta="Paket" accessibilityLabel="Bu Sari, sisa 3 hari" onPress={() => {}} />);
     expect(screen.getByTestId("row").props.accessibilityLabel).toBe("Bu Sari, sisa 3 hari");
   });
 });
 
 describe("KeyValueRow", () => {
-  it("is 40 tall: a muted bodyL label that wraps, a bodyStrong tabular value on the right that never truncates", () => {
+  it("is 40 tall: a muted bodyL label that wraps, a bodyStrong tabular value on the right that never truncates", async () => {
     phone(360, 1.3);
-    render(withDapurScale(<KeyValueRow testID="kv" label="Dibayarkan ke rekening minggu ini" value="Rp 12.345.000" />));
+    await render(withDapurScale(<KeyValueRow testID="kv" label="Dibayarkan ke rekening minggu ini" value="Rp 12.345.000" />));
     expect(flat(screen.getByTestId("kv"))).toMatchObject({ minHeight: 40, flexDirection: "row" });
     const label = screen.getByText("Dibayarkan ke rekening minggu ini");
     // Above font scale 1 Android takes the font's own line height (the type ramp's 22 would cut descenders).
@@ -163,8 +163,8 @@ describe("KeyValueRow", () => {
     expect(value.props.adjustsFontSizeToFit).toBeUndefined();
   });
 
-  it("reads as one line: label then value", () => {
-    render(<KeyValueRow testID="kv" label="Sisa" value="3 hari" />);
+  it("reads as one line: label then value", async () => {
+    await render(<KeyValueRow testID="kv" label="Sisa" value="3 hari" />);
     expect(screen.getByTestId("kv").props.accessibilityLabel).toBe("Sisa, 3 hari");
   });
 });
@@ -176,8 +176,8 @@ describe("FigureStrip", () => {
     { label: "alamat", value: "14" },
   ];
 
-  it("is one surface card, radius 16, padding 12 16, three equal cells split by two hairlines", () => {
-    render(withDapurScale(<FigureStrip testID="fs" lead cells={cells} subline="Antar 10.30" />));
+  it("is one surface card, radius 16, padding 12 16, three equal cells split by two hairlines", async () => {
+    await render(withDapurScale(<FigureStrip testID="fs" lead cells={cells} subline="Antar 10.30" />));
     expect(flat(screen.getByTestId("fs"))).toMatchObject({ borderRadius: 16, paddingVertical: 12, paddingHorizontal: 16 });
     expect(screen.getAllByTestId("fs-hairline")).toHaveLength(2);
     for (const hairline of screen.getAllByTestId("fs-hairline")) expect(flat(hairline).width).toBe(1);
@@ -187,8 +187,8 @@ describe("FigureStrip", () => {
     expect(flat(screen.getByText("Antar 10.30"))).toMatchObject({ fontSize: 13 });
   });
 
-  it("each cell is a meta label over its value; the lead value is figure, the others section at 800, tabular", () => {
-    render(withDapurScale(<FigureStrip testID="fs" lead cells={cells} />));
+  it("each cell is a meta label over its value; the lead value is figure, the others section at 800, tabular", async () => {
+    await render(withDapurScale(<FigureStrip testID="fs" lead cells={cells} />));
     expect(flat(screen.getByText("porsi"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
     const lead = screen.getByText("1240");
     expect(flat(lead)).toMatchObject({ fontSize: 32, lineHeight: 40, fontVariant: ["tabular-nums"] });
@@ -202,14 +202,14 @@ describe("FigureStrip", () => {
     expect(screen.getByTestId("fs-cell-0").props.accessibilityLabel).toBe("1240 porsi");
   });
 
-  it("without lead every value is section at 800", () => {
-    render(<FigureStrip testID="fs" cells={cells} />);
+  it("without lead every value is section at 800", async () => {
+    await render(<FigureStrip testID="fs" cells={cells} />);
     expect(flat(screen.getByText("1240"))).toMatchObject({ fontSize: 20 });
   });
 
-  it("below 340 effective width (360dp at font scale 1.3 is 277) it is a 2-column grid with the lead across both", () => {
+  it("below 340 effective width (360dp at font scale 1.3 is 277) it is a 2-column grid with the lead across both", async () => {
     phone(360, 1.3);
-    render(withDapurScale(<FigureStrip testID="fs" lead cells={cells} />));
+    await render(withDapurScale(<FigureStrip testID="fs" lead cells={cells} />));
     expect(screen.getByTestId("fs-grid")).toBeTruthy();
     const lead = flat(screen.getByTestId("fs-cell-0"));
     expect(lead.width).toBe("100%");
@@ -221,24 +221,24 @@ describe("FigureStrip", () => {
     expect(hairlines.filter((h) => h.width === 1)).toHaveLength(1);
   });
 
-  it("at 412dp and font scale 1 it stays one row", () => {
+  it("at 412dp and font scale 1 it stays one row", async () => {
     phone(412, 1);
-    render(<FigureStrip testID="fs" lead cells={cells} />);
+    await render(<FigureStrip testID="fs" lead cells={cells} />);
     expect(screen.queryByTestId("fs-grid")).toBeNull();
   });
 });
 
 describe("SectionHeader count and node action", () => {
-  it("shows a meta count beside the title", () => {
-    render(withDapurScale(<SectionHeader title="Daftar masak" count="9 menu" />));
+  it("shows a meta count beside the title", async () => {
+    await render(withDapurScale(<SectionHeader title="Daftar masak" count="9 menu" />));
     expect(screen.getByText("Daftar masak").props.accessibilityRole).toBe("header");
     const count = screen.getByText("9 menu");
     expect(flat(count)).toMatchObject({ fontSize: 13, lineHeight: 18, flexShrink: 0 });
     expect(flat(count).fontVariant).toEqual(["tabular-nums"]);
   });
 
-  it("takes a node in its trailing slot, which overhangs the 26 heading line so a 48 button does not grow it", () => {
-    render(
+  it("takes a node in its trailing slot, which overhangs the 26 heading line so a 48 button does not grow it", async () => {
+    await render(
       withDapurScale(
         <SectionHeader
           title="Urutan antar"
@@ -258,30 +258,30 @@ describe("SectionHeader count and node action", () => {
     expect(screen.queryByRole("button", { name: "Pilih" })).toBeTruthy();
   });
 
-  it("holds a 48 node action inside the row: the row is at least 48 tall, the title centred, the 12 under it kept", () => {
-    render(withDapurScale(<SectionHeader title="Daftar masak" action={<Text accessibilityRole="button">Bagikan</Text>} />));
+  it("holds a 48 node action inside the row: the row is at least 48 tall, the title centred, the 12 under it kept", async () => {
+    await render(withDapurScale(<SectionHeader title="Daftar masak" action={<Text accessibilityRole="button">Bagikan</Text>} />));
     expect(flat(screen.getByTestId("section-header"))).toMatchObject({ minHeight: 48, alignItems: "center", marginBottom: 12 });
   });
 
-  it("keeps a header with no action, or a link, one heading line", () => {
-    render(withDapurScale(<SectionHeader title="Paket" />));
-    render(<SectionHeader title="Minggu ini" action={{ label: "Lihat semua", onPress: jest.fn() }} />);
+  it("keeps a header with no action, or a link, one heading line", async () => {
+    await render(withDapurScale(<SectionHeader title="Paket" />));
+    await render(<SectionHeader title="Minggu ini" action={{ label: "Lihat semua", onPress: jest.fn() }} />);
     for (const header of screen.getAllByTestId("section-header")) expect(flat(header).minHeight).toBeUndefined();
   });
 
-  it("still takes the link action", () => {
+  it("still takes the link action", async () => {
     const onPress = jest.fn();
-    render(<SectionHeader title="Paket" action={{ label: "+ Paket baru", onPress }} />);
-    fireEvent.press(screen.getByRole("button", { name: "+ Paket baru" }));
+    await render(<SectionHeader title="Paket" action={{ label: "+ Paket baru", onPress }} />);
+    await fireEvent.press(screen.getByRole("button", { name: "+ Paket baru" }));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("FigureStrip in dark", () => {
   afterEach(() => jest.restoreAllMocks());
-  const strip = (scheme: "light" | "dark") => {
+  const strip = async (scheme: "light" | "dark") => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
-    render(
+    await render(
       withDapurScale(
         <ThemeProvider storageKey="strip.theme">
           <FigureStrip testID="fs" lead cells={[{ label: "porsi", value: "34" }, { label: "paket", value: "2" }]} />
@@ -291,8 +291,8 @@ describe("FigureStrip in dark", () => {
     return flat(screen.getByTestId("fs"));
   };
 
-  it("draws a 1px line edge where the palette draws no card border, its pixel taken off the padding", () => {
-    expect(strip("dark")).toMatchObject({
+  it("draws a 1px line edge where the palette draws no card border, its pixel taken off the padding", async () => {
+    expect(await strip("dark")).toMatchObject({
       backgroundColor: nativeThemes.dark.surface,
       borderWidth: 1,
       borderColor: nativeThemes.dark.line,
@@ -301,8 +301,8 @@ describe("FigureStrip in dark", () => {
     });
   });
 
-  it("keeps light as it was: no edge, padding 12 16", () => {
-    const light = strip("light");
+  it("keeps light as it was: no edge, padding 12 16", async () => {
+    const light = await strip("light");
     expect(light.borderWidth).toBeUndefined();
     expect(light).toMatchObject({ paddingVertical: 12, paddingHorizontal: 16 });
   });
@@ -311,50 +311,50 @@ describe("FigureStrip in dark", () => {
 describe("CheckRow and StopRow take the Dapur geometry from the 48 touch target, not from the scale name", () => {
   const checkRow = () => <CheckRow testID="cr" quantity={8} name="Ayam bakar" icon="sunny-outline" checked={false} onToggle={() => {}} image="https://x/y.jpg" />;
   const stopRow = () => <StopRow testID="sr" n={1} name="Bu Rina" detail="8 porsi" address="Jl. Melati 1" onMap={() => {}} mapLabel="Peta" onMore={() => {}} moreLabel="Lainnya" />;
-  const under = (value: "classic" | "v2", target: number | undefined, ui: ReactElement) =>
-    render(
+  const under = async (value: "classic" | "v2", target: number | undefined, ui: ReactElement) =>
+    await render(
       <LayoutScaleProvider value={value} target={target}>
         {ui}
       </LayoutScaleProvider>,
     );
 
-  it("a v2 scale at the default 44 target keeps today's rows (a customer caller under v2)", () => {
-    under("v2", undefined, checkRow());
+  it("a v2 scale at the default 44 target keeps today's rows (a customer caller under v2)", async () => {
+    await under("v2", undefined, checkRow());
     expect(screen.queryByTestId("cr-quantity")).toBeNull();
     expect(flat(screen.getByTestId("cr-image"))).toMatchObject({ width: 44, height: 44 });
-    screen.unmount();
-    under("v2", 44, stopRow());
+    await screen.unmount();
+    await under("v2", 44, stopRow());
     expect(screen.queryByTestId("sr-actions")).toBeNull();
     expect(flat(screen.getByTestId("sr")).minHeight).toBe(56);
   });
 
-  it("StopRow's portions figure is tabular", () => {
-    under("v2", 48, <StopRow testID="sr" n={1} name="Bu Rina" portions="8 porsi" address="Jl. Melati 1" onMap={() => {}} mapLabel="Peta" onMore={() => {}} moreLabel="Lainnya" />);
+  it("StopRow's portions figure is tabular", async () => {
+    await under("v2", 48, <StopRow testID="sr" n={1} name="Bu Rina" portions="8 porsi" address="Jl. Melati 1" onMap={() => {}} mapLabel="Peta" onMore={() => {}} moreLabel="Lainnya" />);
     expect(flat(screen.getByText(" · 8 porsi")).fontVariant).toEqual(["tabular-nums"]);
   });
 
-  it("a 48 target draws the Dapur rows", () => {
-    under("v2", 48, checkRow());
+  it("a 48 target draws the Dapur rows", async () => {
+    await under("v2", 48, checkRow());
     expect(screen.getByTestId("cr-quantity")).toBeTruthy();
     expect(flat(screen.getByTestId("cr-image"))).toMatchObject({ width: 40, height: 40, borderRadius: 8 });
-    screen.unmount();
-    under("v2", 48, stopRow());
+    await screen.unmount();
+    await under("v2", 48, stopRow());
     expect(screen.getByTestId("sr-actions")).toBeTruthy();
     expect(flat(screen.getByTestId("sr")).minHeight).toBe(64);
   });
 
-  it("without a provider both rows are the classic ones", () => {
-    render(checkRow());
+  it("without a provider both rows are the classic ones", async () => {
+    await render(checkRow());
     expect(screen.queryByTestId("cr-quantity")).toBeNull();
-    screen.unmount();
-    render(stopRow());
+    await screen.unmount();
+    await render(stopRow());
     expect(screen.queryByTestId("sr-actions")).toBeNull();
   });
 });
 
 describe("header actions stay inside their parents", () => {
-  it("TextAction is at least 48 x 48 and flush drops the padding on the edge side instead of pulling the target past it", () => {
-    render(
+  it("TextAction is at least 48 x 48 and flush drops the padding on the edge side instead of pulling the target past it", async () => {
+    await render(
       <>
         <TextAction label="Selesai" flush="end" onPress={jest.fn()} />
         <TextAction label="Isi menu" flush="start" onPress={jest.fn()} />
@@ -373,8 +373,8 @@ describe("header actions stay inside their parents", () => {
     }
   });
 
-  it("IconAction is 48 x 48 and flush holds the glyph against the end without a margin", () => {
-    render(
+  it("IconAction is 48 x 48 and flush holds the glyph against the end without a margin", async () => {
+    await render(
       <>
         <IconAction icon="print-outline" label="Cetak" flush onPress={jest.fn()} />
         <IconAction icon="share-outline" label="Bagikan" onPress={jest.fn()} />

@@ -4,9 +4,15 @@ import { act, render, screen, waitFor } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 
 const mockParams = { date: "2030-01-03" };
-const mockMe: { demo: boolean; actor: { id: string; role: string; name: string; catererId: string } | null } = {
+const mockMe: {
+  demo: boolean;
+  actor: { id: string; role: string; name: string; catererId: string } | null;
+  /** While set, the session read waits for it: the app stays behind the launch gate. */
+  hold: Promise<void> | null;
+} = {
   demo: false,
   actor: null,
+  hold: null,
 };
 const mockStatusBar: { style?: string } = {};
 // When set, the stack also draws the Siang / Malam toggle, the way a screen with a mood header does.
@@ -105,7 +111,10 @@ jest.mock("expo-status-bar", () => ({
 jest.mock("../src/runtime", () => {
   const { createMobileRuntime } = jest.requireActual("@catera/mobile-core");
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "layout" });
-  runtime.api = { ...runtime.api, me: jest.fn(async () => ({ actor: mockMe.actor, demo: mockMe.demo })) };
+  runtime.api = { ...runtime.api, me: jest.fn(async () => {
+    await mockMe.hold;
+    return { actor: mockMe.actor, demo: mockMe.demo };
+  }) };
   return { runtime };
 });
 jest.mock("expo-notifications", () => ({
@@ -166,12 +175,12 @@ describe("demo strip", () => {
 
   it("shows the synthetic-data strip when the server reports demo", async () => {
     mockMe.demo = true;
-    render(<RootLayout />);
+    await render(<RootLayout />);
     expect(await screen.findByText("Demo (data contoh)")).toBeTruthy();
   });
 
   it("shows no strip outside demo mode", async () => {
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await screen.findByTestId("header:(auth)/pulihkan");
     expect(screen.queryByText("Demo (data contoh)")).toBeNull();
   });
@@ -189,7 +198,7 @@ describe("stack headers", () => {
   });
 
   it("titles every pushed route in Indonesian instead of its route path", async () => {
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await screen.findByTestId("header:pelanggan/[id]");
     const routes = pushedRoutes().filter((r) => !TASK_SHEETS[r]);
     expect(routes.length).toBeGreaterThanOrEqual(8);
@@ -211,7 +220,7 @@ describe("stack headers", () => {
   });
 
   it("presents Aktifkan and Impor as modals over the tab bar, and only them", async () => {
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await screen.findByTestId("header:pelanggan/[id]");
     // Close at the leading edge of the native bar takes the place of back.
     for (const route of ["aktifkan", "impor"])
@@ -221,7 +230,7 @@ describe("stack headers", () => {
   });
 
   it("opens an import photo full screen over Impor, with Close where back would be", async () => {
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await screen.findByTestId("header:pelanggan/[id]");
     expect(mockScreenOptions["impor-foto"]).toMatchObject({
       presentation: "fullScreenModal",
@@ -236,14 +245,14 @@ describe("stack headers", () => {
   it("gives a helper no import photo viewer, as no Impor", async () => {
     mockMe.actor = { id: "u-2", role: "staff", name: "Mbak Sari", catererId: "k-1" };
     mockTabStack = "(menu)";
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await screen.findByTestId("header:pengaturan");
     expect(screen.queryByTestId("header:impor-foto")).toBeNull();
     expect(screen.queryByTestId("header:impor")).toBeNull();
   });
 
   it("declares the confirm and action sheets as native sheets sized to their content", async () => {
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await screen.findByTestId("header:pelanggan/[id]");
     for (const route of ["konfirmasi", "aksi"])
       expect(mockScreenOptions[route]).toMatchObject({
@@ -255,7 +264,7 @@ describe("stack headers", () => {
   });
 
   it("presents the short Dapur tasks as native sheets that draw their own title", async () => {
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await screen.findByTestId("header:pelanggan/[id]");
     for (const [route, detents] of Object.entries(TASK_SHEETS)) {
       expect({ route, options: mockScreenOptions[route] }).toMatchObject({
@@ -274,7 +283,7 @@ describe("stack headers", () => {
   it("opens Pengaturan for a helper too, with its choice sheets sized to their content", async () => {
     mockMe.actor = { id: "u-2", role: "staff", name: "Mbak Sari", catererId: "k-1" };
     mockTabStack = "(menu)";
-    render(<RootLayout />);
+    await render(<RootLayout />);
     expect((await screen.findByTestId("header:pengaturan")).props.children).toBe("Pengaturan");
     // A helper has no Usaha, so none of its screens are in the stack.
     expect(screen.queryByTestId("header:uang")).toBeNull();
@@ -295,13 +304,13 @@ describe("stack headers", () => {
 
   it("names the day on the menu screen header", async () => {
     mockParams.date = "2030-01-03";
-    render(<RootLayout />);
+    await render(<RootLayout />);
     expect((await screen.findByTestId("header:menu/[date]")).props.children).toBe("Menu Kamis 3 Jan");
   });
 
   it("says Menu hari ini only for today's menu", async () => {
     mockParams.date = jakartaDay(new Date());
-    render(<RootLayout />);
+    await render(<RootLayout />);
     expect((await screen.findByTestId("header:menu/[date]")).props.children).toBe("Menu hari ini");
   });
 });
@@ -342,7 +351,7 @@ describe("appearance", () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
     atJakarta(MALAM);
     mockMe.actor = owner;
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
     // Control: the mood really is Malam.
@@ -368,7 +377,7 @@ describe("appearance", () => {
       for (const [i, at] of ["2026-10-09T03:00:00Z", MALAM].entries()) {
         atJakarta(at);
         mockNativeTabs.props = undefined;
-        render(<RootLayout />);
+        await render(<RootLayout />);
         await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
         await act(async () => {});
         // Control: the mood really is Siang, then Malam, in each theme.
@@ -388,7 +397,7 @@ describe("appearance", () => {
           iconColor: bar.iconColor,
         });
         expect({ default: labelStyle.default.color, selected: labelStyle.selected.color }).toEqual(bar.labelColor);
-        screen.unmount();
+        await screen.unmount();
       }
     }
   });
@@ -396,7 +405,7 @@ describe("appearance", () => {
   it("Siang on a light system theme keeps the dark status bar", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
     mockMe.actor = owner;
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
     expect(screen.getAllByTestId("mood-probe")[0].props.children).toBe("siang");
@@ -407,7 +416,7 @@ describe("appearance", () => {
     (require("expo-secure-store") as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
     mockShowToggle = true;
     mockMe.actor = owner;
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     expect(await screen.findByRole("tab", { name: "Lunch" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Dinner" })).toBeTruthy();
@@ -417,7 +426,7 @@ describe("appearance", () => {
   it("the Siang / Malam toggle reads Siang and Malam by default", async () => {
     mockShowToggle = true;
     mockMe.actor = owner;
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
     expect(screen.getByRole("tab", { name: "Siang" })).toBeTruthy();
@@ -429,7 +438,7 @@ describe("appearance", () => {
     atJakarta(MALAM);
     mockMe.demo = true;
     mockMe.actor = owner;
-    render(<RootLayout />);
+    await render(<RootLayout />);
     expect(await screen.findByText("Demo (data contoh)")).toBeTruthy();
     await act(async () => {});
     // Control: the mood really is Malam here, so "dark" is not a Siang launch.
@@ -445,9 +454,13 @@ describe("appearance", () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
     atJakarta(MALAM);
     mockMe.actor = owner;
-    render(<RootLayout />);
+    let open!: () => void;
+    mockMe.hold = new Promise<void>((resolve) => (open = resolve));
+    await render(<RootLayout />);
     expect(screen.queryByTestId("mood-probe")).toBeNull();
     expect(mockStatusBar.style).toBe("dark");
+    mockMe.hold = null;
+    await act(async () => open());
     // Once ready the app's default stays the theme's: the Malam glyphs belong to a tab root's MoodHeader
     // (native-header.test "status bar: the mood on a tab root, the theme on a pushed screen").
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
@@ -457,7 +470,7 @@ describe("appearance", () => {
   it("follows a dark system scheme in the tab bar and the status bar", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     mockMe.actor = owner;
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
     expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#292927" });
@@ -469,17 +482,21 @@ describe("appearance", () => {
   it("sets the status bar glyphs while the launch gate is still showing", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     mockMe.actor = owner;
-    render(<RootLayout />);
-    // Nothing has been awaited yet, so the session read is pending and the app is behind the ready gate.
+    let open!: () => void;
+    mockMe.hold = new Promise<void>((resolve) => (open = resolve));
+    await render(<RootLayout />);
+    // The session read is held, so the app is behind the ready gate.
     expect(screen.queryByTestId("mood-probe")).toBeNull();
     expect(mockStatusBar.style).toBe("light");
+    mockMe.hold = null;
+    await act(async () => open());
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
   });
 
   it("keeps the light tab bar and a dark status bar on a light system scheme", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
     mockMe.actor = owner;
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
     expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFFFF" });
@@ -493,9 +510,9 @@ describe("font load failure", () => {
     mockFonts.result = [true, null];
   });
 
-  it("Dapur shows a font error message", () => {
+  it("Dapur shows a font error message", async () => {
     mockFonts.result = [false, new Error("font")];
-    render(<RootLayout />);
+    await render(<RootLayout />);
     expect(screen.getByText("Huruf aplikasi gagal dimuat. Tutup lalu buka lagi aplikasinya.")).toBeTruthy();
   });
 });

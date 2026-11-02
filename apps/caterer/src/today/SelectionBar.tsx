@@ -1,11 +1,11 @@
 import { View } from "react-native";
-import { router } from "expo-router";
 import { errorLabel, type KitchenSession, type SellerOperationsState } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
 import { Button, Text, useBusy, useConfirm, useHaptic, useStackedLayout, useToast } from "@catera/mobile-ui";
 import { parkDay } from "./ExceptionSheet";
 import { proofHref } from "./ProofSheet";
 import { selectedFor, type Selection } from "./selection";
+import { pushScreen } from "../nav";
 
 /**
  * The bar above the tab bar while "Pilih" is on (spec 5.7): "Berangkat (n)" for the selected stops that are cooking and
@@ -74,7 +74,7 @@ export function SelectionBar({
   const openProof = () => {
     if (!arrive.length) return;
     parkDay(catererId, date, ops);
-    router.push(proofHref(arrive.map((s) => s.deliveryId), meal, date) as never);
+    pushScreen(proofHref(arrive.map((s) => s.deliveryId), meal, date));
   };
 
   // Large text or a narrow phone: the buttons stack so "Berangkat (n)" keeps one line.

@@ -83,8 +83,8 @@ beforeEach(() => {
 /** The edit form is a sheet route (`/alamat-form?id=`): the host shows it beside the list, and `router.back` closes it. */
 const SHEETS = { "/alamat-form": AddressForm };
 const toParams = (params: Record<string, string>) => void (mockParams = params);
-const renderBook = () =>
-  render(
+const renderBook = async () =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
       <Addresses />
       <SheetHost routes={SHEETS} onParams={toParams} />
@@ -92,32 +92,32 @@ const renderBook = () =>
   );
 /** Hapus lives in the edit form: open the address's row, then find "Hapus alamat" at the bottom of the form. */
 const openForm = async (label = "Rumah") => {
-  fireEvent.press(await screen.findByRole("button", { name: new RegExp(`^${label}, `) }));
+  await fireEvent.press(await screen.findByRole("button", { name: new RegExp(`^${label}, `) }));
   return screen.findByRole("button", { name: "Hapus alamat" });
 };
-const pressDelete = async (label = "Rumah") => fireEvent.press(await openForm(label));
+const pressDelete = async (label = "Rumah") => await fireEvent.press(await openForm(label));
 
 it("Alamat has no Makanan diantar ke mana? heading", async () => {
-  renderBook();
+  await renderBook();
   await screen.findByRole("button", { name: /^Rumah, / });
   expect(screen.queryByText("Makanan diantar ke mana?")).toBeNull();
 });
 
 it("a row speaks its address, says it edits, and opens its edit form", async () => {
-  renderBook();
+  await renderBook();
   const row = await screen.findByRole("button", { name: "Kantor, Jl. Contoh No. 8, Jakarta Pusat, Jakarta" });
   expect(row.props.accessibilityHint).toBe("Ubah alamat");
   // One press target per address: the row holds the address and the pencil, and there is no Hapus beside it.
   expect(within(row).getByText(OFFICE.line)).toBeTruthy();
   expect(within(row).getByTestId("address-edit-icon")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Hapus Kantor" })).toBeNull();
-  fireEvent.press(row);
+  await fireEvent.press(row);
   expect(router.push).toHaveBeenCalledWith("/alamat-form?id=a-office");
   expect(await screen.findByRole("header", { name: "Ubah alamat" })).toBeTruthy();
 });
 
 it("Hapus alamat lives in the edit form and asks first", async () => {
-  renderBook();
+  await renderBook();
   await pressDelete();
   await waitFor(() => expect(command).toHaveBeenCalledWith("address.delete", { addressId: HOME.id }, expect.any(String)));
   expect(mockConfirm).toHaveBeenCalledTimes(1);
@@ -128,14 +128,14 @@ it("Hapus alamat lives in the edit form and asks first", async () => {
 });
 
 it("a new address has no Hapus alamat", async () => {
-  renderBook();
-  fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+  await renderBook();
+  await fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
   expect(await screen.findByRole("header", { name: "Alamat baru" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Hapus alamat" })).toBeNull();
 });
 
 it("an unused address asks once, deletes and says Alamat dihapus", async () => {
-  renderBook();
+  await renderBook();
   await pressDelete();
   await waitFor(() => expect(command).toHaveBeenCalledWith("address.delete", { addressId: HOME.id }, expect.any(String)));
   expect(addressUse).toHaveBeenCalledWith(HOME.id);
@@ -153,7 +153,7 @@ it("an unused address asks once, deletes and says Alamat dihapus", async () => {
 
 it("Batal keeps the address", async () => {
   mockConfirm.mockResolvedValueOnce(false);
-  renderBook();
+  await renderBook();
   await pressDelete();
   await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
   expect(command).not.toHaveBeenCalled();
@@ -167,7 +167,7 @@ it("an address in use says how many deliveries and when, then moves them", async
   addressUse.mockResolvedValue(inUse);
   mockAsk.mockResolvedValueOnce(OFFICE.id);
   command.mockResolvedValueOnce({ moved: 12, stayed: 0, stayedUntil: null, kitchens: [], pendingCheckouts: 0, deleted: true });
-  renderBook();
+  await renderBook();
   await pressDelete();
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ message: "Alamat dihapus", tone: "success" }));
   expect(mockConfirm).toHaveBeenCalledWith({
@@ -201,7 +201,7 @@ it("days that stayed are counted, dated and blamed on the kitchen outside the ne
     pendingCheckouts: 0,
     deleted: false,
   });
-  renderBook();
+  await renderBook();
   await pressDelete();
   await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(2));
   expect(mockConfirm.mock.calls[1][0]).toEqual({
@@ -218,7 +218,7 @@ it("days that stayed are counted, dated and blamed on the kitchen outside the ne
 it("Tambah alamat baru opens a new address form in the edit form's place instead of moving", async () => {
   addressUse.mockResolvedValue(inUse);
   mockAsk.mockResolvedValueOnce("baru");
-  renderBook();
+  await renderBook();
   await pressDelete();
   await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/alamat-form"));
   // A push of /alamat-form over /alamat-form?id= would stack one form on another (or be dropped as the same sheet).
@@ -230,18 +230,18 @@ it("Simpan is off while Hapus runs, and Hapus while Simpan runs", async () => {
   let answer!: (use: AddressUse) => void;
   addressUse.mockImplementationOnce(() => new Promise<AddressUse>((resolve) => (answer = resolve)));
   mockConfirm.mockResolvedValue(false);
-  renderBook();
-  fireEvent.press(await openForm());
+  await renderBook();
+  await fireEvent.press(await openForm());
   await waitFor(() => expect(addressUse).toHaveBeenCalledTimes(1));
   expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeDisabled();
   await act(async () => answer(unused));
   await waitFor(() => expect(screen.getByRole("button", { name: "Simpan alamat" })).not.toBeDisabled());
   let saved!: () => void;
   command.mockImplementationOnce(() => new Promise((resolve) => (saved = () => resolve({}))));
-  fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
   await waitFor(() => expect(command).toHaveBeenCalledWith("address.save", expect.anything(), expect.any(String)));
   expect(screen.getByRole("button", { name: "Hapus alamat" })).toBeDisabled();
-  fireEvent.press(screen.getByRole("button", { name: "Hapus alamat" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Hapus alamat" }));
   expect(addressUse).toHaveBeenCalledTimes(1);
   await act(async () => saved());
 });
@@ -251,11 +251,11 @@ it("Hapus is busy until the removal settles and a second press sends nothing", a
   let answer!: (use: AddressUse) => void;
   addressUse.mockImplementation(() => new Promise<AddressUse>((resolve) => (answer = resolve)));
   mockConfirm.mockResolvedValue(false);
-  renderBook();
+  await renderBook();
   const button = await openForm();
-  fireEvent.press(button);
-  fireEvent.press(button);
-  act(() => void jest.advanceTimersByTime(150));
+  await fireEvent.press(button);
+  await fireEvent.press(button);
+  await act(() => void jest.advanceTimersByTime(150));
   expect(screen.getByRole("button", { name: "Hapus alamat" }).props.accessibilityState).toMatchObject({ busy: true });
   expect(screen.getByTestId("button-spinner")).toBeTruthy();
   expect(addressUse).toHaveBeenCalledTimes(1);
@@ -266,7 +266,7 @@ it("Hapus is busy until the removal settles and a second press sends nothing", a
 
 it("a failed read ends in an error toast with Coba lagi", async () => {
   addressUse.mockRejectedValueOnce(new Error("REQUEST_TIMEOUT"));
-  renderBook();
+  await renderBook();
   await pressDelete();
   await waitFor(() => expect(mockToast).toHaveBeenCalledTimes(1));
   const toast = mockToast.mock.calls[0][0];
@@ -278,7 +278,7 @@ it("a failed read ends in an error toast with Coba lagi", async () => {
 
 it("a payment still open blocks the delete and offers no move", async () => {
   addressUse.mockResolvedValue({ ...unused, pendingCheckouts: 1 });
-  renderBook();
+  await renderBook();
   await pressDelete();
   await waitFor(() =>
     expect(mockToast).toHaveBeenCalledWith({
@@ -295,7 +295,7 @@ it("a move held back only by an open payment says so", async () => {
   mockAsk.mockResolvedValueOnce(OFFICE.id);
   mockConfirm.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
   command.mockResolvedValueOnce({ moved: 12, stayed: 0, stayedUntil: null, kitchens: [], pendingCheckouts: 1, deleted: false });
-  renderBook();
+  await renderBook();
   await pressDelete();
   await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(2));
   expect(mockConfirm.mock.calls[1][0]).toEqual({

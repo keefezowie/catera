@@ -60,7 +60,7 @@ describe("roles", () => {
   });
 
   it("sends customer accounts to the Catera app", async () => {
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith({ id: "u-c", role: "customer" })} linkMapper={(h) => h}>
         <RoleGate>{null}</RoleGate>
       </MobileProvider>,
@@ -86,7 +86,7 @@ const gapAbove = (node: { props: { style?: unknown }; parent: unknown }) => {
 
 describe("Daftar on the Dapur scale", () => {
   it("sets its intro in the ladder and keeps the area chips' 48 targets apart", async () => {
-    render(
+    await render(
       withDapurScale(
         <MobileProvider runtime={runtimeWith(null)} linkMapper={(h) => h}>
           <Daftar />
@@ -98,8 +98,8 @@ describe("Daftar on the Dapur scale", () => {
     expect(flatStyle(intro)).toMatchObject({ fontSize: 14, lineHeight: 23 });
     // The heading and its paragraph sit 8 apart (the group gap).
     expect(gapAbove(intro)).toBe(8);
-    fireEvent.changeText(screen.getByLabelText("Nama usaha katering"), "Dapur Bu Rina");
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await fireEvent.changeText(screen.getByLabelText("Nama usaha katering"), "Dapur Bu Rina");
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
     // A later step's line has the same ladder, without the mascot.
     const line = await screen.findByText(/^Pelanggan di area ini/);
     expect(flatStyle(line)).toMatchObject({ fontSize: 14, lineHeight: 23 });
@@ -123,8 +123,8 @@ describe("Aktifkan on the Dapur scale", () => {
     } as MobileRuntime["api"];
     return runtime;
   };
-  const renderAktifkan = (runtime: MobileRuntime) =>
-    render(
+  const renderAktifkan = async (runtime: MobileRuntime) =>
+    await render(
       withDapurScale(
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
           <AktifkanScreen />
@@ -133,7 +133,7 @@ describe("Aktifkan on the Dapur scale", () => {
     );
 
   it("heads its three steps with 20/26 section titles, 24 apart, and the form groups 12 apart", async () => {
-    renderAktifkan(ready());
+    await renderAktifkan(ready());
     const headers = await screen.findAllByRole("header");
     expect(headers.map((h) => h.props.children)).toEqual(["1. Pemeriksaan profil dan paket", "2. Rekening pencairan", "3. Verifikasi pembayaran"]);
     for (const h of headers) expect(flatStyle(h)).toMatchObject({ fontSize: 20, lineHeight: 26 });
@@ -148,7 +148,7 @@ describe("Aktifkan on the Dapur scale", () => {
   });
 
   it("lays its loading cards 24 apart, as the loaded step cards sit, so nothing shifts when the data lands", async () => {
-    renderAktifkan(ready({ sellerOperations: jest.fn(() => new Promise(() => {})) }));
+    await renderAktifkan(ready({ sellerOperations: jest.fn(() => new Promise(() => {})) }));
     await screen.findByLabelText("Memuat pembayaran");
     // The cards' lowest common ancestor is the skeleton's own column: its gap is the space between the cards.
     type N = { props: { style?: unknown }; parent: N | null };
@@ -168,7 +168,7 @@ describe("Aktifkan on the Dapur scale", () => {
   });
 
   it("step 1 in review and step 2 done read Sedang ditinjau and Selesai, each with its one line", async () => {
-    renderAktifkan(
+    await renderAktifkan(
       ready({
         sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur", status: "submitted" }, offers: [], datedMenus: [] })),
         request: jest.fn(async () => ({ active: { bank: "BCA", maskedAccount: "1234", holder: "Rina" }, latest: null })),

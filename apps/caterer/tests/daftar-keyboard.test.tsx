@@ -30,8 +30,8 @@ beforeEach(() => {
   runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "dapur-daftar-keyboard" });
   runtime.api = { ...runtime.api, me: jest.fn(async () => ({ actor: null, demo: false })) } as unknown as MobileRuntime["api"];
 });
-const renderDaftar = () =>
-  render(
+const renderDaftar = async () =>
+  await render(
     withDapurScale(
       <MoodProvider now={() => new Date("2026-10-08T08:00:00Z")}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
@@ -41,43 +41,43 @@ const renderDaftar = () =>
     ),
   );
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
-const show = (height: number) =>
-  act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height } } as never))));
-const hide = () => act(() => ["keyboardDidHide", "keyboardWillHide"].forEach((name) => handlers[name]?.forEach((fn) => fn())));
+const show = async (height: number) =>
+  await act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height } } as never))));
+const hide = async () => await act(() => ["keyboardDidHide", "keyboardWillHide"].forEach((name) => handlers[name]?.forEach((fn) => fn())));
 
 describe("Dapur Daftar with the Android keyboard", () => {
   it("lifts the pinned Lanjut footer by the keyboard, and sets it back when the keyboard closes", async () => {
-    renderDaftar();
+    await renderDaftar();
     await screen.findByRole("button", { name: "Lanjut" });
     expect(flat(screen.getByTestId("screen-footer")).marginBottom ?? 0).toBe(0);
-    show(300);
+    await show(300);
     // The screen pays the gesture-bar inset once (inside the footer), so the keyboard adds only its height.
     expect(flat(screen.getByTestId("screen-footer")).marginBottom).toBe(300);
     expect(screen.getByRole("button", { name: "Lanjut" })).toBeTruthy();
-    hide();
+    await hide();
     expect(flat(screen.getByTestId("screen-footer")).marginBottom ?? 0).toBe(0);
   });
 
   it("keeps the footer's own inset and does not also pad the scroll content", async () => {
-    renderDaftar();
+    await renderDaftar();
     await screen.findByRole("button", { name: "Lanjut" });
     const pad = () => flat({ props: { style: screen.getByTestId("screen-scroll").props.contentContainerStyle } }).paddingBottom;
     const down = pad();
     const footerPad = flat(screen.getByTestId("screen-footer")).paddingBottom;
-    show(300);
+    await show(300);
     expect(pad()).toBe(down);
     expect(flat(screen.getByTestId("screen-footer")).paddingBottom).toBe(footerPad);
   });
 
   it("keeps the lifted footer across the steps, up to Daftar", async () => {
-    renderDaftar();
-    fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Bu Rina");
-    show(280);
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
-    fireEvent.press(await screen.findByText("Jakarta Selatan"));
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812 3456 7890");
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await renderDaftar();
+    await fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Bu Rina");
+    await show(280);
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await fireEvent.press(await screen.findByText("Jakarta Selatan"));
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812 3456 7890");
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
     await screen.findByRole("button", { name: "Daftar" });
     expect(flat(screen.getByTestId("screen-footer")).marginBottom).toBe(280);
   });

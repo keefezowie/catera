@@ -38,7 +38,7 @@ const wrap = (ui: ReactElement) => (
     <MoodProvider now={SIANG_NOW}>{ui}</MoodProvider>
   </ThemeProvider>
 );
-function mount(ui: ReactElement) {
+async function mount(ui: ReactElement) {
   jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
   return render(wrap(ui));
 }
@@ -49,8 +49,8 @@ const byId = (id: string) => screen.getByTestId(id, { includeHiddenElements: tru
 const has = (id: string) => screen.queryByTestId(id, { includeHiddenElements: true }) !== null;
 const flat = (id: string) => StyleSheet.flatten(byId(id).props.style);
 const measure = () =>
-  act(() => {
-    fireEvent(byId("journey-rail"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: RAIL, height: 64 } } });
+  act(async () => {
+    await fireEvent(byId("journey-rail"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: RAIL, height: 64 } } });
   });
 const markerX = () => (flat("journey-marker").transform as { translateX: number }[])[0].translateX + MARKER_HALF;
 const scaleX = () => (flat("journey-progress").transform as { scaleX: number }[])[0].scaleX;
@@ -63,33 +63,33 @@ beforeEach(() => {
 });
 
 describe("RantangTrack", () => {
-  it("the track has four stops at 0, a third, two thirds and the end", () => {
-    mount(track("scheduled"));
-    measure();
+  it("the track has four stops at 0, a third, two thirds and the end", async () => {
+    await mount(track("scheduled"));
+    await measure();
     expect([0, 1, 2, 3].map((i) => flat(`journey-stop-${i}`).left)).toEqual(["0%", `${100 / 3}%`, `${200 / 3}%`, "100%"]);
     expect(has("journey-stop-4")).toBe(false);
-    const x = (stage: TrackStage) => {
-      screen.unmount();
-      mount(track(stage));
-      measure();
+    const x = async (stage: TrackStage) => {
+      await screen.unmount();
+      await mount(track(stage));
+      await measure();
       return markerX();
     };
     expect(markerX()).toBeCloseTo(0);
-    expect(x("preparing")).toBeCloseTo(RAIL / 3);
-    expect(x("out_for_delivery")).toBeCloseTo((2 * RAIL) / 3);
-    expect(x("arrived_unconfirmed")).toBeCloseTo(RAIL);
-    expect(x("delivered")).toBeCloseTo(RAIL);
+    expect(await x("preparing")).toBeCloseTo(RAIL / 3);
+    expect(await x("out_for_delivery")).toBeCloseTo((2 * RAIL) / 3);
+    expect(await x("arrived_unconfirmed")).toBeCloseTo(RAIL);
+    expect(await x("delivered")).toBeCloseTo(RAIL);
   });
 
-  it("scheduled and preparing sit at different stops", () => {
-    mount(track("scheduled"));
-    measure();
+  it("scheduled and preparing sit at different stops", async () => {
+    await mount(track("scheduled"));
+    await measure();
     expect(op("journey-stop-0-ring")).toBe(1);
     expect(op("journey-stop-1-ring")).toBe(0);
     expect(scaleX()).toBeCloseTo(0.0001);
-    screen.unmount();
-    mount(track("preparing"));
-    measure();
+    await screen.unmount();
+    await mount(track("preparing"));
+    await measure();
     expect(op("journey-stop-0-ring")).toBe(0);
     expect(op("journey-stop-0-done")).toBe(1);
     expect(op("journey-stop-1-ring")).toBe(1);
@@ -97,9 +97,9 @@ describe("RantangTrack", () => {
     expect(scaleX()).toBeCloseTo(1 / 3);
   });
 
-  it("done stops are filled heroText, the current stop has a stopActive ring and later stops are outlined heroMeta", () => {
-    mount(track("out_for_delivery"));
-    measure();
+  it("done stops are filled heroText, the current stop has a stopActive ring and later stops are outlined heroMeta", async () => {
+    await mount(track("out_for_delivery"));
+    await measure();
     expect(flat("journey-stop-0-done").backgroundColor).toBe(ink.heroText);
     expect(op("journey-stop-0-done")).toBe(1);
     expect(op("journey-stop-1-done")).toBe(1);
@@ -109,49 +109,49 @@ describe("RantangTrack", () => {
     expect(flat("journey-stop-3-ahead").borderColor).toBe(ink.heroMeta);
   });
 
-  it("arrived_unconfirmed half fills Sampai and says it in words", () => {
-    mount(track("arrived_unconfirmed"));
-    measure();
+  it("arrived_unconfirmed half fills Sampai and says it in words", async () => {
+    await mount(track("arrived_unconfirmed"));
+    await measure();
     expect(has("journey-stop-3-half")).toBe(true);
     expect(op("journey-stop-3-done")).toBe(0);
     expect(op("journey-stop-3-ring")).toBe(1);
     expect(screen.getByText("Ditandai sampai, menunggu konfirmasimu")).toBeTruthy();
-    screen.unmount();
-    mount(track("delivered"));
-    measure();
+    await screen.unmount();
+    await mount(track("delivered"));
+    await measure();
     expect(op("journey-stop-3-done")).toBe(1);
   });
 
-  it("issue shows the warning stop and the words Gagal diantar", () => {
-    mount(track("issue"));
-    measure();
+  it("issue shows the warning stop and the words Gagal diantar", async () => {
+    await mount(track("issue"));
+    await measure();
     expect(screen.getAllByText("Gagal diantar").length).toBeGreaterThan(0);
     expect(has("journey-stop-3-alert")).toBe(true);
     expect(flat("journey-stop-3-warn").borderColor).toBe(ink.heroWarn);
     expect(has("journey-dash")).toBe(true);
     expect(op("journey-stop-3-ring")).toBe(0);
-    screen.unmount();
-    mount(track("delivered"));
+    await screen.unmount();
+    await mount(track("delivered"));
     expect(has("journey-dash")).toBe(false);
     expect(has("journey-stop-3-warn")).toBe(false);
   });
 
-  it("nothing animates on first paint", () => {
+  it("nothing animates on first paint", async () => {
     const timing = jest.spyOn(Reanimated, "withTiming");
     for (const stage of ["scheduled", "preparing", "out_for_delivery", "arrived_unconfirmed", "delivered", "issue"] as const) {
-      mount(track(stage));
-      measure();
-      screen.unmount();
+      await mount(track(stage));
+      await measure();
+      await screen.unmount();
     }
     // The in-progress loop may start; the fill, the marker and the stops never animate on first paint.
     expect(timing).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: nativeMotion.feature }));
   });
 
-  it("a stage change animates the fill with transform only", () => {
+  it("a stage change animates the fill with transform only", async () => {
     const timing = jest.spyOn(Reanimated, "withTiming");
-    const view = mount(track("preparing"));
-    measure();
-    view.rerender(wrap(track("out_for_delivery")));
+    const view = await mount(track("preparing"));
+    await measure();
+    await view.rerender(wrap(track("out_for_delivery")));
     expect(timing).toHaveBeenCalledWith(2, expect.objectContaining({ duration: nativeMotion.feature }));
     expect(scaleX()).toBeCloseTo(2 / 3);
     const style = flat("journey-progress");
@@ -162,106 +162,106 @@ describe("RantangTrack", () => {
     expect(style.transformOrigin).toBe("left center");
     // A refresh with the same stage starts nothing.
     timing.mockClear();
-    view.rerender(wrap(track("out_for_delivery", { caption: "Berangkat 11.00" })));
+    await view.rerender(wrap(track("out_for_delivery", { caption: "Berangkat 11.00" })));
     expect(timing).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: nativeMotion.feature }));
   });
 
-  it("reduced motion makes the change instant", () => {
+  it("reduced motion makes the change instant", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const timing = jest.spyOn(Reanimated, "withTiming");
-    const view = mount(track("preparing"));
-    view.rerender(wrap(track("delivered")));
-    measure();
+    const view = await mount(track("preparing"));
+    await view.rerender(wrap(track("delivered")));
+    await measure();
     expect(timing).not.toHaveBeenCalled();
     expect(markerX()).toBeCloseTo(RAIL);
     expect(op("journey-stop-3-done")).toBe(1);
   });
 
-  it("the segment after the current stop loops while the meal is between stops", () => {
+  it("the segment after the current stop loops while the meal is between stops", async () => {
     for (const [stage, left] of [
       ["scheduled", "0%"],
       ["preparing", `${100 / 3}%`],
       ["out_for_delivery", `${200 / 3}%`],
     ] as const) {
       const repeat = jest.spyOn(Reanimated, "withRepeat");
-      mount(track(stage));
-      measure();
+      await mount(track(stage));
+      await measure();
       expect(repeat).toHaveBeenCalledWith(expect.anything(), -1);
       expect(flat("journey-run").left).toBe(left);
       expect(flat("journey-run").width).toBe(`${100 / 3}%`);
       expect(flat("journey-run-bar").backgroundColor).toBe(ink.heroText);
       expect(flat("journey-run-bar").transformOrigin).toBe("left center");
-      screen.unmount();
+      await screen.unmount();
       repeat.mockRestore();
     }
   });
 
-  it("nothing loops once Sampai is reached, for a failed meal, under reduced motion or with counts", () => {
+  it("nothing loops once Sampai is reached, for a failed meal, under reduced motion or with counts", async () => {
     const repeat = jest.spyOn(Reanimated, "withRepeat");
     for (const stage of ["arrived_unconfirmed", "delivered", "issue"] as const) {
-      mount(track(stage));
+      await mount(track(stage));
       expect(has("journey-run")).toBe(false);
-      screen.unmount();
+      await screen.unmount();
     }
-    mount(track("preparing", { counts: { preparing: 2 } }));
+    await mount(track("preparing", { counts: { preparing: 2 } }));
     expect(has("journey-run")).toBe(false);
-    screen.unmount();
+    await screen.unmount();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    mount(track("out_for_delivery"));
+    await mount(track("out_for_delivery"));
     expect(has("journey-run")).toBe(false);
     expect(repeat).not.toHaveBeenCalled();
   });
 
-  it("the container reads one sentence", () => {
-    mount(track("preparing", { caption: "Dimasak 10.15" }));
+  it("the container reads one sentence", async () => {
+    await mount(track("preparing", { caption: "Dimasak 10.15" }));
     expect(byId("journey").props.accessible).toBe(true);
     expect(byId("journey").props.accessibilityLabel).toBe("Pesanan: Dimasak, langkah 2 dari 4");
     expect(byId("journey").props.accessibilityValue).toEqual({ text: "Dimasak 10.15" });
     for (let i = 0; i < 4; i += 1) expect(byId(`journey-stop-${i}`).props.accessibilityElementsHidden).toBe(true);
     expect(byId("journey-labels").props.importantForAccessibility).toBe("no-hide-descendants");
-    screen.unmount();
+    await screen.unmount();
     // A failed meal is counted at the stop it reached, not at the end it never got to.
-    mount(track("issue"));
+    await mount(track("issue"));
     expect(byId("journey").props.accessibilityLabel).toBe("Pesanan: Gagal diantar, langkah 3 dari 4");
-    screen.unmount();
-    mount(<RantangTrack stage="issue" reached="preparing" testID="journey" />);
+    await screen.unmount();
+    await mount(<RantangTrack stage="issue" reached="preparing" testID="journey" />);
     expect(byId("journey").props.accessibilityLabel).toBe("Pesanan: Gagal diantar, langkah 2 dari 4");
   });
 
-  it("delivered has no current stop: no stopActive ring and no larger disc anywhere", () => {
-    mount(track("delivered"));
-    measure();
+  it("delivered has no current stop: no stopActive ring and no larger disc anywhere", async () => {
+    await mount(track("delivered"));
+    await measure();
     for (let i = 0; i < 4; i += 1) {
       expect(op(`journey-stop-${i}-ring`)).toBe(0);
       expect((flat(`journey-stop-${i}-disc`).transform as { scale: number }[])[0].scale).toBe(1);
       expect(op(`journey-stop-${i}-done`)).toBe(1);
     }
-    screen.unmount();
-    mount(track("arrived_unconfirmed"));
-    measure();
+    await screen.unmount();
+    await mount(track("arrived_unconfirmed"));
+    await measure();
     expect(op("journey-stop-3-ring")).toBe(1);
     expect((flat("journey-stop-3-disc").transform as { scale: number }[])[0].scale).toBeCloseTo(1.14);
   });
 
-  it("keeps the marker and the progress line invisible until the rail has been measured", () => {
-    mount(track("delivered"));
+  it("keeps the marker and the progress line invisible until the rail has been measured", async () => {
+    await mount(track("delivered"));
     expect(op("journey-marker")).toBe(0);
     expect(op("journey-progress")).toBe(0);
-    measure();
+    await measure();
     expect(op("journey-marker")).toBe(1);
     expect(op("journey-progress")).toBe(1);
   });
 
-  it("reads the hero inks: heroMeta for the line, heroText for the progress and caption, heroWarn when it failed", () => {
-    mount(track("out_for_delivery", { caption: "Berangkat 11.00" }));
-    measure();
+  it("reads the hero inks: heroMeta for the line, heroText for the progress and caption, heroWarn when it failed", async () => {
+    await mount(track("out_for_delivery", { caption: "Berangkat 11.00" }));
+    await measure();
     expect(flat("journey-line").backgroundColor).toBe(ink.heroMeta);
     expect(flat("journey-progress").backgroundColor).toBe(ink.heroText);
     expect(StyleSheet.flatten(screen.getByText("Berangkat 11.00").props.style).color).toBe(ink.heroText);
     expect(flat("journey-label-3").color).toBe(ink.heroMeta);
     expect(flat("journey-label-2").color).toBe(ink.heroText);
-    screen.unmount();
-    mount(track("issue"));
+    await screen.unmount();
+    await mount(track("issue"));
     expect(flat("journey-caption").color).toBe(ink.heroWarn);
     expect(flat("journey-label-3").color).toBe(ink.heroWarn);
   });
@@ -273,14 +273,14 @@ describe("RantangTrack", () => {
     ["arrived_unconfirmed", true],
     ["delivered", true],
     ["issue", true],
-  ] as const)("%s draws the marker box filled: %s", (stage, filled) => {
-    mount(track(stage));
-    measure();
+  ] as const)("%s draws the marker box filled: %s", async (stage, filled) => {
+    await mount(track(stage));
+    await measure();
     expect(byId("journey-marker-glyph-body").props.fill != null).toBe(filled);
   });
 
-  it("keeps each Indonesian label whole on one line inside its own column, shrinking a little rather than breaking", () => {
-    mount(track("scheduled", { counts: trackCounts({ scheduled: 2 }) }));
+  it("keeps each Indonesian label whole on one line inside its own column, shrinking a little rather than breaking", async () => {
+    await mount(track("scheduled", { counts: trackCounts({ scheduled: 2 }) }));
     for (let i = 0; i < 4; i += 1) {
       const label = byId(`journey-label-${i}`);
       expect(label.props.numberOfLines).toBe(1);
@@ -296,9 +296,9 @@ describe("RantangTrack", () => {
     expect(flat("journey-labels").overflow).not.toBe("hidden");
   });
 
-  it("in English a two-word label wraps in its column, one word fits, and every column holds two lines", () => {
+  it("in English a two-word label wraps in its column, one word fits, and every column holds two lines", async () => {
     useMobile.mockReturnValue(english);
-    mount(track("scheduled"));
+    await mount(track("scheduled"));
     // "On the way" wraps (two lines, centred, the column's width); "Scheduled", "Cooking" and "Arrived" fit one line.
     expect(byId("journey-label-2").props.numberOfLines).toBe(2);
     expect(byId("journey-label-2").props.adjustsFontSizeToFit).toBe(false);
@@ -315,33 +315,33 @@ describe("RantangTrack", () => {
     useMobile.mockReturnValue(undefined);
   });
 
-  it("fades the half-filled Sampai in with the fill, and puts it in place at once under reduced motion", () => {
+  it("fades the half-filled Sampai in with the fill, and puts it in place at once under reduced motion", async () => {
     const timing = jest.spyOn(Reanimated, "withTiming");
-    const view = mount(track("out_for_delivery"));
-    measure();
+    const view = await mount(track("out_for_delivery"));
+    await measure();
     expect(op("journey-stop-3-half")).toBe(0);
-    view.rerender(wrap(track("arrived_unconfirmed")));
+    await view.rerender(wrap(track("arrived_unconfirmed")));
     expect(timing).toHaveBeenCalledWith(3, expect.objectContaining({ duration: nativeMotion.feature }));
     expect(op("journey-stop-3-half")).toBe(1);
-    screen.unmount();
+    await screen.unmount();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     timing.mockClear();
-    const quiet = mount(track("out_for_delivery"));
-    quiet.rerender(wrap(track("arrived_unconfirmed")));
+    const quiet = await mount(track("out_for_delivery"));
+    await quiet.rerender(wrap(track("arrived_unconfirmed")));
     expect(timing).not.toHaveBeenCalled();
     expect(op("journey-stop-3-half")).toBe(1);
   });
 
-  it("with counts the figures sit under the stops and the line fills to the furthest stage reached", () => {
-    mount(
+  it("with counts the figures sit under the stops and the line fills to the furthest stage reached", async () => {
+    await mount(
       track("preparing", { counts: trackCounts({ scheduled: 1, preparing: 2, out_for_delivery: 3, arrived: 0, delivered: 0 }) }),
     );
-    measure();
+    await measure();
     expect([0, 1, 2, 3].map((i) => (byId(`journey-count-${i}`).children as string[]).join(""))).toEqual(["1", "2", "3", "0"]);
     expect(scaleX()).toBeCloseTo(2 / 3);
     expect(byId("journey").props.accessibilityLabel).toBe("Pesanan: Diantar, langkah 3 dari 4");
-    screen.unmount();
-    mount(track("preparing"));
+    await screen.unmount();
+    await mount(track("preparing"));
     expect(has("journey-count-0")).toBe(false);
   });
 

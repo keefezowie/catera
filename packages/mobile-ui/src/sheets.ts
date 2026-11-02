@@ -204,6 +204,8 @@ export function useQuestionRoute<I, R>(
   const stray = !input;
   const result = useRef(fallback);
   const closing = useRef(false);
+  // The route's own close transition has ended while it was still in the stack: the sheet is already off screen.
+  const slidAway = useRef(false);
   const routeKey = route?.key;
 
   useEffect(() => {
@@ -214,7 +216,10 @@ export function useQuestionRoute<I, R>(
     }
     // The route's own close has ended (UIKit's swipe, reported while the route is still mounted): answer now. A closing
     // transition also ends when another screen covers this one, so it counts only once the route has left the stack.
+    // The stack may hear of a swipe's removal after its close has ended (a removal is queued, not applied at once):
+    // then the route's unmount answers without waiting for a slide that is over.
     return navigation.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
+      slidAway.current = !!e.data?.closing;
       const removed = !navigation.getState()?.routes.some((r) => r.key === routeKey);
       if (e.data?.closing && (removed || closing.current)) answerQuestion(registry, id, result.current);
     });
@@ -226,7 +231,7 @@ export function useQuestionRoute<I, R>(
     () => () => {
       if (!id || !registry.has(id)) return;
       const value = result.current;
-      if (os === "ios") setTimeout(() => answerQuestion(registry, id, value), SHEET_CLOSE_MS);
+      if (os === "ios" && !slidAway.current) setTimeout(() => answerQuestion(registry, id, value), SHEET_CLOSE_MS);
       else answerQuestion(registry, id, value);
     },
     [registry, id, os],
@@ -333,6 +338,11 @@ export function useUnsavedGuard(dirty: boolean, noun: string, options: UnsavedGu
   // True while a held removal is replayed: `repeat` drops the hold, and the hook's flag has to follow it.
   const [released, setReleased] = useState(false);
   const routeKey = route?.key;
+  // Removed, or held by something else: either way the next close asks again. Taken back once the release has
+  // rendered, never in the same batch: `usePreventRemove` re-arms only when its flag changes.
+  useEffect(() => {
+    if (released) setReleased(false);
+  }, [released]);
 
   // `usePreventRemove` throws outside a navigator; a screen is inside one for its whole life, or never.
   const preventRemove = navigation && routeKey ? usePreventRemove : noPrevention;
@@ -346,8 +356,6 @@ export function useUnsavedGuard(dirty: boolean, noun: string, options: UnsavedGu
       } catch {
         // The navigator refused the removal: nothing to report, the screen stays.
       }
-      // Removed, or held by something else: either way the next close asks again.
-      setTimeout(() => setReleased(false), 0);
     };
     if (!routeKey || !canHoldRemoval(data.action as { type: string; source?: string }, routeKey, opts.os)) return letGo();
     // One question at a time, and never a trap: a removal that lands while the question is still open goes through

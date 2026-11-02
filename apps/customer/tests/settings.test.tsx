@@ -15,7 +15,7 @@ import { customerState } from "./fixtures";
 
 /** Every screen focus the stand-in router has seen; `focus()` replays them, as returning to the screen does. */
 const mockFocus = new Set<() => void>();
-const focus = () => act(() => mockFocus.forEach((effect) => effect()));
+const focus = async () => await act(() => mockFocus.forEach((effect) => effect()));
 
 jest.mock("expo-router", () => {
   const { useEffect } = require("react");
@@ -83,8 +83,8 @@ function runtimeWith({ actor = customer as Record<string, unknown> | null } = {}
   return runtime;
 }
 
-const renderWith = (runtime: MobileRuntime, ui: React.ReactElement) =>
-  render(
+const renderWith = async (runtime: MobileRuntime, ui: React.ReactElement) =>
+  await render(
     <ThemeProvider storageKey={runtime.storageKey("theme")}>
       <MobileProvider runtime={runtime} linkMapper={customerLink}>
         <ToastProvider>{ui}</ToastProvider>
@@ -110,7 +110,7 @@ const isInside = (inner: unknown, outer: unknown) => {
  * that may shrink, inside a frame no taller than the window, with the title row fixed above it.
  */
 function expectFitScrolls(title: string, reachable: unknown[]) {
-  const scrollers = screen.UNSAFE_root.findAll((n) => n.type === "RCTScrollView" && !n.props.horizontal) as unknown as Node[];
+  const scrollers = screen.container.queryAll((n) => n.type === "RCTScrollView" && !n.props.horizontal) as unknown as Node[];
   expect(scrollers).toHaveLength(1);
   const [scroller] = scrollers;
   for (const node of reachable) expect(isInside(node, scroller)).toBe(true);
@@ -143,14 +143,14 @@ beforeEach(() => {
 
 describe("Pengaturan entry", () => {
   it("Akun has a Pengaturan entry and no inline Bahasa or Tampilan", async () => {
-    renderWith(runtimeWith(), <Akun />);
+    await renderWith(runtimeWith(), <Akun />);
     expect(await screen.findByText("Rani Contoh")).toBeTruthy();
     const entries = screen.getAllByRole("button", { name: /^Pengaturan/ });
     // The card row at the foot of the page is the only way in: the header's gear is gone.
     expect(entries).toHaveLength(1);
     expect(within(screen.getByTestId("akun-header")).queryByRole("button")).toBeNull();
     expect(within(entries[0]).getByText("Bahasa, tampilan")).toBeTruthy();
-    fireEvent.press(entries[0]);
+    await fireEvent.press(entries[0]);
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
     expect(screen.queryByText("Bahasa")).toBeNull();
     expect(screen.queryByText("Tampilan")).toBeNull();
@@ -161,7 +161,7 @@ describe("Pengaturan entry", () => {
   });
 
   it("signed-out Akun keeps the Pengaturan entry", async () => {
-    renderWith(runtimeWith({ actor: null }), <Akun />);
+    await renderWith(runtimeWith({ actor: null }), <Akun />);
     expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /^Pengaturan/ })).toHaveLength(1);
     expect(screen.queryByRole("tab", { name: "English" })).toBeNull();
@@ -170,7 +170,7 @@ describe("Pengaturan entry", () => {
 
 describe("Pengaturan", () => {
   it("Pengaturan lists Notifikasi, Bahasa, Tampilan, Versi aplikasi, Syarat dan privasi, Data akun and Keluar in that order", async () => {
-    renderWith(runtimeWith(), <Pengaturan />);
+    await renderWith(runtimeWith(), <Pengaturan />);
     expect(await screen.findByRole("switch", { name: "Notifikasi di HP ini" })).toBeTruthy();
     // Android sets the screen's name as its first content line, then the four section labels.
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Pengaturan", "Notifikasi", "Aplikasi", "Tentang", "Akun"]);
@@ -184,18 +184,18 @@ describe("Pengaturan", () => {
       "Keluar",
     ]);
     expect(screen.getByText("Makanan berangkat, menu besok, pembayaran")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Data akun" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Data akun" }));
     expect(router.push).toHaveBeenLastCalledWith("/data-akun");
     // Each row shows its current value; Android (the Jest build) words the system theme "Ikuti sistem".
     expect(screen.getByRole("button", { name: "Bahasa, Indonesia" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tampilan, Ikuti sistem" })).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Bahasa, Indonesia" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bahasa, Indonesia" }));
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan/bahasa");
-    fireEvent.press(screen.getByRole("button", { name: "Tampilan, Ikuti sistem" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tampilan, Ikuti sistem" }));
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan/tampilan");
     // The terms row opens the web page in the in-app browser.
     expect(screen.queryByText("Segera hadir")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Syarat dan privasi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Syarat dan privasi" }));
     expect(WebBrowser.openBrowserAsync).toHaveBeenLastCalledWith("https://api.example.test/syarat-dan-privasi");
     const keluar = screen.getByRole("button", { name: "Keluar" });
     expect(StyleSheet.flatten(within(keluar).getByText("Keluar").props.style).color).toBe(nativeThemes.light.danger);
@@ -203,15 +203,15 @@ describe("Pengaturan", () => {
 
   it("Keluar signs out and returns to Beranda", async () => {
     const runtime = runtimeWith();
-    renderWith(runtime, <Pengaturan />);
-    fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
+    await renderWith(runtime, <Pengaturan />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
     await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
     // Every tab back at its root, so Akun opens on its sign-in prompt and not on this signed-out Pengaturan.
     await waitFor(() => expect(require("../src/nav").goToTab).toHaveBeenCalledWith("index", { everyTab: true }));
   });
 
   it("signed out shows Bahasa and Tampilan only", async () => {
-    renderWith(runtimeWith({ actor: null }), <Pengaturan />);
+    await renderWith(runtimeWith({ actor: null }), <Pengaturan />);
     expect(await screen.findByRole("button", { name: "Bahasa, Indonesia" })).toBeTruthy();
     await act(async () => {});
     expect(screen.queryByText("Notifikasi")).toBeNull();
@@ -228,13 +228,13 @@ describe("Pengaturan", () => {
 
   it("the terms row says so when the page does not open", async () => {
     (WebBrowser.openBrowserAsync as jest.Mock).mockRejectedValueOnce(new Error("offline"));
-    renderWith(runtimeWith(), <Pengaturan />);
-    fireEvent.press(await screen.findByRole("button", { name: "Syarat dan privasi" }));
+    await renderWith(runtimeWith(), <Pengaturan />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Syarat dan privasi" }));
     expect(await screen.findByText("Halaman belum bisa dibuka. Coba lagi.")).toBeTruthy();
   });
 
   it("Versi aplikasi reads the app config version", async () => {
-    renderWith(runtimeWith(), <Pengaturan />);
+    await renderWith(runtimeWith(), <Pengaturan />);
     const version = await screen.findByText("2.4.1");
     expect(version.props.selectable).toBe(true);
     expect(StyleSheet.flatten(version.props.style).fontVariant).toEqual(["tabular-nums"]);
@@ -243,14 +243,14 @@ describe("Pengaturan", () => {
   });
 
   it("speaks English after the language changes", async () => {
-    renderWith(
+    await renderWith(
       runtimeWith(),
       <>
         <Pengaturan />
         <BahasaSheet />
       </>,
     );
-    fireEvent.press(await screen.findByRole("radio", { name: "English" }));
+    await fireEvent.press(await screen.findByRole("radio", { name: "English" }));
     expect(router.back).toHaveBeenCalledTimes(1);
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.locale", "en");
     expect(await screen.findByRole("button", { name: "Language, English" })).toBeTruthy();
@@ -260,7 +260,7 @@ describe("Pengaturan", () => {
   });
 
   it("large text grows the rows: minimum heights only and no truncated line", async () => {
-    renderWith(runtimeWith(), <Pengaturan />);
+    await renderWith(runtimeWith(), <Pengaturan />);
     await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
     for (const row of screen.getAllByTestId(/^settings-(row|switch-row)$/)) {
       const style = StyleSheet.flatten(row.props.style) ?? {};
@@ -274,10 +274,10 @@ describe("Pengaturan", () => {
 describe("notification switch", () => {
   it("turning on asks for permission, registers this phone and remembers it", async () => {
     const runtime = runtimeWith();
-    renderWith(runtime, <Pengaturan />);
+    await renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "undetermined", canAskAgain: true });
-    fireEvent(notificationSwitch(), "valueChange", true);
+    await fireEvent(notificationSwitch(), "valueChange", true);
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "device.register",
@@ -293,21 +293,21 @@ describe("notification switch", () => {
   it("stays on after leaving and coming back, because the phone and the flag both say so", async () => {
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     store().set(FLAG, "on");
-    const first = renderWith(runtimeWith(), <Pengaturan />);
+    const first = await renderWith(runtimeWith(), <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
-    first.unmount();
-    renderWith(runtimeWith(), <Pengaturan />);
+    await first.unmount();
+    await renderWith(runtimeWith(), <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
   });
 
   it("the switch reads the phone permission on focus", async () => {
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     store().set(FLAG, "on");
-    renderWith(runtimeWith(), <Pengaturan />);
+    await renderWith(runtimeWith(), <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
     // Notifications were turned off in the phone's own settings while Catera was away.
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied", canAskAgain: false });
-    focus();
+    await focus();
     await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
     expect(screen.getByText("Izinkan notifikasi di Pengaturan HP")).toBeTruthy();
   });
@@ -323,14 +323,14 @@ describe("notification switch", () => {
     try {
       (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
       store().set(FLAG, "on");
-      const view = renderWith(runtimeWith(), <Pengaturan />);
+      const view = await renderWith(runtimeWith(), <Pengaturan />);
       await waitFor(() => expect(notificationSwitch()).toBeChecked());
       (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied", canAskAgain: false });
-      act(() => listeners.forEach((l) => l("background")));
-      act(() => listeners.forEach((l) => l("active")));
+      await act(() => listeners.forEach((l) => l("background")));
+      await act(() => listeners.forEach((l) => l("active")));
       await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
       expect(screen.getByText("Izinkan notifikasi di Pengaturan HP")).toBeTruthy();
-      view.unmount();
+      await view.unmount();
     } finally {
       AppState.addEventListener = original;
     }
@@ -340,15 +340,15 @@ describe("notification switch", () => {
     const open = jest.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied", canAskAgain: false });
     store().set(FLAG, "on");
-    renderWith(runtimeWith(), <Pengaturan />);
+    await renderWith(runtimeWith(), <Pengaturan />);
     expect(await screen.findByText("Izinkan notifikasi di Pengaturan HP")).toBeTruthy();
     // Never on while the system blocks it, even though this phone was registered earlier.
     expect(notificationSwitch()).not.toBeChecked();
-    fireEvent.press(screen.getByRole("button", { name: "Buka Pengaturan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Buka Pengaturan" }));
     expect(open).toHaveBeenCalledTimes(1);
     // Flipping it asks the phone again, and the switch does not show on even for the moment the question takes.
     (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: "denied", canAskAgain: false });
-    fireEvent(notificationSwitch(), "valueChange", true);
+    await fireEvent(notificationSwitch(), "valueChange", true);
     expect(notificationSwitch()).not.toBeChecked();
     await waitFor(() => expect(Notifications.requestPermissionsAsync).toHaveBeenCalledTimes(1));
     expect(notificationSwitch()).not.toBeChecked();
@@ -359,9 +359,9 @@ describe("notification switch", () => {
   it("a refused permission request leaves the switch off with the system-settings line", async () => {
     const runtime = runtimeWith();
     (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: "denied", canAskAgain: false });
-    renderWith(runtime, <Pengaturan />);
+    await renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
-    fireEvent(notificationSwitch(), "valueChange", true);
+    await fireEvent(notificationSwitch(), "valueChange", true);
     expect(await screen.findByText("Izinkan notifikasi di Pengaturan HP")).toBeTruthy();
     expect(notificationSwitch()).not.toBeChecked();
     expect(runtime.api.command).not.toHaveBeenCalledWith("device.register", expect.anything(), expect.anything());
@@ -371,9 +371,9 @@ describe("notification switch", () => {
     const runtime = runtimeWith();
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     store().set(FLAG, "on");
-    renderWith(runtime, <Pengaturan />);
+    await renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
-    fireEvent(notificationSwitch(), "valueChange", false);
+    await fireEvent(notificationSwitch(), "valueChange", false);
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "device.unregister",
@@ -391,9 +391,9 @@ describe("notification switch", () => {
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     store().set(FLAG, "on");
-    renderWith(runtime, <Pengaturan />);
+    await renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
-    fireEvent(notificationSwitch(), "valueChange", false);
+    await fireEvent(notificationSwitch(), "valueChange", false);
     expect(await screen.findByText("Pengaturan notifikasi belum tersimpan. Coba lagi.")).toBeTruthy();
     expect(notificationSwitch()).toBeChecked();
     expect(store().get(FLAG)).toBe("on");
@@ -403,9 +403,9 @@ describe("notification switch", () => {
     const runtime = runtimeWith();
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
-    renderWith(runtime, <Pengaturan />);
+    await renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
-    fireEvent(notificationSwitch(), "valueChange", true);
+    await fireEvent(notificationSwitch(), "valueChange", true);
     expect(await screen.findByText("Pengaturan notifikasi belum tersimpan. Coba lagi.")).toBeTruthy();
     expect(notificationSwitch()).not.toBeChecked();
     expect(screen.queryByText("REQUEST_TIMEOUT")).toBeNull();
@@ -414,7 +414,7 @@ describe("notification switch", () => {
 
   it("Expo Go hides the notification row", async () => {
     constants().executionEnvironment = "storeClient";
-    renderWith(runtimeWith(), <Pengaturan />);
+    await renderWith(runtimeWith(), <Pengaturan />);
     expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
     // No dead control and no line explaining it: the whole Notifikasi section is gone.
     expect(screen.queryByRole("switch")).toBeNull();
@@ -428,7 +428,7 @@ describe("notification switch", () => {
     store().set("catera.theme", "dark");
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     store().set(FLAG, "on");
-    renderWith(runtimeWith(), <Pengaturan />);
+    await renderWith(runtimeWith(), <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
     await waitFor(() => expect(notificationSwitch().props.thumbTintColor).toBe(nativeThemes.dark.cream));
     expect(notificationSwitch().props.trackColorForTrue).toBe(nativeThemes.dark.forest);
@@ -437,11 +437,11 @@ describe("notification switch", () => {
 });
 
 describe("grouped settings cards (customer scale)", () => {
-  const renderV2 = (runtime: MobileRuntime, ui: React.ReactElement) =>
-    renderWith(runtime, <LayoutScaleProvider value="v2">{ui}</LayoutScaleProvider>);
+  const renderV2 = async (runtime: MobileRuntime, ui: React.ReactElement) =>
+    await renderWith(runtime, <LayoutScaleProvider value="v2">{ui}</LayoutScaleProvider>);
 
   it("v2 settings sections are grouped cards with trailing values; classic unchanged", async () => {
-    const v2 = renderV2(runtimeWith(), <Pengaturan />);
+    const v2 = await renderV2(runtimeWith(), <Pengaturan />);
     await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
     const cards = screen.getAllByTestId("settings-card");
     // Notifikasi, Aplikasi, Tentang, Akun and Keluar each sit in one card.
@@ -463,10 +463,10 @@ describe("grouped settings cards (customer scale)", () => {
     expect(within(bahasa).getAllByText(/Indonesia/)).toHaveLength(1);
     const tampilan = screen.getByRole("button", { name: "Tampilan, Ikuti sistem" });
     expect(within(tampilan).getByTestId("settings-value").props.children).toBe("Ikuti sistem");
-    v2.unmount();
+    await v2.unmount();
 
     // Dapur's classic list: no card, and the value is the Android supporting line.
-    renderWith(runtimeWith(), <Pengaturan />);
+    await renderWith(runtimeWith(), <Pengaturan />);
     await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
     expect(screen.queryByTestId("settings-card")).toBeNull();
     expect(screen.queryByTestId("settings-value")).toBeNull();
@@ -476,7 +476,7 @@ describe("grouped settings cards (customer scale)", () => {
   it("a fragment of three rows is divided between all of them, not counted as one row", async () => {
     const error = jest.spyOn(console, "error").mockImplementation(() => undefined);
     try {
-      renderV2(
+      await renderV2(
         runtimeWith(),
         <SettingsSection title="Akun">
           <SettingsRow label="Nama" />
@@ -498,7 +498,7 @@ describe("grouped settings cards (customer scale)", () => {
 
   it("the cards take the dark fill and drop the light edge", async () => {
     store().set("catera.theme", "dark");
-    renderV2(runtimeWith(), <Pengaturan />);
+    await renderV2(runtimeWith(), <Pengaturan />);
     await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
     await waitFor(() =>
       expect(StyleSheet.flatten(screen.getAllByTestId("settings-card")[0].props.style).backgroundColor).toBe(nativeThemes.dark.fill),
@@ -508,7 +508,7 @@ describe("grouped settings cards (customer scale)", () => {
 
   it("at font 1.3 and 360dp the v2 rows grow and the trailing value wraps instead of clipping", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
-    renderV2(runtimeWith(), <Pengaturan />);
+    await renderV2(runtimeWith(), <Pengaturan />);
     await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
     for (const row of screen.getAllByTestId(/^settings-(row|switch-row)$/)) {
       const style = StyleSheet.flatten(row.props.style) ?? {};
@@ -525,7 +525,7 @@ describe("grouped settings cards (customer scale)", () => {
 
 describe("choice sheets", () => {
   it("Tampilan sheet applies the choice at once and closes", async () => {
-    renderWith(
+    await renderWith(
       runtimeWith(),
       <>
         <Pengaturan />
@@ -537,7 +537,7 @@ describe("choice sheets", () => {
     expect(group.props.accessibilityRole).toBe("radiogroup");
     expect(within(group).getByRole("radio", { name: "Ikuti sistem" })).toBeChecked();
     expect(screen.getByText("Ikuti sistem berarti ikut tema HP kamu.")).toBeTruthy();
-    fireEvent.press(within(group).getByRole("radio", { name: "Gelap" }));
+    await fireEvent.press(within(group).getByRole("radio", { name: "Gelap" }));
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.theme", "dark");
     expect(router.back).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole("button", { name: "Tampilan, Gelap" })).toBeTruthy();
@@ -554,7 +554,7 @@ describe("choice sheets", () => {
   });
 
   it("Bahasa sheet offers Indonesia and English with the current one chosen", async () => {
-    renderWith(runtimeWith(), <BahasaSheet />);
+    await renderWith(runtimeWith(), <BahasaSheet />);
     const group = await screen.findByLabelText("Bahasa");
     expect(group.props.accessibilityRole).toBe("radiogroup");
     expect(within(group).getByRole("radio", { name: "Indonesia" })).toBeChecked();
@@ -565,7 +565,7 @@ describe("choice sheets", () => {
     ["Tampilan", () => <TampilanSheet />, "Gelap"],
     ["Bahasa", () => <BahasaSheet />, "English"],
   ] as const)("the %s sheet scrolls under its title once it outgrows the screen", async (title, sheet, last) => {
-    renderWith(runtimeWith(), sheet());
+    await renderWith(runtimeWith(), sheet());
     expectFitScrolls(title, [await screen.findByRole("radio", { name: last })]);
   });
 });
@@ -578,9 +578,9 @@ describe("Keluar lets go of this phone's push token", () => {
     const runtime = runtimeWith();
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     store().set(FLAG, "on");
-    renderWith(runtime, <Pengaturan />);
+    await renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
-    fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
     await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
     expect(unregisterCalls(runtime)).toEqual([["device.unregister", { token: "ExponentPushToken[synthetic-phone]" }, expect.any(String)]]);
     // The request still carries the session: it goes out before signOut.
@@ -594,9 +594,9 @@ describe("Keluar lets go of this phone's push token", () => {
     (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     store().set(FLAG, "on");
-    renderWith(runtime, <Pengaturan />);
+    await renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
-    fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
     await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
     expect(unregisterCalls(runtime)).toHaveLength(1);
     await waitFor(() => expect(require("../src/nav").goToTab).toHaveBeenCalledWith("index", { everyTab: true }));
@@ -609,12 +609,12 @@ describe("Keluar lets go of this phone's push token", () => {
     const runtime = runtimeWith();
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     store().set(FLAG, "on");
-    renderWith(runtime, <Pengaturan />);
+    await renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
     (Notifications.getExpoPushTokenAsync as jest.Mock).mockReturnValueOnce(new Promise(() => undefined));
     jest.useFakeTimers();
     try {
-      fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
       await act(async () => void (await jest.advanceTimersByTimeAsync(2900)));
       expect(runtime.signOut).not.toHaveBeenCalled();
       await act(async () => void (await jest.advanceTimersByTimeAsync(100)));
@@ -628,8 +628,8 @@ describe("Keluar lets go of this phone's push token", () => {
   it("Expo Go signs out without reading a token or sending device.unregister", async () => {
     constants().executionEnvironment = "storeClient";
     const runtime = runtimeWith();
-    renderWith(runtime, <Pengaturan />);
-    fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
+    await renderWith(runtime, <Pengaturan />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
     await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
     expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
     expect(unregisterCalls(runtime)).toEqual([]);
@@ -641,14 +641,14 @@ describe("Keluar while sign-out waits", () => {
     const runtime = runtimeWith();
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     store().set(FLAG, "on");
-    renderWith(runtime, <Pengaturan />);
+    await renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
     (Notifications.getExpoPushTokenAsync as jest.Mock).mockReturnValueOnce(new Promise(() => undefined));
     jest.useFakeTimers();
     try {
       const keluar = screen.getByRole("button", { name: "Keluar" });
       expect(screen.queryByTestId("settings-row-busy")).toBeNull();
-      fireEvent.press(keluar);
+      await fireEvent.press(keluar);
       await act(async () => void (await jest.advanceTimersByTimeAsync(100)));
       const row = screen.getByRole("button", { name: "Keluar" });
       expect(row.props.accessibilityState).toEqual({ busy: true, disabled: true });
@@ -656,7 +656,7 @@ describe("Keluar while sign-out waits", () => {
       expect(StyleSheet.flatten(within(row).getByTestId("settings-row-body").props.style).opacity).toBe(0.45);
       // The label stays, so the row still says what it is doing.
       expect(within(row).getByText("Keluar")).toBeTruthy();
-      fireEvent.press(row);
+      await fireEvent.press(row);
       await act(async () => void (await jest.advanceTimersByTimeAsync(2900)));
       expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(1);
       expect(runtime.signOut).toHaveBeenCalledTimes(1);

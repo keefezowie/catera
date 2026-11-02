@@ -88,8 +88,8 @@ const rantang = {
   },
 } as unknown as SellerOffer;
 
-const mount = (runtime: MobileRuntime, ui: React.ReactElement) =>
-  render(
+const mount = async (runtime: MobileRuntime, ui: React.ReactElement) =>
+  await render(
     withDapurScale(
       <MobileProvider runtime={runtime} linkMapper={() => "/"}>
         {ui}
@@ -146,13 +146,13 @@ describe("quickOffer macros", () => {
 describe("Gizi per porsi in the editor", () => {
   it("min above max is refused with the message", async () => {
     const command = jest.fn();
-    mount(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
+    await mount(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
     expect(await screen.findByText("Gizi per porsi (opsional)")).toBeTruthy();
     expect(screen.getByText("Isi kalau kamu tahu. Pelanggan melihatnya sebagai perkiraan per porsi; kolom kosong tidak ditampilkan.")).toBeTruthy();
     expect(screen.getByRole("switch", { name: "Pakai rentang" }).props.accessibilityState.checked).toBe(true);
-    fireEvent.changeText(screen.getByLabelText("Kalori dari (kkal)"), "700");
-    fireEvent.changeText(screen.getByLabelText("Kalori sampai (kkal)"), "600");
-    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await fireEvent.changeText(screen.getByLabelText("Kalori dari (kkal)"), "700");
+    await fireEvent.changeText(screen.getByLabelText("Kalori sampai (kkal)"), "600");
+    await fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     expect(await screen.findByText("Batas bawah tidak boleh lebih dari batas atas")).toBeTruthy();
     expect(command).not.toHaveBeenCalled();
     // The fields take a number keyboard.
@@ -161,14 +161,14 @@ describe("Gizi per porsi in the editor", () => {
 
   it("turning the range off keeps one calorie field with the lower value", async () => {
     const command = jest.fn(async () => ({ id: "p-new" }));
-    mount(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
+    await mount(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
     // The whole row is the switch: tapping its label turns the range off.
     await screen.findByRole("switch", { name: "Pakai rentang" });
-    fireEvent.press(screen.getByText("Pakai rentang"));
+    await fireEvent.press(screen.getByText("Pakai rentang"));
     expect(screen.getByRole("switch", { name: "Pakai rentang" }).props.accessibilityState.checked).toBe(false);
     expect(screen.queryByLabelText("Kalori sampai (kkal)")).toBeNull();
     expect(screen.getByLabelText("Kalori (kkal)").props.value).toBe("580");
-    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     const [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
     expect(payload.offer.nutrition).toEqual({ caloriesKcal: 580, proteinG: 32, fatG: 0 });
@@ -177,12 +177,12 @@ describe("Gizi per porsi in the editor", () => {
   it("Salin jadi paket baru carries the macros", async () => {
     expect(formFromOffer(liveOffer).nutrition).toEqual({ range: true, caloriesKcal: ["580", "640"], proteinG: "32", carbsG: "", fatG: "0" });
     const command = jest.fn(async () => ({ id: "p-new" }));
-    mount(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
+    await mount(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
     expect((await screen.findByLabelText("Kalori dari (kkal)")).props.value).toBe("580");
     expect(screen.getByLabelText("Kalori sampai (kkal)").props.value).toBe("640");
     expect(screen.getByLabelText("Lemak (g)").props.value).toBe("0");
     expect(screen.getByLabelText("Karbo (g)").props.value).toBe("");
-    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     const [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
     expect(payload.offer.nutrition).toEqual({ caloriesKcal: { min: 580, max: 640 }, proteinG: 32, fatG: 0 });
@@ -206,28 +206,28 @@ describe("Gizi per porsi in the editor", () => {
 
     // Copied and saved without edits: all four ranges go out as they came in.
     let command = jest.fn(async () => ({ id: "p-new" }));
-    let view = mount(runtimeWith({ command }), <PackageEditor from={rantang} />);
+    let view = await mount(runtimeWith({ command }), <PackageEditor from={rantang} />);
     expect((await screen.findByLabelText("Protein (g)")).props.value).toBe("29-30");
     expect(screen.getByLabelText("Karbo (g)").props.value).toBe("76-82");
     expect(screen.getByLabelText("Lemak (g)").props.value).toBe("19-21");
     // The range is selected on focus, so the first keystroke replaces it.
     expect(screen.getByLabelText("Protein (g)").props.selectTextOnFocus).toBe(true);
-    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     let [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
     expect(payload.offer.nutrition).toEqual(seedRanges);
-    view.unmount();
+    await view.unmount();
 
     // Editing protein replaces its range with the one number typed; the untouched ranges still go out.
     command = jest.fn(async () => ({ id: "p-new" }));
-    view = mount(runtimeWith({ command }), <PackageEditor from={rantang} />);
-    fireEvent.changeText(await screen.findByLabelText("Protein (g)"), "31");
+    view = await mount(runtimeWith({ command }), <PackageEditor from={rantang} />);
+    await fireEvent.changeText(await screen.findByLabelText("Protein (g)"), "31");
     expect(screen.getByLabelText("Protein (g)").props.value).toBe("31");
-    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
     expect(payload.offer.nutrition).toEqual({ ...seedRanges, proteinG: 31 });
-    view.unmount();
+    await view.unmount();
   });
 
   it("the first keystroke into a carried range starts a single number", () => {
@@ -256,13 +256,13 @@ describe("Gizi per porsi in the editor", () => {
   });
 
   it("the calorie and gram fields line up at the top, so an error under one does not lift it", async () => {
-    mount(runtimeWith({}), <PackageEditor from={liveOffer} />);
+    await mount(runtimeWith({}), <PackageEditor from={liveOffer} />);
     await screen.findByText("Gizi per porsi (opsional)");
     for (const id of ["gizi-kalori", "gizi-gram"]) expect(StyleSheet.flatten(screen.getByTestId(id).props.style).alignItems).toBe("flex-start");
   });
 
   it("a new package starts with every gizi field empty and the range off", async () => {
-    mount(runtimeWith({}), <PackageEditor />);
+    await mount(runtimeWith({}), <PackageEditor />);
     expect((await screen.findByRole("switch", { name: "Pakai rentang" })).props.accessibilityState.checked).toBe(false);
     for (const label of ["Kalori (kkal)", "Protein (g)", "Karbo (g)", "Lemak (g)"]) expect(screen.getByLabelText(label).props.value).toBe("");
   });
@@ -270,12 +270,12 @@ describe("Gizi per porsi in the editor", () => {
 
 describe("Dapur package view", () => {
   it("shows the macros the package carries, zero included", async () => {
-    mount(runtimeWith({}), <PackageDetail offer={liveOffer} />);
+    await mount(runtimeWith({}), <PackageDetail offer={liveOffer} />);
     expect(await screen.findByText("Gizi per porsi: 580–640 kkal · 32 g protein · 0 g lemak")).toBeTruthy();
   });
 
   it("says nothing about gizi when the package has none", async () => {
-    mount(runtimeWith({}), <PackageDetail offer={{ ...liveOffer, nutrition: null } as SellerOffer} />);
+    await mount(runtimeWith({}), <PackageDetail offer={{ ...liveOffer, nutrition: null } as SellerOffer} />);
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.queryByText(/Gizi per porsi/)).toBeNull();
   });
@@ -285,24 +285,24 @@ describe("the gram fields at a larger text size", () => {
   const { NutritionFields } = require("../src/business/NutritionFields") as typeof import("../src/business/NutritionFields");
   const ReactNative = require("react-native") as typeof import("react-native");
 
-  function gramCells(fontScale: number) {
+  async function gramCells(fontScale: number) {
     jest.spyOn(ReactNative, "useWindowDimensions").mockReturnValue({ width: 360, height: 800, scale: 3, fontScale });
-    const view = mount(runtimeWith({}), <NutritionFields value={formFromOffer(rantang).nutrition} onChange={() => undefined} errors={{}} />);
+    const view = await mount(runtimeWith({}), <NutritionFields value={formFromOffer(rantang).nutrition} onChange={() => undefined} errors={{}} />);
     const row = StyleSheet.flatten(screen.getByTestId("gizi-gram").props.style);
     const cells = ["Protein (g)", "Karbo (g)", "Lemak (g)"].map((label) => {
       let node = screen.getByLabelText(label).parent;
       while (node && StyleSheet.flatten(node.props.style)?.flexBasis === undefined) node = node.parent;
       return StyleSheet.flatten(node!.props.style);
     });
-    view.unmount();
+    await view.unmount();
     return { row, cells };
   }
   afterEach(() => jest.restoreAllMocks());
 
-  it("each basis grows with the text and the row wraps instead of squeezing a label onto two lines", () => {
-    const normal = gramCells(1);
+  it("each basis grows with the text and the row wraps instead of squeezing a label onto two lines", async () => {
+    const normal = await gramCells(1);
     expect(normal.cells.map((c) => c.flexBasis)).toEqual([92, 92, 92]);
-    const large = gramCells(1.3);
+    const large = await gramCells(1.3);
     expect(large.row).toMatchObject({ flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" });
     for (const cell of large.cells) expect(cell).toMatchObject({ flexGrow: 1, minWidth: 0 });
     expect(large.cells.map((c) => c.flexBasis)).toEqual([92 * 1.3, 92 * 1.3, 92 * 1.3]);
@@ -314,16 +314,16 @@ describe("the gram fields at a larger text size", () => {
 
 describe("the Gizi per porsi header", () => {
   const { NutritionFields } = require("../src/business/NutritionFields") as typeof import("../src/business/NutritionFields");
-  const mountFields = () => mount(runtimeWith({}), <NutritionFields value={formFromOffer(rantang).nutrition} onChange={() => undefined} errors={{}} />);
+  const mountFields = async () => await mount(runtimeWith({}), <NutritionFields value={formFromOffer(rantang).nutrition} onChange={() => undefined} errors={{}} />);
 
-  it("is the section variant, 20/26, like the editor's other section headers", () => {
-    mountFields();
+  it("is the section variant, 20/26, like the editor's other section headers", async () => {
+    await mountFields();
     const header = StyleSheet.flatten(screen.getByRole("header", { name: /Gizi per porsi/ }).props.style);
     expect([header.fontSize, header.lineHeight]).toEqual([20, 26]);
   });
 
-  it("keeps the (opsional) mark beside it as a meta line, and the range switch label and the caption on the Dapur ladder", () => {
-    mountFields();
+  it("keeps the (opsional) mark beside it as a meta line, and the range switch label and the caption on the Dapur ladder", async () => {
+    await mountFields();
     expect(StyleSheet.flatten(screen.getByText("(opsional)").props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
     const row = screen.getByRole("switch", { name: "Pakai rentang" });
     expect(StyleSheet.flatten(row.props.style).minHeight).toBe(48);

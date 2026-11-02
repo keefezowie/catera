@@ -103,9 +103,9 @@ const sites: Site[] = [
     signedIn: false,
     ui: <Register />,
     fill: async () => {
-      fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
-      fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-      fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+      await fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
+      await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+      await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
       return "Daftar";
     },
     calls: (r) => (r.fake.auth.signUp as jest.Mock).mock.calls.length,
@@ -115,7 +115,7 @@ const sites: Site[] = [
     signedIn: false,
     ui: <Recover />,
     fill: async () => {
-      fireEvent.changeText(await screen.findByLabelText("Email"), "rani@example.test");
+      await fireEvent.changeText(await screen.findByLabelText("Email"), "rani@example.test");
       return "Kirim tautan pemulihan";
     },
     calls: (r) => (r.fake.auth.resetPasswordForEmail as jest.Mock).mock.calls.length,
@@ -125,7 +125,7 @@ const sites: Site[] = [
     signedIn: true,
     ui: <AddressForm />,
     fill: async () => {
-      fireEvent.changeText(await screen.findByLabelText("Jalan, nomor, detail"), "Jl. Contoh No. 5");
+      await fireEvent.changeText(await screen.findByLabelText("Jalan, nomor, detail"), "Jl. Contoh No. 5");
       return "Simpan alamat";
     },
     calls: (r) => (r.runtime.api.command as jest.Mock).mock.calls.filter(([a]) => a === "address.save").length,
@@ -138,7 +138,7 @@ const sites: Site[] = [
     fill: async () => {
       await screen.findByTestId("review-sheet");
       // Kirim waits for a rating.
-      fireEvent.press(screen.getByRole("button", { name: "4 bintang" }));
+      await fireEvent.press(screen.getByRole("button", { name: "4 bintang" }));
       return "Kirim ulasan";
     },
     calls: (r) => (r.runtime.api.command as jest.Mock).mock.calls.filter(([a]) => a === "review.save").length,
@@ -149,8 +149,8 @@ const sites: Site[] = [
     signedIn: true,
     ui: <HelpForm />,
     fill: async () => {
-      fireEvent.press(await screen.findByRole("radio", { name: /^Pembayaran, / }));
-      fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Pembayaran saya belum tercatat");
+      await fireEvent.press(await screen.findByRole("radio", { name: /^Pembayaran, / }));
+      await fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Pembayaran saya belum tercatat");
       return "Kirim";
     },
     calls: (r) => (r.runtime.api.command as jest.Mock).mock.calls.filter(([a]) => a === "support.create").length,
@@ -176,7 +176,7 @@ describe("busy buttons", () => {
   it.each(sites)("every awaiting command button is busy while it waits: $name", async (site) => {
     mockParams = site.params ?? {};
     const r = build(site.signedIn);
-    render(
+    await render(
       <MobileProvider runtime={r.runtime} linkMapper={customerLink}>
         <ToastProvider>{site.ui}</ToastProvider>
       </MobileProvider>,
@@ -184,11 +184,11 @@ describe("busy buttons", () => {
     const label = await site.fill();
     const button = () => screen.getByRole("button", { name: label });
     expect(button().props.accessibilityState.busy).toBe(false);
-    fireEvent.press(button());
+    await fireEvent.press(button());
     await waitFor(() => expect(button().props.accessibilityState.busy).toBe(true));
     // A second press while it waits sends nothing more, and the label is still the button's name.
-    fireEvent.press(button());
-    fireEvent.press(button());
+    await fireEvent.press(button());
+    await fireEvent.press(button());
     expect(site.calls(r)).toBe(1);
     await act(async () => r.wait.release());
   });

@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { View } from "react-native";
-import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { currency } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
@@ -31,6 +30,7 @@ import { packageHref } from "../hrefs";
 import { PhotoThumb } from "../layout/PhotoThumb";
 import { photoUri } from "../photo";
 import { ReadError } from "../ReadError";
+import { pushScreen } from "../nav";
 
 /** The board draws the first block 12 under the header row; the screen body starts 16 down, so the blocks lift by 4. */
 const BODY_LIFT = -4;
@@ -95,9 +95,9 @@ export function UsahaScreen() {
       ],
       closeLabel: t("Tutup", "Close"),
     });
-    if (key === "lihat") router.push(packageHref(o.id, o.name) as never);
+    if (key === "lihat") pushScreen(packageHref(o.id, o.name));
     // Paket baru says "Paket disalin" once the copy is actually in its editor.
-    else if (key === "salin") router.push(`/paket/baru?from=${o.id}` as never);
+    else if (key === "salin") pushScreen(`/paket/baru?from=${o.id}`);
   }
   const name = ops.data?.caterer.name;
   const addLabel = t("+ Paket baru", "+ New package");
@@ -109,7 +109,7 @@ export function UsahaScreen() {
       flush
       label={t("Pengaturan", "Settings")}
       tint={c.charcoal}
-      onPress={() => router.push("/pengaturan" as never)}
+      onPress={() => pushScreen("/pengaturan")}
     />
   );
   const kelola = [
@@ -150,7 +150,7 @@ export function UsahaScreen() {
             <Card tone="attention">
               <Text variant="section">{t("Terima pembayaran lewat Catera", "Take payments through Catera")}</Text>
               <Text>{t("Supaya pelanggan bisa memperpanjang lewat Catera.", "So customers can renew through Catera.")}</Text>
-              <Button label={t("Aktifkan pembayaran", "Turn on payments")} onPress={() => router.push("/aktifkan" as never)} />
+              <Button label={t("Aktifkan pembayaran", "Turn on payments")} onPress={() => pushScreen("/aktifkan")} />
             </Card>
           </View>
         ) : null}
@@ -166,7 +166,7 @@ export function UsahaScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={addLabel}
                   haptic="none"
-                  onPress={() => router.push("/paket/baru" as never)}
+                  onPress={() => pushScreen("/paket/baru")}
                   style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 8, paddingRight: 0 }}
                 >
                   <DecorativeIcon name="add" size={20} color={c.forest} />
@@ -205,7 +205,7 @@ export function UsahaScreen() {
                               meta={meta}
                               metaStyle={TABULAR}
                               accessibilityLabel={o.name}
-                              onPress={() => router.push(packageHref(o.id, o.name) as never)}
+                              onPress={() => pushScreen(packageHref(o.id, o.name))}
                             />
                           </View>
                           <PressableScale
@@ -243,7 +243,7 @@ export function UsahaScreen() {
                   minHeight={48}
                   glyph={<Ionicons name={row.icon} size={20} color={c.muted} />}
                   title={row.label}
-                  onPress={() => router.push(row.href as never)}
+                  onPress={() => pushScreen(row.href)}
                   trailing={
                     <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.sm }}>
                       {"status" in row ? <Text variant="meta">{row.status}</Text> : null}

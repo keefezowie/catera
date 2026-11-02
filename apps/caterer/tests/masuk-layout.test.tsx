@@ -25,8 +25,8 @@ beforeEach(() => {
   runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "dapur-masuk-layout" });
   runtime.api = { ...runtime.api, me: jest.fn(async () => ({ actor: null, demo: false })) } as unknown as MobileRuntime["api"];
 });
-const renderMasuk = () =>
-  render(
+const renderMasuk = async () =>
+  await render(
     withDapurScale(
       <MoodProvider now={() => new Date("2026-10-08T08:00:00Z")}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
@@ -61,9 +61,9 @@ const keyboard = () => {
     return { remove: jest.fn() };
   }) as never);
   return {
-    show: (height: number) =>
-      act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height } } as never)))),
-    hide: () => act(() => ["keyboardDidHide", "keyboardWillHide"].forEach((name) => handlers[name]?.forEach((fn) => fn()))),
+    show: async (height: number) =>
+      await act(() => ["keyboardDidShow", "keyboardWillShow"].forEach((name) => handlers[name]?.forEach((fn) => fn({ endCoordinates: { height } } as never)))),
+    hide: async () => await act(() => ["keyboardDidHide", "keyboardWillHide"].forEach((name) => handlers[name]?.forEach((fn) => fn()))),
   };
 };
 const failSignIn = () =>
@@ -74,10 +74,10 @@ const failSignIn = () =>
 describe("Dapur Masuk layout", () => {
   it("shows the failure under the fields, then the Daftar and Gabung lines, then Masuk last", async () => {
     failSignIn();
-    renderMasuk();
-    fireEvent.changeText(await screen.findByLabelText("Email"), "dapur@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await renderMasuk();
+    await fireEvent.changeText(await screen.findByLabelText("Email"), "dapur@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     await screen.findByTestId("form-error");
     const page = order();
     expect(page.indexOf("error")).toBeGreaterThan(page.indexOf("field:Kata sandi"));
@@ -87,44 +87,44 @@ describe("Dapur Masuk layout", () => {
   });
 
   it("spaces the fields 16 apart, the group gap that matches Daftar's", async () => {
-    renderMasuk();
+    await renderMasuk();
     expect(flatStyle(await screen.findByTestId("masuk-fields"))).toMatchObject({ gap: 16 });
   });
 
   it("lifts the pinned Masuk by the keyboard height only; the screen pays the inset once", async () => {
     const kb = keyboard();
-    renderMasuk();
+    await renderMasuk();
     await screen.findByRole("button", { name: "Masuk" });
     const pad = () => StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle).paddingBottom as number;
     const down = pad();
     expect(flatStyle(screen.getByTestId("screen-footer")).marginBottom ?? 0).toBe(0);
-    kb.show(300);
+    await kb.show(300);
     expect(flatStyle(screen.getByTestId("screen-footer")).marginBottom).toBe(300);
     expect(pad()).toBe(down);
-    kb.hide();
+    await kb.hide();
     expect(flatStyle(screen.getByTestId("screen-footer")).marginBottom ?? 0).toBe(0);
   });
 
   it("has one heading, Masuk, under the waving mascot, and no method tabs", async () => {
-    renderMasuk();
+    await renderMasuk();
     expect(await screen.findByTestId("mascot-melambai", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByText("Catera Dapur")).toBeNull();
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Masuk"]);
     expect(screen.queryByRole("tab")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     expect(router.push).toHaveBeenCalledWith("/daftar");
   });
 
   it("toggles the password with an eye icon whose spoken name follows its state, and outlines both fields on a failure", async () => {
     failSignIn();
-    renderMasuk();
-    fireEvent.press(await screen.findByRole("button", { name: "Tampilkan kata sandi" }));
+    await renderMasuk();
+    await fireEvent.press(await screen.findByRole("button", { name: "Tampilkan kata sandi" }));
     expect(screen.getByRole("button", { name: "Sembunyikan kata sandi" })).toBeTruthy();
     const edge = (label: string) => StyleSheet.flatten(screen.getByLabelText(label).props.style).borderColor;
     const [e0, p0] = [edge("Email"), edge("Kata sandi")];
-    fireEvent.changeText(screen.getByLabelText("Email"), "dapur@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.changeText(screen.getByLabelText("Email"), "dapur@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     await screen.findByTestId("form-error");
     expect(edge("Email")).not.toBe(e0);
     expect(edge("Kata sandi")).not.toBe(p0);

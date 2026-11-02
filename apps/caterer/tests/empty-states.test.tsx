@@ -216,7 +216,7 @@ const STATES: State[] = [
 ];
 
 async function open(state: State) {
-  render(wrap(state.runtime(), state.ui));
+  await render(wrap(state.runtime(), state.ui));
   return screen.findByTestId(`mascot-${state.pose}`, hidden, { timeout: 4000 });
 }
 
@@ -264,12 +264,12 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     for (const state of [STATES[0]]) {
       expect(artHeight(await open(state))).toBe(72);
-      screen.unmount();
+      await screen.unmount();
     }
   });
 
   it("keeps Usaha's failed package read the compact line inside its card: the page around it still stands", async () => {
-    render(wrap(runtimeWith({ sellerOperations: jest.fn(offline) }), <UsahaScreen />));
+    await render(wrap(runtimeWith({ sellerOperations: jest.fn(offline) }), <UsahaScreen />));
     expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
     for (const pose of POSES) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
   });
@@ -285,7 +285,7 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     const art = await open(REST);
     expect(artHeight(art)).toBe(140);
     for (const copy of REST.copy) expect(screen.getByText(copy)).toBeTruthy();
-    screen.unmount();
+    await screen.unmount();
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     expect(artHeight(await open(REST))).toBe(115);
   });
@@ -326,7 +326,7 @@ describe("Dapur polish art", () => {
   describe.each(["light", "dark"] as const)("%s theme", (scheme) => {
     it.each(ART_STATES.map((s) => [s.name, s] as const))("%s", async (_name, state) => {
       jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
-      render(wrap(state.runtime(), withDapurScale(<TodayScreen />)));
+      await render(wrap(state.runtime(), withDapurScale(<TodayScreen />)));
       const art = await screen.findByTestId(state.art, hidden, { timeout: 4000 });
       expect(artSize(art)).toBe(180);
       expect(StyleSheet.flatten(art.props.style).alignSelf).toBe("center");
@@ -341,22 +341,22 @@ describe("Dapur polish art", () => {
   it("draws the art at 147 on a 360dp phone at font scale 1.3", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     for (const state of ART_STATES) {
-      render(wrap(state.runtime(), withDapurScale(<TodayScreen />)));
+      await render(wrap(state.runtime(), withDapurScale(<TodayScreen />)));
       expect(artSize(await screen.findByTestId(state.art, hidden, { timeout: 4000 }))).toBe(147);
-      screen.unmount();
+      await screen.unmount();
     }
   });
 
   it("drops the customer line when no meal arrived", async () => {
     // Every row was cancelled: nobody ate from this kitchen today, so no number (and no "diantar") is claimed.
-    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("cancelled")) }), withDapurScale(<TodayScreen />)));
+    await render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("cancelled")) }), withDapurScale(<TodayScreen />)));
     await screen.findByText(/^Tidak ada yang dimasak hari ini$|^Semua beres hari ini$/, {}, { timeout: 4000 });
     expect(screen.queryByText(/pelanggan makan dari dapurmu/)).toBeNull();
     expect(screen.queryByText(/^Semua sudah diantar/)).toBeNull();
   });
 
   it("is a plain empty state, not the day off, when packages carry no weekdays", async () => {
-    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => ({ ...day("scheduled"), deliveries: [] })) }), withDapurScale(<TodayScreen />)));
+    await render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => ({ ...day("scheduled"), deliveries: [] })) }), withDapurScale(<TodayScreen />)));
     expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
     expect(screen.queryByText("Dapur libur hari ini")).toBeNull();
   });
@@ -367,11 +367,11 @@ describe("the header holds no cooking mascot", () => {
   // meta row, the date, the figure strip and the compact track. The mascot stays on the done and empty states above.
   it("draws no mascot before cooking, while it cooks, or once the meal is on its way", async () => {
     for (const status of ["scheduled", "preparing", "out_for_delivery"]) {
-      render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day(status)) }), withDapurScale(<TodayScreen />)));
+      await render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day(status)) }), withDapurScale(<TodayScreen />)));
       await screen.findByTestId("session-count");
       for (const pose of POSES) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
       expect(screen.queryByTestId("mascot-memasak-slot", hidden)).toBeNull();
-      screen.unmount();
+      await screen.unmount();
     }
   });
 
@@ -387,7 +387,7 @@ describe("the header holds no cooking mascot", () => {
       return ops;
     };
     const layout = async (status: string) => {
-      render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => windowed(status)) }), withDapurScale(<TodayScreen />)));
+      await render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => windowed(status)) }), withDapurScale(<TodayScreen />)));
       const card = await screen.findByTestId("session-count");
       const flat = (id: string) => StyleSheet.flatten(within(card).getByTestId(id, hidden).props.style);
       const shape = {
@@ -398,7 +398,7 @@ describe("the header holds no cooking mascot", () => {
         grid: within(card).queryByTestId("session-figures-grid", hidden) !== null,
         words: within(card).queryByTestId("rantang-track-caption", hidden) !== null,
       };
-      screen.unmount();
+      await screen.unmount();
       return shape;
     };
     const before = await layout("scheduled");
@@ -412,7 +412,7 @@ describe("the header holds no cooking mascot", () => {
 
   it("stacks the figures as a 2-column grid on a 360dp phone at font scale 1.3, the lead across both", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
+    await render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
     const card = await screen.findByTestId("session-count");
     const grid = await within(card).findByTestId("session-figures-grid", hidden);
     expect(StyleSheet.flatten(within(grid).getByTestId("session-figures-cell-0", hidden).props.style).width).toBe("100%");
@@ -421,7 +421,7 @@ describe("the header holds no cooking mascot", () => {
   });
 
   it("leaves a copy of the header's track to the screen reader: the words are in its accessibility value", async () => {
-    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
+    await render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
     const track = await screen.findByTestId("rantang-track", hidden);
     expect((track.props.accessibilityValue.text as string).split(". ")[0]).toMatch(/^Dimasak/);
   });
@@ -434,6 +434,6 @@ it("mascot art is hidden from screen readers", async () => {
     expect(art.props.accessible).toBe(false);
     expect(art.props.importantForAccessibility).toBe("no-hide-descendants");
     expect(art.props.accessibilityElementsHidden).toBe(true);
-    screen.unmount();
+    await screen.unmount();
   }
 });

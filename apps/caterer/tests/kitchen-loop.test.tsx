@@ -120,8 +120,8 @@ const stopSheet = ({ path, params }: { path: string; params: Record<string, stri
     <ExceptionSheet id={path.split("/")[2]} meal={params.meal === "dinner" ? "dinner" : "lunch"} date={params.date} />
   ) : null;
 
-const renderToday = (runtime: MobileRuntime) =>
-  render(
+const renderToday = async (runtime: MobileRuntime) =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h}>
       <ToastProvider>
         <TodayScreen />
@@ -146,7 +146,7 @@ describe("the count card's rantang track", () => {
   it("says Terjadwal for a meal nobody started, and Dimasak 08.10 once the kitchen did", async () => {
     let served = kitchenDay([scheduled]);
     const runtime = runtimeWith(async () => served);
-    renderToday(runtime);
+    await renderToday(runtime);
     const card = await screen.findByTestId("session-count");
     // The compact track leaves its words line out of the picture; they are the first thing its accessibility value says.
     const words = () => (within(screen.getByTestId("session-count")).getByTestId("rantang-track").props.accessibilityValue.text as string).split(". ")[0];
@@ -158,7 +158,7 @@ describe("the count card's rantang track", () => {
     expect(within(card).getByText("Sampai", hidden)).toBeTruthy();
 
     served = kitchenDay([cooking]);
-    fireEvent.press(await screen.findByText("Mulai masak"));
+    await fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
     await waitFor(() => expect(words()).toBe("Dimasak 08.10"));
   });
@@ -173,7 +173,7 @@ describe("the count card's four-stop track with mixed stages", () => {
       { status: "out_for_delivery", cooking_started_at: cooking.cooking_started_at, ...left },
       { status: "out_for_delivery", cooking_started_at: cooking.cooking_started_at, ...left, arrived_at: "2026-10-08T04:00:00Z" },
     ]);
-    renderToday(runtimeWith(async () => day));
+    await renderToday(runtimeWith(async () => day));
     const card = await screen.findByTestId("session-count");
     const hidden = { includeHiddenElements: true };
     const figure = (i: number) => (within(card).getByTestId(`rantang-track-count-${i}`, hidden).children as string[]).join("");
@@ -193,7 +193,7 @@ describe("the count card's four-stop track with mixed stages", () => {
       const { setMood } = useMood();
       return <Pressable accessibilityLabel="ke Malam" onPress={() => setMood("malam")} />;
     };
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith(async () => day)} linkMapper={(h) => h}>
         <MoodProvider now={() => new Date("2026-10-08T03:00:00Z")}>
           <Switch />
@@ -204,7 +204,7 @@ describe("the count card's four-stop track with mixed stages", () => {
     const sentence = () => within(screen.getByTestId("session-count")).getByTestId("rantang-track").props.accessibilityLabel;
     await waitFor(() => expect(sentence()).toBe("Pesanan: Dimasak, langkah 2 dari 4"));
     const timing = jest.spyOn(Reanimated, "withTiming");
-    fireEvent.press(screen.getByLabelText("ke Malam"));
+    await fireEvent.press(screen.getByLabelText("ke Malam"));
     await waitFor(() => expect(sentence()).toBe("Pesanan: Terjadwal, langkah 1 dari 4"));
     // The tracker moves over `feature` only on a real stage change; the other meal is not one.
     expect(timing.mock.calls.filter(([, config]) => config?.duration === nativeMotion.feature)).toEqual([]);
@@ -213,7 +213,7 @@ describe("the count card's four-stop track with mixed stages", () => {
 
 describe("Daftar masak", () => {
   it("lists one row per dish with its count, and says the ticks are a kitchen note", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
     expect(await screen.findByText("Daftar masak")).toBeTruthy();
     // Nasi putih and Sayur asem are in both packages: 28 + 6 portions. Ayam bakar and Tempe orek are Rumahan only.
     expect(screen.getByLabelText("34× Nasi putih")).toBeTruthy();
@@ -231,32 +231,32 @@ describe("Daftar masak", () => {
   });
 
   it("with no dishes reads Menu belum diisi and keeps the owner's Isi menu button", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([scheduled], { dishes: false })));
+    await renderToday(runtimeWith(async () => kitchenDay([scheduled], { dishes: false })));
     expect(await screen.findByText("Daftar masak")).toBeTruthy();
     expect(screen.getAllByText(/^Menu belum diisi · /).length).toBe(2);
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
     const buttons = screen.getAllByText("Isi menu");
-    fireEvent.press(buttons[0]);
+    await fireEvent.press(buttons[0]);
     expect(router.push).toHaveBeenLastCalledWith(`/menu/${TODAY}?pkg=p-rumahan&meal=lunch`);
   });
 
   it("writes ticks.<catererId> with today's date and restores them", async () => {
     const runtime = runtimeWith(async () => kitchenDay([scheduled]));
-    const view = renderToday(runtime);
-    fireEvent.press(await screen.findByLabelText("28× Ayam bakar"));
+    const view = await renderToday(runtime);
+    await fireEvent.press(await screen.findByLabelText("28× Ayam bakar"));
     const key = runtime.storageKey("ticks.k-1");
     await waitFor(() => expect(store().has(key)).toBe(true));
     expect(JSON.parse(store().get(key)!)).toEqual({ [TODAY]: { lunch: [dishKey({ category: "Lauk", name: "Ayam bakar" })] } });
     expect(screen.getByLabelText("28× Ayam bakar").props.accessibilityState).toEqual(expect.objectContaining({ checked: true }));
     // Untick writes it back out.
-    fireEvent.press(screen.getByLabelText("28× Ayam bakar"));
+    await fireEvent.press(screen.getByLabelText("28× Ayam bakar"));
     await waitFor(() => expect(JSON.parse(store().get(key)!)[TODAY].lunch).toEqual([]));
 
-    fireEvent.press(screen.getByLabelText("6× Telur balado"));
+    await fireEvent.press(screen.getByLabelText("6× Telur balado"));
     await waitFor(() => expect(JSON.parse(store().get(key)!)[TODAY].lunch).toHaveLength(1));
-    view.unmount();
+    await view.unmount();
     // A new session of the screen reads the stored tick back.
-    renderToday(runtime);
+    await renderToday(runtime);
     const row = await screen.findByLabelText("6× Telur balado");
     await waitFor(() => expect(row.props.accessibilityState).toEqual(expect.objectContaining({ checked: true })));
   });
@@ -282,7 +282,7 @@ describe("Daftar masak", () => {
     const reads = jest.spyOn(SecureStore, "getItemAsync");
     reads.mockClear();
     const ticksReads = () => reads.mock.calls.filter(([k]) => k === ticksKey).length;
-    render(
+    await render(
       <MobileProvider runtime={runtime} linkMapper={(h) => h}>
         <MoodProvider now={() => new Date("2026-10-08T03:00:00Z")}>
           <Switch />
@@ -291,14 +291,14 @@ describe("Daftar masak", () => {
       </MobileProvider>,
     );
     const checked = () => screen.getByLabelText("28× Ayam bakar").props.accessibilityState.checked;
-    fireEvent.press(await screen.findByLabelText("28× Ayam bakar"));
+    await fireEvent.press(await screen.findByLabelText("28× Ayam bakar"));
     await waitFor(() => expect(checked()).toBe(true));
     expect(ticksReads()).toBe(1);
 
     // Dinner has its own list, so the lunch tick is not shown there.
-    fireEvent.press(screen.getByLabelText("ke Malam"));
+    await fireEvent.press(screen.getByLabelText("ke Malam"));
     await waitFor(() => expect(checked()).toBe(false));
-    fireEvent.press(screen.getByLabelText("ke Siang"));
+    await fireEvent.press(screen.getByLabelText("ke Siang"));
     await waitFor(() => expect(checked()).toBe(true));
     // No reload on the way: the checklist stayed mounted, so the stored ticks were read once.
     expect(ticksReads()).toBe(1);
@@ -310,12 +310,12 @@ describe("Daftar masak", () => {
     const key = runtime.storageKey("ticks.k-1");
     const ayam = dishKey({ category: "Lauk", name: "Ayam bakar" });
     store().set(key, JSON.stringify({ [YESTERDAY]: { lunch: [ayam], dinner: [ayam] } }));
-    renderToday(runtime);
+    await renderToday(runtime);
     const row = await screen.findByLabelText("28× Ayam bakar");
     expect(row.props.accessibilityState).toEqual(expect.objectContaining({ checked: false }));
     // Reading alone leaves the store as it was; the next write is what drops the old date.
     expect(JSON.parse(store().get(key)!)).toHaveProperty(YESTERDAY);
-    fireEvent.press(screen.getByLabelText("6× Telur balado"));
+    await fireEvent.press(screen.getByLabelText("6× Telur balado"));
     await waitFor(() => expect(JSON.parse(store().get(key)!)).toHaveProperty(TODAY));
     expect(Object.keys(JSON.parse(store().get(key)!))).toEqual([TODAY]);
   });
@@ -324,8 +324,8 @@ describe("Daftar masak", () => {
     const runtime = runtimeWith(async () => kitchenDay([scheduled]));
     const key = runtime.storageKey("ticks.k-1");
     store().set(key, JSON.stringify({ [TOMORROW]: { lunch: ["Lauk\u0000Ayam bakar"] } }));
-    renderToday(runtime);
-    fireEvent.press(await screen.findByLabelText("6× Telur balado"));
+    await renderToday(runtime);
+    await fireEvent.press(await screen.findByLabelText("6× Telur balado"));
     await waitFor(() => expect(JSON.parse(store().get(key)!)).toHaveProperty(TODAY));
     expect(JSON.parse(store().get(key)!)).toHaveProperty(TOMORROW);
   });
@@ -333,18 +333,18 @@ describe("Daftar masak", () => {
   it("never gates an action: Mulai masak works with nothing ticked, Berangkat antar with everything ticked", async () => {
     let served = kitchenDay([scheduled]);
     const command = jest.fn(async () => ({ moved: 4 }));
-    renderToday(runtimeWith(async () => served, command));
+    await renderToday(runtimeWith(async () => served, command));
     const start = await screen.findByRole("button", { name: "Mulai masak" });
     expect(start.props.accessibilityState?.disabled).toBeFalsy();
 
     served = kitchenDay([cooking]);
-    fireEvent.press(start);
+    await fireEvent.press(start);
     await lastConfirm().press("Mulai");
     await screen.findByText("Berangkat antar · 34 porsi");
-    for (const box of screen.getAllByRole("checkbox")) fireEvent.press(box);
+    for (const box of screen.getAllByRole("checkbox")) await fireEvent.press(box);
     const depart = screen.getByRole("button", { name: "Berangkat antar · 34 porsi" });
     expect(depart.props.accessibilityState?.disabled).toBeFalsy();
-    fireEvent.press(depart);
+    await fireEvent.press(depart);
     expect(confirm).toHaveBeenCalledTimes(2);
   });
 });
@@ -353,8 +353,8 @@ describe("Mulai masak", () => {
   it("asks first, then sends delivery.cook for today and the meal, with a success haptic and a count", async () => {
     const command = jest.fn(async () => ({ moved: 4 }));
     const runtime = runtimeWith(async () => kitchenDay([scheduled]), command);
-    renderToday(runtime);
-    fireEvent.press(await screen.findByText("Mulai masak"));
+    await renderToday(runtime);
+    await fireEvent.press(await screen.findByText("Mulai masak"));
     const dialog = lastConfirm();
     expect(dialog.title).toBe("Mulai masak makan siang?");
     expect(dialog.message).toBe("Pelanggan akan melihat status Dimasak.");
@@ -366,7 +366,7 @@ describe("Mulai masak", () => {
     expect(command).not.toHaveBeenCalled();
 
     // Asked again, Mulai sends it.
-    fireEvent.press(screen.getByText("Mulai masak"));
+    await fireEvent.press(screen.getByText("Mulai masak"));
     await lastConfirm().press("Mulai");
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
     expect(command).toHaveBeenCalledWith("delivery.cook", { catererId: "k-1", date: TODAY, meal: "lunch" }, expect.any(String));
@@ -377,14 +377,14 @@ describe("Mulai masak", () => {
   it("names the evening meal on the Malam side and sends it for dinner", async () => {
     const command = jest.fn(async () => ({ moved: 4 }));
     const runtime = runtimeWith(async () => kitchenDay([scheduled], { meal: "dinner", dishes: false }), command);
-    render(
+    await render(
       <MobileProvider runtime={runtime} linkMapper={(h) => h}>
         <MoodProvider now={() => new Date("2026-10-08T12:00:00Z")}>
           <TodayScreen />
         </MoodProvider>
       </MobileProvider>,
     );
-    fireEvent.press(await screen.findByText("Mulai masak"));
+    await fireEvent.press(await screen.findByText("Mulai masak"));
     const dialog = lastConfirm();
     expect(dialog.title).toBe("Mulai masak makan malam?");
     await dialog.press("Mulai");
@@ -396,7 +396,7 @@ describe("Mulai masak", () => {
   });
 
   it("is still offered when one stop has already moved on and the rest are scheduled", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([{ status: "out_for_delivery", departed_at: "2026-10-08T02:00:00Z" }, scheduled])));
+    await renderToday(runtimeWith(async () => kitchenDay([{ status: "out_for_delivery", departed_at: "2026-10-08T02:00:00Z" }, scheduled])));
     expect(await screen.findByText("Mulai masak")).toBeTruthy();
     expect(screen.queryByText(/^Berangkat antar/)).toBeNull();
     // The action follows the least advanced row; the track and its words follow the furthest one.
@@ -410,8 +410,8 @@ describe("Mulai masak", () => {
       throw Object.assign(new Error("INVALID_DATE"), { code: "INVALID_DATE" });
     });
     const runtime = runtimeWith(async () => kitchenDay([scheduled]), command);
-    renderToday(runtime);
-    fireEvent.press(await screen.findByText("Mulai masak"));
+    await renderToday(runtime);
+    await fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
     expect(await screen.findByText("Hanya bisa untuk hari ini.")).toBeTruthy();
     expect(screen.getByLabelText("Coba lagi")).toBeTruthy();
@@ -430,26 +430,26 @@ describe("Mulai masak", () => {
     const command = jest.fn(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
-    renderToday(runtimeWith(async () => kitchenDay([scheduled]), command));
-    fireEvent.press(await screen.findByText("Mulai masak"));
+    await renderToday(runtimeWith(async () => kitchenDay([scheduled]), command));
+    await fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
     expect(await screen.findByText(errorLabel("REQUEST_TIMEOUT", "id"))).toBeTruthy();
     // Coba lagi runs the command again without asking again.
-    fireEvent.press(screen.getByLabelText("Coba lagi"));
+    await fireEvent.press(screen.getByLabelText("Coba lagi"));
     await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
   });
 
   it("sends one command for a double press while it runs", async () => {
     let release: (v: unknown) => void = () => undefined;
     const command = jest.fn(() => new Promise((resolve) => (release = resolve)));
-    renderToday(runtimeWith(async () => kitchenDay([scheduled]), command));
+    await renderToday(runtimeWith(async () => kitchenDay([scheduled]), command));
     const start = await screen.findByRole("button", { name: "Mulai masak" });
-    fireEvent.press(start);
+    await fireEvent.press(start);
     await lastConfirm().press("Mulai");
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
     // The same sheet answered twice, and the footer pressed again, still make one command.
     await lastConfirm().press("Mulai");
-    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
     expect(screen.getByRole("button", { name: "Mulai masak" }).props.accessibilityState?.disabled).toBe(true);
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(command).toHaveBeenCalledTimes(1);
@@ -459,8 +459,8 @@ describe("Mulai masak", () => {
   it("stays quiet when the late tap moved nothing: no success buzz, no count, a plain line", async () => {
     const command = jest.fn(async () => ({ moved: 0 }));
     const runtime = runtimeWith(async () => kitchenDay([scheduled]), command);
-    renderToday(runtime);
-    fireEvent.press(await screen.findByText("Mulai masak"));
+    await renderToday(runtime);
+    await fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
     expect(await screen.findByText("Sudah ditandai dimasak.")).toBeTruthy();
     expect(Haptics.notificationAsync).not.toHaveBeenCalled();
@@ -472,12 +472,12 @@ describe("Berangkat antar", () => {
   it("shows once nothing is scheduled and something is cooking, with the caption that promises no number", async () => {
     const command = jest.fn(async () => ({ moved: 4 }));
     const runtime = runtimeWith(async () => kitchenDay([cooking]), command);
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("Berangkat antar · 34 porsi")).toBeTruthy();
     expect(screen.queryByText("Mulai masak")).toBeNull();
     expect(screen.getByText("Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.")).toBeTruthy();
 
-    fireEvent.press(screen.getByRole("button", { name: "Berangkat antar · 34 porsi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Berangkat antar · 34 porsi" }));
     const dialog = lastConfirm();
     expect(dialog.title).toBe("Berangkat antar sekarang?");
     expect(dialog.labels).toEqual(["Batal", "Berangkat"]);
@@ -489,7 +489,7 @@ describe("Berangkat antar", () => {
   });
 
   it("offers nothing once the meal is out for delivery", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([{ status: "out_for_delivery", departed_at: "2026-10-08T02:30:00Z" }])));
+    await renderToday(runtimeWith(async () => kitchenDay([{ status: "out_for_delivery", departed_at: "2026-10-08T02:30:00Z" }])));
     await screen.findByTestId("session-count");
     expect(screen.queryByText("Mulai masak")).toBeNull();
     expect(screen.queryByText(/^Berangkat antar/)).toBeNull();
@@ -499,7 +499,7 @@ describe("Berangkat antar", () => {
 
 describe("a meal whose rows all failed", () => {
   it("says how many were marked Gagal diantar, never that there were none", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([{ status: "issue" }])));
+    await renderToday(runtimeWith(async () => kitchenDay([{ status: "issue" }])));
     expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
     expect(screen.queryByText("Tidak ada pengantaran makan siang")).toBeNull();
     expect(screen.queryByText("Tidak ada yang dimasak hari ini")).toBeNull();
@@ -511,14 +511,14 @@ describe("a meal whose rows all failed", () => {
   it("counts only the real failed rows, and says delivery for one in English", async () => {
     const runtime = runtimeWith(async () => kitchenDay([{ status: "issue" }, { status: "cancelled" }]));
     store().set(runtime.storageKey("locale"), "en");
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("1 lunch delivery marked Not delivered.")).toBeTruthy();
   });
 
   it("still offers the other meal when it has a session", async () => {
     const day = kitchenDay([{ status: "issue" }]);
     day.deliveries[3].meals.push({ meal: "dinner", status: "scheduled" } as never);
-    renderToday(runtimeWith(async () => day));
+    await renderToday(runtimeWith(async () => day));
     expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
     expect(screen.getByText("Lihat makan malam · 6 porsi")).toBeTruthy();
   });
@@ -531,7 +531,7 @@ describe("the delivery time on the count card", () => {
       ...d,
       offer: { ...d.offer, windows: { lunch: i === 0 ? "09.00-10.00" : "11.30-13.00" } },
     })) as typeof day.deliveries;
-    renderToday(runtimeWith(async () => day));
+    await renderToday(runtimeWith(async () => day));
     const card = await screen.findByTestId("session-count");
     expect(within(card).getByText("Antar 11.30")).toBeTruthy();
     expect(within(card).queryByText("Antar 09.00")).toBeNull();
@@ -540,9 +540,9 @@ describe("the delivery time on the count card", () => {
 
 describe("other days and data", () => {
   it("shows the checklist for tomorrow and no footer action", async () => {
-    renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
+    await renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     await screen.findByText("Mulai masak");
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
     expect(await screen.findByText("Daftar masak")).toBeTruthy();
     await waitFor(() => expect(screen.queryByText("Mulai masak")).toBeNull());
     expect(screen.queryByTestId("screen-footer")).toBeNull();
@@ -552,7 +552,7 @@ describe("other days and data", () => {
   it("offers no action on a copy kept from before the connection dropped", async () => {
     const offline = jest.requireMock("../src/today/offline") as { loadCachedDay: jest.Mock };
     offline.loadCachedDay.mockResolvedValue({ savedAt: "2026-10-08T01:00:00Z", data: kitchenDay([scheduled]) });
-    renderToday(runtimeWith(async () => Promise.reject(new Error("REQUEST_TIMEOUT"))));
+    await renderToday(runtimeWith(async () => Promise.reject(new Error("REQUEST_TIMEOUT"))));
     expect(await screen.findByTestId("session-count")).toBeTruthy();
     expect(screen.queryByText("Mulai masak")).toBeNull();
     offline.loadCachedDay.mockResolvedValue(null);
@@ -602,7 +602,7 @@ const LINE = "Tandai Sampai pakai foto bukti. Pelanggan lalu konfirmasi. Kalau t
 
 describe("Urutan antar", () => {
   it("shows the first three stops as numbered rows and reveals the rest on Lihat alamat lainnya", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
     expect(await screen.findByText("Urutan antar")).toBeTruthy();
     const first = screen.getByTestId("stop-1");
     expect(within(first).getByText("1")).toBeTruthy();
@@ -613,14 +613,14 @@ describe("Urutan antar", () => {
     expect(screen.queryByTestId("stop-4")).toBeNull();
     expect(screen.queryByText("Kost Damai")).toBeNull();
 
-    fireEvent.press(screen.getByText("Lihat 1 alamat lainnya"));
+    await fireEvent.press(screen.getByText("Lihat 1 alamat lainnya"));
     expect(within(screen.getByTestId("stop-4")).getByText("Kost Damai")).toBeTruthy();
     expect(screen.queryByText(/^Lihat \d+ alamat lainnya$/)).toBeNull();
   });
 
   it("says how many addresses are folded away, and reveals all of them", async () => {
-    renderToday(runtimeWith(async () => manyStops(12)));
-    fireEvent.press(await screen.findByText("Lihat 9 alamat lainnya"));
+    await renderToday(runtimeWith(async () => manyStops(12)));
+    await fireEvent.press(await screen.findByText("Lihat 9 alamat lainnya"));
     expect(screen.getByTestId("stop-12")).toBeTruthy();
   });
 
@@ -631,7 +631,7 @@ describe("Urutan antar", () => {
       const { setMood } = useMood();
       return <Pressable accessibilityLabel="ke Malam" onPress={() => setMood("malam")} />;
     };
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith(async () => day)} linkMapper={(h) => h}>
         <MoodProvider now={() => new Date("2026-10-08T03:00:00Z")}>
           <Switch />
@@ -639,9 +639,9 @@ describe("Urutan antar", () => {
         </MoodProvider>
       </MobileProvider>,
     );
-    fireEvent.press(await screen.findByText("Lihat 2 alamat lainnya"));
+    await fireEvent.press(await screen.findByText("Lihat 2 alamat lainnya"));
     expect(screen.getByTestId("stop-5")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("ke Malam"));
+    await fireEvent.press(screen.getByLabelText("ke Malam"));
     // The dinner session has the same five stops, but its own order starts with the first three.
     expect(await screen.findByText("Lihat 2 alamat lainnya")).toBeTruthy();
     expect(screen.queryByTestId("stop-5")).toBeNull();
@@ -649,7 +649,7 @@ describe("Urutan antar", () => {
   });
 
   it("keeps the whole address in the row's spoken label while the visible address is one line", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
     const info = await screen.findByTestId("stop-1-info");
     expect(info.props.accessibilityLabel).toMatch(
       /^1\. Bu Sari Wulandari, 2 porsi · Makan Siang Rumahan, Jl\. Melati \d+, Tebet$/,
@@ -660,7 +660,7 @@ describe("Urutan antar", () => {
   it("keeps a stop's delivery note under its row, on one line", async () => {
     const day = kitchenDay([scheduled]);
     day.deliveries[0].address.instructions = "Pagar hijau, titip di pos satpam";
-    renderToday(runtimeWith(async () => day));
+    await renderToday(runtimeWith(async () => day));
     const note = await screen.findByText("Pagar hijau, titip di pos satpam");
     // One more meta line in the stop's own text column, so the row grows by 18 and no more.
     expect(note.props.numberOfLines).toBe(1);
@@ -672,8 +672,8 @@ describe("Urutan antar", () => {
   it("opens that stop's map from its map button", async () => {
     const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     const day = kitchenDay([scheduled]);
-    renderToday(runtimeWith(async () => day));
-    fireEvent.press(await screen.findByLabelText("Buka peta Keluarga Hartono"));
+    await renderToday(runtimeWith(async () => day));
+    await fireEvent.press(await screen.findByLabelText("Buka peta Keluarga Hartono"));
     expect(open).toHaveBeenCalledTimes(1);
     expect(open).toHaveBeenCalledWith(stopsOf(day).find((s) => s.name === "Keluarga Hartono")!.mapsUrl);
     open.mockRestore();
@@ -682,11 +682,11 @@ describe("Urutan antar", () => {
   it("opens the exception sheet for that stop from the ellipsis button", async () => {
     // One day for every read, as the server answers: the sheet reads it again and must find the same stop.
     const day = kitchenDay([scheduled]);
-    renderToday(runtimeWith(async () => day));
+    await renderToday(runtimeWith(async () => day));
     const more = within(await screen.findByTestId("stop-1")).getByLabelText(
       "Laporkan masalah atau pindah tanggal: Bu Sari Wulandari",
     );
-    fireEvent.press(more);
+    await fireEvent.press(more);
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
     expect(screen.getByText("Pindah tanggal")).toBeTruthy();
     // The sheet is titled with the stop it was opened for: the name is on the row and on the sheet.
@@ -694,15 +694,17 @@ describe("Urutan antar", () => {
   });
 
   it("names the ellipsis for what its sheet can do: only a report when the day cannot move", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    // One day for every read, as the server answers: the sheet reads it again and must find the same stop.
+    const day = kitchenDay([scheduled]);
+    await renderToday(runtimeWith(async () => day));
     // Keluarga Hartono's change deadline has passed.
-    fireEvent.press(within(await screen.findByTestId("stop-3")).getByLabelText("Laporkan masalah: Keluarga Hartono"));
+    await fireEvent.press(within(await screen.findByTestId("stop-3")).getByLabelText("Laporkan masalah: Keluarga Hartono"));
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
   });
 
   it("names the customer on every ellipsis, so no two buttons read the same", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
     await screen.findByTestId("stop-1");
     const labels = screen
       .getAllByLabelText(/^(Laporkan masalah|Pindah tanggal)/)
@@ -718,7 +720,7 @@ describe("Urutan antar", () => {
     const day = kitchenDay([scheduled]);
     const runtime = runtimeWith(async () => day);
     store().set(runtime.storageKey("locale"), "en");
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(
       within(await screen.findByTestId("stop-1")).getByLabelText(
         "Report a problem or move the date: Bu Sari Wulandari",
@@ -730,9 +732,9 @@ describe("Urutan antar", () => {
   });
 
   it("offers only a move on tomorrow, and only where the day can move", async () => {
-    renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
+    await renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     await screen.findByText("Mulai masak");
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
     // Tomorrow's day is read before its first stop shows; the checklist beside it reads its note too, so let that settle.
     expect(
       await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"),
@@ -744,7 +746,7 @@ describe("Urutan antar", () => {
 
   it("shows no ellipsis on a stop whose meal is already delivered, and keeps it on the others", async () => {
     const day = kitchenDay([delivered, scheduled]);
-    renderToday(runtimeWith(async () => day));
+    await renderToday(runtimeWith(async () => day));
     const done = stopsOf(day).find((s) => s.deliveryId === day.deliveries[0].id)!;
     const other = stopsOf(day).find((s) => s.deliveryId !== day.deliveries[0].id)!;
     const row = await screen.findByTestId(`stop-${done.n}`);
@@ -756,14 +758,14 @@ describe("Urutan antar", () => {
   it("sends Gagal diantar for a stop whose sheet can only fail, and closes once saved", async () => {
     const command = jest.fn(async () => ({}));
     const day = kitchenDay([departed]);
-    renderToday(runtimeWith(async () => day, command));
+    await renderToday(runtimeWith(async () => day, command));
     const first = stopsOf(day)[0];
-    fireEvent.press(
+    await fireEvent.press(
       await within(await screen.findByTestId("stop-1")).findByLabelText(`Laporkan masalah: ${first.name}`),
     );
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
-    fireEvent.press(screen.getByText("Tandai gagal diantar"));
+    await fireEvent.press(screen.getByText("Tandai gagal diantar"));
     await lastConfirm().press("Tandai gagal");
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
@@ -783,7 +785,7 @@ describe("the exception sheet on its own", () => {
   it("never offers Gagal diantar for a delivered meal and never closes silently on save", async () => {
     const day = kitchenDay([delivered]);
     const command = jest.fn(async () => ({}));
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith(async () => day, command)} linkMapper={(h) => h}>
         <ExceptionSheet id={day.deliveries[0].id} meal="lunch" date={TODAY} />
       </MobileProvider>,
@@ -803,8 +805,8 @@ describe("Buka semua di Peta", () => {
   it("opens the directions link for the route", async () => {
     const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     const day = kitchenDay([scheduled]);
-    renderToday(runtimeWith(async () => day));
-    fireEvent.press(await screen.findByText("Buka semua di Peta"));
+    await renderToday(runtimeWith(async () => day));
+    await fireEvent.press(await screen.findByText("Buka semua di Peta"));
     expect(open).toHaveBeenCalledWith(routeMapsUrl(stopsOf(day))!.url);
     open.mockRestore();
   });
@@ -812,8 +814,8 @@ describe("Buka semua di Peta", () => {
   it("reads Buka 10 alamat pertama di Peta with twelve stops, and opens only those ten", async () => {
     const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     const day = manyStops(12);
-    renderToday(runtimeWith(async () => day));
-    fireEvent.press(await screen.findByText("Buka 10 alamat pertama di Peta"));
+    await renderToday(runtimeWith(async () => day));
+    await fireEvent.press(await screen.findByText("Buka 10 alamat pertama di Peta"));
     expect(screen.queryByText("Buka semua di Peta")).toBeNull();
     const link = routeMapsUrl(stopsOf(day))!;
     expect(link.count).toBe(10);
@@ -825,7 +827,7 @@ describe("Buka semua di Peta", () => {
   it("says it in English", async () => {
     const runtime = runtimeWith(async () => manyStops(12));
     store().set(runtime.storageKey("locale"), "en");
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("Open the first 10 addresses in Maps")).toBeTruthy();
   });
 });
@@ -833,8 +835,8 @@ describe("Buka semua di Peta", () => {
 describe("Bagikan rute ke WhatsApp", () => {
   it("still shares the route text", async () => {
     const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
-    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
-    fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
+    await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(share.mock.calls[0][0]).toEqual(expect.objectContaining({ message: expect.stringMatching(/^\*Antar siang/) }));
     share.mockRestore();
@@ -843,7 +845,7 @@ describe("Bagikan rute ke WhatsApp", () => {
 
 describe("the order across the stages", () => {
   it("sits below the checklist before departure", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([cooking])));
+    await renderToday(runtimeWith(async () => kitchenDay([cooking])));
     await screen.findByText("Urutan antar");
     const [list, order] = readingOrder(["cooking-list", "delivery-order"]);
     expect(list).toBeGreaterThan(0);
@@ -851,7 +853,7 @@ describe("the order across the stages", () => {
   });
 
   it("leads alone after departure: no checklist, the header and track say it is out, and the line explains arrival", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([departed])));
+    await renderToday(runtimeWith(async () => kitchenDay([departed])));
     expect(await screen.findByText("Urutan antar")).toBeTruthy();
     expect(screen.queryByTestId("cooking-list")).toBeNull();
     expect(screen.queryByText("Daftar masak")).toBeNull();
@@ -867,10 +869,10 @@ describe("the order across the stages", () => {
   });
 
   it("keeps Hari ini in the header before departure, and says nothing about arrival on tomorrow", async () => {
-    renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
+    await renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
     expect(screen.getByText(LINE)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
     // Wait for tomorrow's own day: the header names it before its stops are read.
     await screen.findByText("Dapur Bu Rina · Besok");
     await screen.findByLabelText(/^Pindah tanggal: /);
@@ -879,25 +881,26 @@ describe("the order across the stages", () => {
   });
 
   it("lets a stop of a meal that is out for delivery be reported", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([departed])));
-    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah: \S/));
+    const day = kitchenDay([departed]);
+    await renderToday(runtimeWith(async () => day));
+    await fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah: \S/));
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
   });
 
   it("changes stage in place: Berangkat antar does not fade the day's body, a date change does", async () => {
     let served = kitchenDay([cooking]);
-    renderToday(runtimeWith(async (_id, date) => ({ ...served, date })));
+    await renderToday(runtimeWith(async (_id, date) => ({ ...served, date })));
     await screen.findByText("Daftar masak");
     const fades = spyFades();
     served = kitchenDay([departed]);
-    fireEvent.press(await screen.findByText("Berangkat antar · 34 porsi"));
+    await fireEvent.press(await screen.findByText("Berangkat antar · 34 porsi"));
     await lastConfirm().press("Berangkat");
     expect(await screen.findByText("Dapur Bu Rina · Sedang diantar", {}, { timeout: 10000 })).toBeTruthy();
     expect(screen.queryByText("Daftar masak")).toBeNull();
     // The stage moved the track and the footer in place; no block entered.
     expect(fades.mock.calls).toHaveLength(0);
     // A different day is different content: it fades.
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
     await screen.findByText("Dapur Bu Rina · Besok");
     await waitFor(() => expect(fades.mock.calls.length).toBeGreaterThan(0));
     fades.mockRestore();
@@ -905,8 +908,8 @@ describe("the order across the stages", () => {
 
   it("Mulai masak does not fade the session block", async () => {
     let served = kitchenDay([scheduled]);
-    renderToday(runtimeWith(async () => served));
-    fireEvent.press(await screen.findByText("Mulai masak"));
+    await renderToday(runtimeWith(async () => served));
+    await fireEvent.press(await screen.findByText("Mulai masak"));
     const fades = spyFades();
     served = kitchenDay([cooking]);
     await lastConfirm().press("Mulai");
@@ -919,7 +922,7 @@ describe("the order across the stages", () => {
 describe("Semua beres", () => {
   it("replaces the sessions once every delivery is recorded, with a button to tomorrow", async () => {
     const runtime = runtimeWith(async (_id, date) => kitchenDay([delivered], { date }));
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
     // The line counts the real customers whose meal arrived: the canvas day has four.
     expect(screen.getByText("Semua sudah diantar. 4 pelanggan makan dari dapurmu hari ini.")).toBeTruthy();
@@ -928,7 +931,7 @@ describe("Semua beres", () => {
     expect(screen.queryByText("Daftar masak")).toBeNull();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
 
-    fireEvent.press(screen.getByRole("button", { name: "Lihat besok" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat besok" }));
     await waitFor(() => expect(runtime.api.sellerOperations).toHaveBeenLastCalledWith("k-1", TOMORROW));
     expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
     await waitFor(() => expect(screen.queryByText("Semua beres hari ini")).toBeNull());
@@ -936,7 +939,7 @@ describe("Semua beres", () => {
   });
 
   it("counts from the real rows when some were marked Gagal diantar, and does not say everything arrived", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, delivered, failed])));
+    await renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, delivered, failed])));
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
     expect(screen.getByText("3 ditandai sampai, 1 ditandai Gagal diantar.")).toBeTruthy();
     expect(screen.queryByText(/^Semua sudah diantar/)).toBeNull();
@@ -950,28 +953,28 @@ describe("Semua beres", () => {
     day.deliveries[0].meals.push({ meal: "dinner", status: "delivered" } as never);
     const runtime = runtimeWith(async () => day);
     store().set(runtime.storageKey("locale"), "en");
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("Everything has been delivered. 4 customers ate from your kitchen today.")).toBeTruthy();
   });
 
   it("says it in English", async () => {
     const runtime = runtimeWith(async () => kitchenDay([delivered, delivered, failed, failed]));
     store().set(runtime.storageKey("locale"), "en");
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("All done today")).toBeTruthy();
     expect(screen.getByText("2 marked as arrived, 2 marked Not delivered.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "See tomorrow" })).toBeTruthy();
   });
 
   it("counts a cancelled row as neither", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, { status: "cancelled" }])));
+    await renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, { status: "cancelled" }])));
     expect(await screen.findByText("Semua sudah diantar. 2 pelanggan makan dari dapurmu hari ini.")).toBeTruthy();
   });
 
   it("keeps the sessions while a customer report is still open", async () => {
     const runtime = runtimeWith(async () => kitchenDay([delivered]));
     (runtime.api.request as jest.Mock).mockResolvedValue([report({ service_date: TODAY, status: "responded" })]);
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("Urutan antar")).toBeTruthy();
     expect(screen.queryByText("Semua beres hari ini")).toBeNull();
   });
@@ -979,14 +982,14 @@ describe("Semua beres", () => {
   it("is done again once that report is resolved", async () => {
     const runtime = runtimeWith(async () => kitchenDay([delivered]));
     (runtime.api.request as jest.Mock).mockResolvedValue([report({ service_date: TODAY, status: "resolved" })]);
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
   });
 
   it("does not call the day done when the reports could not be read", async () => {
     const runtime = runtimeWith(async () => kitchenDay([delivered]));
     (runtime.api.request as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("Laporan pelanggan belum bisa dimuat.")).toBeTruthy();
     expect(screen.getByText("Urutan antar")).toBeTruthy();
     expect(screen.queryByText("Semua beres hari ini")).toBeNull();
@@ -995,7 +998,7 @@ describe("Semua beres", () => {
   it("is not done while the other meal still has rows to serve", async () => {
     const day = kitchenDay([failed]);
     day.deliveries[3].meals.push({ meal: "dinner", status: "scheduled" } as never);
-    renderToday(runtimeWith(async () => day));
+    await renderToday(runtimeWith(async () => day));
     expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
     expect(screen.queryByText("Semua beres hari ini")).toBeNull();
     expect(screen.getByText("Lihat makan malam · 6 porsi")).toBeTruthy();
@@ -1005,7 +1008,7 @@ describe("Semua beres", () => {
     const day = kitchenDay([failed]);
     day.deliveries[3].meals.push({ meal: "dinner", status: "delivered" } as never);
     // The mood is what the "Lihat makan malam" button switches, so the screen needs its provider.
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith(async () => day)} linkMapper={(h) => h}>
         <MoodProvider>
           <TodayScreen />
@@ -1014,7 +1017,7 @@ describe("Semua beres", () => {
     );
     expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
     expect(screen.queryByText("Semua beres hari ini")).toBeNull();
-    fireEvent.press(screen.getByText("Lihat makan malam · 6 porsi"));
+    await fireEvent.press(screen.getByText("Lihat makan malam · 6 porsi"));
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
     expect(screen.getByText("1 ditandai sampai, 4 ditandai Gagal diantar.")).toBeTruthy();
   });
@@ -1022,16 +1025,16 @@ describe("Semua beres", () => {
   it("is not done on a copy kept from before the connection dropped", async () => {
     const offline = jest.requireMock("../src/today/offline") as { loadCachedDay: jest.Mock };
     offline.loadCachedDay.mockResolvedValue({ savedAt: "2026-10-08T01:00:00Z", data: kitchenDay([delivered]) });
-    renderToday(runtimeWith(async () => Promise.reject(new Error("REQUEST_TIMEOUT"))));
+    await renderToday(runtimeWith(async () => Promise.reject(new Error("REQUEST_TIMEOUT"))));
     expect(await screen.findByTestId("session-count")).toBeTruthy();
     expect(screen.queryByText("Semua beres hari ini")).toBeNull();
     offline.loadCachedDay.mockResolvedValue(null);
   });
 
   it("is never done for a day other than today", async () => {
-    renderToday(runtimeWith(async (_id, date) => kitchenDay([delivered], { date })));
+    await renderToday(runtimeWith(async (_id, date) => kitchenDay([delivered], { date })));
     await screen.findByText("Semua beres hari ini");
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
     await waitFor(() => expect(screen.queryByText("Semua beres hari ini")).toBeNull());
   });
 });
@@ -1047,21 +1050,21 @@ describe("Hari ini across a stage change", () => {
   it("keeps the route part reached and the expanded stop list through Mulai masak and Berangkat antar", async () => {
     const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
     let served = longRoute([scheduled]);
-    renderToday(runtimeWith(async () => served));
-    fireEvent.press(await screen.findByText("Lihat 1 alamat lainnya"));
+    await renderToday(runtimeWith(async () => served));
+    await fireEvent.press(await screen.findByText("Lihat 1 alamat lainnya"));
     expect(screen.getByTestId("stop-4")).toBeTruthy();
-    fireEvent.press(screen.getByText("Bagikan rute ke WhatsApp"));
+    await fireEvent.press(screen.getByText("Bagikan rute ke WhatsApp"));
     await screen.findByText("Bagikan bagian 2");
     const part1 = share.mock.calls[0][0].message;
 
     served = longRoute([cooking]);
-    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
     await lastConfirm().press("Mulai");
     await screen.findByText("Berangkat antar · 34 porsi");
     // The day re-keyed for the new stage; the next share is still part 2 and all four stops still show.
     expect(screen.getByText("Bagikan bagian 2")).toBeTruthy();
     expect(screen.getByTestId("stop-4")).toBeTruthy();
-    fireEvent.press(screen.getByText("Bagikan bagian 2"));
+    await fireEvent.press(screen.getByText("Bagikan bagian 2"));
     await waitFor(() => expect(share).toHaveBeenCalledTimes(2));
     expect(share.mock.calls[1][0].message).not.toBe(part1);
     share.mockRestore();
@@ -1069,13 +1072,13 @@ describe("Hari ini across a stage change", () => {
 
   it("keeps the checklist ticks through Mulai masak without reading them again", async () => {
     let served = kitchenDay([scheduled]);
-    renderToday(runtimeWith(async () => served));
-    fireEvent.press(await screen.findByLabelText("6× Telur balado"));
+    await renderToday(runtimeWith(async () => served));
+    await fireEvent.press(await screen.findByLabelText("6× Telur balado"));
     await waitFor(() => expect(screen.getByLabelText("6× Telur balado").props.accessibilityState?.checked).toBe(true));
     const reads = (SecureStore.getItemAsync as jest.Mock).mock.calls.filter(([k]) => String(k).includes("ticks.")).length;
 
     served = kitchenDay([cooking]);
-    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
     await lastConfirm().press("Mulai");
     await screen.findByText("Berangkat antar · 34 porsi");
     // Checked in the very render the new stage appears in: no unticked frame while a fresh read runs.
@@ -1095,7 +1098,7 @@ describe("Hari ini on the Dapur scale", () => {
   const hidden = { includeHiddenElements: true };
   /** Document order of the tree's drawn nodes, so "A is above B" is "A comes before B". */
   const before = (root: Node, a: object, b: object) => {
-    const all = root.findAll((n) => typeof n.type === "string");
+    const all = root.queryAll(() => true, { includeSelf: true });
     return all.indexOf(a as never) < all.indexOf(b as never);
   };
   /** The canvas day with six stops, so "Lihat 3 alamat lainnya" has something to say. */
@@ -1117,7 +1120,7 @@ describe("Hari ini on the Dapur scale", () => {
         const windows = { lunch: "10.30–12.00", dinner: "18.00–19.30" };
         d.offer = { ...d.offer, windows } as typeof d.offer;
       }
-      renderToday(runtimeWith(async () => day));
+      await renderToday(runtimeWith(async () => day));
       const header = await screen.findByTestId("mood-header");
       const row = within(header).getByTestId("mood-header-row");
       const date = within(header).getByRole("button", { name: /, ganti hari$/ });
@@ -1138,7 +1141,7 @@ describe("Hari ini on the Dapur scale", () => {
     });
 
     it("sets the date as a 24/30 button at least 48 tall, in a 36 meta row", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const date = await screen.findByRole("button", { name: /, ganti hari$/ });
       expect(box(date).minHeight).toBe(48);
       const title = within(date).getByText(/^Kamis 8 Okt$/);
@@ -1150,7 +1153,7 @@ describe("Hari ini on the Dapur scale", () => {
     });
 
     it("draws the track compact: a 40 rail, no words line, the words kept for a screen reader", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const track = await screen.findByTestId("rantang-track");
       expect(box(within(track).getByTestId("rantang-track-rail")).height).toBe(40);
       expect(within(track).queryByTestId("rantang-track-caption")).toBeNull();
@@ -1163,7 +1166,7 @@ describe("Hari ini on the Dapur scale", () => {
     it("is the date and meta row only when there is no session", async () => {
       const day = kitchenDay([scheduled]);
       day.deliveries = [];
-      renderToday(runtimeWith(async () => day));
+      await renderToday(runtimeWith(async () => day));
       await screen.findByText("Tidak ada yang dimasak hari ini");
       const header = screen.getByTestId("mood-header");
       expect(within(header).queryByTestId("session-figures")).toBeNull();
@@ -1174,7 +1177,7 @@ describe("Hari ini on the Dapur scale", () => {
     it("words the figures in English", async () => {
       const runtime = runtimeWith(async () => kitchenDay([scheduled]));
       store().set(runtime.storageKey("locale"), "en");
-      renderToday(runtime);
+      await renderToday(runtime);
       const strip = await screen.findByTestId("session-figures");
       await waitFor(() => expect(within(strip).getByTestId("session-figures-cell-0").props.accessibilityLabel).toBe("34 portions"));
       expect(within(strip).getByTestId("session-figures-cell-1").props.accessibilityLabel).toBe("2 packages");
@@ -1184,7 +1187,7 @@ describe("Hari ini on the Dapur scale", () => {
 
   describe("Daftar masak and Per paket", () => {
     it("heads the list with its count and two 48 actions, over a ListCard of 56 rows", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const list = await screen.findByTestId("cooking-list");
       expect(within(list).getByText("Daftar masak")).toBeTruthy();
       expect(within(list).getByText("5 menu")).toBeTruthy();
@@ -1205,7 +1208,7 @@ describe("Hari ini on the Dapur scale", () => {
     });
 
     it("lets a dish photo carry its own radius: nothing between it and the list card clips", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const list = await screen.findByTestId("cooking-list");
       // An image that finishes loading inside an overflow-hidden rounded view can stay blank on Android.
       const clippers = (start: ReturnType<typeof screen.getByTestId>) => {
@@ -1223,7 +1226,7 @@ describe("Hari ini on the Dapur scale", () => {
     it("keeps four digits in the 48 quantity column without moving the dish's name", async () => {
       const day = kitchenDay([scheduled]);
       day.deliveries[2] = { ...day.deliveries[2], portions: 1229 } as never;
-      renderToday(runtimeWith(async () => day));
+      await renderToday(runtimeWith(async () => day));
       expect(await screen.findByLabelText("1240× Nasi putih")).toBeTruthy();
       const quantity = (i: number) => screen.getByTestId(`check-row-${i}-quantity`);
       // Telur balado is the Hemat-only dish: 6 portions, in the fourth row.
@@ -1243,9 +1246,9 @@ describe("Hari ini on the Dapur scale", () => {
     });
 
     it("leaves a ticked row where it is", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const rowsBefore = (await screen.findAllByRole("checkbox")).map((r) => r.props.accessibilityLabel);
-      fireEvent.press(screen.getByLabelText("6× Telur balado"));
+      await fireEvent.press(screen.getByLabelText("6× Telur balado"));
       await waitFor(() => expect(screen.getByLabelText("6× Telur balado").props.accessibilityState.checked).toBe(true));
       expect(screen.getAllByRole("checkbox").map((r) => r.props.accessibilityLabel)).toEqual(rowsBefore);
     });
@@ -1253,7 +1256,7 @@ describe("Hari ini on the Dapur scale", () => {
     it("puts the kitchen-truth lines and Isi menu directly under the list, before the note about ticks", async () => {
       const day = kitchenDay([scheduled]);
       day.datedMenus = (day.datedMenus as unknown as { package_id: string }[]).filter((m) => m.package_id === "p-hemat") as never;
-      renderToday(runtimeWith(async () => day));
+      await renderToday(runtimeWith(async () => day));
       const list = await screen.findByTestId("cooking-list");
       const card = within(list).getByTestId("list-card");
       const line = within(list).getByText(/^Menu belum diisi · Makan Siang Rumahan/);
@@ -1266,7 +1269,7 @@ describe("Hari ini on the Dapur scale", () => {
     });
 
     it("lists the packages as 40 rows ending on one right edge", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const section = await screen.findByTestId("per-package");
       expect(within(section).getByText("Per paket")).toBeTruthy();
       const rows = ["p-rumahan", "p-hemat"].map((id) => within(section).getByTestId(`per-package-${id}`));
@@ -1278,7 +1281,7 @@ describe("Hari ini on the Dapur scale", () => {
     });
 
     it("keeps the sections 24 apart", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       expect(box(await screen.findByTestId("session-card")).gap).toBe(24);
     });
   });
@@ -1297,7 +1300,7 @@ describe("Hari ini on the Dapur scale", () => {
   describe("Urutan antar", () => {
     it("heads the run with its count and Pilih, and lists 64 rows, three stops then a link", async () => {
       // Pilih is offered once a stop can leave or arrive, so the meal is cooking.
-      renderToday(runtimeWith(async () => sixStops([cooking])));
+      await renderToday(runtimeWith(async () => sixStops([cooking])));
       const run = await screen.findByTestId("delivery-order");
       const header = within(run).getByTestId("section-header");
       expect(within(header).getByText("Urutan antar")).toBeTruthy();
@@ -1307,13 +1310,13 @@ describe("Hari ini on the Dapur scale", () => {
       expect(within(run).queryByTestId("stop-4")).toBeNull();
       const more = within(run).getByRole("button", { name: "Lihat 3 alamat lainnya" });
       expect(box(more).minHeight).toBe(48);
-      fireEvent.press(more);
+      await fireEvent.press(more);
       expect(within(run).getByTestId("stop-6")).toBeTruthy();
       expect(within(run).queryByText("Lihat 3 alamat lainnya")).toBeNull();
     });
 
     it("holds the map and the … in one 96 column at the same place on every row", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       await screen.findByTestId("stop-1");
       for (const n of [1, 2, 3]) {
         const row = screen.getByTestId(`stop-${n}`);
@@ -1329,7 +1332,7 @@ describe("Hari ini on the Dapur scale", () => {
     });
 
     it("holds a stop to one title line (name · n porsi) and one meta line (package · address, cut at the address)", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const title = await screen.findByTestId("stop-1-title");
       expect(title.props.numberOfLines).toBe(1);
       expect(box(title)).toMatchObject({ fontSize: 17, lineHeight: 22 });
@@ -1343,7 +1346,7 @@ describe("Hari ini on the Dapur scale", () => {
     it("keeps a row at 64 without a note and at most 84 with one, at 412 and font scale 1", async () => {
       const day = kitchenDay([scheduled]);
       day.deliveries[0].address.instructions = "Pagar hijau, titip di pos satpam";
-      renderToday(runtimeWith(async () => day));
+      await renderToday(runtimeWith(async () => day));
       await screen.findByTestId("stop-1");
       // Jest has no layout engine: a row is its 8 + 8 padding around the lines it holds, never under 64, and every line
       // is held to one (a line that may wrap has no height to add up).
@@ -1361,7 +1364,7 @@ describe("Hari ini on the Dapur scale", () => {
     });
 
     it("stacks Maps and WhatsApp as two full-width 50 secondary buttons, the route caption under them", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const maps = await screen.findByRole("button", { name: "Buka semua di Peta" });
       const share = screen.getByRole("button", { name: "Bagikan rute ke WhatsApp" });
       for (const button of [maps, share]) expect(box(button).minHeight).toBe(50);
@@ -1378,7 +1381,7 @@ describe("Hari ini on the Dapur scale", () => {
     const out = { status: "out_for_delivery", cooking_started_at: cooking.cooking_started_at, departed_at: "2026-10-08T03:00:00Z" };
 
     it("folds the cooking part into one 48 row and starts the run under it", async () => {
-      renderToday(runtimeWith(async () => kitchenDay([out])));
+      await renderToday(runtimeWith(async () => kitchenDay([out])));
       const summary = await screen.findByTestId("cooked-summary");
       expect(within(summary).getByText("Sudah dimasak · 34 porsi")).toBeTruthy();
       expect(box(summary).minHeight).toBe(48);
@@ -1391,14 +1394,14 @@ describe("Hari ini on the Dapur scale", () => {
     });
 
     it("starts Antar one row (48) and one gap (24) under where the cooking part began", async () => {
-      const first = renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      const first = await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const card = await screen.findByTestId("session-card");
       // Before: the cooking list opens the session card, and the run is far below it.
       const topOf = (root: Node, id: string) =>
-        root.findAll((n) => typeof n.type === "string").filter((n) => ["cooking-list", "cooked-summary", "delivery-order"].includes(n.props.testID));
+        root.queryAll(() => true, { includeSelf: true }).filter((n) => ["cooking-list", "cooked-summary", "delivery-order"].includes(n.props.testID));
       expect(topOf(card, "").map((n) => n.props.testID)).toEqual(["cooking-list", "delivery-order"]);
-      first.unmount();
-      renderToday(runtimeWith(async () => kitchenDay([out])));
+      await first.unmount();
+      await renderToday(runtimeWith(async () => kitchenDay([out])));
       const after = await screen.findByTestId("session-card");
       // After: the summary opens it, and Antar follows it directly: 48 + the 24 section gap, not a whole list further down.
       const parts = topOf(after, "");
@@ -1410,7 +1413,7 @@ describe("Hari ini on the Dapur scale", () => {
   describe("the footer", () => {
     it("is one height from Mulai masak to Berangkat antar: the caption line keeps its room", async () => {
       let served = kitchenDay([scheduled]);
-      renderToday(runtimeWith(async () => served));
+      await renderToday(runtimeWith(async () => served));
       const cook = await screen.findByTestId("kitchen-action-caption");
       const cookBox = box(cook);
       const cookButton = box(screen.getByRole("button", { name: "Mulai masak" }));
@@ -1418,7 +1421,7 @@ describe("Hari ini on the Dapur scale", () => {
       expect(within(cook).queryByText(/notifikasi/)).toBeNull();
 
       served = kitchenDay([cooking]);
-      fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
       await lastConfirm().press("Mulai");
       await screen.findByText("Berangkat antar · 34 porsi");
       const depart = screen.getByTestId("kitchen-action-caption");
@@ -1430,7 +1433,7 @@ describe("Hari ini on the Dapur scale", () => {
   });
 
   describe("the footer note", () => {
-    const texts = (slot: Node) => slot.findAll((n) => n.type === "Text").length;
+    const texts = (slot: Node) => slot.queryAll((n) => n.type === "Text", { includeSelf: true }).length;
 
     it("does not carry a Mulai masak note into the Berangkat stage: the slot holds one line group, as before", async () => {
       let served = kitchenDay([scheduled]);
@@ -1439,9 +1442,9 @@ describe("Hari ini on the Dapur scale", () => {
         served = kitchenDay([cooking]);
         return { moved: 0 };
       });
-      renderToday(runtimeWith(async () => served, command));
+      await renderToday(runtimeWith(async () => served, command));
       const cookSlot = box(await screen.findByTestId("kitchen-action-caption"));
-      fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
       await lastConfirm().press("Mulai");
       await screen.findByText("Berangkat antar · 34 porsi");
       const slot = screen.getByTestId("kitchen-action-caption");
@@ -1453,9 +1456,9 @@ describe("Hari ini on the Dapur scale", () => {
 
     it("lets a Berangkat note take the caption's place, so the slot never holds more than its reserved lines", async () => {
       const command = jest.fn(async () => ({ moved: 0 }));
-      renderToday(runtimeWith(async () => kitchenDay([cooking]), command));
+      await renderToday(runtimeWith(async () => kitchenDay([cooking]), command));
       const slot0 = box(await screen.findByTestId("kitchen-action-caption"));
-      fireEvent.press(await screen.findByRole("button", { name: "Berangkat antar · 34 porsi" }));
+      await fireEvent.press(await screen.findByRole("button", { name: "Berangkat antar · 34 porsi" }));
       await lastConfirm().press("Berangkat");
       expect(await screen.findByText("Sudah ditandai berangkat.")).toBeTruthy();
       const slot = screen.getByTestId("kitchen-action-caption");
@@ -1474,7 +1477,7 @@ describe("Hari ini on the Dapur scale", () => {
     };
 
     it("sees the same header and lists, with no setup card and no Isi menu", async () => {
-      renderToday(staffRuntime(kitchenDay([scheduled], { dishes: false })));
+      await renderToday(staffRuntime(kitchenDay([scheduled], { dishes: false })));
       expect(await screen.findByTestId("session-figures")).toBeTruthy();
       expect(await screen.findAllByText(/^Menu belum diisi · /)).toHaveLength(2);
       expect(screen.queryByText("Isi menu")).toBeNull();
@@ -1487,7 +1490,7 @@ describe("Hari ini on the Dapur scale", () => {
       const day = kitchenDay([scheduled]);
       day.deliveries = [];
       day.offers = [];
-      renderToday(staffRuntime(day));
+      await renderToday(staffRuntime(day));
       await screen.findByText("Tidak ada yang dimasak hari ini");
       expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
       expect(screen.queryByTestId("live-slot")).toBeNull();

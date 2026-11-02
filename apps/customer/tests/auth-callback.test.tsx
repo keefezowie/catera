@@ -74,8 +74,8 @@ beforeEach(() => {
   runtime.api = { ...runtime.api, me } as unknown as MobileRuntime["api"];
 });
 
-const renderCallback = () =>
-  render(
+const renderCallback = async () =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
       <AuthCallback />
     </MobileProvider>,
@@ -92,15 +92,15 @@ const recoveryLink = () => {
   });
 };
 const savePassword = async () => {
-  fireEvent.changeText(await screen.findByLabelText("Kata sandi baru"), "synthetic-password-2026");
-  fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi"), "synthetic-password-2026");
-  fireEvent.press(screen.getByRole("button", { name: "Simpan kata sandi" }));
+  await fireEvent.changeText(await screen.findByLabelText("Kata sandi baru"), "synthetic-password-2026");
+  await fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi"), "synthetic-password-2026");
+  await fireEvent.press(screen.getByRole("button", { name: "Simpan kata sandi" }));
 };
 
 describe("new password", () => {
   it("shows one heading and a rules line, with the button enabled", async () => {
     recoveryLink();
-    renderCallback();
+    await renderCallback();
     expect(await screen.findByRole("header", { name: "Kata sandi baru" })).toBeTruthy();
     expect(screen.getAllByRole("header")).toHaveLength(1);
     expect(screen.getByTestId("password-rule")).toBeTruthy();
@@ -109,19 +109,19 @@ describe("new password", () => {
 
   it("mismatch shows Kata sandinya belum sama.", async () => {
     recoveryLink();
-    renderCallback();
-    fireEvent.changeText(await screen.findByLabelText("Kata sandi baru"), "synthetic-password-2026");
-    fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi"), "synthetic-password-2027");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan kata sandi" }));
+    await renderCallback();
+    await fireEvent.changeText(await screen.findByLabelText("Kata sandi baru"), "synthetic-password-2026");
+    await fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi"), "synthetic-password-2027");
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan kata sandi" }));
     expect(await screen.findByText("Kata sandinya belum sama.")).toBeTruthy();
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
-    fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi"), "synthetic-password-2026");
+    await fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi"), "synthetic-password-2026");
     expect(await screen.findByText("Kata sandinya sama")).toBeTruthy();
   });
 
   it("save keeps the session and shows Kata sandi diganti", async () => {
     recoveryLink();
-    renderCallback();
+    await renderCallback();
     await savePassword();
     expect(await screen.findByRole("header", { name: "Kata sandi diganti" })).toBeTruthy();
     expect(supabase.auth.updateUser).toHaveBeenCalledWith({ password: "synthetic-password-2026" });
@@ -129,13 +129,13 @@ describe("new password", () => {
     expect(me).toHaveBeenCalled();
     expect(store.has("catera.auth.pending")).toBe(false);
     expect(screen.getByText("Kamu sudah masuk dengan kata sandi baru.")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/checkout/package?cycles=3"));
   });
 
   it("back from an outcome goes where Lanjut goes", async () => {
     recoveryLink();
-    renderCallback();
+    await renderCallback();
     await savePassword();
     await screen.findByRole("header", { name: "Kata sandi diganti" });
     expect(mockSetOptions).toHaveBeenCalledWith(expect.objectContaining({ headerBackVisible: false, gestureEnabled: false }));
@@ -152,7 +152,7 @@ describe("new password", () => {
       data: { user: { id: "verified-user" }, session: { access_token: "synthetic" }, redirectType: null },
       error: null,
     });
-    renderCallback();
+    await renderCallback();
     expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
     expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
@@ -162,22 +162,22 @@ describe("new password", () => {
 describe("new password: leaving and rejection", () => {
   it("offers Kembali ke Masuk on the form and on the sent screen", async () => {
     recoveryLink();
-    renderCallback();
-    fireEvent.press(await screen.findByRole("button", { name: "Kembali ke Masuk" }));
+    await renderCallback();
+    await fireEvent.press(await screen.findByRole("button", { name: "Kembali ke Masuk" }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/checkout/package?cycles=3" } });
   });
 
   it("a rejected password shows the error, keeps the form and the intent, and a second save succeeds", async () => {
     recoveryLink();
     supabase.auth.updateUser.mockResolvedValueOnce({ error: { code: "same_password", status: 422 } } as never);
-    renderCallback();
+    await renderCallback();
     await savePassword();
     expect(await screen.findByTestId("identity-error")).toBeTruthy();
     expect(screen.getByLabelText("Kata sandi baru")).toBeTruthy();
     expect(screen.queryByText("Coba lagi")).toBeNull();
     expect(store.has("catera.auth.pending")).toBe(true);
     expect(supabase.auth.signOut).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByRole("button", { name: "Simpan kata sandi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan kata sandi" }));
     expect(await screen.findByRole("header", { name: "Kata sandi diganti" })).toBeTruthy();
     expect(supabase.auth.updateUser).toHaveBeenCalledTimes(2);
   });
@@ -191,7 +191,7 @@ describe("verified", () => {
       data: { user: { id: "verified-user", user_metadata: { name: "Rani Contoh" } }, session: { access_token: "synthetic" } },
       error: null,
     });
-    renderCallback();
+    await renderCallback();
     expect(await screen.findByRole("header", { name: "Email terverifikasi" })).toBeTruthy();
     expect(screen.getByText("Akunmu sudah siap, Rani Contoh.")).toBeTruthy();
     expect(supabase.rpc).toHaveBeenCalledWith("catera_v1_command", {
@@ -200,7 +200,7 @@ describe("verified", () => {
       request_id: expect.any(String),
     });
     expect(store.has("catera.auth.pending")).toBe(false);
-    fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/checkout/package?cycles=3"));
   });
 
@@ -212,10 +212,10 @@ describe("verified", () => {
       error: null,
     });
     supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: "boom", code: "XX000" } } as never);
-    renderCallback();
+    await renderCallback();
     expect(await screen.findByText("Ada gangguan di sisi kami. Coba lagi sebentar lagi.")).toBeTruthy();
     expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByRole("header", { name: "Email terverifikasi" })).toBeTruthy();
     // The spent code is not exchanged again; only the set-up re-runs.
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(1);
@@ -230,10 +230,10 @@ describe("offline link", () => {
       data: { user: null, session: null },
       error: { name: "AuthRetryableFetchError", status: 0 },
     } as never);
-    renderCallback();
+    await renderCallback();
     expect(await screen.findByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.")).toBeTruthy();
     expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByLabelText("Kata sandi baru")).toBeTruthy();
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(2);
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenLastCalledWith("one-time-code");
@@ -242,7 +242,7 @@ describe("offline link", () => {
   it("a thrown fetch error during the exchange is offline too", async () => {
     recoveryLink();
     supabase.auth.exchangeCodeForSession.mockRejectedValueOnce(new TypeError("Network request failed"));
-    renderCallback();
+    await renderCallback();
     expect(await screen.findByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.")).toBeTruthy();
     expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
   });
@@ -252,11 +252,11 @@ describe("expired link", () => {
   it("expired with no pending intent (a code Supabase refuses) offers Masukkan email and sends nothing", async () => {
     mockParams = { code: "one-time-code" };
     supabase.auth.exchangeCodeForSession.mockResolvedValue({ data: { user: null, session: null }, error: { status: 400 } });
-    renderCallback();
+    await renderCallback();
     expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
     expect(screen.getAllByRole("header")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Kirim tautan baru" })).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Masukkan email" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Masukkan email" }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/recover", params: { next: "/" } });
     // Tried once as a Google sign-in that arrived as a deep link, never as an email link.
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(1);
@@ -267,20 +267,20 @@ describe("expired link", () => {
   it("an error param fails fast with no exchange, and names the stored address", async () => {
     mockParams = { error: "access_denied", code: "one-time-code" };
     intent("recovery");
-    renderCallback();
+    await renderCallback();
     expect(await screen.findByText(/rani@example.test/)).toBeTruthy();
     expect(supabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByRole("button", { name: "Kembali ke Masuk" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kembali ke Masuk" }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/checkout/package?cycles=3" } });
   });
 
   it("Kirim tautan baru sends one recovery email for a double press", async () => {
     mockParams = {};
     intent("recovery");
-    renderCallback();
+    await renderCallback();
     const send = await screen.findByRole("button", { name: "Kirim tautan baru" });
-    fireEvent.press(send);
-    fireEvent.press(send);
+    await fireEvent.press(send);
+    await fireEvent.press(send);
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Kembali ke Masuk" })).toBeTruthy();
     expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
@@ -290,8 +290,8 @@ describe("expired link", () => {
   it("a sign-up link asks for a new verification email", async () => {
     mockParams = {};
     intent("signup");
-    renderCallback();
-    fireEvent.press(await screen.findByRole("button", { name: "Kirim tautan baru" }));
+    await renderCallback();
+    await fireEvent.press(await screen.findByRole("button", { name: "Kirim tautan baru" }));
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
     expect(supabase.auth.resend).toHaveBeenCalledWith({
       type: "signup",
@@ -304,10 +304,10 @@ describe("expired link", () => {
     mockParams = {};
     intent("recovery");
     supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ error: { name: "AuthRetryableFetchError", status: 0 } } as never);
-    renderCallback();
-    fireEvent.press(await screen.findByRole("button", { name: "Kirim tautan baru" }));
+    await renderCallback();
+    await fireEvent.press(await screen.findByRole("button", { name: "Kirim tautan baru" }));
     expect(await screen.findByText(/Belum ada koneksi/)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
   });
 });
@@ -325,7 +325,7 @@ describe("a Google code that arrives as a deep link", () => {
   it("exchanges the code, ensures the profile with the Google name and continues to Beranda", async () => {
     googleCode();
     actorRpc({ id: "g-user", role: "customer", name: "Sari Wulandari", phone: "+6281234567890" });
-    renderCallback();
+    await renderCallback();
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith("google-code");
     expect(supabase.rpc).toHaveBeenCalledWith("catera_v1_command", expect.objectContaining({ action: "profile.ensure", payload: { name: "Sari Wulandari" } }));
@@ -335,7 +335,7 @@ describe("a Google code that arrives as a deep link", () => {
   it("shows Lengkapi akun first for a fresh account", async () => {
     googleCode();
     actorRpc({ id: "g-user", role: "customer", name: "Pelanggan", phone: null });
-    renderCallback();
+    await renderCallback();
     expect(await screen.findByText("Siapa namamu?")).toBeTruthy();
     expect(screen.getByLabelText("Nama").props.value).toBe("Sari Wulandari");
     expect(router.replace).not.toHaveBeenCalled();
@@ -348,8 +348,8 @@ describe("a Google code that arrives as a deep link", () => {
       if (fn === "catera_v1_command" && ++calls === 1) return { data: null, error: { message: "boom" } };
       return fn === "catera_v1_read" ? { data: { id: "g-user", role: "customer", name: "Sari", phone: "+6281234567890" }, error: null } : { data: {}, error: null };
     }) as never);
-    renderCallback();
-    fireEvent.press(await screen.findByText("Coba lagi"));
+    await renderCallback();
+    await fireEvent.press(await screen.findByText("Coba lagi"));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(1);
   });

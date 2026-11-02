@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react-native";
-import { ActivityIndicator, StyleSheet } from "react-native";
-import { Image } from "expo-image";
+import { StyleSheet } from "react-native";
+import type { TestInstance } from "test-renderer";
 import * as Reanimated from "react-native-reanimated";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMotion, nativeThemes } from "@catera/design-tokens";
@@ -11,6 +11,7 @@ import { PlanDetailScreen } from "../src/plan/PlanDetail";
 import { Plate } from "../src/today/Plate";
 import { customerLink } from "../src/links";
 import { delivery, subscription } from "./fixtures";
+import { hostsWhere } from "./find-hosts";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
@@ -126,9 +127,14 @@ const plate: PlateData = {
   sides: ["Sayur asem"],
 };
 
-type Instance = ReturnType<typeof screen.UNSAFE_getByType>;
-const images = () => screen.UNSAFE_queryAllByType(Image);
-const onlyImage = () => screen.UNSAFE_getByType(Image);
+type Instance = TestInstance;
+// expo-image is a host View that keeps its props (tests/setup.cjs); `contentFit` is what Photo always gives it.
+const images = () => hostsWhere({}).filter((node) => "contentFit" in node.props);
+const onlyImage = () => {
+  const found = images();
+  expect(found).toHaveLength(1);
+  return found[0];
+};
 
 /** The three photo surfaces this task moves to expo-image, each rendered on its own. */
 const surfaces: { name: string; ground: string; fill: string; photo: () => Instance; show: () => Promise<void> }[] = [
@@ -138,7 +144,7 @@ const surfaces: { name: string; ground: string; fill: string; photo: () => Insta
     fill: neutral,
     photo: onlyImage,
     show: async () => {
-      render(<PhotoRing uri={PHOTO} size={60} ring="dinner" accessibilityLabel="Ayam bakar" />);
+      await render(<PhotoRing uri={PHOTO} size={60} ring="dinner" accessibilityLabel="Ayam bakar" />);
     },
   },
   {
@@ -147,7 +153,7 @@ const surfaces: { name: string; ground: string; fill: string; photo: () => Insta
     fill: dark,
     photo: onlyImage,
     show: async () => {
-      renderWith(runtimeWith(async () => october), <Plate plate={plate} apiBase="https://api.example.test" />);
+      await renderWith(runtimeWith(async () => october), <Plate plate={plate} apiBase="https://api.example.test" />);
       await screen.findByTestId("plate-photo");
     },
   },
@@ -159,7 +165,7 @@ const surfaces: { name: string; ground: string; fill: string; photo: () => Insta
     // The plan's next days below are PhotoRings with photos of their own; this is the hero's.
     photo: () => images().find((image) => image.props.testID === "plan-photo") as Instance,
     show: async () => {
-      renderWith(runtimeWith(async () => october), <PlanDetailScreen />);
+      await renderWith(runtimeWith(async () => october), <PlanDetailScreen />);
       await screen.findByTestId("plan-photo");
     },
   },
@@ -176,7 +182,7 @@ describe("photos", () => {
     // While it loads, the photo's own ground is its neutral fallback, never sage.
     expect(flat(photo).backgroundColor).toBe(fill);
     expect(fill).not.toBe(nativeThemes.light.sage);
-    screen.unmount();
+    await screen.unmount();
 
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     await show();
@@ -188,7 +194,7 @@ describe("photos", () => {
     const before = images().length;
     const photo = find();
     const size = flat(photo);
-    act(() => photo.props.onError({ error: "404" }));
+    await act(() => photo.props.onError({ error: "404" }));
     // The image is gone; what stays is a plain view of the same size on its neutral ground, with nothing drawn in it.
     expect(images()).toHaveLength(before - 1);
     const ground = screen.getByTestId(groundId, { includeHiddenElements: true });
@@ -199,7 +205,7 @@ describe("photos", () => {
 
   it("a failed hero photo leaves no pale band above the overlay (audit 9-24, 9-25)", async () => {
     await surfaces[1].show();
-    act(() => onlyImage().props.onError({ error: "offline" }));
+    await act(() => onlyImage().props.onError({ error: "offline" }));
     const ground = flat(screen.getByTestId("photo-ground", { includeHiddenElements: true }));
     const frame = flat(screen.getByTestId("plate-photo"));
     // The failed photo fills the frame in the frame's own ground: nothing paints a lighter strip at the top (it was sage).
@@ -227,13 +233,13 @@ describe("Jadwal", () => {
   it("Jadwal keeps the month grid's height while it loads", async () => {
     let resolve: (state: CustomerState) => void = () => {};
     const runtime = runtimeWith(() => new Promise<CustomerState>((r) => (resolve = r)));
-    renderWith(runtime, <Jadwal />);
+    await renderWith(runtime, <Jadwal />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const header = screen.getByTestId("jadwal-header");
     const frame = within(header).getByTestId("month-frame");
     // Skeleton circles sit inside the frame's weeks, one per day of the month, with no day drawn.
     expect(within(frame).getAllByTestId("jadwal-skeleton-cell")).toHaveLength(31);
-    expect(within(frame).UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsWhere({ type: "ActivityIndicator" }, frame)).toHaveLength(0);
     expect(screen.queryByRole("button", { name: /^Rabu 7 Oktober/ })).toBeNull();
     const loading = frameHeight(frame);
     // The legend explains the cells and says nothing about this month, so it holds its place below the frame too.
@@ -256,7 +262,7 @@ describe("Jadwal", () => {
   it("a month that could not be read keeps its own week rows, with room for its message and Coba lagi inside them", async () => {
     const runtime = runtimeWith(async () => october);
     (runtime.api.customer as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("slow"), { code: "REQUEST_TIMEOUT" }));
-    renderWith(runtime, <Jadwal />);
+    await renderWith(runtime, <Jadwal />);
     const header = await screen.findByTestId("jadwal-header");
     const retry = await within(header).findByRole("button", { name: "Coba lagi" });
     const frame = within(header).getByTestId("month-frame");
@@ -277,7 +283,7 @@ describe("Jadwal", () => {
     try {
       let resolve: (state: CustomerState) => void = () => {};
       const runtime = runtimeWith(() => new Promise<CustomerState>((r) => (resolve = r)));
-      renderWith(runtime, <Jadwal />);
+      await renderWith(runtime, <Jadwal />);
       await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
       const loading = frameHeight(screen.getByTestId("month-frame"));
       await act(async () => resolve({ ...october, deliveries: [] }));

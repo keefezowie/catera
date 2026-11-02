@@ -91,15 +91,15 @@ const renderWith = (ui: React.ReactElement) =>
 describe("Daftar dengan email", () => {
   it("registers with name, email and password, remembers where to return, and asks to check email", async () => {
     mockParams = { next: "/beli/p-1?portions=2" };
-    renderWith(<Register />);
+    await renderWith(<Register />);
     const send = await screen.findByRole("button", { name: "Daftar" });
     expect(send).toBeEnabled();
-    fireEvent.changeText(screen.getByLabelText("Nama"), "Rani Contoh");
-    fireEvent.changeText(screen.getByLabelText("Email"), " rani@example.test ");
+    await fireEvent.changeText(screen.getByLabelText("Nama"), "Rani Contoh");
+    await fireEvent.changeText(screen.getByLabelText("Email"), " rani@example.test ");
     const password = screen.getByLabelText("Kata sandi");
     expect(password.props.secureTextEntry).toBe(true);
-    fireEvent.changeText(password, "synthetic-password");
-    fireEvent.press(send);
+    await fireEvent.changeText(password, "synthetic-password");
+    await fireEvent.press(send);
     await waitFor(() =>
       expect(supabase.auth.signUp).toHaveBeenCalledWith({
         email: "rani@example.test",
@@ -113,7 +113,7 @@ describe("Daftar dengan email", () => {
   });
 
   it("shows a single heading: the large Daftar title, with the subtitle under it", async () => {
-    renderWith(<Register />);
+    await renderWith(<Register />);
     await screen.findByLabelText("Nama");
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Daftar"]);
     expect(screen.queryByText("Daftar dengan email")).toBeNull();
@@ -126,11 +126,11 @@ describe("Daftar dengan email", () => {
       data: { session: null, user: { id: "u-old", identities: [] } },
       error: null,
     } as never);
-    renderWith(<Register />);
-    fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
+    await renderWith(<Register />);
+    await fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     expect(await screen.findByText(/sudah terdaftar/)).toBeTruthy();
     expect(screen.queryByText("Cek emailmu")).toBeNull();
   });
@@ -140,11 +140,11 @@ describe("Daftar dengan email", () => {
       data: { session: null, user: null },
       error: { code: "weak_password" },
     } as never);
-    renderWith(<Register />);
-    fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
+    await renderWith(<Register />);
+    await fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     expect(await screen.findByTestId("identity-error")).toBeTruthy();
     expect(screen.queryByText("Cek emailmu")).toBeNull();
     // The password is what was refused, so it carries the danger outline and the email does not.
@@ -156,7 +156,7 @@ describe("Daftar dengan email", () => {
 
 describe("Lupa kata sandi", () => {
   it("shows a single heading: the large Pemulihan akun title, with the explanation under it", async () => {
-    renderWith(<Recover />);
+    await renderWith(<Recover />);
     await screen.findByLabelText("Email");
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Pemulihan akun"]);
     expect(screen.queryByText("Pulihkan kata sandi")).toBeNull();
@@ -165,11 +165,11 @@ describe("Lupa kata sandi", () => {
 
   it("does not outline the email when the service fails, only says so", async () => {
     supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ error: { code: "unexpected_failure", status: 500 } } as never);
-    renderWith(<Recover />);
+    await renderWith(<Recover />);
     const email = await screen.findByLabelText("Email");
     const before = StyleSheet.flatten(email.props.style).borderColor;
-    fireEvent.changeText(email, "rani@example.test");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
+    await fireEvent.changeText(email, "rani@example.test");
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
     expect(await screen.findByTestId("identity-error")).toBeTruthy();
     // A server failure the person did not cause never outlines a field (S-5).
     expect(StyleSheet.flatten(screen.getByLabelText("Email").props.style).borderColor).toBe(before);
@@ -177,9 +177,9 @@ describe("Lupa kata sandi", () => {
 
   it("sends a recovery link to the email and says so", async () => {
     mockParams = { next: "/akun" };
-    renderWith(<Recover />);
-    fireEvent.changeText(await screen.findByLabelText("Email"), "rani@example.test");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
+    await renderWith(<Recover />);
+    await fireEvent.changeText(await screen.findByLabelText("Email"), "rani@example.test");
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
     await waitFor(() =>
       expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith("rani@example.test", {
         redirectTo: "catera://auth/callback",
@@ -192,17 +192,17 @@ describe("Lupa kata sandi", () => {
 
 describe("Cek emailmu", () => {
   const toRegisterSent = async () => {
-    renderWith(<Register />);
-    fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani Contoh");
-    fireEvent.changeText(screen.getByLabelText("Email"), " rani@example.test ");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
-    fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
+    await renderWith(<Register />);
+    await fireEvent.changeText(await screen.findByLabelText("Nama"), "Rani Contoh");
+    await fireEvent.changeText(screen.getByLabelText("Email"), " rani@example.test ");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     return screen.findByTestId("check-email");
   };
   const toRecoverSent = async () => {
-    renderWith(<Recover />);
-    fireEvent.changeText(await screen.findByLabelText("Email"), " rani@example.test ");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
+    await renderWith(<Recover />);
+    await fireEvent.changeText(await screen.findByLabelText("Email"), " rani@example.test ");
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
     return screen.findByTestId("check-email");
   };
   /** What the shared view shows, so the two pages can be compared. */
@@ -223,9 +223,9 @@ describe("Cek emailmu", () => {
     expect(register).toMatchObject({ header: ["Cek emailmu"], art: true, open: true, resend: true, change: true, form: null });
     // The address is set in bold, so a typo shows.
     expect(register.address).toMatch(/Bold/);
-    fireEvent.press(screen.getByRole("button", { name: "Buka aplikasi email" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Buka aplikasi email" }));
     expect(open).toHaveBeenCalledWith("mailto:");
-    screen.unmount();
+    await screen.unmount();
 
     await toRecoverSent();
     expect(shape()).toEqual(register);
@@ -235,7 +235,7 @@ describe("Cek emailmu", () => {
   it("an email app that cannot open is quiet", async () => {
     const open = jest.spyOn(Linking, "openURL").mockRejectedValue(new Error("no app"));
     await toRecoverSent();
-    fireEvent.press(screen.getByRole("button", { name: "Buka aplikasi email" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Buka aplikasi email" }));
     await waitFor(() => expect(open).toHaveBeenCalled());
     expect(screen.getByTestId("check-email")).toBeTruthy();
     open.mockRestore();
@@ -245,9 +245,9 @@ describe("Cek emailmu", () => {
     jest.useFakeTimers();
     try {
       await toRecoverSent();
-      act(() => jest.advanceTimersByTime(60_000));
+      await act(() => jest.advanceTimersByTime(60_000));
       supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ error: { code: "unexpected_failure", status: 500 } } as never);
-      fireEvent.press(screen.getByRole("button", { name: "Kirim ulang tautan" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Kirim ulang tautan" }));
       expect(await screen.findByTestId("identity-error")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kirim ulang tautan" })).not.toBeDisabled();
       expect(screen.queryByText("Terkirim lagi. Cek emailmu.")).toBeNull();
@@ -261,8 +261,8 @@ describe("Cek emailmu", () => {
     try {
       await toRegisterSent();
       expect(screen.getByRole("button", { name: "Kirim ulang dalam 1:00" })).toBeDisabled();
-      act(() => jest.advanceTimersByTime(60_000));
-      fireEvent.press(screen.getByRole("button", { name: "Kirim ulang tautan" }));
+      await act(() => jest.advanceTimersByTime(60_000));
+      await fireEvent.press(screen.getByRole("button", { name: "Kirim ulang tautan" }));
       await waitFor(() =>
         expect(supabase.auth.resend).toHaveBeenCalledWith({
           type: "signup",
@@ -271,17 +271,17 @@ describe("Cek emailmu", () => {
         }),
       );
       expect(await screen.findByText("Terkirim")).toBeTruthy();
-      act(() => jest.advanceTimersByTime(3000));
+      await act(() => jest.advanceTimersByTime(3000));
       expect(await screen.findByRole("button", { name: /Kirim ulang dalam 0:5[0-9]/ })).toBeDisabled();
       expect(screen.getByText("Terkirim lagi. Cek emailmu.")).toBeTruthy();
-      fireEvent.press(screen.getByRole("button", { name: "Ubah email" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Ubah email" }));
       expect(screen.getByLabelText("Email").props.value).toBe(" rani@example.test ");
-      screen.unmount();
+      await screen.unmount();
 
       await toRecoverSent();
       expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
-      act(() => jest.advanceTimersByTime(60_000));
-      fireEvent.press(screen.getByRole("button", { name: "Kirim ulang tautan" }));
+      await act(() => jest.advanceTimersByTime(60_000));
+      await fireEvent.press(screen.getByRole("button", { name: "Kirim ulang tautan" }));
       await waitFor(() => expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledTimes(2));
     } finally {
       jest.useRealTimers();
@@ -296,15 +296,15 @@ describe("Cek emailmu", () => {
 
   it("draws on the dark palette", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    render(
+    await render(
       <ThemeProvider storageKey="check-email-dark-test">
         <MobileProvider runtime={runtime} linkMapper={customerLink}>
           <Recover />
         </MobileProvider>
       </ThemeProvider>,
     );
-    fireEvent.changeText(await screen.findByLabelText("Email"), "rani@example.test");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
+    await fireEvent.changeText(await screen.findByLabelText("Email"), "rani@example.test");
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
     await screen.findByTestId("check-email");
     expect(StyleSheet.flatten(screen.getByText("rani@example.test").props.style).color).toBe(nativeThemes.dark.charcoal);
     scheme.mockRestore();
@@ -314,18 +314,18 @@ describe("Cek emailmu", () => {
 describe("Masuk links", () => {
   it("offers email registration and password recovery, keeping where to return", async () => {
     mockParams = { next: "/disimpan" };
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
-    fireEvent.press(screen.getByRole("button", { name: "Daftar dengan email" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Daftar dengan email" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/register", params: { next: "/disimpan" } });
-    fireEvent.press(screen.getByRole("button", { name: "Lupa kata sandi?" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lupa kata sandi?" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/recover", params: { next: "/disimpan" } });
   });
 });
 
 describe("Masuk heading", () => {
   it("has one heading, Masuk ke Catera, with the line that one account covers sign-up too", async () => {
-    renderWith(<Masuk />);
+    await renderWith(<Masuk />);
     expect(await screen.findByRole("button", { name: "Lanjut dengan Google" })).toBeTruthy();
     expect(screen.getAllByText("Masuk ke Catera")).toHaveLength(1);
     expect(screen.getByText(/Masuk atau daftar dengan satu akun/)).toBeTruthy();
@@ -338,11 +338,11 @@ describe("Masuk with email", () => {
     runtime.signInPassword = jest.fn(async () => {
       throw new Error("INVALID_CREDENTIALS");
     });
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(await screen.findByText(/Email atau kata sandinya salah/)).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
   });

@@ -35,22 +35,22 @@ const busyOf = (name: string) => screen.getByRole("button", { name }).props.acce
 
 describe("Masuk", () => {
   const fill = async () => {
-    fireEvent.changeText(await screen.findByLabelText("Email"), "rina@example.com");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
+    await fireEvent.changeText(await screen.findByLabelText("Email"), "rina@example.com");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
   };
 
   it("Masuk is busy while it waits, and a second press sends nothing", async () => {
     const wait = held<{ id: string; role: string; name: string }>();
     const signInPassword = jest.fn(() => wait.promise);
-    render(
+    await render(
       <MobileProvider runtime={runtimeFor(null, { signInPassword })} linkMapper={(h) => h}>
         <Masuk />
       </MobileProvider>,
     );
     await fill();
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     await waitFor(() => expect(busyOf("Masuk")).toBe(true));
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(signInPassword).toHaveBeenCalledTimes(1);
     await act(async () => wait.resolve({ id: "u-1", role: "owner", name: "R" }));
     await waitFor(() => expect(busyOf("Masuk")).toBeFalsy());
@@ -60,13 +60,13 @@ describe("Masuk", () => {
     const signInPassword = jest.fn(async () => {
       throw new Error("SOMETHING_ODD");
     });
-    render(
+    await render(
       <MobileProvider runtime={runtimeFor(null, { signInPassword })} linkMapper={(h) => h}>
         <Masuk />
       </MobileProvider>,
     );
     await fill();
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(await screen.findByTestId("form-error")).toBeTruthy();
     expect(screen.getByText("Ada gangguan di sisi kami. Coba lagi sebentar lagi.")).toBeTruthy();
     expect(busyOf("Masuk")).toBeFalsy();
@@ -78,15 +78,15 @@ describe("RoleGate", () => {
     const wait = held<object>();
     const runtime = runtimeFor({ id: "u-c", name: "Pelanggan", role: "customer" });
     (runtime.api.command as jest.Mock).mockImplementation(() => wait.promise);
-    render(
+    await render(
       <MobileProvider runtime={runtime} linkMapper={(h) => h}>
         <RoleGate>{null}</RoleGate>
       </MobileProvider>,
     );
-    fireEvent.changeText(await screen.findByLabelText("Kode undangan"), "abc123");
-    fireEvent.press(screen.getByRole("button", { name: "Gabung ke dapur" }));
+    await fireEvent.changeText(await screen.findByLabelText("Kode undangan"), "abc123");
+    await fireEvent.press(screen.getByRole("button", { name: "Gabung ke dapur" }));
     await waitFor(() => expect(busyOf("Gabung ke dapur")).toBe(true));
-    fireEvent.press(screen.getByRole("button", { name: "Gabung ke dapur" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Gabung ke dapur" }));
     expect(runtime.api.command).toHaveBeenCalledTimes(1);
     await act(async () => wait.reject(Object.assign(new Error("NOT_FOUND"), { code: "NOT_FOUND" })));
     expect(await screen.findByText("Kode tidak ditemukan atau sudah dipakai.")).toBeTruthy();

@@ -1,6 +1,6 @@
 /**
  * Workarounds for Jest tests that mount the real router (`renderRouter` over `app/`). Import this module before the app
- * renders. Pinned to expo-router 57.0.20: both reach into the library's test setup or private state, so recheck them
+ * renders. Pinned to expo-router 58.0.29: they reach into the library's test setup or private state, so recheck them
  * when expo-router changes.
  */
 import fs from "node:fs";
@@ -11,23 +11,6 @@ import "expo-router/testing-library";
 // app reads it. This runs after that swap because the import above runs first.
 const Reanimated = require("react-native-reanimated");
 Reanimated.useReducedMotion ??= () => false;
-
-/** The router's module-level store. It is private (`build/global-state/store`), so only this file reaches for it. */
-function routerStore() {
-  return require("expo-router/build/global-state/store") as {
-    store: { navigationRef: { current: any } };
-    storeRef: { current?: { routeInfo?: unknown } };
-  };
-}
-
-/**
- * The router keeps the last test's place in its store and resolves a shared path ("/" is in every tab's group) toward
- * that place. A real cold start has no last place, so call this in `beforeEach`.
- */
-export function resetRouterStore() {
-  const { storeRef } = routerStore();
-  if (storeRef.current) storeRef.current.routeInfo = undefined;
-}
 
 const appDir = path.join(__dirname, "..", "app");
 

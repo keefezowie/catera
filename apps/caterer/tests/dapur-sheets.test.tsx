@@ -22,6 +22,7 @@ import { ImportRowEditor } from "../src/import/RowEditor";
 import * as offline from "../src/today/offline";
 import { canvasDay, report } from "./fixtures";
 import { withDapurScale } from "./dapur-scale";
+import { ancestorProps, findAll, findInScreen, iconsIn } from "./host-queries";
 import { declared, lastActionSheet, lastConfirm, lastGuard, resetSheets, SheetHost, unsavedGuard, type Opened } from "./sheet-host";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
@@ -124,9 +125,9 @@ async function stopSheet() {
 }
 
 /** A screen with its sheets, under the toast. */
-function show(runtime: MobileRuntime, ui: React.ReactNode, { dark = false } = {}) {
+async function show(runtime: MobileRuntime, ui: React.ReactNode, { dark = false } = {}) {
   if (dark) jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-  return render(
+  return await render(
     withDapurScale(
       <ThemeProvider storageKey="sheets.theme">
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
@@ -146,8 +147,8 @@ describe("confirm sheets in place of dialogs", () => {
   it("Mulai masak asks in a confirm sheet with the existing copy", async () => {
     const alert = jest.spyOn(Alert, "alert");
     const runtime = runtimeWith();
-    show(runtime, <TodayScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Mulai masak" }));
+    await show(runtime, <TodayScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Mulai masak" }));
     const asked = lastConfirm();
     expect(asked).toMatchObject({
       title: "Mulai masak makan siang?",
@@ -168,8 +169,8 @@ describe("confirm sheets in place of dialogs", () => {
 
   it("Berangkat antar asks with its own copy, with no number in it", async () => {
     const runtime = runtimeWith({ sellerOperations: jest.fn(async () => day({ status: "preparing", cooking_started_at: "2026-10-08T01:10:00Z" })) });
-    show(runtime, <TodayScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Berangkat antar · 34 porsi" }));
+    await show(runtime, <TodayScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Berangkat antar · 34 porsi" }));
     expect(lastConfirm()).toMatchObject({
       title: "Berangkat antar sekarang?",
       message: "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
@@ -184,30 +185,30 @@ describe("confirm sheets in place of dialogs", () => {
 
   it("cancelling the confirm sends nothing", async () => {
     const runtime = runtimeWith();
-    show(runtime, <TodayScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Mulai masak" }));
+    await show(runtime, <TodayScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Mulai masak" }));
     await lastConfirm().press("Batal");
     await act(async () => undefined);
     expect(runtime.api.command).not.toHaveBeenCalled();
     // The button is usable again and asks again.
     const button = screen.getByRole("button", { name: "Mulai masak" });
     expect(button.props.accessibilityState?.disabled).toBeFalsy();
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(require("./sheet-host").confirm).toHaveBeenCalledTimes(2);
   });
 
   it("asks once for a quick double tap", async () => {
-    show(runtimeWith(), <TodayScreen />);
+    await show(runtimeWith(), <TodayScreen />);
     const button = await screen.findByRole("button", { name: "Mulai masak" });
-    fireEvent.press(button);
-    fireEvent.press(button);
+    await fireEvent.press(button);
+    await fireEvent.press(button);
     expect(require("./sheet-host").confirm).toHaveBeenCalledTimes(1);
   });
 
   it("a late tap that changed nothing keeps its caption: no buzz, no count", async () => {
     const runtime = runtimeWith({ command: jest.fn(async () => ({ moved: 0 })) });
-    show(runtime, <TodayScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Mulai masak" }));
+    await show(runtime, <TodayScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Mulai masak" }));
     await lastConfirm().press("Mulai");
     expect(await screen.findByText("Sudah ditandai dimasak.")).toBeTruthy();
     expect(require("expo-haptics").notificationAsync).not.toHaveBeenCalled();
@@ -218,7 +219,7 @@ describe("confirm sheets in place of dialogs", () => {
 describe("stop exceptions", () => {
   it("stop exceptions open as a form sheet and keep their names", async () => {
     // The tab's stack declares the sheet with the form detents.
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith()} linkMapper={(h) => h}>
         <TabStack segment="(index)" />
       </MobileProvider>,
@@ -230,15 +231,15 @@ describe("stop exceptions", () => {
       sheetGrabberVisible: true,
       headerShown: false,
     });
-    screen.unmount();
+    await screen.unmount();
 
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility");
     const runtime = runtimeWith();
-    show(runtime, <TodayScreen />);
+    await show(runtime, <TodayScreen />);
     const sari = (await screen.findAllByText("Bu Sari Wulandari"))[0];
     expect(sari).toBeTruthy();
     const id = dayOf(TODAY).deliveries[0].id;
-    fireEvent.press(within(screen.getByTestId("stop-1")).getByLabelText("Laporkan masalah atau pindah tanggal: Bu Sari Wulandari"));
+    await fireEvent.press(within(screen.getByTestId("stop-1")).getByLabelText("Laporkan masalah atau pindah tanggal: Bu Sari Wulandari"));
     expect(router.push).toHaveBeenLastCalledWith(`/atur-antaran/${id}?meal=lunch&date=${TODAY}`);
     // The sheet is named for the stop and keeps its two choices and their words.
     const sheet = await stopSheet();
@@ -247,7 +248,7 @@ describe("stop exceptions", () => {
     expect(within(sheet).getByText("Gagal diantar")).toBeTruthy();
     expect(within(sheet).getByText("Pindah tanggal")).toBeTruthy();
     expect(within(sheet).getByText(/tidak dibayar. Hubungi/)).toBeTruthy();
-    fireEvent.press(within(sheet).getByText("Tandai gagal diantar"));
+    await fireEvent.press(within(sheet).getByText("Tandai gagal diantar"));
     await lastConfirm().press("Tandai gagal");
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
     expect((runtime.api.command as jest.Mock).mock.calls.map((c) => c[1].status)).toEqual(["preparing", "out_for_delivery", "issue"]);
@@ -262,16 +263,16 @@ describe("stop exceptions", () => {
   });
 
   it("names each … for what it can do: both, report only, or move only on Besok", async () => {
-    show(runtimeWith(), <TodayScreen />);
+    await show(runtimeWith(), <TodayScreen />);
     // Keluarga Hartono's change deadline has passed: report only.
-    fireEvent.press(within(await screen.findByTestId("stop-3")).getByLabelText("Laporkan masalah: Keluarga Hartono"));
+    await fireEvent.press(within(await screen.findByTestId("stop-3")).getByLabelText("Laporkan masalah: Keluarga Hartono"));
     let sheet = await stopSheet();
     expect(within(sheet).getByText("Gagal diantar")).toBeTruthy();
     expect(within(sheet).queryByText("Pindah tanggal")).toBeNull();
-    act(() => router.back());
+    await act(() => router.back());
     // Besok: only a move, and only where the day can move.
-    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
-    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"));
+    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"));
     expect(router.push).toHaveBeenLastCalledWith(expect.stringMatching(new RegExp(`date=${TOMORROW}$`)));
     sheet = await stopSheet();
     expect(within(sheet).queryByText("Gagal diantar")).toBeNull();
@@ -280,11 +281,11 @@ describe("stop exceptions", () => {
 
   it("staff report a stop and start cooking too", async () => {
     const runtime = runtimeWith({}, staff);
-    show(runtime, <TodayScreen />);
-    fireEvent.press(within(await screen.findByTestId("stop-1")).getByLabelText(/^Laporkan masalah atau pindah tanggal/));
+    await show(runtime, <TodayScreen />);
+    await fireEvent.press(within(await screen.findByTestId("stop-1")).getByLabelText(/^Laporkan masalah atau pindah tanggal/));
     expect(await stopSheet()).toBeTruthy();
-    act(() => router.back());
-    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    await act(() => router.back());
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
     expect(lastConfirm().title).toBe("Mulai masak makan siang?");
   });
 
@@ -295,7 +296,7 @@ describe("stop exceptions", () => {
         throw new TypeError("Network request failed");
       }),
     });
-    show(runtime, <TodayScreen />);
+    await show(runtime, <TodayScreen />);
     expect(await screen.findByText(/Ini data terakhir/)).toBeTruthy();
     await screen.findByTestId("stop-1");
     expect(screen.queryAllByLabelText(/^(Laporkan masalah|Pindah tanggal)/)).toHaveLength(0);
@@ -303,17 +304,17 @@ describe("stop exceptions", () => {
   });
 
   it("the move calendar speaks to staff, not in the customer's kamu voice", async () => {
-    show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+    await show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
     await screen.findByLabelText("Alasan");
     expect(await screen.findByText("Belum ada hari lain yang bisa dipilih di rentang ini.")).toBeTruthy();
     expect(screen.queryByText(/kamu/)).toBeNull();
   });
 
   it("asks before dropping a typed reason, and not when nothing was typed", async () => {
-    show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+    await show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
     const reason = await screen.findByLabelText("Alasan");
     expect(lastGuard()).toBeNull();
-    fireEvent.changeText(reason, "Dapur tutup");
+    await fireEvent.changeText(reason, "Dapur tutup");
     expect(lastGuard()).toEqual({ noun: "alasan", voice: "kamu", nounEn: "reason" });
     // A move with no day chosen cannot be saved.
     expect(screen.getByRole("button", { name: "Pindah tanggal" }).props.accessibilityState?.disabled).toBe(true);
@@ -322,28 +323,28 @@ describe("stop exceptions", () => {
   it("keeps a typed reason for the same person and stop after an Android swipe closed the sheet", async () => {
     const id = dayOf(TOMORROW).deliveries[0].id;
     const sheetOf = () => <MoveSheet id={id} meal="lunch" date={TOMORROW} />;
-    let mounted = show(runtimeWith(), sheetOf());
-    fireEvent.changeText(await screen.findByLabelText("Alasan"), "Pelanggan ke luar kota");
+    let mounted = await show(runtimeWith(), sheetOf());
+    await fireEvent.changeText(await screen.findByLabelText("Alasan"), "Pelanggan ke luar kota");
     // A swipe closes the sheet before anything can ask: the reason waits for the next opening of this stop.
-    mounted.unmount();
-    mounted = show(runtimeWith(), sheetOf());
+    await mounted.unmount();
+    mounted = await show(runtimeWith(), sheetOf());
     expect((await screen.findByLabelText("Alasan")).props.value).toBe("Pelanggan ke luar kota");
     expect(lastGuard()).toEqual({ noun: "alasan", voice: "kamu", nounEn: "reason" });
-    mounted.unmount();
+    await mounted.unmount();
 
     // Another person on this phone opens the same stop empty.
-    mounted = show(runtimeWith({}, staff), sheetOf());
+    mounted = await show(runtimeWith({}, staff), sheetOf());
     expect((await screen.findByLabelText("Alasan")).props.value).toBe("");
-    mounted.unmount();
+    await mounted.unmount();
 
     // "Buang" drops it.
-    mounted = show(runtimeWith(), sheetOf());
+    mounted = await show(runtimeWith(), sheetOf());
     await screen.findByLabelText("Alasan");
     const guard = unsavedGuard.mock.calls[unsavedGuard.mock.calls.length - 1][2] as { onDiscard?: () => void };
     expect(guard.onDiscard).toEqual(expect.any(Function));
-    act(() => guard.onDiscard!());
-    mounted.unmount();
-    mounted = show(runtimeWith(), sheetOf());
+    await act(() => guard.onDiscard!());
+    await mounted.unmount();
+    mounted = await show(runtimeWith(), sheetOf());
     expect((await screen.findByLabelText("Alasan")).props.value).toBe("");
   });
 });
@@ -355,15 +356,15 @@ describe("Laporan reply sheet", () => {
       request: jest.fn(async (p: string) => (p.startsWith("delivery-issues") ? [report()] : [])),
       command: jest.fn(async () => ({})),
     });
-    show(runtime, <TodayScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Buka laporan: Nadia Putri" }));
+    await show(runtime, <TodayScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Buka laporan: Nadia Putri" }));
     expect(router.push).toHaveBeenLastCalledWith("/balas/i-1?title=Nadia%20Putri");
     const sheet = await screen.findByTestId("reply-sheet");
     expect(within(sheet).getByRole("header", { name: "Nadia Putri" })).toBeTruthy();
     expect(await within(sheet).findByText("Kamis 8 Okt · Makan siang · Rantang Nusantara")).toBeTruthy();
     expect(within(sheet).getByText("Sudah jam satu, makanan belum datang.")).toBeTruthy();
-    fireEvent.changeText(within(sheet).getByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
-    fireEvent.press(within(sheet).getByRole("button", { name: "Balas" }));
+    await fireEvent.changeText(within(sheet).getByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
+    await fireEvent.press(within(sheet).getByRole("button", { name: "Balas" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "deliveryIssue.respond",
@@ -380,39 +381,39 @@ describe("Laporan reply sheet", () => {
 
   it("keeps a typed reply for the same report and person after the sheet closed without sending", async () => {
     const runtime = runtimeWith({ request: jest.fn(async () => [report()]) });
-    const { unmount } = show(runtime, <ReplySheet id="i-1" />);
+    const { unmount } = await show(runtime, <ReplySheet id="i-1" />);
     expect(await screen.findByLabelText("Balasan untuk pelanggan")).toBeTruthy();
     expect(lastGuard()).toBeNull();
-    fireEvent.changeText(screen.getByLabelText("Balasan untuk pelanggan"), "Sebentar lagi sampai.");
+    await fireEvent.changeText(screen.getByLabelText("Balasan untuk pelanggan"), "Sebentar lagi sampai.");
     expect(lastGuard()).toEqual({ noun: "balasan", voice: "kamu", nounEn: "reply" });
     // An Android swipe closes the sheet before anything can ask: the reply waits for the next opening.
-    unmount();
-    show(runtime, <ReplySheet id="i-1" />);
+    await unmount();
+    await show(runtime, <ReplySheet id="i-1" />);
     expect((await screen.findByLabelText("Balasan untuk pelanggan")).props.value).toBe("Sebentar lagi sampai.");
-    screen.unmount();
+    await screen.unmount();
     // Another person on this phone opens the same report empty.
-    show(runtimeWith({ request: jest.fn(async () => [report()]) }, staff), <ReplySheet id="i-1" />);
+    await show(runtimeWith({ request: jest.fn(async () => [report()]) }, staff), <ReplySheet id="i-1" />);
     expect((await screen.findByLabelText("Balasan untuk pelanggan")).props.value).toBe("");
   });
 });
 
 describe("Tim", () => {
   it("Tim is a sheet that shares the invite and keeps the code, claiming nothing on Android", async () => {
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith()} linkMapper={(h) => h}>
         <TabStack segment="(usaha)" />
       </MobileProvider>,
     );
     await waitFor(() => expect(declared.tim).toBeDefined());
     expect(declared.tim).toMatchObject({ presentation: "formSheet", sheetAllowedDetents: "fitToContents", headerShown: false });
-    screen.unmount();
+    await screen.unmount();
 
     const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
     const command = jest.fn(async () => ({ id: "i-1", code: "abc123" }));
-    show(runtimeWith({ command }), <TimScreen />);
+    await show(runtimeWith({ command }), <TimScreen />);
     expect(await screen.findByRole("header", { name: "Undang staf dapur" })).toBeTruthy();
     expect(screen.getByText(/tetap hanya untuk kamu/)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(command.mock.calls[0]).toEqual(["staff.invite", { catererId: "k-1" }, expect.any(String)]);
     expect((share.mock.calls[0][0] as { message: string }).message).toContain("abc123");
@@ -434,16 +435,16 @@ describe("Tim", () => {
 
   it("says nothing when the share was dismissed, and keeps the code", async () => {
     jest.spyOn(Share, "share").mockResolvedValue({ action: "dismissedAction" });
-    show(runtimeWith({ command: jest.fn(async () => ({ code: "zz9" })) }), <TimScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
+    await show(runtimeWith({ command: jest.fn(async () => ({ code: "zz9" })) }), <TimScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
     expect(await screen.findByText("zz9")).toBeTruthy();
     expect(screen.queryByText("Undangan dibagikan")).toBeNull();
   });
 
   it("scrolls under its title once it outgrows the screen, so Bagikan undangan stays reachable", async () => {
     jest.spyOn(Share, "share").mockResolvedValue({ action: "dismissedAction" });
-    show(runtimeWith({ command: jest.fn(async () => ({ code: "zz9" })) }), <TimScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
+    await show(runtimeWith({ command: jest.fn(async () => ({ code: "zz9" })) }), <TimScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
     expect(await screen.findByText("zz9")).toBeTruthy();
     type Node = { type: unknown; props: Record<string, unknown>; parent: Node | null };
     const inside = (inner: unknown, outer: unknown) => {
@@ -451,9 +452,7 @@ describe("Tim", () => {
       return false;
     };
     const sheet = screen.getByTestId("tim-sheet");
-    const scrollers = (sheet as unknown as { findAll: (m: (n: Node) => boolean) => Node[] }).findAll(
-      (n) => n.type === "RCTScrollView" && !n.props.horizontal,
-    );
+    const scrollers = findAll(sheet, (n) => n.type === "RCTScrollView" && !n.props.horizontal) as unknown as Node[];
     expect(scrollers).toHaveLength(1);
     const [scroller] = scrollers;
     expect(inside(screen.getByText("zz9"), scroller)).toBe(true);
@@ -465,7 +464,7 @@ describe("Tim", () => {
   });
 
   it("staff have no Tim", async () => {
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith({}, staff)} linkMapper={(h) => h}>
         <TabStack segment="(menu)" />
       </MobileProvider>,
@@ -507,8 +506,8 @@ describe("package actions", () => {
     });
 
   it("a package row offers Lihat paket and Salin jadi paket baru", async () => {
-    show(usaha(), <UsahaScreen />);
-    fireEvent.press(await screen.findByLabelText("Lihat atau salin: Makan Siang Rumahan"));
+    await show(usaha(), <UsahaScreen />);
+    await fireEvent.press(await screen.findByLabelText("Lihat atau salin: Makan Siang Rumahan"));
     const sheet = lastActionSheet();
     expect(sheet.items.map((i) => i.label)).toEqual(["Lihat paket", "Salin jadi paket baru"]);
     expect(sheet.items.some((i) => i.tone === "danger")).toBe(false);
@@ -521,7 +520,7 @@ describe("package actions", () => {
     await act(async () => undefined);
     expect(screen.queryByText("Paket disalin")).toBeNull();
 
-    fireEvent.press(screen.getByLabelText("Lihat atau salin: Paket Hemat Kantor"));
+    await fireEvent.press(screen.getByLabelText("Lihat atau salin: Paket Hemat Kantor"));
     // A draft with no price yet names only its state: nothing stands in for the missing price.
     expect(lastActionSheet().context?.lines).toEqual(["draf"]);
     await lastActionSheet().choose("lihat");
@@ -533,7 +532,7 @@ describe("package actions", () => {
     let read!: (value: unknown) => void;
     const sellerOperations = jest.fn(() => new Promise((resolve) => (read = resolve)));
     jest.spyOn(routerModule, "useLocalSearchParams").mockReturnValue({ from: "p-1" });
-    show(runtimeWith({ sellerOperations }), <NewPackageRoute />);
+    await show(runtimeWith({ sellerOperations }), <NewPackageRoute />);
     // While the package it copies loads, nothing has been copied.
     await waitFor(() => expect(sellerOperations).toHaveBeenCalled());
     await act(async () => undefined);
@@ -543,28 +542,28 @@ describe("package actions", () => {
     );
     expect(await screen.findByText("Paket disalin")).toBeTruthy();
     expect(screen.getAllByText("Paket disalin")).toHaveLength(1);
-    screen.unmount();
+    await screen.unmount();
 
     // A package that is gone: the editor never opens, so nothing was copied.
     jest.spyOn(routerModule, "useLocalSearchParams").mockReturnValue({ from: "p-gone" });
-    show(usaha(), <NewPackageRoute />);
+    await show(usaha(), <NewPackageRoute />);
     expect(await screen.findByText("Paket ini tidak ditemukan.")).toBeTruthy();
     await act(async () => undefined);
     expect(screen.queryByText("Paket disalin")).toBeNull();
-    screen.unmount();
+    await screen.unmount();
 
     // A failed read: the error shows, and no success over it.
     jest.spyOn(routerModule, "useLocalSearchParams").mockReturnValue({ from: "p-1" });
     const failing = jest.fn(async () => Promise.reject(new Error("offline")));
-    show(runtimeWith({ sellerOperations: failing }), <NewPackageRoute />);
+    await show(runtimeWith({ sellerOperations: failing }), <NewPackageRoute />);
     await waitFor(() => expect(failing).toHaveBeenCalled());
     await act(async () => undefined);
     expect(screen.queryByText("Paket disalin")).toBeNull();
   });
 
   it("closing the package sheet does nothing", async () => {
-    show(usaha(), <UsahaScreen />);
-    fireEvent.press(await screen.findByLabelText("Lihat atau salin: Makan Siang Rumahan"));
+    await show(usaha(), <UsahaScreen />);
+    await fireEvent.press(await screen.findByLabelText("Lihat atau salin: Makan Siang Rumahan"));
     await lastActionSheet().choose(null);
     expect(router.push).not.toHaveBeenCalled();
     expect(screen.queryByText("Paket disalin")).toBeNull();
@@ -584,27 +583,27 @@ describe("import row editor", () => {
   };
 
   it("the import row editor edits the shared store and returns", async () => {
-    show(importer(), <ImportAssistant />);
-    fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+    await show(importer(), <ImportAssistant />);
+    await fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
     // The new row opens in its sheet; a row with errors says what is missing.
     expect(router.push).toHaveBeenLastCalledWith("/impor-baris?n=1");
     const sheet = await screen.findByTestId("import-row-sheet");
     expect(within(sheet).getByText(/Nama belum ada/)).toBeTruthy();
-    fireEvent.changeText(within(sheet).getByLabelText("Nama"), "Bu Ani");
+    await fireEvent.changeText(within(sheet).getByLabelText("Nama"), "Bu Ani");
     // The list under the sheet reads the same row.
     expect(screen.getByRole("button", { name: /^Ubah Bu Ani/ })).toBeTruthy();
     // Selesai is pinned in the footer; "Hapus baris ini" stays in the content.
     expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Selesai" })).toBeTruthy();
     expect(within(screen.getByTestId("sheet-body")).getByRole("button", { name: "Hapus baris ini" })).toBeTruthy();
-    fireEvent.press(within(sheet).getByRole("button", { name: "Selesai" }));
+    await fireEvent.press(within(sheet).getByRole("button", { name: "Selesai" }));
     expect(router.back).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(screen.queryByTestId("import-row-sheet")).toBeNull());
     expect(screen.getByText("Bu Ani")).toBeTruthy();
     // Opening it again edits the same row; removing it takes it off the list and returns.
-    fireEvent.press(screen.getByRole("button", { name: /^Ubah Bu Ani/ }));
-    fireEvent.press(within(await screen.findByTestId("import-row-sheet")).getByRole("button", { name: "Hapus baris ini" }));
+    await fireEvent.press(screen.getByRole("button", { name: /^Ubah Bu Ani/ }));
+    await fireEvent.press(within(await screen.findByTestId("import-row-sheet")).getByRole("button", { name: "Hapus baris ini" }));
     await waitFor(() => expect(screen.queryByTestId("import-row-sheet")).toBeNull());
     expect(screen.queryByText("Bu Ani")).toBeNull();
   });
@@ -614,10 +613,10 @@ describe("import row editor", () => {
     const pending = new Promise((resolve) => (options = resolve));
     const sellerImportOptions = jest.fn(() => pending);
     global.fetch = jest.fn(async () => disabled) as unknown as typeof fetch;
-    show(runtimeWith({ sellerImportOptions }), <ImportAssistant />);
-    fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+    await show(runtimeWith({ sellerImportOptions }), <ImportAssistant />);
+    await fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
     // The row is on the list; only its package choices have not arrived.
     const sheet = await screen.findByTestId("import-row-sheet");
     expect(within(sheet).queryByText("Baris ini sudah tidak ada.")).toBeNull();
@@ -632,10 +631,10 @@ describe("import row editor", () => {
   it("a row whose package choices could not be read says so and tries again", async () => {
     const sellerImportOptions = jest.fn().mockRejectedValue(new Error("offline"));
     global.fetch = jest.fn(async () => disabled) as unknown as typeof fetch;
-    show(runtimeWith({ sellerImportOptions }), <ImportAssistant />);
-    fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+    await show(runtimeWith({ sellerImportOptions }), <ImportAssistant />);
+    await fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
     const sheet = await screen.findByTestId("import-row-sheet");
     const retry = await within(sheet).findByRole("button", { name: "Coba lagi" });
     expect(within(sheet).queryByText("Baris ini sudah tidak ada.")).toBeNull();
@@ -643,7 +642,7 @@ describe("import row editor", () => {
       customers: [],
       packages: [{ id: "p-hemat", name: "Paket Hemat Kantor", days: 20, areas: [], meal: "lunch" }],
     });
-    fireEvent.press(retry);
+    await fireEvent.press(retry);
     // The choices land and the same sheet becomes the row's editor.
     await waitFor(() => expect(within(screen.getByTestId("import-row-sheet")).getByText("Paket Hemat Kantor")).toBeTruthy());
   });
@@ -653,17 +652,17 @@ describe("import row editor", () => {
     try {
       // A cold link: /impor-baris is the only route, so both closes open Impor in its place.
       canGoBack.mockReturnValue(false);
-      show(importer(), <ImportRowEditor n={42} />);
+      await show(importer(), <ImportRowEditor n={42} />);
       expect(await screen.findByText("Baris ini sudah tidak ada.")).toBeTruthy();
-      fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
       expect(router.replace).toHaveBeenLastCalledWith("/impor");
       // The header's Close (iOS) does the same.
-      act(() => (screen.UNSAFE_getByType(SheetHeader).props.onClose as () => void)());
+      await act(() => ancestorProps<{ onClose: () => void }>(screen.getByRole("header", { name: "Pelanggan" }), SheetHeader).onClose());
       expect(router.replace).toHaveBeenCalledTimes(2);
       expect(router.back).not.toHaveBeenCalled();
       // Opened from Impor: back to it.
       canGoBack.mockReturnValue(true);
-      fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
       expect(router.back).toHaveBeenCalledTimes(1);
       expect(router.replace).toHaveBeenCalledTimes(2);
     } finally {
@@ -674,7 +673,7 @@ describe("import row editor", () => {
 
 describe("appearance", () => {
   it("the stop sheet reads the dark palette", async () => {
-    show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[0].id} meal="lunch" date={TODAY} />, { dark: true });
+    await show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[0].id} meal="lunch" date={TODAY} />, { dark: true });
     const sheet = await stopSheet();
     // The sheet is the surface and dark draws no card edge, so the options sit in one sage card, with the glyph circles on the surface.
     const card = within(sheet).getByTestId("list-card");
@@ -685,15 +684,15 @@ describe("appearance", () => {
   });
 
   it("grows with a larger font: no fixed heights and no cut lines in the Dapur sheets", async () => {
-    show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[0].id} meal="lunch" date={TODAY} />);
+    await show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[0].id} meal="lunch" date={TODAY} />);
     await stopSheet();
-    const texts = screen.UNSAFE_root.findAll((n) => typeof n.type === "string" && n.type === "Text");
+    const texts = findInScreen((n) => n.type === "Text");
     expect(texts.length).toBeGreaterThan(4);
     for (const text of texts) expect(text.props.numberOfLines).toBeUndefined();
     expect(flat(screen.getByTestId("failed-option")).height).toBeUndefined();
     expect(flat(screen.getByRole("button", { name: "Pindah tanggal" })).height).toBeUndefined();
-    screen.unmount();
-    show(runtimeWith(), <TimScreen />);
+    await screen.unmount();
+    await show(runtimeWith(), <TimScreen />);
     expect(flat(await screen.findByRole("button", { name: "Bagikan undangan" })).height).toBeUndefined();
   });
 });
@@ -724,19 +723,19 @@ describe("every awaiting command button is busy while it waits", () => {
   const held = () => {
     let release!: (value: unknown) => void;
     const command = jest.fn(() => new Promise((resolve) => (release = resolve)));
-    return { command, release: () => act(async () => release({ code: "abc123" })) };
+    return { command, release: async () => await act(async () => release({ code: "abc123" })) };
   };
 
   it("Balas sends once and is busy until the reply is sent", async () => {
     const { command, release } = held();
-    show(runtimeWith({ request: jest.fn(async () => [report()]), command }), <ReplySheet id="i-1" />);
-    fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
-    fireEvent.press(screen.getByRole("button", { name: "Balas" }));
+    await show(runtimeWith({ request: jest.fn(async () => [report()]), command }), <ReplySheet id="i-1" />);
+    await fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
+    await fireEvent.press(screen.getByRole("button", { name: "Balas" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Balas" }).props.accessibilityState.busy).toBe(true));
     // The other button on the sheet is not the one waiting, and a second press sends nothing.
     expect(screen.getByRole("button", { name: "Tandai selesai" }).props.accessibilityState.busy).toBeFalsy();
-    fireEvent.press(screen.getByRole("button", { name: "Balas" }));
-    fireEvent.press(screen.getByRole("button", { name: "Tandai selesai" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Balas" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tandai selesai" }));
     expect(command).toHaveBeenCalledTimes(1);
     await release();
   });
@@ -744,10 +743,10 @@ describe("every awaiting command button is busy while it waits", () => {
   it("Bagikan undangan is busy while the invite is made", async () => {
     jest.spyOn(Share, "share").mockResolvedValue({ action: "dismissedAction" });
     const { command, release } = held();
-    show(runtimeWith({ command }), <TimScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
+    await show(runtimeWith({ command }), <TimScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Bagikan undangan" }).props.accessibilityState.busy).toBe(true));
-    fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
     expect(command).toHaveBeenCalledTimes(1);
     await release();
     await waitFor(() => expect(screen.getByRole("button", { name: "Bagikan undangan" }).props.accessibilityState.busy).toBeFalsy());
@@ -758,12 +757,12 @@ describe("every awaiting command button is busy while it waits", () => {
     const command = jest.fn(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
-    show(runtimeWith({ command }), <TimScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
+    await show(runtimeWith({ command }), <TimScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
     const first = await screen.findByTestId("form-error");
     expect(first).toBeTruthy();
     // The button is back for another try, which fails the same way and is announced again.
-    fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
     await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
     expect(screen.getAllByTestId("form-error")).toHaveLength(1);
   });
@@ -781,7 +780,7 @@ describe("the action sheets on the Dapur scale", () => {
 
   describe("Atur antaran", () => {
     it("lays both options out as 64 rows with 40 glyph circles in one ListCard, the primary pinned in the footer", async () => {
-      show(runtimeWith(), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
+      await show(runtimeWith(), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
       const sheet = await stopSheet();
       const cards = within(sheet).getAllByTestId("list-card");
       expect(cards).toHaveLength(1);
@@ -800,7 +799,7 @@ describe("the action sheets on the Dapur scale", () => {
 
     it("shows one row and the footer for a report-only stop", async () => {
       // Keluarga Hartono's change deadline has passed.
-      show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[2].id} meal="lunch" date={TODAY} />);
+      await show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[2].id} meal="lunch" date={TODAY} />);
       const sheet = await stopSheet();
       expect(within(sheet).getByTestId("failed-option")).toBeTruthy();
       expect(within(sheet).queryByTestId("move-option")).toBeNull();
@@ -809,7 +808,7 @@ describe("the action sheets on the Dapur scale", () => {
     });
 
     it("shows only the move row, and no footer, on Besok", async () => {
-      show(runtimeWith(), <ExceptionSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+      await show(runtimeWith(), <ExceptionSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
       const sheet = await stopSheet();
       expect(within(sheet).queryByTestId("failed-option")).toBeNull();
       expect(flat(within(sheet).getByTestId("move-option")).minHeight).toBe(64);
@@ -819,7 +818,7 @@ describe("the action sheets on the Dapur scale", () => {
 
     it("says there is nothing to report, with no card and no footer, for a delivered stop", async () => {
       days[TODAY] = day({ status: "delivered" });
-      show(runtimeWith(), <ExceptionSheet id={days[TODAY].deliveries[0].id} meal="lunch" date={TODAY} />);
+      await show(runtimeWith(), <ExceptionSheet id={days[TODAY].deliveries[0].id} meal="lunch" date={TODAY} />);
       expect(await screen.findByText("Tidak ada yang bisa dilaporkan untuk alamat ini.")).toBeTruthy();
       expect(screen.queryByTestId("list-card")).toBeNull();
       expect(screen.queryByTestId("sheet-footer")).toBeNull();
@@ -829,9 +828,9 @@ describe("the action sheets on the Dapur scale", () => {
       const command = jest.fn(async () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       });
-      show(runtimeWith({ command }), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
+      await show(runtimeWith({ command }), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
       await stopSheet();
-      fireEvent.press((await footerOf()).getByRole("button", { name: "Tandai gagal diantar" }));
+      await fireEvent.press((await footerOf()).getByRole("button", { name: "Tandai gagal diantar" }));
       await lastConfirm().press("Tandai gagal");
       const footer = await footerOf();
       expect(await footer.findByTestId("form-error")).toBeTruthy();
@@ -840,7 +839,7 @@ describe("the action sheets on the Dapur scale", () => {
     });
 
     it("loads as two rows that wrap on the loaded options' own copy (no fixed 64), and the footer's 50 button", async () => {
-      show(runtimeWith({ sellerOperations: jest.fn(pending) }), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
+      await show(runtimeWith({ sellerOperations: jest.fn(pending) }), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
       expect(await screen.findByTestId("exception-skeleton")).toBeTruthy();
       // The rows take their height from the loaded rows' copy drawn invisible, so the sheet does not grow when the day arrives.
       for (const i of [0, 1]) {
@@ -861,8 +860,8 @@ describe("the action sheets on the Dapur scale", () => {
   });
 
   describe("the shared blocks the sheets use", () => {
-    it("ListCard keeps its surface tone and rounded clip by default, and takes sage and no clip when asked", () => {
-      render(
+    it("ListCard keeps its surface tone and rounded clip by default, and takes sage and no clip when asked", async () => {
+      await render(
         withDapurScale(
           <ThemeProvider storageKey="blocks.theme">
             <ListCard>{[<Text key="a">a</Text>, <Text key="b">b</Text>]}</ListCard>
@@ -878,10 +877,10 @@ describe("the action sheets on the Dapur scale", () => {
       expect(flat(sage).overflow).not.toBe("hidden");
     });
 
-    it("on dark a sage ListCard draws a 1px line edge and keeps its rows 16 in; light and the surface card stay as they were", () => {
-      const cards = (scheme: "light" | "dark") => {
+    it("on dark a sage ListCard draws a 1px line edge and keeps its rows 16 in; light and the surface card stay as they were", async () => {
+      const cards = async (scheme: "light" | "dark") => {
         jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
-        const view = render(
+        const view = await render(
           withDapurScale(
             <ThemeProvider storageKey="blocks.theme">
               <ListCard tone="sage">
@@ -894,21 +893,21 @@ describe("the action sheets on the Dapur scale", () => {
           ),
         );
         const [sage, surface] = screen.getAllByTestId("list-card").map(flat);
-        view.unmount();
+        await view.unmount();
         return { sage, surface };
       };
-      const dark = cards("dark");
+      const dark = await cards("dark");
       expect(dark.sage).toMatchObject({ backgroundColor: nativeThemes.dark.sage, borderWidth: 1, borderColor: nativeThemes.dark.line, paddingHorizontal: 15 });
       // The 1px edge and the 15 padding put the rows 16 in, as the surface card's 16 does.
       expect(dark.surface).toMatchObject({ backgroundColor: nativeThemes.dark.surface, paddingHorizontal: 16 });
       expect(dark.surface.borderWidth).toBeUndefined();
-      const light = cards("light");
+      const light = await cards("light");
       expect(light.sage).toMatchObject({ backgroundColor: nativeThemes.light.sage, borderWidth: 1, borderColor: nativeThemes.light.cardBorder, paddingHorizontal: 15 });
       expect(light.surface).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderWidth: 1, paddingHorizontal: 15 });
     });
 
-    it("GlyphCircle is sage by default and takes a tone; Thumb's not-set glyph is the utensils unless an icon is passed", () => {
-      render(
+    it("GlyphCircle is sage by default and takes a tone; Thumb's not-set glyph is the utensils unless an icon is passed", async () => {
+      await render(
         withDapurScale(
           <ThemeProvider storageKey="blocks.theme">
             <GlyphCircle testID="plain">
@@ -924,13 +923,13 @@ describe("the action sheets on the Dapur scale", () => {
       );
       expect(flat(screen.getByTestId("plain")).backgroundColor).toBe(nativeThemes.light.sage);
       expect(flat(screen.getByTestId("toned")).backgroundColor).toBe("#123456");
-      const glyph = (id: string) => screen.getByTestId(id).findAll((n) => typeof n.props.name === "string")[0].props.name;
+      const glyph = (id: string) => iconsIn(screen.getByTestId(id))[0].name;
       expect(glyph("dish-not-set")).toBe("restaurant-outline");
       expect(glyph("proof-not-set")).toBe("camera-outline");
     });
 
-    it("TwoLineRow keeps one line of meta by default, and with wrap=\"meta\" lets it grow with the glyph at the top", () => {
-      render(
+    it("TwoLineRow keeps one line of meta by default, and with wrap=\"meta\" lets it grow with the glyph at the top", async () => {
+      await render(
         withDapurScale(
           <ThemeProvider storageKey="blocks.theme">
             <TwoLineRow testID="one" title="Judul" meta="Satu baris" />
@@ -949,7 +948,7 @@ describe("the action sheets on the Dapur scale", () => {
     const tomorrow = () => dayOf(TOMORROW).deliveries[0].id;
 
     it("keeps the reason field in the body and Pindah tanggal pinned in the footer", async () => {
-      show(runtimeWith(), <MoveSheet id={tomorrow()} meal="lunch" date={TOMORROW} />);
+      await show(runtimeWith(), <MoveSheet id={tomorrow()} meal="lunch" date={TOMORROW} />);
       await screen.findByLabelText("Alasan");
       expect(bodyOf().getByLabelText("Alasan")).toBeTruthy();
       const footer = await footerOf();
@@ -959,7 +958,9 @@ describe("the action sheets on the Dapur scale", () => {
     });
 
     it("loads in the calendar's own height: pager 48, weekdays 16, six 48 weeks, the 20 caption, and the footer", async () => {
-      const held = show(runtimeWith({ deliveryAvailability: jest.fn(pending) }), <MoveSheet id={tomorrow()} meal="lunch" date={TOMORROW} />);
+      // Jest's window reports font scale 2, and Text drops a fixed lineHeight above 1 on Android: read it at scale 1.
+      jest.spyOn(require("react-native") as typeof ReactNative, "useWindowDimensions").mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1 });
+      const held = await show(runtimeWith({ deliveryAvailability: jest.fn(pending) }), <MoveSheet id={tomorrow()} meal="lunch" date={TOMORROW} />);
       const sk = within(await screen.findByTestId("move-skeleton"));
       const heights = {
         pager: flat(sk.getByTestId("move-skeleton-pager")).height,
@@ -968,9 +969,9 @@ describe("the action sheets on the Dapur scale", () => {
         caption: flat(sk.getByTestId("move-skeleton-caption")).height,
       };
       expect(flat((await footerOf()).getByTestId("move-skeleton-footer")).height).toBe(50);
-      held.unmount();
+      await held.unmount();
 
-      show(runtimeWith(), <MoveSheet id={tomorrow()} meal="lunch" date={TOMORROW} />);
+      await show(runtimeWith(), <MoveSheet id={tomorrow()} meal="lunch" date={TOMORROW} />);
       await screen.findByTestId("calendar-grid");
       const cell = flat(screen.getByTestId("calendar-week-0").children[0] as never).height as number;
       const loaded = {
@@ -986,7 +987,7 @@ describe("the action sheets on the Dapur scale", () => {
 
   describe("Pindah tanggal, the grid inside the sheet", () => {
     it("keeps the weekday row and every week inside the sheet's 24 side padding: no bleed, no gap, 48-tall cells", async () => {
-      show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+      await show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
       await screen.findByTestId("calendar-grid");
       const rows = [
         flat(screen.getByTestId("calendar-weekdays", { includeHiddenElements: true })),
@@ -1019,11 +1020,11 @@ describe("the action sheets on the Dapur scale", () => {
       { id: "e-2", action: "deliveryIssue.respond", body: "Kurir sudah di jalan.", created_at: "2026-10-08T06:20:00Z" },
       { id: "e-3", action: "deliveryIssue.escalate", body: "Tolong ditinjau.", created_at: "2026-10-08T06:40:00Z" },
     ];
-    const reply = (issue = report(), actor: Record<string, unknown> = owner) =>
-      show(runtimeWith({ request: jest.fn(async () => [issue]) }, actor), <ReplySheet id="i-1" />);
+    const reply = async (issue = report(), actor: Record<string, unknown> = owner) =>
+      await show(runtimeWith({ request: jest.fn(async () => [issue]) }, actor), <ReplySheet id="i-1" />);
 
     it("with no replies: the report is one ListCard, Balas is pinned with Tandai selesai beside it", async () => {
-      reply();
+      await reply();
       expect(await screen.findByLabelText("Balasan untuk pelanggan")).toBeTruthy();
       const cards = bodyOf().getAllByTestId("list-card");
       expect(cards).toHaveLength(1);
@@ -1048,7 +1049,7 @@ describe("the action sheets on the Dapur scale", () => {
     });
 
     it("with 3 earlier replies: they list in their own card, newest below, and the footer is unchanged", async () => {
-      reply(report({ status: "responded", version: 2, events }));
+      await reply(report({ status: "responded", version: 2, events }));
       await screen.findByLabelText("Balasan untuk pelanggan");
       const cards = bodyOf().getAllByTestId("list-card");
       expect(cards).toHaveLength(2);
@@ -1062,7 +1063,7 @@ describe("the action sheets on the Dapur scale", () => {
     });
 
     it("resolved: no field and no footer, the words say it is done, and WhatsApp stays", async () => {
-      reply(report({ status: "resolved", version: 3, events }));
+      await reply(report({ status: "resolved", version: 3, events }));
       expect(await screen.findByText("Laporan ini sudah selesai.")).toBeTruthy();
       expect(screen.queryByTestId("sheet-footer")).toBeNull();
       expect(screen.queryByLabelText("Balasan untuk pelanggan")).toBeNull();
@@ -1070,7 +1071,7 @@ describe("the action sheets on the Dapur scale", () => {
     });
 
     it("keeps WhatsApp as a 48 link row in the body, not in the footer", async () => {
-      reply();
+      await reply();
       await screen.findByLabelText("Balasan untuk pelanggan");
       const link = bodyOf().getByRole("button", { name: "Chat WhatsApp" });
       expect(flat(link).minHeight).toBe(48);
@@ -1081,9 +1082,9 @@ describe("the action sheets on the Dapur scale", () => {
       const command = jest.fn(async () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       });
-      show(runtimeWith({ request: jest.fn(async () => [report()]), command }), <ReplySheet id="i-1" />);
-      fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
-      fireEvent.press((await footerOf()).getByRole("button", { name: "Balas" }));
+      await show(runtimeWith({ request: jest.fn(async () => [report()]), command }), <ReplySheet id="i-1" />);
+      await fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
+      await fireEvent.press((await footerOf()).getByRole("button", { name: "Balas" }));
       const footer = await footerOf();
       expect(await footer.findByTestId("form-error")).toBeTruthy();
       expect(bodyOf().queryByTestId("form-error")).toBeNull();
@@ -1091,13 +1092,13 @@ describe("the action sheets on the Dapur scale", () => {
 
     it("puts the two actions in a column below 320 effective width, so no label is cut", async () => {
       jest.spyOn(Dimensions, "get").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
-      reply();
+      await reply();
       await screen.findByLabelText("Balasan untuk pelanggan");
       expect(flat((await footerOf()).getByTestId("reply-actions")).flexDirection).toBe("column");
     });
 
     it("draws the loading report card with the same 1px line edge on dark, where a sage card has none of its own", async () => {
-      show(runtimeWith({ request: jest.fn(pending) }), <ReplySheet id="i-1" />, { dark: true });
+      await show(runtimeWith({ request: jest.fn(pending) }), <ReplySheet id="i-1" />, { dark: true });
       expect(flat(await screen.findByTestId("reply-skeleton-card"))).toMatchObject({
         height: 128,
         backgroundColor: nativeThemes.dark.sage,
@@ -1107,7 +1108,7 @@ describe("the action sheets on the Dapur scale", () => {
     });
 
     it("loads as the report card, a line, the field and the footer's 50 button", async () => {
-      show(runtimeWith({ request: jest.fn(pending) }), <ReplySheet id="i-1" />);
+      await show(runtimeWith({ request: jest.fn(pending) }), <ReplySheet id="i-1" />);
       expect(await screen.findByTestId("reply-skeleton")).toBeTruthy();
       expect(flat(screen.getByTestId("reply-skeleton-card"))).toMatchObject({ height: 128, backgroundColor: nativeThemes.light.sage, borderWidth: 1 });
       expect(flat(screen.getByTestId("reply-skeleton-hint")).height).toBe(18);
@@ -1120,7 +1121,7 @@ describe("the action sheets on the Dapur scale", () => {
     const ids = () => dayOf(TODAY).deliveries.slice(0, 2).map((d) => d.id);
 
     it("loads as 72 rows and the footer's 50 button", async () => {
-      show(runtimeWith({ sellerOperations: jest.fn(pending) }), <ProofSheet ids={ids()} meal="lunch" date={TODAY} />);
+      await show(runtimeWith({ sellerOperations: jest.fn(pending) }), <ProofSheet ids={ids()} meal="lunch" date={TODAY} />);
       expect(await screen.findByTestId("proof-skeleton")).toBeTruthy();
       expect(flat(screen.getByTestId("proof-skeleton-row-0")).height).toBe(72);
       expect(flat(screen.getByTestId("proof-skeleton-row-1")).height).toBe(72);
@@ -1147,19 +1148,19 @@ describe("the action sheets on the Dapur scale", () => {
     };
 
     it("Atur antaran", async () => {
-      show(runtimeWith(), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
+      await show(runtimeWith(), <ExceptionSheet id={stopId()} meal="lunch" date={TODAY} />);
       await stopSheet();
       await pinned("Tandai gagal diantar");
     });
 
     it("Balas laporan", async () => {
-      show(runtimeWith({ request: jest.fn(async () => [report()]) }), <ReplySheet id="i-1" />);
+      await show(runtimeWith({ request: jest.fn(async () => [report()]) }), <ReplySheet id="i-1" />);
       await screen.findByLabelText("Balasan untuk pelanggan");
       await pinned("Balas");
     });
 
     it("Pindah tanggal", async () => {
-      show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+      await show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
       await screen.findByLabelText("Alasan");
       await pinned("Pindah tanggal");
     });

@@ -44,8 +44,8 @@ function runtimeWith(actor: Record<string, unknown> | null): MobileRuntime {
   } as unknown as MobileRuntime["api"];
   return runtime;
 }
-const renderEmpty = (actor: Record<string, unknown> | null) =>
-  render(
+const renderEmpty = async (actor: Record<string, unknown> | null) =>
+  await render(
     <MoodProvider now={MALAM}>
       <MobileProvider runtime={runtimeWith(actor)} linkMapper={customerLink}>
         <EmptyHome />
@@ -66,7 +66,7 @@ jest.mock("../src/today/offline", () => ({
 
 describe("EmptyHome mood header", () => {
   it("opens on a Malam header titled Beranda, with no toggle, and the food stays on the page", async () => {
-    renderEmpty(null);
+    await renderEmpty(null);
     const header = await screen.findByTestId("beranda-header");
     expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#E2ECDD");
     const title = within(header).getByText("Beranda");
@@ -80,13 +80,13 @@ describe("EmptyHome mood header", () => {
     expect(within(header).queryByRole("button", { name: /^Nasi Ayam Bakar,/ })).toBeNull();
     expect(flat(card).backgroundColor).toBe(nativeThemes.light.surface);
     expect(nativeThemes.light.surface).toBe("#FFFFFF");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalledWith("/login");
   });
 
   it("is titled Home in English, matching the tab label", async () => {
     (require("expo-secure-store") as { __store: Map<string, string> }).__store.set("catera.locale", "en");
-    renderEmpty(null);
+    await renderEmpty(null);
     const header = await screen.findByTestId("beranda-header");
     expect(await within(header).findByText("Home")).toBeTruthy();
     expect(within(header).queryByText("Beranda")).toBeNull();
@@ -99,7 +99,7 @@ describe("EmptyHome mood header", () => {
       throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
     }) as never;
     (runtime.api as unknown as { customerActions: jest.Mock }).customerActions = jest.fn(async () => ({ total: 0, items: [] }));
-    render(
+    await render(
       <MoodProvider now={MALAM}>
         <MobileProvider runtime={runtime} linkMapper={customerLink}>
           <Beranda />
@@ -113,7 +113,7 @@ describe("EmptyHome mood header", () => {
   });
 
   it("keeps the header for a signed-in customer with no package", async () => {
-    renderEmpty({ id: "u-c1", role: "customer", name: "Rani Contoh" });
+    await renderEmpty({ id: "u-c1", role: "customer", name: "Rani Contoh" });
     const header = await screen.findByTestId("beranda-header");
     expect(within(header).getByText("Beranda")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Masuk" })).toBeNull();

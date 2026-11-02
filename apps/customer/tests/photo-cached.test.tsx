@@ -2,10 +2,17 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { nativeMotion } from "@catera/design-tokens";
 import { render, screen } from "@testing-library/react-native";
-import { Image as CachedImage } from "expo-image";
 import { StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { CalendarPhotoCell, StoryCover } from "@catera/mobile-ui";
+import { hostsWhere } from "./find-hosts";
+
+// expo-image is a host View that keeps its props (tests/setup.cjs); it is the one host carrying `contentFit`.
+const cachedImage = () => {
+  const [only, ...rest] = hostsWhere({}).filter((node) => "contentFit" in node.props);
+  expect(rest).toHaveLength(0);
+  return only;
+};
 
 // The Jest environment reports a font scale of 2, which hides the cell photos.
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
@@ -44,8 +51,8 @@ describe("remote food photos", () => {
     },
   );
 
-  it("the calendar cell photo is a cached cover image with the selection dissolve", () => {
-    render(
+  it("the calendar cell photo is a cached cover image with the selection dissolve", async () => {
+    await render(
       <CalendarPhotoCell
         day={12}
         uri="https://example.test/a.jpg"
@@ -58,7 +65,7 @@ describe("remote food photos", () => {
         onPress={() => undefined}
       />,
     );
-    const image = screen.UNSAFE_getByType(CachedImage);
+    const image = cachedImage();
     expect(image.props.source).toEqual({ uri: "https://example.test/a.jpg" });
     expect(image.props.contentFit).toBe("cover");
     expect(image.props.transition).toBe(nativeMotion.selection);
@@ -67,8 +74,8 @@ describe("remote food photos", () => {
     );
   });
 
-  it("the story cover photo is a cached cover image and keeps its radius", () => {
-    render(
+  it("the story cover photo is a cached cover image and keeps its radius", async () => {
+    await render(
       <StoryCover
         uri="https://example.test/a.jpg"
         title="Senin"
@@ -78,14 +85,14 @@ describe("remote food photos", () => {
         height={500}
       />,
     );
-    const image = screen.UNSAFE_getByType(CachedImage);
+    const image = cachedImage();
     expect(image.props.contentFit).toBe("cover");
     expect(image.props.transition).toBe(nativeMotion.selection);
   });
 
-  it("no fade under reduced motion", () => {
+  it("no fade under reduced motion", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    render(
+    await render(
       <StoryCover
         uri="https://example.test/a.jpg"
         title="Senin"
@@ -95,6 +102,6 @@ describe("remote food photos", () => {
         height={500}
       />,
     );
-    expect(screen.UNSAFE_getByType(CachedImage).props.transition).toBe(0);
+    expect(cachedImage().props.transition).toBe(0);
   });
 });

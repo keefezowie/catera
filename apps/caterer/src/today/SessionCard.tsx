@@ -1,6 +1,5 @@
 import { Share, View } from "react-native";
 import * as Print from "expo-print";
-import { router } from "expo-router";
 import {
   type CookingRecap,
   type KitchenMeal,
@@ -14,6 +13,7 @@ import { ActionPair, IconAction, SECTION_GAP, SUMMARY_HEIGHT, TextAction } from 
 import type { Ticks } from "./ticks";
 import { DeliveryOrder, type RouteView } from "./DeliveryOrder";
 import type { Selection } from "./selection";
+import { pushScreen } from "../nav";
 
 /**
  * The slots nobody has filled yet, one entry per package ("2 lauk, 1 nasi, 1 sayur", biggest first). Packages are
@@ -147,7 +147,7 @@ ${recapLines(recap, sharedTitle, missingForSharing)}` })}
                           label={t("Isi menu", "Fill in menu")}
                           accessibilityLabel={`${t("Isi menu", "Fill in menu")} ${m.packageName}`}
                           flush="start"
-                          onPress={() => router.push(`/menu/${date}?pkg=${m.packageId}&meal=${meal}` as never)}
+                          onPress={() => pushScreen(`/menu/${date}?pkg=${m.packageId}&meal=${meal}`)}
                         />
                       ) : null}
                     </View>

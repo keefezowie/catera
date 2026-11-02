@@ -196,8 +196,8 @@ function Probe() {
   return <Text>{`m:${mobile.ready ? (mobile.actor?.id ?? "-") : "?"}`}</Text>;
 }
 
-const renderShell = () =>
-  render(
+const renderShell = async () =>
+  await render(
     <AppProviders runtime={runtime}>
       <Probe />
     </AppProviders>,
@@ -207,7 +207,7 @@ const tap = (id: string, href: string) => ({
   actionIdentifier: "default",
   notification: { request: { identifier: id, content: { data: { href } } } },
 });
-const tapAll = (r: unknown) => act(() => [...mockResponseListeners].forEach((cb) => cb(r)));
+const tapAll = async (r: unknown) => await act(() => [...mockResponseListeners].forEach((cb) => cb(r)));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -225,13 +225,13 @@ beforeEach(() => {
 
 it("a signed-in start opens one realtime subscription per topic", async () => {
   mockActor = actor;
-  renderShell();
+  await renderShell();
   expect(await screen.findByText("m:u-1")).toBeTruthy();
   await waitFor(() => expect(mockClient.subscriptions).toEqual(["catera:u-1"]));
 });
 
 it("a sign-in reaches the shell and subscribes once", async () => {
-  renderShell();
+  await renderShell();
   expect(await screen.findByText("m:-")).toBeTruthy();
   mockActor = actor;
   await act(async () => {
@@ -243,7 +243,7 @@ it("a sign-in reaches the shell and subscribes once", async () => {
 
 it("logout signs the shell out", async () => {
   mockActor = actor;
-  renderShell();
+  await renderShell();
   expect(await screen.findByText("m:u-1")).toBeTruthy();
   mockActor = null;
   await act(async () => {
@@ -258,7 +258,7 @@ it("an expired session that signs out during startup ends in the guest state", a
   (runtime.api.me as jest.Mock).mockImplementationOnce(
     () => new Promise((resolve) => (release = () => resolve({ actor: null, demo: false }))),
   );
-  renderShell();
+  await renderShell();
   expect(screen.getByText("m:?")).toBeTruthy();
   await act(async () => {
     await mockClient.auth.signOut();
@@ -273,7 +273,7 @@ it.each(["REQUEST_TIMEOUT", "INVALID_API_RESPONSE"])(
   "a start that fails with %s shows Belum bisa terhubung and Coba lagi recovers",
   async (code) => {
     (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error(code), { code }));
-    renderShell();
+    await renderShell();
     expect(await screen.findByText("Belum bisa terhubung. Cek koneksimu.")).toBeTruthy();
     // The reason is an error, so it reads in the error colour like every other failed read.
     // It sits in the shared form error: an icon and the words in the error colour, never loose small text.
@@ -281,7 +281,7 @@ it.each(["REQUEST_TIMEOUT", "INVALID_API_RESPONSE"])(
     expect(require("react-native").StyleSheet.flatten(reason.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
     expect(screen.queryByText(/^m:/)).toBeNull();
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     });
     expect(await screen.findByText("m:-")).toBeTruthy();
     expect(screen.queryByText("Belum bisa terhubung. Cek koneksimu.")).toBeNull();
@@ -290,13 +290,13 @@ it.each(["REQUEST_TIMEOUT", "INVALID_API_RESPONSE"])(
 
 it("an expired session (UNAUTHORIZED) opens as a guest without the retry screen", async () => {
   (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("UNAUTHORIZED"), { code: "UNAUTHORIZED" }));
-  renderShell();
+  await renderShell();
   expect(await screen.findByText("m:-")).toBeTruthy();
   expect(screen.queryByText("Belum bisa terhubung. Cek koneksimu.")).toBeNull();
 });
 
 it("a later failed refresh never replaces a started app with the retry screen", async () => {
-  renderShell();
+  await renderShell();
   expect(await screen.findByText("m:-")).toBeTruthy();
   (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
   await act(async () => {
@@ -307,20 +307,20 @@ it("a later failed refresh never replaces a started app with the retry screen", 
 });
 
 it("one push tap navigates once, through the customer link mapper", async () => {
-  renderShell();
+  await renderShell();
   expect(await screen.findByText("m:-")).toBeTruthy();
   // Only MobileProvider listens now: a tap must not open the screen twice.
   expect(mockResponseListeners).toHaveLength(1);
-  tapAll(tap("n-1", "/deliveries/d-1"));
-  tapAll(tap("n-1", "/deliveries/d-1"));
+  await tapAll(tap("n-1", "/deliveries/d-1"));
+  await tapAll(tap("n-1", "/deliveries/d-1"));
   // The mapped path goes to openLink, which selects a tab root or opens the screen in the current tab.
   expect(openLink).toHaveBeenCalledTimes(1);
   expect(openLink).toHaveBeenCalledWith("/hari/d-1");
-  tapAll(tap("n-2", "/payment/ck-1"));
+  await tapAll(tap("n-2", "/payment/ck-1"));
   expect(openLink).toHaveBeenLastCalledWith("/bayar/ck-1");
-  tapAll(tap("n-3", "/subscriptions/s-1/menu?date=2026-11-02&meal=lunch"));
+  await tapAll(tap("n-3", "/subscriptions/s-1/menu?date=2026-11-02&meal=lunch"));
   expect(openLink).toHaveBeenLastCalledWith("/pilih-menu/s-1?date=2026-11-02&meal=lunch");
-  tapAll(tap("n-4", "/calendar"));
+  await tapAll(tap("n-4", "/calendar"));
   expect(openLink).toHaveBeenLastCalledWith("/jadwal");
   expect(openLink).toHaveBeenCalledTimes(4);
   expect(router.push).not.toHaveBeenCalled();
@@ -328,7 +328,7 @@ it("one push tap navigates once, through the customer link mapper", async () => 
 
 it("registers this phone for push through the shell (device.register)", async () => {
   mockActor = actor;
-  renderShell();
+  await renderShell();
   expect(await screen.findByText("m:u-1")).toBeTruthy();
   await act(async () => {
     await mobile.enablePush("Pengantaran & bantuan");
@@ -410,11 +410,11 @@ function readTrigger({ name, hidden, children }: MockTrigger) {
   };
 }
 
-const renderTabs = () => {
+const renderTabs = async () => {
   const TabsLayout = (require("../app/(tabs)/_layout") as typeof import("../app/(tabs)/_layout")).default;
   mockNativeTabs.props = undefined;
   mockNativeTabs.triggers = [];
-  render(
+  await render(
     <AppProviders runtime={runtime}>
       <TabsLayout />
     </AppProviders>,
@@ -429,7 +429,7 @@ describe("native tab bar", () => {
   it("the tab bar is the native one with Ionicons, filled when selected", async () => {
     // Signed out (no actor, the beforeEach default): the customer tabs still show.
     expect(mockActor).toBeNull();
-    renderTabs();
+    await renderTabs();
     // The session read answers after the first paint; let it settle inside act.
     await act(async () => {});
     const Ionicons = require("@expo/vector-icons/Ionicons").default;
@@ -459,7 +459,7 @@ describe("native tab bar", () => {
 
   it("the tab labels read Home, Schedule, Explore and Account in English", async () => {
     (require("expo-secure-store") as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
-    renderTabs();
+    await renderTabs();
     await waitFor(() =>
       expect(mockNativeTabs.triggers.map(readTrigger).filter((tab) => !tab.hidden).map((tab) => tab.label)).toEqual([
         "Home",
@@ -470,14 +470,14 @@ describe("native tab bar", () => {
     );
   });
 
-  it("tab labels are Plus Jakarta Sans SemiBold at 10 on iOS and 12 on Android", () => {
+  it("tab labels are Plus Jakarta Sans SemiBold at 10 on iOS and 12 on Android", async () => {
     expect(tabLabelStyle("ios")).toEqual({ fontFamily: "Jakarta-SemiBold", fontSize: 10 });
     expect(tabLabelStyle("android")).toEqual({ fontFamily: "Jakarta-SemiBold", fontSize: 12 });
     // No custom spoken label: the native bar does its own.
     expect(Object.keys(tabLabelStyle("ios")).sort()).toEqual(["fontFamily", "fontSize"]);
   });
 
-  it("an Android tab label grows with the system font up to 1.3, then holds there so Beranda stays whole", () => {
+  it("an Android tab label grows with the system font up to 1.3, then holds there so Beranda stays whole", async () => {
     expect(tabLabelStyle("android", 1.3).fontSize).toBe(12);
     // At 2.0 the bar scales the size by 2, so 7.8 lands where 12 at 1.3 does (15.6).
     expect(tabLabelStyle("android", 2).fontSize).toBeCloseTo(7.8);
@@ -515,7 +515,7 @@ describe("appearance", () => {
 
   const renderRoot = async () => {
     const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
-    render(<RootLayout />);
+    await render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
   };
@@ -561,7 +561,7 @@ describe("appearance", () => {
         expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe(header[theme][i]);
         // theme and time ride along so a failure names the case.
         expect({ theme, at, ...barColours() }).toEqual({ theme, at, ...tabBarColors(nativeThemes[theme]) });
-        screen.unmount();
+        await screen.unmount();
         mockNativeTabs.props = undefined;
       }
     }
@@ -576,7 +576,9 @@ describe("appearance", () => {
   });
 
   /** The glyphs each mounted mood header asks for while its screen is in front (React Native's own status bar). */
-  const moodGlyphs = () => screen.UNSAFE_queryAllByType(require("react-native").StatusBar).map((b) => b.props.barStyle);
+  // RN's StatusBar draws nothing, so the tree no longer shows it; each mounted bar holds an entry on its static stack.
+  const moodGlyphs = () =>
+    (require("react-native").StatusBar._propsStack as { barStyle?: { value: string } }[]).map((e) => e.barStyle?.value);
 
   it("Malam on a light system theme: the mood header in front asks for dark glyphs (Malam is a pale header now), pushed screens keep the theme's, and the tab bar stays theme", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
@@ -642,15 +644,26 @@ describe("appearance", () => {
     });
   });
 
+  /** Holds the launch session read (`me`) open, so the launch gate can be seen: an awaited render would flush it. */
+  const holdSessionRead = () => {
+    let answer!: () => void;
+    (runtime.api.me as jest.Mock).mockImplementationOnce(
+      () => new Promise((resolve) => (answer = () => resolve({ actor: mockActor, demo: mockDemo }))),
+    );
+    return async () => await act(async () => answer());
+  };
+
   // The launch gate replaced the spinner (Phase F task 4): before the session is known the stack is not drawn, and the
   // gate's canvas (with the mascot once the phone's reads finish) is what the status bar sits on.
   it("the launch gate and the app's default sit on the canvas, so Malam never turns them light", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     atJakarta(MALAM);
     const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
-    render(<RootLayout />);
+    const release = holdSessionRead();
+    await render(<RootLayout />);
     expect(screen.queryByTestId("mood-probe")).toBeNull();
     expect(mockStatusBar.style).toBe("dark");
+    await release();
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     // Only a mood header in front sets the mood's glyphs (above); the default stays the theme's.
     expect(mockStatusBar.style).toBe("dark");
@@ -659,10 +672,12 @@ describe("appearance", () => {
   it("sets the status bar glyphs while the launch gate is still showing", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("dark");
     const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
-    render(<RootLayout />);
-    // Nothing has been awaited yet, so the session read is pending and the app is behind the ready gate.
+    const release = holdSessionRead();
+    await render(<RootLayout />);
+    // The session read is held open, so the app is behind the ready gate.
     expect(screen.queryByTestId("mood-probe")).toBeNull();
     expect(mockStatusBar.style).toBe("light");
+    await release();
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
   });
 

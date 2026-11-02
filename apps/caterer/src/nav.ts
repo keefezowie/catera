@@ -51,12 +51,11 @@ const OWN_ROUTES = new Set(["aksi", "konfirmasi"]);
  * Every screen of the shared tab folder, from the role table (`SCREEN_TAB`), as a path test with the tab it belongs
  * to: `laporan/[id]` matches `laporan/{anything}`. A screen added to the table is covered here with no rule of its own.
  */
-const TAB_SCREENS = Object.entries(SCREEN_TAB as Record<string, CatererTab>)
-  .filter(([route]) => !ROOT_STACK.has(route.split("/")[0]))
-  .map(([route, tab]) => {
-    const parts = route.split("/").map((part) => (/^\[.+\]$/.test(part) ? "[^/]+" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    return { tab, test: new RegExp(`^${parts.join("/")}$`) };
-  });
+const ROLE_SCREENS = Object.entries(SCREEN_TAB as Record<string, CatererTab>).map(([route, tab]) => {
+  const parts = route.split("/").map((part) => (/^\[.+\]$/.test(part) ? "[^/]+" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  return { tab, above: ROOT_STACK.has(route.split("/")[0]), test: new RegExp(`^${parts.join("/")}$`) };
+});
+const TAB_SCREENS = ROLE_SCREENS.filter((screen) => !screen.above);
 
 /** The tab-folder screen an app path opens, with the tab it belongs to; null for a tab root or any other path. */
 function screenOfPath(app: string): { tab: CatererTab; path: string } | null {
@@ -104,15 +103,30 @@ let pending: string | null = null;
 let stopWaiting: (() => void) | null = null;
 /** Nobody is signed in: a link that arrives now is dropped instead of held for whoever signs in next. */
 let signedOut = false;
+/** The tabs the signed-in account has (`tabsForRole`); every tab until the tabs layout says. */
+let openTabs: readonly CatererTab[] = CATERER_TABS;
+/** Stops keeping the tab in front to the account's own tabs. */
+let stopGuard: (() => void) | null = null;
 
 /**
  * The tabs layout registers the navigation container once a signed-in account has its tabs, so a tab change can
- * target each navigator by its key. A link that arrived before then, while the session loaded, opens now.
+ * target each navigator by its key. A link that arrived before then, while the session loaded, opens now. `tabs` are
+ * the ones the account has: a tab it lacks never stays in front (expo-router 58 opens a cold link to a protected screen
+ * in that screen's hidden tab, an empty page), so Hari ini takes its place.
  */
-export function registerNavigation(ref: Container) {
+export function registerNavigation(ref: Container, tabs: readonly CatererTab[] = CATERER_TABS) {
   stopWaiting?.();
   stopWaiting = null;
+  stopGuard?.();
   container = ref;
+  openTabs = tabs;
+  const keepToOwnTabs = () => {
+    const front = tabsInRoot()?.tabs;
+    const group = front?.routes[front.index]?.name;
+    if (group && !openTabs.includes(tabOfSegment(group))) goToTab("index");
+  };
+  stopGuard = ref.addListener?.("state", keepToOwnTabs) ?? null;
+  keepToOwnTabs();
   const waiting = pending;
   pending = null;
   if (!waiting) return;
@@ -131,6 +145,9 @@ export function registerNavigation(ref: Container) {
 export function releaseNavigation() {
   stopWaiting?.();
   stopWaiting = null;
+  stopGuard?.();
+  stopGuard = null;
+  openTabs = CATERER_TABS;
   container = null;
   pending = null;
 }
@@ -210,4 +227,32 @@ export function openLink(path: string) {
   dismissAboveTabs(found);
   const group = found.tabs.routes[found.tabs.index]?.name ?? "(index)";
   router.push(`/(tabs)/${group}${path.startsWith("/") ? path : `/${path}`}` as never);
+}
+
+/** The tab a screen belongs to by the role table, screens above the tabs included; null for any other path. */
+function ownerTabOf(path: string): CatererTab | null {
+  const name = new URL(path, "https://catera.invalid").pathname.replace(/^\/+|\/+$/g, "");
+  return ROLE_SCREENS.find((screen) => screen.test.test(name))?.tab ?? null;
+}
+
+/**
+ * Pushes an app path the way a tap inside a tab does. A screen of the shared tab folder is named with the focused tab's
+ * group, so it opens in the tab in front: expo-router 58 does not pick that copy reliably from a bare path (its route
+ * sorter is not transitive, so `/menu/{date}` pushed from Menu opened Usaha's copy, a protected one for staff). A tab
+ * root selects its tab. A screen or tab this account lacks (`registerNavigation`'s tabs) opens nothing: expo-router 58
+ * answers a push to a protected route with a second copy of the tabs instead of ignoring it. A screen above the
+ * tabs, any other path, and a push before the tabs exist go as given.
+ */
+export function pushScreen(href: string) {
+  const found = tabsInRoot();
+  if (!found) return router.push(href as never);
+  const path = href.startsWith("/") ? href : `/${href}`;
+  const has = (tab: CatererTab) => openTabs.includes(tab);
+  const root = tabOfPath(path);
+  if (root) return has(root.tab) ? goToTab(root.tab, root.params) : undefined;
+  const owner = ownerTabOf(path);
+  if (owner && !has(owner)) return;
+  const group = found.tabs.routes[found.tabs.index]?.name;
+  if (!group || !screenOfPath(path)) return router.push(href as never);
+  router.push(`/(tabs)/${group}${path}` as never);
 }

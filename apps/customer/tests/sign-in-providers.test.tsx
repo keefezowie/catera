@@ -144,9 +144,9 @@ describe("signInWithApple", () => {
 describe("ProviderButton", () => {
   const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style);
 
-  it("draws each provider with its mark, its label as the spoken name and a 52 target", () => {
+  it("draws each provider with its mark, its label as the spoken name and a 52 target", async () => {
     const onPress = jest.fn();
-    render(
+    await render(
       <>
         <ProviderButton provider="apple" label="Lanjut dengan Apple" onPress={onPress} />
         <ProviderButton provider="google" label="Lanjut dengan Google" onPress={onPress} />
@@ -160,13 +160,13 @@ describe("ProviderButton", () => {
     expect(screen.getByRole("button", { name: "Lanjut dengan Google" })).toBeTruthy();
     expect(flat("provider-apple").backgroundColor).toBe("#000000");
     expect(flat("provider-google").borderWidth).toBe(1.5);
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut dengan email" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut dengan email" }));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
   it("turns Apple white in dark, per Apple's guidelines", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <ProviderButton provider="apple" label="Lanjut dengan Apple" onPress={() => {}} />
       </ThemeProvider>,
@@ -175,25 +175,25 @@ describe("ProviderButton", () => {
     jest.restoreAllMocks();
   });
 
-  it("busy shows a spinner after the delay, keeps the label as its name and ignores presses", () => {
+  it("busy shows a spinner after the delay, keeps the label as its name and ignores presses", async () => {
     jest.useFakeTimers();
     const onPress = jest.fn();
-    render(<ProviderButton provider="google" label="Lanjut dengan Google" onPress={onPress} busy />);
+    await render(<ProviderButton provider="google" label="Lanjut dengan Google" onPress={onPress} busy />);
     expect(screen.queryByTestId("provider-spinner")).toBeNull();
-    act(() => jest.advanceTimersByTime(BUSY_DELAY_MS));
+    await act(() => jest.advanceTimersByTime(BUSY_DELAY_MS));
     expect(screen.getByTestId("provider-spinner")).toBeTruthy();
     const button = screen.getByRole("button", { name: "Lanjut dengan Google" });
     expect(button.props.accessibilityState).toMatchObject({ busy: true });
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(onPress).not.toHaveBeenCalled();
     jest.useRealTimers();
   });
 });
 
 describe("StepHeader", () => {
-  it("fills the segments up to the step, counts n/N and is one progressbar", () => {
+  it("fills the segments up to the step, counts n/N and is one progressbar", async () => {
     const onBack = jest.fn();
-    render(<StepHeader step={2} total={4} onBack={onBack} />);
+    await render(<StepHeader step={2} total={4} onBack={onBack} />);
     const fills = [1, 2, 3, 4].map((n) => StyleSheet.flatten(screen.getByTestId(`step-segment-${n}`).props.style).backgroundColor);
     expect(fills[0]).toBe(fills[1]);
     expect(fills[2]).toBe(fills[3]);
@@ -204,12 +204,12 @@ describe("StepHeader", () => {
     expect(bar.props.accessibilityRole).toBe("progressbar");
     expect(bar.props.accessibilityLabel).toBe("Langkah 2 dari 4");
     expect(bar.props.accessibilityValue).toEqual({ min: 1, max: 4, now: 2 });
-    fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it("uses the platform back glyph and a given back label", () => {
-    render(<StepHeader step={1} total={3} onBack={() => {}} backLabel="Kembali ke Masuk" os="ios" />);
+  it("uses the platform back glyph and a given back label", async () => {
+    await render(<StepHeader step={1} total={3} onBack={() => {}} backLabel="Kembali ke Masuk" os="ios" />);
     expect(screen.getByRole("button", { name: "Kembali ke Masuk" })).toBeTruthy();
     expect(StyleSheet.flatten(screen.getByTestId("step-back").props.style)).toMatchObject({ width: 48, height: 48 });
   });

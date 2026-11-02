@@ -3,7 +3,6 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@te
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import { router } from "expo-router";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
@@ -25,6 +24,7 @@ import { SavedList } from "../src/discover/SavedList";
 import { Addresses } from "../src/account/Addresses";
 import { WaitingList } from "../src/today/WaitingList";
 import { offer, subscription } from "./fixtures";
+import { byComponent, ionicons, styleOf } from "./host-tree";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
@@ -36,6 +36,7 @@ const mockNavigation = { setOptions: jest.fn(), addListener: jest.fn(() => () =>
 jest.mock("expo-router/react-navigation", () => ({
   ...jest.requireActual("expo-router/react-navigation"),
   useNavigation: () => mockNavigation,
+  usePreventRemove: jest.fn(),
 }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -157,9 +158,9 @@ const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.
 const reduced = (on: boolean) => (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(on);
 
 async function payWhileOpen(runtime: MobileRuntime) {
-  wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+  await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
   expect(await screen.findByLabelText("Kode QRIS pembayaran ini")).toBeTruthy();
-  fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
   expect(await screen.findByTestId("paid-outcome")).toBeTruthy();
   await act(async () => {});
 }
@@ -214,7 +215,7 @@ describe("Langganan aktif: the paid moment", () => {
 
   it("opened already paid shows the resting frame with no haptic and no announcement", async () => {
     const announce = jest.spyOn(ReactNative.AccessibilityInfo, "announceForAccessibility");
-    wrap(payServer({ checkout: paid(pending()) }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(payServer({ checkout: paid(pending()) }), <PaymentScreen checkoutId="ck-1" />);
     await screen.findByTestId("paid-outcome");
     await act(async () => {});
     expect(successes()).toHaveLength(0);
@@ -242,27 +243,27 @@ describe("Langganan aktif: the paid moment", () => {
 
 describe("Pembayaran diterima: the success beat component", () => {
   it("the beat burst uses sunrise ink, sunrise and forest from the theme, and its title is the outcome type, free to wrap", async () => {
-    render(
+    await render(
       <SuccessBeat title="Pembayaran diterima untuk paket yang panjang" play>
         <ReactNative.Text>Fakta</ReactNative.Text>
       </SuccessBeat>,
     );
     const sparkles = screen.getAllByTestId("sparkle", { includeHiddenElements: true });
     expect(sparkles).toHaveLength(5);
-    const fills = screen.UNSAFE_getAllByType(Sparkle).map((s) => s.props.color as string);
+    const fills = byComponent(Sparkle).map((s) => s.props.color as string);
     expect(new Set(fills)).toEqual(new Set([nativeThemes.light.sunriseInk, nativeThemes.light.sunrise, nativeThemes.light.forest]));
     const title = screen.getByText("Pembayaran diterima untuk paket yang panjang");
     expect(title.props.numberOfLines).toBeUndefined();
     expect(flat(title).textAlign).toBe("center");
     expect(title.props.accessibilityRole).toBe("header");
     // 26/32 is a named type step, not a size set inline on this one title.
-    expect(screen.UNSAFE_getByProps({ variant: "outcome" }).props.children).toBe("Pembayaran diterima untuk paket yang panjang");
+    expect(title.props.children).toBe("Pembayaran diterima untuk paket yang panjang");
     expect(flat(title)).toMatchObject({ fontSize: 26, lineHeight: 32 });
   });
 
-  it("the disc and the burst share the Catera ease", () => {
+  it("the disc and the burst share the Catera ease", async () => {
     const timing = jest.spyOn(Reanimated, "withTiming");
-    render(
+    await render(
       <SuccessBeat title="Pembayaran diterima" play>
         <ReactNative.Text>Fakta</ReactNative.Text>
       </SuccessBeat>,
@@ -278,7 +279,7 @@ describe("Pembayaran diterima: the success beat component", () => {
   it("in the dark theme the beat title and burst read the dark palette", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {
-      render(
+      await render(
         <ThemeProvider storageKey="catera.theme">
           <SuccessBeat title="Pembayaran diterima" play={false}>
             <ReactNative.Text>Fakta</ReactNative.Text>
@@ -287,7 +288,7 @@ describe("Pembayaran diterima: the success beat component", () => {
       );
       await act(async () => {});
       expect(flat(screen.getByText("Pembayaran diterima")).color).toBe(nativeThemes.dark.charcoal);
-      const fills = screen.UNSAFE_getAllByType(Sparkle).map((s) => s.props.color as string);
+      const fills = byComponent(Sparkle).map((s) => s.props.color as string);
       expect(fills).toContain(nativeThemes.dark.sunriseInk);
     } finally {
       scheme.mockRestore();
@@ -331,10 +332,10 @@ describe("the heart", () => {
     const sequence = jest.spyOn(Reanimated, "withSequence");
     const timing = jest.spyOn(Reanimated, "withTiming");
     const runtime = savedRuntime();
-    wrap(runtime, <Jelajah />);
+    await wrap(runtime, <Jelajah />);
     const heart = await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" });
     expect(flat(heart)).toMatchObject({ width: 44, height: 44 });
-    fireEvent.press(heart);
+    await fireEvent.press(heart);
     // The pop: scale up to 1.22, then a spring back to 1; the five dots burst within 680ms.
     expect(sequence).toHaveBeenCalledWith(1.22, 1);
     expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: 680 }));
@@ -355,9 +356,9 @@ describe("the heart", () => {
     }
     // The filled heart is forest (a saved heart is a selection).
     const filled = await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" });
-    expect(within(filled).UNSAFE_getByType(Ionicons).props.color).toBe(nativeThemes.light.forest);
+    expect(styleOf(ionicons(filled)[0]).color).toBe(nativeThemes.light.forest);
     expect(await screen.findByText("Disimpan")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Lihat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat" }));
     expect(router.push).toHaveBeenCalledWith("/disimpan");
     sequence.mockRestore();
     timing.mockRestore();
@@ -366,15 +367,15 @@ describe("the heart", () => {
   it("unsaving toasts with Urungkan and undo saves again", async () => {
     const sequence = jest.spyOn(Reanimated, "withSequence");
     const runtime = savedRuntime(["p-murah"]);
-    wrap(runtime, <Jelajah />);
-    fireEvent.press(await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
+    await wrap(runtime, <Jelajah />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
     // The outline comes back at once, with no pop, and the same select tick as saving.
     expect(screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeTruthy();
     expect(sequence).not.toHaveBeenCalledWith(1.22, 1);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
     expect(Haptics.impactAsync).not.toHaveBeenCalled();
     expect(await screen.findByText("Dihapus dari simpanan")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
     await waitFor(() => expect(setCalls(runtime)).toEqual([
       { packageId: "p-murah", saved: false },
       { packageId: "p-murah", saved: true },
@@ -390,8 +391,8 @@ describe("the heart", () => {
     (runtime.api.command as jest.Mock).mockImplementation(async () => {
       throw Object.assign(new Error("NETWORK"), { code: "NETWORK" });
     });
-    wrap(runtime, <Jelajah />);
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
+    await wrap(runtime, <Jelajah />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
     expect(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeTruthy();
     const toast = within(await screen.findByTestId("toast"));
     expect(toast.getByText("Belum tersimpan. Coba lagi.")).toBeTruthy();
@@ -403,8 +404,8 @@ describe("the heart", () => {
   it("under reduced motion the heart swaps without the pop and still gives the selection haptic", async () => {
     reduced(true);
     const sequence = jest.spyOn(Reanimated, "withSequence");
-    wrap(savedRuntime(), <Jelajah />);
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
+    await wrap(savedRuntime(), <Jelajah />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
     expect(sequence).not.toHaveBeenCalledWith(1.22, 1);
     expect(screen.queryAllByTestId("heart-dot", { includeHiddenElements: true })).toHaveLength(0);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
@@ -415,7 +416,7 @@ describe("the heart", () => {
   it("in the dark theme the filled heart is the dark forest", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {
-      render(
+      await render(
         <ThemeProvider storageKey="catera.theme">
           <MoodProvider now={() => new Date("2026-10-09T03:00:00Z")}>
             <MobileProvider runtime={savedRuntime(["p-murah"])} linkMapper={customerLink}>
@@ -425,9 +426,7 @@ describe("the heart", () => {
         </ThemeProvider>,
       );
       const filled = await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" });
-      expect(within(filled).UNSAFE_getByType(Ionicons).props.color).toBe(
-        nativeThemes.dark.forest,
-      );
+      expect(styleOf(ionicons(filled)[0]).color).toBe(nativeThemes.dark.forest);
     } finally {
       scheme.mockRestore();
     }
@@ -437,7 +436,7 @@ describe("the heart", () => {
 describe("row motion", () => {
   it("removed rows use the row motion and no first load staggers", async () => {
     const runtime = savedRuntime(["p-murah", "p-mahal"]);
-    wrap(runtime, <SavedList />);
+    await wrap(runtime, <SavedList />);
     await screen.findByText("Nasi Ayam Bakar");
     await act(async () => {});
     const rows = () => screen.getAllByTestId("saved-row");
@@ -448,12 +447,12 @@ describe("row motion", () => {
       expect(row.props.exiting).toBeDefined();
       expect(row.props.layout).toBeDefined();
     }
-    fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
     await waitFor(() => expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull());
     expect(rows()).toHaveLength(1);
     expect(await screen.findByText("Dihapus dari simpanan")).toBeTruthy();
     // Urungkan brings it back as a row the customer's own action inserted.
-    fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
     expect(await screen.findByText("Nasi Ayam Bakar")).toBeTruthy();
     const back = rows().find((r) => within(r).queryByText("Nasi Ayam Bakar"))!;
     expect(back.props.entering).toBeDefined();
@@ -469,10 +468,10 @@ describe("row motion", () => {
         ? { packageIds: ["p-murah", "p-mahal"], items: [item(pricey)], nextCursor: null }
         : { packageIds: ["p-murah", "p-mahal"], items: [item(cheap)], nextCursor: "c-2" },
     );
-    wrap(runtime, <SavedList />);
+    await wrap(runtime, <SavedList />);
     await screen.findByText("Nasi Ayam Bakar");
     await act(async () => {});
-    fireEvent.press(screen.getByRole("button", { name: "Lihat lebih banyak" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat lebih banyak" }));
     expect(await screen.findByText("Menu Sehat Premium")).toBeTruthy();
     // One grid holds every page, so an odd page never leaves a hole mid-list; the new page's tiles fade in as the page
     // lands, and the first page's tiles keep no entrance (the list's first load is one block).
@@ -487,17 +486,17 @@ describe("row motion", () => {
   });
 
   it("an insertion forgets its entrance once it has run, even when React renders twice before it commits", async () => {
-    const { result, rerender } = renderHook(({ keys }: { keys: string[] }) => useListMotion(keys), {
+    const { result, rerender } = await renderHook(({ keys }: { keys: string[] }) => useListMotion(keys), {
       initialProps: { keys: ["a"] },
       wrapper: StrictMode,
     });
     expect(result.current("a").entering).toBeUndefined();
-    rerender({ keys: ["a", "b"] });
+    await rerender({ keys: ["a", "b"] });
     expect(result.current("b").entering).toBeDefined();
     expect(result.current("a").entering).toBeUndefined();
     // After `content` (220ms) the row is an ordinary row again: a later remount (a filter return) has no entrance.
     await act(async () => void (await new Promise((r) => setTimeout(r, 500))));
-    rerender({ keys: ["a", "b"] });
+    await rerender({ keys: ["a", "b"] });
     expect(result.current("b").entering).toBeUndefined();
   });
 
@@ -508,30 +507,30 @@ describe("row motion", () => {
         initialProps: { keys: ["a", "b"] } as { keys: string[]; quiet?: boolean },
       });
     // An undo: b leaves and comes straight back, so it waits for the rows to make room and fades in.
-    let h = hook();
-    h.rerender({ keys: ["a"] });
-    h.rerender({ keys: ["a", "b"] });
+    let h = await hook();
+    await h.rerender({ keys: ["a"] });
+    await h.rerender({ keys: ["a", "b"] });
     expect(h.result.current("b").entering).toBe(motion.FadeIn);
-    h.unmount();
+    await h.unmount();
     // A quiet read (a refresh) forgets what left, so a key the user adds afterwards is an ordinary insert.
-    h = hook();
-    h.rerender({ keys: ["a"] });
-    h.rerender({ keys: ["a"], quiet: true });
-    h.rerender({ keys: ["a", "b"] });
+    h = await hook();
+    await h.rerender({ keys: ["a"] });
+    await h.rerender({ keys: ["a"], quiet: true });
+    await h.rerender({ keys: ["a", "b"] });
     expect(h.result.current("b").entering).toBe(motion.FadeInDown);
-    h.unmount();
+    await h.unmount();
     // What left is forgotten after one content window: added again later, it rises in like any new row.
-    h = hook();
-    h.rerender({ keys: ["a"] });
+    h = await hook();
+    await h.rerender({ keys: ["a"] });
     await act(async () => void (await new Promise((r) => setTimeout(r, nativeMotion.content + 60))));
-    h.rerender({ keys: ["a", "b"] });
+    await h.rerender({ keys: ["a", "b"] });
     expect(h.result.current("b").entering).toBe(motion.FadeInDown);
-    h.unmount();
+    await h.unmount();
   });
 
   it("row motion is off under reduced motion", async () => {
     reduced(true);
-    wrap(savedRuntime(["p-murah"]), <SavedList />);
+    await wrap(savedRuntime(["p-murah"]), <SavedList />);
     await screen.findByText("Nasi Ayam Bakar");
     const row = screen.getByTestId("saved-row");
     expect(row.props.exiting).toBeUndefined();
@@ -552,7 +551,7 @@ describe("row motion", () => {
       commandRef = require("@catera/mobile-core").useMobile().command;
       return null;
     }
-    wrap(
+    await wrap(
       runtime,
       <>
         <Addresses />
@@ -572,7 +571,7 @@ describe("row motion", () => {
     expect(added.props.entering).toBeDefined();
   });
 
-  it("a waiting row leaves after its action, with the rest moving up; the offline copy never animates", () => {
+  it("a waiting row leaves after its action, with the rest moving up; the offline copy never animates", async () => {
     const due = (id: string, name: string) =>
       subscription({ id, remaining: 2, snapshot: { offer: offer({ id: `p-${id}`, name }), total: 1 } as never });
     const a = due("s-a", "Paket Satu");
@@ -586,7 +585,7 @@ describe("row motion", () => {
         <WaitingList state={s} actions={[]} offline={offline} now={now} />
       </MobileProvider>
     );
-    const view = render(ui(state([a, b])));
+    const view = await render(ui(state([a, b])));
     const rows = () => screen.getAllByTestId("waiting-row-motion");
     expect(rows()).toHaveLength(2);
     for (const row of rows()) {
@@ -596,10 +595,10 @@ describe("row motion", () => {
     }
     // Paket Satu is renewed: its row leaves.
     const renewal = subscription({ id: "s-a2", renewed_from: "s-a", starts_on: addDays("2026-10-09", 3) });
-    view.rerender(ui(state([a, b, renewal])));
+    await view.rerender(ui(state([a, b, renewal])));
     expect(rows()).toHaveLength(1);
     expect(screen.queryByText(/Paket Satu/)).toBeNull();
-    view.rerender(ui(state([a, b]), true));
+    await view.rerender(ui(state([a, b]), true));
     for (const row of rows()) expect(row.props.exiting).toBeUndefined();
   });
 });

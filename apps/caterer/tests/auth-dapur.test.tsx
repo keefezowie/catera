@@ -57,8 +57,8 @@ function makeRuntime(overrides: Record<string, unknown> = {}, supabase = fakeSup
 }
 const auth = (runtime: MobileRuntime) => (runtime.supabase as unknown as ReturnType<typeof fakeSupabase>).auth;
 
-const renderWith = (runtime: MobileRuntime, ui: React.ReactNode) =>
-  render(
+const renderWith = async (runtime: MobileRuntime, ui: React.ReactNode) =>
+  await render(
     withDapurScale(
       <MoodProvider now={() => new Date("2026-10-08T08:00:00Z")}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
@@ -76,7 +76,7 @@ const held = <T,>() => {
 const border = (label: string) => StyleSheet.flatten(screen.getByLabelText(label).props.style as never)?.borderColor;
 const busyOf = (name: string) => screen.getByRole("button", { name }).props.accessibilityState.busy;
 const stepOf = () => screen.getByTestId("step-bar").props.accessibilityLabel;
-const press = (name: string) => fireEvent.press(screen.getByRole("button", { name }));
+const press = async (name: string) => await fireEvent.press(screen.getByRole("button", { name }));
 /** The latest hardware-back listener, as Android would call it. */
 const hardwareBack = () =>
   (BackHandler.addEventListener as jest.Mock).mock.calls.filter(([e]) => e === "hardwareBackPress").pop()![1] as () => boolean;
@@ -90,24 +90,24 @@ beforeEach(() => {
 afterEach(() => jest.useRealTimers());
 
 async function signInWith(runtime: MobileRuntime, email = "rina@example.com", password = "rahasia123") {
-  renderWith(runtime, <Masuk />);
-  fireEvent.changeText(await screen.findByLabelText("Email"), email);
-  fireEvent.changeText(screen.getByLabelText("Kata sandi"), password);
-  press("Masuk");
+  await renderWith(runtime, <Masuk />);
+  await fireEvent.changeText(await screen.findByLabelText("Email"), email);
+  await fireEvent.changeText(screen.getByLabelText("Kata sandi"), password);
+  await press("Masuk");
 }
 
 describe("Dapur Masuk, email only", () => {
   it("has no method tabs or phone field, and links to Daftar and Gabung", async () => {
-    renderWith(makeRuntime(), <Masuk />);
+    await renderWith(makeRuntime(), <Masuk />);
     await screen.findByLabelText("Email");
     expect(screen.queryByRole("tab")).toBeNull();
     expect(screen.queryByLabelText("Nomor WhatsApp")).toBeNull();
     expect(screen.getByText("Masuk dengan email dan kata sandi dapurmu.")).toBeTruthy();
     expect(screen.getByText("Belum punya dapur?")).toBeTruthy();
-    press("Daftar");
+    await press("Daftar");
     expect(router.push).toHaveBeenCalledWith("/daftar");
     expect(screen.getByText("Diundang sebagai staf?")).toBeTruthy();
-    press("Gabung ke dapur");
+    await press("Gabung ke dapur");
     expect(router.push).toHaveBeenCalledWith("/gabung");
   });
 
@@ -121,21 +121,21 @@ describe("Dapur Masuk, email only", () => {
 
   it("an empty submit and an invalid address say so under their fields", async () => {
     const signInPassword = jest.fn();
-    renderWith(makeRuntime({ signInPassword }), <Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
+    await renderWith(makeRuntime({ signInPassword }), <Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
     expect(screen.getByText("Isi emailmu dulu.")).toBeTruthy();
     expect(screen.getByText("Isi kata sandimu dulu.")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Email"), "rina@");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "x");
-    press("Masuk");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rina@");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "x");
+    await press("Masuk");
     expect(screen.getByText("Format email belum benar. Contoh: nama@gmail.com")).toBeTruthy();
     expect(signInPassword).not.toHaveBeenCalled();
   });
 
   it("demo button shows its own spinner", async () => {
     const wait = held<void>();
-    renderWith(makeRuntime({ demoLogin: jest.fn(() => wait.promise) }), <Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Masuk sebagai pemilik" }));
+    await renderWith(makeRuntime({ demoLogin: jest.fn(() => wait.promise) }), <Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Masuk sebagai pemilik" }));
     await waitFor(() => expect(busyOf("Masuk sebagai pemilik")).toBe(true));
     expect(busyOf("Masuk")).toBeFalsy();
     expect(busyOf("Masuk sebagai staf dapur")).toBeFalsy();
@@ -144,26 +144,26 @@ describe("Dapur Masuk, email only", () => {
 
   it("offline says Belum ada koneksi, outlines nothing and offers Coba lagi", async () => {
     const signInPassword = jest.fn().mockRejectedValueOnce(new Error("OFFLINE")).mockResolvedValue({ id: "u-1", role: "owner", name: "R" });
-    renderWith(makeRuntime({ signInPassword }), <Masuk />);
+    await renderWith(makeRuntime({ signInPassword }), <Masuk />);
     await screen.findByLabelText("Email");
     const quiet = border("Email");
-    fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
-    press("Masuk");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
+    await press("Masuk");
     expect(await screen.findByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.")).toBeTruthy();
     expect(border("Email")).toBe(quiet);
-    press("Coba lagi");
+    await press("Coba lagi");
     await waitFor(() => expect(signInPassword).toHaveBeenCalledTimes(2));
   });
 
   it("wrong credentials outline both fields, empty the password, and offer no Coba lagi", async () => {
     const runtime = makeRuntime({ signInPassword: jest.fn(async () => Promise.reject(new Error("INVALID_CREDENTIALS"))) });
-    renderWith(runtime, <Masuk />);
+    await renderWith(runtime, <Masuk />);
     await screen.findByLabelText("Email");
     const quiet = border("Email");
-    fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "salah-salah");
-    press("Masuk");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "salah-salah");
+    await press("Masuk");
     await screen.findByTestId("form-error");
     expect(border("Email")).not.toBe(quiet);
     expect(border("Kata sandi")).not.toBe(quiet);
@@ -183,7 +183,7 @@ describe("Dapur Masuk, email only", () => {
     await signInWith(makeRuntime({ signInPassword: jest.fn(async () => Promise.reject(new Error("AUTH_RATE_LIMITED"))) }));
     expect(await screen.findByText("Terlalu banyak percobaan. Coba lagi dalam 1:00.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Coba lagi dalam 1:00" })).toBeDisabled();
-    act(() => jest.advanceTimersByTime(60_000));
+    await act(() => jest.advanceTimersByTime(60_000));
     expect(screen.getByRole("button", { name: "Masuk" })).toBeEnabled();
   });
 });
@@ -191,50 +191,50 @@ describe("Dapur Masuk, email only", () => {
 describe("Dapur Daftar, four steps", () => {
   const toStep = async (runtime: MobileRuntime, last: number) => {
     jest.spyOn(BackHandler, "addEventListener");
-    renderWith(runtime, <Daftar />);
-    fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Bu Rina");
+    await renderWith(runtime, <Daftar />);
+    await fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Bu Rina");
     if (last === 1) return;
-    press("Lanjut");
-    fireEvent.press(await screen.findByText("Jakarta Selatan"));
+    await press("Lanjut");
+    await fireEvent.press(await screen.findByText("Jakarta Selatan"));
     if (last === 2) return;
-    press("Lanjut");
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812 3456 7890");
+    await press("Lanjut");
+    await fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812 3456 7890");
     if (last === 3) return;
-    press("Lanjut");
+    await press("Lanjut");
     await screen.findByLabelText("Email");
   };
 
   it("checks each step on Lanjut and moves one topic at a time", async () => {
-    renderWith(makeRuntime(), <Daftar />);
+    await renderWith(makeRuntime(), <Daftar />);
     await screen.findByLabelText("Nama usaha katering");
     expect(stepOf()).toBe("Langkah 1 dari 4");
     expect(screen.getByText("Apa nama usaha kateringmu?")).toBeTruthy();
     expect(screen.getByTestId("auth-mark")).toBeTruthy();
-    press("Lanjut");
+    await press("Lanjut");
     expect(screen.getByText("Tulis nama usahamu, minimal 3 huruf.")).toBeTruthy();
     expect(stepOf()).toBe("Langkah 1 dari 4");
 
-    fireEvent.changeText(screen.getByLabelText("Nama usaha katering"), "Dapur Bu Rina");
-    press("Lanjut");
+    await fireEvent.changeText(screen.getByLabelText("Nama usaha katering"), "Dapur Bu Rina");
+    await press("Lanjut");
     expect(stepOf()).toBe("Langkah 2 dari 4");
     expect(screen.getByText("Di mana dapurmu?")).toBeTruthy();
     expect(screen.getByText("Pelanggan di area ini akan melihat paket Dapur Bu Rina.")).toBeTruthy();
     // The mascot waves on the first step only.
     expect(screen.queryByTestId("auth-mark")).toBeNull();
-    press("Lanjut");
+    await press("Lanjut");
     expect(screen.getByTestId("area-error")).toBeTruthy();
-    fireEvent.press(screen.getByText("Jakarta Selatan"));
-    press("Lanjut");
+    await fireEvent.press(screen.getByText("Jakarta Selatan"));
+    await press("Lanjut");
 
     expect(stepOf()).toBe("Langkah 3 dari 4");
     expect(screen.getByText("Nomor WhatsApp dapur")).toBeTruthy();
     expect(screen.getByText("Pelanggan dan kurir menghubungimu lewat nomor ini. Kami tidak mengirim kode ke sini.")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812");
-    press("Lanjut");
+    await fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812");
+    await press("Lanjut");
     expect(screen.getByText("Nomor WhatsApp belum lengkap. Contoh: 0812 3456 7890")).toBeTruthy();
     expect(stepOf()).toBe("Langkah 3 dari 4");
-    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3456 7890");
-    press("Lanjut");
+    await fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3456 7890");
+    await press("Lanjut");
 
     expect(stepOf()).toBe("Langkah 4 dari 4");
     expect(screen.getByText("Terakhir, buat akunmu")).toBeTruthy();
@@ -244,24 +244,24 @@ describe("Dapur Daftar, four steps", () => {
 
   it("back goes to the step before, keeping what was typed, and Android's back key does the same", async () => {
     await toStep(makeRuntime(), 4);
-    fireEvent.press(screen.getByTestId("step-back"));
+    await fireEvent.press(screen.getByTestId("step-back"));
     expect(stepOf()).toBe("Langkah 3 dari 4");
     expect(screen.getByLabelText("Nomor WhatsApp").props.value).toBe("0812 3456 7890");
     let handled = false;
-    act(() => void (handled = hardwareBack()()));
+    await act(() => void (handled = hardwareBack()()));
     expect(handled).toBe(true);
     expect(stepOf()).toBe("Langkah 2 dari 4");
     expect(screen.getByRole("button", { name: "Jakarta Selatan" }).props.accessibilityState.selected).toBe(true);
   });
 
   it("back on the first step leaves the screen", async () => {
-    renderWith(makeRuntime(), <Daftar />);
-    fireEvent.press(await screen.findByTestId("step-back"));
+    await renderWith(makeRuntime(), <Daftar />);
+    await fireEvent.press(await screen.findByTestId("step-back"));
     expect(router.replace).toHaveBeenCalledWith("/masuk");
     (router.canGoBack as jest.Mock).mockReturnValueOnce(true);
-    fireEvent.press(screen.getByTestId("step-back"));
+    await fireEvent.press(screen.getByTestId("step-back"));
     expect(router.back).toHaveBeenCalled();
-    press("Masuk");
+    await press("Masuk");
     expect(router.replace).toHaveBeenCalledTimes(2);
   });
 
@@ -269,19 +269,19 @@ describe("Dapur Daftar, four steps", () => {
     const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     await toStep(makeRuntime(), 3);
     expect(screen.getByText("Membuka WhatsApp ke nomor ini. Kalau yang muncul chat dengan dirimu sendiri, nomornya benar.")).toBeTruthy();
-    press("Cek di WhatsApp");
+    await press("Cek di WhatsApp");
     expect(open).toHaveBeenCalledWith("https://wa.me/6281234567890");
   });
 
   it("signs up with the kitchen in the metadata, then shows Cek emailmu with a resend", async () => {
     const runtime = makeRuntime();
     await toStep(runtime, 4);
-    fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "pendek");
-    press("Daftar");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "pendek");
+    await press("Daftar");
     expect(auth(runtime).signUp).not.toHaveBeenCalled();
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
-    press("Daftar");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
+    await press("Daftar");
     await waitFor(() =>
       expect(auth(runtime).signUp).toHaveBeenCalledWith({
         email: "rina@example.com",
@@ -306,13 +306,13 @@ describe("Dapur Daftar, four steps", () => {
     supabase.auth.signUp.mockResolvedValue({ data: { user: { identities: [] }, session: null }, error: null } as never);
     const runtime = makeRuntime({}, supabase);
     await toStep(runtime, 4);
-    fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
-    press("Daftar");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rina@example.com");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
+    await press("Daftar");
     const error = await screen.findByTestId("form-error");
     expect(within(error).getByText(/Email ini sudah terdaftar/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Coba lagi" })).toBeNull();
-    fireEvent.press(within(error).getByText("Masuk dengan email ini"));
+    await fireEvent.press(within(error).getByText("Masuk dengan email ini"));
     expect(router.replace).toHaveBeenCalledWith("/masuk");
   });
 });
@@ -320,23 +320,23 @@ describe("Dapur Daftar, four steps", () => {
 describe("Dapur Gabung, two steps", () => {
   it("asks for the invite code, then the account, and signs up with the invite in the metadata", async () => {
     const runtime = makeRuntime();
-    renderWith(runtime, <Gabung />);
+    await renderWith(runtime, <Gabung />);
     await screen.findByLabelText("Kode undangan");
     expect(stepOf()).toBe("Langkah 1 dari 2");
     expect(screen.getByText("Masukkan kode undangan yang dikirim pemilik dapur lewat WhatsApp.")).toBeTruthy();
-    press("Lanjut");
+    await press("Lanjut");
     expect(screen.getByText("Isi kode undangan dulu.")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Kode undangan"), "DPR-4K9Q");
-    press("Lanjut");
+    await fireEvent.changeText(screen.getByLabelText("Kode undangan"), "DPR-4K9Q");
+    await press("Lanjut");
     expect(stepOf()).toBe("Langkah 2 dari 2");
     expect(screen.getByText("Buat akunmu")).toBeTruthy();
-    press("Gabung");
+    await press("Gabung");
     expect(screen.getByText("Tulis namamu, minimal 2 huruf.")).toBeTruthy();
     expect(auth(runtime).signUp).not.toHaveBeenCalled();
-    fireEvent.changeText(screen.getByLabelText("Namamu"), "Bima");
-    fireEvent.changeText(screen.getByLabelText("Email"), "bima@example.com");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
-    press("Gabung");
+    await fireEvent.changeText(screen.getByLabelText("Namamu"), "Bima");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "bima@example.com");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "rahasia123");
+    await press("Gabung");
     await waitFor(() =>
       expect(auth(runtime).signUp).toHaveBeenCalledWith({
         email: "bima@example.com",
@@ -349,10 +349,10 @@ describe("Dapur Gabung, two steps", () => {
 
   it("back from step 2 returns to the code, keeping it", async () => {
     jest.spyOn(BackHandler, "addEventListener");
-    renderWith(makeRuntime(), <Gabung />);
-    fireEvent.changeText(await screen.findByLabelText("Kode undangan"), "DPR-4K9Q");
-    press("Lanjut");
-    act(() => void hardwareBack()());
+    await renderWith(makeRuntime(), <Gabung />);
+    await fireEvent.changeText(await screen.findByLabelText("Kode undangan"), "DPR-4K9Q");
+    await press("Lanjut");
+    await act(() => void hardwareBack()());
     expect(stepOf()).toBe("Langkah 1 dari 2");
     expect(screen.getByLabelText("Kode undangan").props.value).toBe("DPR-4K9Q");
   });
@@ -361,14 +361,14 @@ describe("Dapur Gabung, two steps", () => {
 describe("Gabung, Masuk dulu", () => {
   it("keeps the typed code through Masuk, and the gate's invite field has it after sign-in", async () => {
     const runtime = makeRuntime();
-    renderWith(runtime, <Gabung />);
-    fireEvent.changeText(await screen.findByLabelText("Kode undangan"), "DPR-4K9Q");
-    fireEvent.press(screen.getByRole("button", { name: "Masuk dulu" }));
+    await renderWith(runtime, <Gabung />);
+    await fireEvent.changeText(await screen.findByLabelText("Kode undangan"), "DPR-4K9Q");
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk dulu" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/masuk"));
-    screen.unmount();
+    await screen.unmount();
 
     (runtime.api.me as jest.Mock).mockResolvedValue({ actor: { id: "u-3", role: "customer", name: "Bima" }, demo: false });
-    renderWith(runtime, <RoleGate><Text>Hari ini</Text></RoleGate>);
+    await renderWith(runtime, <RoleGate><Text>Hari ini</Text></RoleGate>);
     await waitFor(() => expect(screen.getByLabelText("Kode undangan").props.value).toBe("DPR-4K9Q"));
   });
 });
@@ -383,13 +383,13 @@ describe("the first signed-in session after a sign-up (RoleGate)", () => {
       actor: (runtime.api.command as jest.Mock).mock.calls.length ? next : customer,
       demo: false,
     }));
-  const gate = (runtime: MobileRuntime) => renderWith(runtime, <RoleGate><Text>Hari ini</Text></RoleGate>);
+  const gate = async (runtime: MobileRuntime) => await renderWith(runtime, <RoleGate><Text>Hari ini</Text></RoleGate>);
 
   it("makes the pending kitchen once, clears the metadata and opens the tabs", async () => {
     const supabase = fakeSupabase({ pendingKitchen: kitchen });
     const runtime = makeRuntime({}, supabase);
     afterCommand(runtime, owner);
-    gate(runtime);
+    await gate(runtime);
     // Signed out the gate shows its children, so wait for the metadata to clear, then for the tabs.
     await waitFor(() => expect(supabase.auth.updateUser).toHaveBeenCalled());
     expect(await screen.findByText("Hari ini")).toBeTruthy();
@@ -410,7 +410,7 @@ describe("the first signed-in session after a sign-up (RoleGate)", () => {
       made = true;
       throw Object.assign(new Error("CONFLICT"), { code: "CONFLICT" });
     });
-    gate(runtime);
+    await gate(runtime);
     await waitFor(() => expect(supabase.auth.updateUser).toHaveBeenCalled());
     expect(await screen.findByText("Hari ini")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledTimes(1);
@@ -423,11 +423,11 @@ describe("the first signed-in session after a sign-up (RoleGate)", () => {
     let serverHas = false;
     (runtime.api.me as jest.Mock).mockImplementation(async () => ({ actor: serverHas ? owner : customer, demo: false }));
     (runtime.api.command as jest.Mock).mockRejectedValue(new Error("OFFLINE"));
-    gate(runtime);
+    await gate(runtime);
     expect(await screen.findByText("Dapurmu belum siap")).toBeTruthy();
     // The create had reached the server after all; the phone only learns it on the next read.
     serverHas = true;
-    press("Coba lagi");
+    await press("Coba lagi");
     await waitFor(() => expect(supabase.auth.updateUser).toHaveBeenCalled());
     expect(await screen.findByText("Hari ini")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledTimes(1);
@@ -437,10 +437,10 @@ describe("the first signed-in session after a sign-up (RoleGate)", () => {
     const runtime = makeRuntime({}, fakeSupabase({ pendingKitchen: kitchen }));
     (runtime.api.me as jest.Mock).mockResolvedValue({ actor: customer, demo: false });
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(new Error("OFFLINE")).mockResolvedValue({ id: "k-new" });
-    gate(runtime);
+    await gate(runtime);
     expect(await screen.findByText("Dapurmu belum siap")).toBeTruthy();
     expect(screen.getByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.")).toBeTruthy();
-    press("Coba lagi");
+    await press("Coba lagi");
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(2));
     const [first, second] = (runtime.api.command as jest.Mock).mock.calls;
     expect(second[1]).toEqual(first[1]);
@@ -450,7 +450,7 @@ describe("the first signed-in session after a sign-up (RoleGate)", () => {
     const supabase = fakeSupabase({ pendingInvite: "DPR-4K9Q" });
     const runtime = makeRuntime({}, supabase);
     afterCommand(runtime, { ...owner, role: "staff" });
-    gate(runtime);
+    await gate(runtime);
     await waitFor(() => expect(supabase.auth.updateUser).toHaveBeenCalled());
     expect(await screen.findByText("Hari ini")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledWith("invite.accept", { code: "DPR-4K9Q" }, expect.any(String));
@@ -462,7 +462,7 @@ describe("the first signed-in session after a sign-up (RoleGate)", () => {
     const runtime = makeRuntime({}, supabase);
     (runtime.api.me as jest.Mock).mockResolvedValue({ actor: customer, demo: false });
     (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("NOT_FOUND"), { code: "NOT_FOUND" }));
-    gate(runtime);
+    await gate(runtime);
     expect(await screen.findByText("Kode tidak ditemukan atau sudah dipakai.")).toBeTruthy();
     expect(screen.getByLabelText("Kode undangan").props.value).toBe("SALAH");
     expect(supabase.auth.updateUser).toHaveBeenCalledWith({ data: { pendingKitchen: null, pendingInvite: null } });
@@ -472,15 +472,15 @@ describe("the first signed-in session after a sign-up (RoleGate)", () => {
     const supabase = fakeSupabase({ pendingKitchen: kitchen });
     const runtime = makeRuntime({}, supabase);
     (runtime.api.me as jest.Mock).mockResolvedValue({ actor: owner, demo: false });
-    gate(runtime);
+    await gate(runtime);
     expect(await screen.findByText("Hari ini")).toBeTruthy();
     await waitFor(() => expect(supabase.auth.updateUser).toHaveBeenCalled());
     expect(runtime.api.command).not.toHaveBeenCalled();
-    screen.unmount();
+    await screen.unmount();
 
     const plain = makeRuntime();
     (plain.api.me as jest.Mock).mockResolvedValue({ actor: customer, demo: false });
-    gate(plain);
+    await gate(plain);
     expect(await screen.findByText("Buka aplikasi Catera")).toBeTruthy();
     expect(plain.api.command).not.toHaveBeenCalled();
   });

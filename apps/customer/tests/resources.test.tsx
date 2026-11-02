@@ -44,7 +44,7 @@ beforeEach(() => {
 test("resource-key changes hide previous data and ignore late responses", async () => {
   const a = deferred<string>(),
     b = deferred<string>();
-  const hook = renderHook(
+  const hook = await renderHook(
     ({ resourceKey }: { resourceKey: string }) => ({
       resource: useData(resourceKey, () => (resourceKey === "a" ? a.promise : b.promise)),
       app: useMobile(),
@@ -52,7 +52,7 @@ test("resource-key changes hide previous data and ignore late responses", async 
     { wrapper, initialProps: { resourceKey: "a" } },
   );
   await waitFor(() => expect(hook.result.current.app.actor?.id).toBe("customer-a"));
-  hook.rerender({ resourceKey: "b" });
+  await hook.rerender({ resourceKey: "b" });
   expect(hook.result.current.resource.data).toBeNull();
   await act(async () => {
     a.resolve("private A");
@@ -63,7 +63,7 @@ test("resource-key changes hide previous data and ignore late responses", async 
 
 test("same-resource refresh failures retain readable data and mark it stale", async () => {
   const loader = jest.fn(async () => "saved data");
-  const hook = renderHook(() => useData("same", loader), { wrapper });
+  const hook = await renderHook(() => useData("same", loader), { wrapper });
   await waitFor(() => expect(hook.result.current.data).toBe("saved data"));
   loader.mockRejectedValue(new Error("offline"));
   await act(async () => {
@@ -75,7 +75,7 @@ test("same-resource refresh failures retain readable data and mark it stale", as
 
 test("switching accounts cannot display the previous account's resource", async () => {
   const b = deferred<string>();
-  const hook = renderHook(
+  const hook = await renderHook(
     () => {
       const app = useMobile();
       return {
@@ -99,11 +99,11 @@ test("switching accounts cannot display the previous account's resource", async 
 
 test("a slow refresh cannot restore the account after sign-out", async () => {
   const late = deferred<{ actor: { id: string; role: string; name: string }; demo: boolean }>();
-  const hook = renderHook(() => useMobile(), { wrapper });
+  const hook = await renderHook(() => useMobile(), { wrapper });
   await waitFor(() => expect(hook.result.current.actor?.id).toBe("customer-a"));
   mockMe.mockImplementationOnce(() => late.promise);
   let refresh!: Promise<void>;
-  act(() => {
+  await act(() => {
     refresh = hook.result.current.refresh();
   });
   await act(async () => {

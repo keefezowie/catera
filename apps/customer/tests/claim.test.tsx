@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { ActivityIndicator, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { ApiError } from "@catera/api-client";
@@ -8,6 +8,7 @@ import { MoodProvider } from "@catera/mobile-ui";
 import type { Actor, ClaimPreview } from "@catera/domain";
 import ClaimRoute from "../app/claim/[token]";
 import { customerLink } from "../src/links";
+import { hostsOfType } from "./host-tree";
 
 let mockParams: Record<string, string> = {};
 jest.mock("expo-router", () => ({
@@ -79,7 +80,7 @@ describe("signed out", () => {
   it("shows the waiting subscription with the providers, and no phone field", async () => {
     expect(customerLink("/claim/" + TOKEN)).toBe("/claim/" + TOKEN);
     const { runtime } = runtimeWith();
-    renderRoute(runtime);
+    await renderRoute(runtime);
     expect(await screen.findByText("Langgananmu sudah menunggu")).toBeTruthy();
     expect(runtime.api.claimPreview).toHaveBeenCalledWith(TOKEN);
     expect(
@@ -97,8 +98,8 @@ describe("signed out", () => {
 
   it("Google signs in right here and turns the claim into the number step", async () => {
     const { runtime, signInWithGoogle } = runtimeWith();
-    renderRoute(runtime);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
+    await renderRoute(runtime);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
     expect(await screen.findByText("Sambungkan langgananmu")).toBeTruthy();
     expect(signInWithGoogle).toHaveBeenCalledWith("catera://auth/callback", expect.any(String));
     expect(screen.getByLabelText("Nomor WhatsApp")).toBeTruthy();
@@ -107,19 +108,19 @@ describe("signed out", () => {
   it("a closed Google page says nothing; a failure is said under the buttons", async () => {
     const { runtime, signInWithGoogle } = runtimeWith();
     signInWithGoogle.mockRejectedValueOnce(new Error("CANCELLED")).mockRejectedValueOnce(new Error("OFFLINE"));
-    renderRoute(runtime);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
+    await renderRoute(runtime);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan Google" }));
     await waitFor(() => expect(signInWithGoogle).toHaveBeenCalledTimes(1));
     expect(screen.queryByTestId("claim-error")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut dengan Google" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut dengan Google" }));
     expect(await screen.findByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.")).toBeTruthy();
     expect(screen.getByText("Langgananmu sudah menunggu")).toBeTruthy();
   });
 
   it("email opens Masuk on its email step and comes back to this link", async () => {
     const { runtime } = runtimeWith();
-    renderRoute(runtime);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await renderRoute(runtime);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { next: `/claim/${TOKEN}`, method: "email" } });
   });
 });
@@ -128,27 +129,27 @@ describe("signed in", () => {
   it("connects with the typed number, hinting the recorded ending", async () => {
     const command = jest.fn(async () => ({ status: "claimed" }));
     const { runtime } = runtimeWith({ command, actor: customer });
-    renderRoute(runtime);
+    await renderRoute(runtime);
     expect(await screen.findByText("Sambungkan langgananmu")).toBeTruthy();
     expect(screen.getByText("Dapur Contoh mencatat nomor berakhiran ••• 0001.")).toBeTruthy();
     expect(screen.getByText("Masuk sebagai Andre Contoh")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3450 0001");
-    fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
+    await fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3450 0001");
+    await fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
     expect(command).toHaveBeenCalledWith("customer.claim", { token: TOKEN, phone: "+6281234500001" }, expect.any(String));
   });
 
   it("prefills the number already on the account", async () => {
     const { runtime } = runtimeWith({ actor: { ...customer, phone: "+6281234500001" } });
-    renderRoute(runtime);
+    await renderRoute(runtime);
     expect((await screen.findByLabelText("Nomor WhatsApp")).props.value).toBe("0812 3450 0001");
   });
 
   it("a number that differs from the mask is refused before the server, and stays editable", async () => {
     const { runtime } = runtimeWith({ actor: customer });
-    renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812 9999 0000");
-    fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
+    await renderRoute(runtime);
+    await fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812 9999 0000");
+    await fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(await screen.findByText(MISMATCH)).toBeTruthy();
     expect(runtime.api.command).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Nomor WhatsApp").props.editable).not.toBe(false);
@@ -156,9 +157,9 @@ describe("signed in", () => {
 
   it("a malformed number is refused before the server", async () => {
     const { runtime } = runtimeWith({ actor: customer });
-    renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812");
-    fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
+    await renderRoute(runtime);
+    await fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "0812");
+    await fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(await screen.findByText("Nomornya belum benar. Contoh: 0812 3456 7890")).toBeTruthy();
     expect(runtime.api.command).not.toHaveBeenCalled();
   });
@@ -168,9 +169,9 @@ describe("signed in", () => {
       throw new ApiError("CLAIM_UNAVAILABLE");
     });
     const { runtime } = runtimeWith({ command, actor: customer });
-    renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
-    fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
+    await renderRoute(runtime);
+    await fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
+    await fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(
       await screen.findByText(
         "Nomor belum cocok atau tautan sudah tidak berlaku. Cek nomornya, atau minta tautan baru ke Dapur Contoh.",
@@ -185,9 +186,9 @@ describe("signed in", () => {
       throw new ApiError("NOT_FOUND");
     });
     const { runtime } = runtimeWith({ command, actor: customer });
-    renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
-    fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
+    await renderRoute(runtime);
+    await fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
+    await fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(await screen.findByText("Tautan ini tidak bisa dipakai. Minta tautan baru ke kateringmu.")).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
   });
@@ -196,13 +197,11 @@ describe("signed in", () => {
     let release: (v: unknown) => void = () => undefined;
     const command = jest.fn(() => new Promise((resolve) => (release = resolve)));
     const { runtime } = runtimeWith({ command, actor: customer });
-    renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
+    await renderRoute(runtime);
+    await fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
     const connect = screen.getByRole("button", { name: "Sambungkan" });
-    await act(async () => {
-      fireEvent.press(connect);
-      fireEvent.press(connect);
-    });
+    await fireEvent.press(connect);
+    await fireEvent.press(connect);
     expect(command).toHaveBeenCalledTimes(1);
     release({ status: "claimed" });
     await act(async () => {});
@@ -211,11 +210,11 @@ describe("signed in", () => {
   it("a claim held for review says so and offers Beranda", async () => {
     const command = jest.fn(async () => ({ status: "review" }));
     const { runtime } = runtimeWith({ command, actor: customer });
-    renderRoute(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
-    fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
+    await renderRoute(runtime);
+    await fireEvent.changeText(await screen.findByLabelText("Nomor WhatsApp"), "081234500001");
+    await fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(await screen.findByText("Dapur Contoh perlu mengecek langganan ini dulu. Pengantaranmu tetap jalan.")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
     expect(router.replace).toHaveBeenCalledWith("/");
   });
 });
@@ -226,7 +225,7 @@ it.each(["NOT_FOUND", "INVALID_INPUT"])("a %s preview shows only the plain messa
       throw new ApiError(code);
     },
   });
-  renderRoute(runtime);
+  await renderRoute(runtime);
   expect(await screen.findByText("Tautan ini tidak bisa dipakai. Minta tautan baru ke kateringmu.")).toBeTruthy();
   expect(screen.queryByText(/Dapur Contoh/)).toBeNull();
   expect(screen.queryByText(/Lanjut dengan/)).toBeNull();
@@ -239,10 +238,10 @@ it("an unusable link offers a way to Beranda without going there by itself", asy
       throw new ApiError("NOT_FOUND");
     },
   });
-  renderRoute(runtime);
+  await renderRoute(runtime);
   const home = await screen.findByRole("button", { name: "Ke Beranda" });
   expect(router.replace).not.toHaveBeenCalled();
-  fireEvent.press(home);
+  await fireEvent.press(home);
   expect(router.replace).toHaveBeenCalledWith("/");
 });
 
@@ -260,12 +259,12 @@ it("a preview that cannot load offers Coba lagi and Ke Beranda", async () => {
       maskedPhone: "0812-•••-0001",
     });
   const { runtime } = runtimeWith({ preview });
-  renderRoute(runtime);
+  await renderRoute(runtime);
   const message = await screen.findByText("Belum bisa memuat. Periksa koneksi lalu coba lagi.");
   expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
-  fireEvent.press(await screen.findByRole("button", { name: "Ke Beranda" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Ke Beranda" }));
   expect(router.replace).toHaveBeenCalledWith("/");
-  fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
   expect(await screen.findByText("Langgananmu sudah menunggu")).toBeTruthy();
 });
 
@@ -299,7 +298,7 @@ describe("claim under the native header", () => {
         throw new ApiError("NOT_FOUND");
       },
     });
-    renderMood(runtime);
+    await renderMood(runtime);
     expect(await screen.findByTestId("claim-dead")).toBeTruthy();
     const header = expectMalamHeader("Tautan tidak bisa dipakai");
     expect(within(header).queryByTestId("claim-dead")).toBeNull();
@@ -313,7 +312,7 @@ describe("claim under the native header", () => {
   it("a preview that cannot load keeps a header, with the message and retry on the page", async () => {
     const preview = jest.fn<Promise<ClaimPreview>, []>().mockRejectedValue(new ApiError("REQUEST_TIMEOUT"));
     const { runtime } = runtimeWith({ preview });
-    renderMood(runtime);
+    await renderMood(runtime);
     const message = await screen.findByText("Belum bisa memuat. Periksa koneksi lalu coba lagi.");
     const header = expectMalamHeader("Belum bisa memuat");
     expect(within(header).queryByText("Belum bisa memuat. Periksa koneksi lalu coba lagi.")).toBeNull();
@@ -324,7 +323,7 @@ describe("claim under the native header", () => {
 
   it("while the link is read, the page shows the mascot with Membuka tautan under the title", async () => {
     const { runtime } = runtimeWith({ preview: () => new Promise<ClaimPreview>(() => undefined) });
-    const view = renderMood(runtime);
+    const view = await renderMood(runtime);
     // The link is not validated yet, so the title cannot claim the subscription is the viewer's.
     const header = expectMalamHeader("Membuka tautan");
     expect(screen.queryByText("Langganan Anda")).toBeNull();
@@ -332,6 +331,6 @@ describe("claim under the native header", () => {
     const mascot = screen.getByTestId("mascot-loading");
     expect(mascot.props.accessibilityLabel).toBe("Membuka tautan…");
     expect(within(header).queryByTestId("mascot-loading")).toBeNull();
-    expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsOfType(view.root, "ActivityIndicator")).toHaveLength(0);
   });
 });

@@ -1,6 +1,6 @@
-import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
 import { HeaderIconButton, Pengaturan as SharedPengaturan, SettingsRow, SettingsSection, useMoodColors } from "@catera/mobile-ui";
+import { pushScreen } from "../nav";
 
 /**
  * The gear at the end of a tab root's header row: Usaha's for an owner, Menu's for a helper (staff), who has no Usaha.
@@ -14,7 +14,7 @@ export function SettingsGear() {
       icon="settings"
       label={t("Pengaturan", "Settings")}
       tint={mood.headerText}
-      onPress={() => router.push("/pengaturan" as never)}
+      onPress={() => pushScreen("/pengaturan")}
     />
   );
 }
@@ -31,7 +31,7 @@ export function Pengaturan() {
       onSignedOut={() => undefined}
       extraRows={
         <SettingsSection>
-          <SettingsRow label={t("Data akun", "Account data")} onPress={() => router.push("/pengaturan/data-akun" as never)} />
+          <SettingsRow label={t("Data akun", "Account data")} onPress={() => pushScreen("/pengaturan/data-akun")} />
         </SettingsSection>
       }
     />

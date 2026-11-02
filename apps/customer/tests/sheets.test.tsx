@@ -131,10 +131,7 @@ type Nav = { key: string; name: string; params?: Record<string, unknown>; state?
 let state: () => { routes: Nav[] };
 
 async function mount(initialUrl = "/") {
-  // A cold start has no route behind it; the test router keeps the last render's route between renders.
-  const { storeRef } = require("expo-router/build/global-state/store");
-  if (storeRef.current) storeRef.current.routeInfo = undefined;
-  const result = renderRouter(appRoutes() as never, { initialUrl });
+  const result = await renderRouter(appRoutes() as never, { initialUrl });
   state = () => result.getRouterState() as unknown as { routes: Nav[] };
   await act(async () => {});
   return result;
@@ -162,16 +159,15 @@ async function mountDay(id: string) {
   await go(() => router.push("/hari/" + id));
   return app;
 }
-const go = async (work: () => void) => {
-  act(work);
+const go = async (work: () => unknown) => {
+  await act(async () => void (await work()));
   await act(async () => {});
 };
 
-type Host = { type: unknown; props: Record<string, unknown>; parent: Host | null; children: unknown[] };
-const hosts = (type: string) => screen.UNSAFE_root.findAll((n) => n.type === type) as unknown as Host[];
+const hosts = (type: string) => screen.container.queryAll((n) => n.type === type);
 /** The native screen react-native-screens gets for a route: the newest one by its route name. */
 const screenOf = (route: string) => {
-  const found = hosts("RNSScreen").filter((s) => String(s.props.screenId).startsWith(`${route}-`)).at(-1);
+  const found = hosts("RNSScreen").filter((s) => String(s.props.screenId).startsWith(`${route}:`)).at(-1);
   if (!found) throw new Error(`no screen for ${route}`);
   return found;
 };
@@ -212,10 +208,10 @@ describe("sheet routes", () => {
     expect(within(sheet as never).getByTestId("sheet-body").props.keyboardShouldPersistTaps).toBe("handled");
     // On Android a drag on the form scrolls it, rather than dragging the bottom sheet.
     expect(within(sheet as never).getByTestId("sheet-body").props.nestedScrollEnabled).toBe(true);
-    app.unmount();
+    await app.unmount();
   });
 
-  it("the six form sheets are declared by the root layout, and no tab stack declares one", () => {
+  it("the six form sheets are declared by the root layout, and no tab stack declares one", async () => {
     const rootLayout = readFileSync(join(APP, "_layout.tsx"), "utf8");
     const tabLayout = readFileSync(join(APP, "(tabs)", "(index,jadwal,jelajah,akun)", "_layout.tsx"), "utf8");
     for (const name of ["masalah/[id]", "ulasan/[id]", "alamat-form", "bantuan-form", "hapus-akun"]) {
@@ -243,7 +239,7 @@ describe("sheet routes", () => {
     expect(day.props.stackPresentation).toBe("formSheet");
     expect(day.props.sheetAllowedDetents).toEqual([0.75, 1]);
     expect(day.props.sheetGrabberVisible).toBe(true);
-    app.unmount();
+    await app.unmount();
   });
 
   it("a root-stack Ada masalah still sends the screen reader to its title, after the present and again after the settle", async () => {
@@ -254,13 +250,13 @@ describe("sheet routes", () => {
       jest.useFakeTimers();
       await go(() => router.push("/masalah/d-today?meal=lunch"));
       overHari();
-      act(() => void jest.advanceTimersByTime(SHEET_FOCUS_FALLBACK_MS + 1));
+      await act(() => void jest.advanceTimersByTime(SHEET_FOCUS_FALLBACK_MS + 1));
       expect(focus).toHaveBeenCalled();
       expect(focus.mock.calls.every(([, event]) => event === "focus")).toBe(true);
       const afterPresent = focus.mock.calls.length;
-      act(() => void jest.advanceTimersByTime(SHEET_FOCUS_SETTLE_MS + 1));
+      await act(() => void jest.advanceTimersByTime(SHEET_FOCUS_SETTLE_MS + 1));
       expect(focus.mock.calls.length).toBeGreaterThan(afterPresent);
-      app.unmount();
+      await app.unmount();
     } finally {
       jest.useRealTimers();
       focus.mockRestore();
@@ -278,7 +274,7 @@ describe("sheet routes", () => {
     expect(root()).toEqual(["(tabs)", "aksi"]);
     expect(screenOf("aksi").props.stackPresentation).toBe("formSheet");
     expect(screenOf("aksi").props.sheetAllowedDetents).toEqual([-1]);
-    app.unmount();
+    await app.unmount();
   });
 });
 
@@ -291,7 +287,7 @@ describe("useConfirm", () => {
     await swipeAway("konfirmasi");
     expect(root()).toEqual(["(tabs)"]);
     expect(mockResults).toEqual([false]);
-    app.unmount();
+    await app.unmount();
   });
 
   it("resolves true on confirm and false on cancel and on the hardware back, once each", async () => {
@@ -307,7 +303,7 @@ describe("useConfirm", () => {
       await go(() => void back.press());
       expect(root()).toEqual(["(tabs)"]);
       expect(mockResults).toEqual([true, false, false]);
-      app.unmount();
+      await app.unmount();
     } finally {
       back.restore();
     }
@@ -317,7 +313,7 @@ describe("useConfirm", () => {
     const app = await mount("/");
     await go(() => router.push("/konfirmasi?id=gone"));
     expect(root()).toEqual(["(tabs)"]);
-    app.unmount();
+    await app.unmount();
   });
 
   it("a cold OS link to the confirm or action route lands on Beranda, never an empty stack", async () => {
@@ -326,35 +322,34 @@ describe("useConfirm", () => {
       // Nothing is under it to go back to: Beranda replaces it.
       expect(root()).toEqual(["(tabs)"]);
       expect(screen.getByRole("button", { name: "Tanya" })).toBeTruthy();
-      app.unmount();
+      await app.unmount();
     }
   });
 
-  it("a confirm that leaves without beforeRemove still answers false, and the guarded sheet can then close", async () => {
+  it("a confirm that leaves without a close of its own still answers false, and the guarded sheet can then close", async () => {
     const back = hardwareBack();
     try {
       const app = await mountDay("d-today");
       await go(() => router.push("/masalah/d-today?meal=lunch"));
-      fireEvent.changeText(screen.getByLabelText("Catatan (boleh dikosongkan)"), "Nasinya basi");
+      await fireEvent.changeText(screen.getByLabelText("Catatan (boleh dikosongkan)"), "Nasinya basi");
       await act(async () => {});
       await go(() => void back.press());
       expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
-      // The confirm route goes without any action (the container's state is reset), so no beforeRemove reaches it.
-      const { store } = require("expo-router/build/global-state/store");
-      const ref = store.navigationRef.current;
+      // The confirm route goes in a reset of the whole tree, not a close of its own (no back, no swipe, no transition).
+      const ref = require("expo-router/build/global-state/navigationRef").navigationRef.current;
       const dropConfirm = (node: Nav): Nav => {
         if (!node.state) return node;
         const routes = node.state.routes.filter((r) => r.name !== "konfirmasi").map(dropConfirm);
         return { ...node, state: { ...node.state, routes, index: Math.min(node.state.index, routes.length - 1) } };
       };
-      await go(() => ref.resetRoot(dropConfirm({ key: "top", name: "top", state: ref.getRootState() }).state));
+      await go(() => ref.reset(dropConfirm({ key: "top", name: "top", state: ref.getRootState() }).state));
       overHari();
       // The question was answered (false), so the next close asks again instead of being held forever.
       await go(() => void back.press());
       expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
       atHari();
-      app.unmount();
+      await app.unmount();
     } finally {
       back.restore();
     }
@@ -370,20 +365,23 @@ describe("useActionSheet", () => {
     await swipeAway("aksi");
     expect(root()).toEqual(["(tabs)"]);
     expect(mockResults).toEqual(["pindah", null]);
-    app.unmount();
+    await app.unmount();
   });
 
   it("speaks Close in the caller's language: the route passes closeLabel to the sheet", async () => {
     const app = await mount("/");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Pilihan" })));
-    expect(screen.UNSAFE_getByType(SheetHeader).props.closeLabel).toBe("Close");
+    // Android draws no Close in the header, so read the prop the route handed SheetHeader from above its title.
+    let fiber = screen.getByRole("header", { name: "Senin 12 Okt" }).unstable_fiber;
+    while (fiber && fiber.type !== SheetHeader) fiber = fiber.return;
+    expect(fiber?.memoizedProps.closeLabel).toBe("Close");
     await swipeAway("aksi");
-    app.unmount();
+    await app.unmount();
     // On iOS that is the Close button's spoken name; without one it stays "Tutup".
-    const ios = render(<ActionSheet {...mockActionInput} onChoose={() => {}} os="ios" />);
+    const ios = await render(<ActionSheet {...mockActionInput} onChoose={() => {}} os="ios" />);
     expect(screen.getByRole("button", { name: "Close" })).toBeTruthy();
-    ios.unmount();
-    render(<ActionSheet {...mockActionInput} closeLabel={undefined} onChoose={() => {}} os="ios" />);
+    await ios.unmount();
+    await render(<ActionSheet {...mockActionInput} closeLabel={undefined} onChoose={() => {}} os="ios" />);
     expect(screen.getByRole("button", { name: "Tutup" })).toBeTruthy();
   });
 });
@@ -393,8 +391,8 @@ describe("ActionSheet", () => {
   const tree = (os: string, input: Partial<ActionSheetInput> = {}) =>
     render(<ActionSheet {...mockActionInput} {...input} onChoose={() => {}} os={os} />);
 
-  it("action sheet puts the destructive item last", () => {
-    tree("android");
+  it("action sheet puts the destructive item last", async () => {
+    await tree("android");
     expect(rows()).toEqual(["action-row-pindah", "action-row-chat", "action-row-lapor"]);
     // A divider separates the destructive row from the rest; the row reads in the danger ink.
     expect(screen.getByTestId("action-divider")).toBeTruthy();
@@ -402,9 +400,9 @@ describe("ActionSheet", () => {
     expect(StyleSheet.flatten(danger.props.style).color).toBe(nativeThemes.light.danger);
   });
 
-  it("rows are 52pt on iOS and 56dp on Android, and a disabled item cannot be chosen", () => {
+  it("rows are 52pt on iOS and 56dp on Android, and a disabled item cannot be chosen", async () => {
     const onChoose = jest.fn();
-    const view = render(
+    const view = await render(
       <ActionSheet
         title="Senin 12 Okt"
         items={[{ key: "a", label: "Pindah tanggal", icon: "calendar-outline", disabled: true }]}
@@ -415,26 +413,26 @@ describe("ActionSheet", () => {
     const row = screen.getByTestId("action-row-a");
     expect(StyleSheet.flatten(row.props.style).minHeight).toBe(52);
     expect(row.props.accessibilityState.disabled).toBe(true);
-    fireEvent.press(row);
+    await fireEvent.press(row);
     expect(onChoose).not.toHaveBeenCalled();
-    view.unmount();
-    const android = tree("android");
+    await view.unmount();
+    const android = await tree("android");
     expect(StyleSheet.flatten(screen.getByTestId("action-row-pindah").props.style).minHeight).toBe(56);
     // No divider when nothing destructive is offered.
-    android.unmount();
-    tree("android", { items: mockActionInput.items.filter((i) => i.tone !== "danger") });
+    await android.unmount();
+    await tree("android", { items: mockActionInput.items.filter((i) => i.tone !== "danger") });
     expect(screen.queryByTestId("action-divider")).toBeNull();
   });
 
-  it("shows the item it acts on: its photo, name and lines", () => {
-    tree("android", { context: { image: "https://img.example/nasi.jpg", title: "Nasi Bakar", lines: ["Makan siang", "Dapur Contoh"] } });
+  it("shows the item it acts on: its photo, name and lines", async () => {
+    await tree("android", { context: { image: "https://img.example/nasi.jpg", title: "Nasi Bakar", lines: ["Makan siang", "Dapur Contoh"] } });
     expect(screen.getByText("Nasi Bakar")).toBeTruthy();
     expect(screen.getByText("Makan siang")).toBeTruthy();
     expect(screen.getByTestId("action-context-image").props.source).toEqual({ uri: "https://img.example/nasi.jpg" });
   });
 
-  it("draws the context photo with a continuous corner and a reduced-motion-aware fade", () => {
-    tree("android", { context: { image: "https://img.example/nasi.jpg", title: "Nasi Bakar", lines: [] } });
+  it("draws the context photo with a continuous corner and a reduced-motion-aware fade", async () => {
+    await tree("android", { context: { image: "https://img.example/nasi.jpg", title: "Nasi Bakar", lines: [] } });
     expect(StyleSheet.flatten(screen.getByTestId("action-context-frame").props.style)).toMatchObject({ borderRadius: 12, borderCurve: "continuous" });
     expect(screen.getByTestId("action-context-image").props.transition).toBe(nativeMotion.selection);
   });
@@ -445,8 +443,8 @@ describe("ConfirmSheet", () => {
     render(<ConfirmSheet {...mockConfirmInput} {...input} onConfirm={() => {}} onCancel={() => {}} os={os} />);
   const box = (label: string) => StyleSheet.flatten(screen.getByRole("button", { name: label }).props.style);
 
-  it("iOS puts the two buttons side by side, cancel first, the confirm in the danger fill", () => {
-    sheet("ios");
+  it("iOS puts the two buttons side by side, cancel first, the confirm in the danger fill", async () => {
+    await sheet("ios");
     const row = screen.getByTestId("confirm-actions");
     expect(StyleSheet.flatten(row.props.style).flexDirection).toBe("row");
     expect(within(row).getAllByRole("button").map((b) => b.props.accessibilityLabel)).toEqual(["Batal", "Hapus"]);
@@ -454,8 +452,8 @@ describe("ConfirmSheet", () => {
     expect(box("Hapus").backgroundColor).toBe(nativeThemes.light.danger);
   });
 
-  it("Android ends the row with a text button and a filled button", () => {
-    sheet("android", { tone: undefined, icon: "rantang" });
+  it("Android ends the row with a text button and a filled button", async () => {
+    await sheet("android", { tone: undefined, icon: "rantang" });
     const row = screen.getByTestId("confirm-actions");
     expect(StyleSheet.flatten(row.props.style).justifyContent).toBe("flex-end");
     expect(box("Batal").backgroundColor).toBeUndefined();
@@ -463,14 +461,14 @@ describe("ConfirmSheet", () => {
     expect(screen.getByTestId("confirm-icon-rantang", { includeHiddenElements: true })).toBeTruthy();
   });
 
-  it("TalkBack focus starts on the sheet title", () => {
+  it("TalkBack focus starts on the sheet title", async () => {
     const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
     jest.useFakeTimers();
     try {
-      sheet("android");
+      await sheet("android");
       // Not before the sheet has risen: the reader would still be on the page under it.
       expect(focus).not.toHaveBeenCalled();
-      act(() => jest.runOnlyPendingTimers());
+      await act(() => jest.runOnlyPendingTimers());
       expect(focus).toHaveBeenCalledTimes(1);
       const [target, event] = focus.mock.calls[0] as unknown as [{ props: { children: string; accessibilityRole: string } }, string];
       expect(event).toBe("focus");
@@ -481,7 +479,7 @@ describe("ConfirmSheet", () => {
     }
   });
 
-  it("moves the screen reader on the sheet's own present and once more after the settle; the present cancels the fallback", () => {
+  it("moves the screen reader on the sheet's own present and once more after the settle; the present cancels the fallback", async () => {
     const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
     type Ended = (e: { data?: { closing?: boolean } }) => void;
     const listeners: Record<string, Ended[]> = {};
@@ -496,21 +494,21 @@ describe("ConfirmSheet", () => {
     };
     jest.useFakeTimers();
     try {
-      render(
+      await render(
         <NavigationContext.Provider value={navigation as never}>
           <ConfirmSheet {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="android" />
         </NavigationContext.Provider>,
       );
       // The sheet lands before the fallback: focus at once, again after the settle, and the fallback never fires.
-      act(() => listeners.transitionEnd.forEach((cb) => cb({ data: { closing: false } })));
+      await act(() => listeners.transitionEnd.forEach((cb) => cb({ data: { closing: false } })));
       expect(focus).toHaveBeenCalledTimes(1);
-      act(() => jest.runOnlyPendingTimers());
+      await act(() => jest.runOnlyPendingTimers());
       expect(focus).toHaveBeenCalledTimes(2);
-      act(() => jest.runOnlyPendingTimers());
+      await act(() => jest.runOnlyPendingTimers());
       expect(focus).toHaveBeenCalledTimes(2);
       // A closing transition does not move it.
-      act(() => listeners.transitionEnd.forEach((cb) => cb({ data: { closing: true } })));
-      act(() => jest.runOnlyPendingTimers());
+      await act(() => listeners.transitionEnd.forEach((cb) => cb({ data: { closing: true } })));
+      await act(() => jest.runOnlyPendingTimers());
       expect(focus).toHaveBeenCalledTimes(2);
     } finally {
       jest.useRealTimers();
@@ -525,7 +523,7 @@ describe("sheet states", () => {
   it("the confirm and action sheets read the dark palette", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const dark = nativeThemes.dark;
-    render(
+    await render(
       <ThemeProvider storageKey="sheets-theme">
         <ConfirmSheet {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="android" />
         <ActionSheet {...mockActionInput} onChoose={() => {}} os="android" />
@@ -540,8 +538,8 @@ describe("sheet states", () => {
     expect(StyleSheet.flatten(screen.getByText("Pindah tanggal").props.style).color).toBe(dark.charcoal);
   });
 
-  it("at a larger font every row and button grows with its text: no fixed heights, no cut lines", () => {
-    render(
+  it("at a larger font every row and button grows with its text: no fixed heights, no cut lines", async () => {
+    await render(
       <>
         <ConfirmSheet {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="ios" />
         <ActionSheet {...mockActionInput} onChoose={() => {}} os="android" />
@@ -556,17 +554,17 @@ describe("sheet states", () => {
       expect(screen.getByText(text).props.numberOfLines).toBeUndefined();
   });
 
-  it("keyboard: iOS insets the form for the keyboard, and the two-detent Android sheet expands while it is up", () => {
-    const ios = render(<SheetBody os="ios">{null}</SheetBody>);
+  it("keyboard: iOS insets the form for the keyboard, and the two-detent Android sheet expands while it is up", async () => {
+    const ios = await render(<SheetBody os="ios">{null}</SheetBody>);
     expect(screen.getByTestId("sheet-body").props.automaticallyAdjustKeyboardInsets).toBe(true);
     expect(screen.getByTestId("sheet-body").props.keyboardShouldPersistTaps).toBe("handled");
-    ios.unmount();
-    render(<SheetBody os="android">{null}</SheetBody>);
+    await ios.unmount();
+    await render(<SheetBody os="android">{null}</SheetBody>);
     expect(screen.getByTestId("sheet-body").props.automaticallyAdjustKeyboardInsets).toBe(false);
     // react-native-screens expands a sheet with two detents to its top one while the keyboard shows (SheetDelegate).
   });
 
-  it("the discard question speaks to each app in its own voice", () => {
+  it("the discard question speaks to each app in its own voice", async () => {
     expect(unsavedCopy("laporan")).toEqual({
       title: "Buang laporan?",
       message: "Yang sudah kamu tulis akan hilang.",
@@ -599,11 +597,11 @@ describe("Ada masalah as a sheet", () => {
       await go(() => void back.press());
       atHari();
       expect(root()).toEqual(["(tabs)", "hari/[id]"]);
-      app.unmount();
+      await app.unmount();
 
       // Typed text: the iOS swipe is held and back asks first.
       app = await onHari();
-      typeNote("Nasinya basi");
+      await typeNote("Nasinya basi");
       await act(async () => {});
       expect(screenOf("masalah/[id]").props.preventNativeDismiss).toBe(true);
       await go(() => void back.press());
@@ -620,7 +618,7 @@ describe("Ada masalah as a sheet", () => {
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
       expect(root()).toEqual(["(tabs)", "hari/[id]"]);
       atHari();
-      app.unmount();
+      await app.unmount();
     } finally {
       back.restore();
     }
@@ -636,7 +634,7 @@ describe("Ada masalah as a sheet", () => {
     expect(canHoldRemoval({ type: "POP" }, "masalah-key", "android")).toBe(true);
 
     const app = await onHari();
-    typeNote("Kurang sambal");
+    await typeNote("Kurang sambal");
     await act(async () => {});
     // Close at the leading edge of the iOS title row goes back, and asks first.
     await go(() => router.back());
@@ -647,12 +645,12 @@ describe("Ada masalah as a sheet", () => {
     expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
     atHari();
-    app.unmount();
+    await app.unmount();
   });
 
   it("a link tapped during an unsaved report waits for the discard answer, then opens; its page is never pushed behind the sheet", async () => {
     const app = await onHari();
-    typeNote("Kurang sambal");
+    await typeNote("Kurang sambal");
     await act(async () => {});
     await go(() => openLink("/hari/d-next-1"));
     expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
@@ -661,25 +659,25 @@ describe("Ada masalah as a sheet", () => {
     expect(root()).toEqual(["(tabs)", "hari/[id]"]);
     expect(rootStack().routes.at(-1)!.params).toMatchObject({ id: "d-next-1" });
     expect(stack("(index)")).toEqual(["index"]);
-    app.unmount();
+    await app.unmount();
   });
 
   it("a link tapped during an unsaved report is dropped when the person keeps writing, and does not open later", async () => {
     const app = await onHari();
-    typeNote("Kurang sambal");
+    await typeNote("Kurang sambal");
     await act(async () => {});
     await go(() => openLink("/hari/d-next-1"));
     jest.useFakeTimers();
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Lanjut menulis" })));
     overHari();
-    act(() => void jest.advanceTimersByTime(LINK_WAIT_MS + 1));
+    await act(() => void jest.advanceTimersByTime(LINK_WAIT_MS + 1));
     jest.useRealTimers();
     // Closing the report later (discarding) must not open the old link out of the blue.
     await go(() => router.back());
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
     expect(root()).toEqual(["(tabs)", "hari/[id]"]);
     atHari();
-    app.unmount();
+    await app.unmount();
   });
 
   it("in the root stack the form has no tab bar under it, so it reserves nothing and Kirim laporan is reachable", async () => {
@@ -691,12 +689,12 @@ describe("Ada masalah as a sheet", () => {
     expect(within(frame).getByRole("button", { name: "Kirim laporan" })).toBeTruthy();
     expect(within(screen.getByTestId("sheet-body")).queryByRole("button", { name: "Kirim laporan" })).toBeNull();
     expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim laporan" })).toBeTruthy();
-    app.unmount();
+    await app.unmount();
   });
 
   it("an Android swipe that already closed the sheet keeps the typed note for next time", async () => {
     let app = await onHari();
-    typeNote("Lauknya kurang");
+    await typeNote("Lauknya kurang");
     await act(async () => {});
     // Android's bottom sheet cannot be held, so the sheet is gone; blocking it now would leave a route on no screen.
     await swipeAway("masalah/[id]");
@@ -704,7 +702,7 @@ describe("Ada masalah as a sheet", () => {
     expect(root()).toEqual(["(tabs)", "hari/[id]"]);
     await go(() => router.push("/masalah/d-today?meal=lunch"));
     expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("Lauknya kurang");
-    app.unmount();
+    await app.unmount();
     // The kept note still asks before it goes; once discarded it is gone.
     const back = hardwareBack();
     try {
@@ -714,7 +712,7 @@ describe("Ada masalah as a sheet", () => {
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
       await go(() => router.push("/masalah/d-today?meal=lunch"));
       expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("");
-      app.unmount();
+      await app.unmount();
     } finally {
       back.restore();
     }
@@ -726,7 +724,7 @@ describe("Ada masalah as a sheet", () => {
     const back = hardwareBack();
     try {
       const app = await onHari();
-      typeNote("Lauknya kurang");
+      await typeNote("Lauknya kurang");
       await act(async () => {});
       await swipeAway("masalah/[id]");
       // Another delivery: its own sheet, empty.
@@ -745,7 +743,7 @@ describe("Ada masalah as a sheet", () => {
       await go(() => void back.press());
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
       atHari();
-      app.unmount();
+      await app.unmount();
     } finally {
       mockSession.actor = signedIn;
       back.restore();
@@ -756,8 +754,8 @@ describe("Ada masalah as a sheet", () => {
     const back = hardwareBack();
     try {
       const app = await onHari();
-      fireEvent.press(screen.getByRole("radio", { name: "Belum sampai" }));
-      typeNote("Belum datang");
+      await fireEvent.press(screen.getByRole("radio", { name: "Belum sampai" }));
+      await typeNote("Belum datang");
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim laporan" })));
       await act(async () => {});
       expect(mockCommand).toHaveBeenCalledTimes(1);
@@ -767,7 +765,7 @@ describe("Ada masalah as a sheet", () => {
       // The sent note is not kept as a draft: Ada masalah for that day opens empty.
       await go(() => router.push("/masalah/d-today?meal=lunch"));
       expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("");
-      app.unmount();
+      await app.unmount();
     } finally {
       back.restore();
     }
@@ -778,7 +776,7 @@ describe("the sent report's toast", () => {
   it("Lihat closes the day sheet and opens Bantuan in the tab: one tabs navigator, nothing behind a sheet", async () => {
     const app = await mountDay("d-today");
     await go(() => router.push("/masalah/d-today?meal=lunch"));
-    fireEvent.press(screen.getByRole("radio", { name: "Belum sampai" }));
+    await fireEvent.press(screen.getByRole("radio", { name: "Belum sampai" }));
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim laporan" })));
     await act(async () => {});
     // The report closed; the day sheet it sat over is still up, and the toast waits.
@@ -787,7 +785,7 @@ describe("the sent report's toast", () => {
     // Bantuan is a page of the tab beneath the sheets: they are gone, and there is still one tabs route.
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index", "bantuan"]);
-    app.unmount();
+    await app.unmount();
   });
 });
 

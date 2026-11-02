@@ -72,7 +72,7 @@ afterEach(() => {
 });
 
 describe("sheet title focus", () => {
-  it("the fallback timer does not read nativeMotion.feature", () => {
+  it("the fallback timer does not read nativeMotion.feature", async () => {
     // A fixed 400ms, so slowing the motion tokens can never push the focus later (spec 4.1, step 1).
     expect(SHEET_FOCUS_FALLBACK_MS).toBe(400);
     expect(SHEET_FOCUS_SETTLE_MS).toBe(250);
@@ -83,64 +83,64 @@ describe("sheet title focus", () => {
 
     const focus = spyFocus();
     jest.useFakeTimers();
-    const view = render(<SheetHeader title="Ada masalah" os="android" />);
-    act(() => jest.advanceTimersByTime(SHEET_FOCUS_FALLBACK_MS - 1));
+    const view = await render(<SheetHeader title="Ada masalah" os="android" />);
+    await act(() => jest.advanceTimersByTime(SHEET_FOCUS_FALLBACK_MS - 1));
     expect(focus).not.toHaveBeenCalled();
-    act(() => jest.advanceTimersByTime(1));
+    await act(() => jest.advanceTimersByTime(1));
     expect(focus).toHaveBeenCalledTimes(1);
     const [target, event] = focus.mock.calls[0] as unknown as [{ props: { children: string } }, string];
     expect(event).toBe("focus");
     expect(target.props.children).toBe("Ada masalah");
     // Unmounted while the timers are still fake, so its settle cannot reach the next test.
-    view.unmount();
+    await view.unmount();
   });
 
-  it("focus is sent on present and again after the settle", () => {
+  it("focus is sent on present and again after the settle", async () => {
     const focus = spyFocus();
     const { navigation, emit } = fakeNavigation("tab");
     jest.useFakeTimers();
-    const view = render(
+    const view = await render(
       <NavigationContext.Provider value={navigation as never}>
         <SheetHeader title="Ada masalah" os="android" />
       </NavigationContext.Provider>,
     );
     // The sheet has not risen yet: the reader stays where it is.
-    act(() => jest.advanceTimersByTime(100));
+    await act(() => jest.advanceTimersByTime(100));
     expect(focus).not.toHaveBeenCalled();
     // Present: once at once...
-    emit("transitionEnd", false);
+    await emit("transitionEnd", false);
     expect(focus).toHaveBeenCalledTimes(1);
-    act(() => jest.advanceTimersByTime(SHEET_FOCUS_SETTLE_MS - 1));
+    await act(() => jest.advanceTimersByTime(SHEET_FOCUS_SETTLE_MS - 1));
     expect(focus).toHaveBeenCalledTimes(1);
     // ...and once more after the settle, when TalkBack has finished re-asserting focus on the window under the sheet.
-    act(() => jest.advanceTimersByTime(1));
+    await act(() => jest.advanceTimersByTime(1));
     expect(focus).toHaveBeenCalledTimes(2);
     // The present cancelled the fallback: nothing more, however long the sheet stays.
-    act(() => jest.advanceTimersByTime(5000));
+    await act(() => jest.advanceTimersByTime(5000));
     expect(focus).toHaveBeenCalledTimes(2);
     // Closing never moves the reader.
-    emit("transitionEnd", true);
-    act(() => jest.advanceTimersByTime(5000));
+    await emit("transitionEnd", true);
+    await act(() => jest.advanceTimersByTime(5000));
     expect(focus).toHaveBeenCalledTimes(2);
     for (const [target, event] of focus.mock.calls as unknown as [{ props: { children: string } }, string][]) {
       expect(event).toBe("focus");
       expect(target.props.children).toBe("Ada masalah");
     }
-    view.unmount();
+    await view.unmount();
   });
 });
 
 describe("the page under a sheet", () => {
-  it("the demo strip and tab bar are hidden from accessibility while a sheet is on top and restored after", () => {
+  it("the demo strip and tab bar are hidden from accessibility while a sheet is on top and restored after", async () => {
     jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
     const strip = () => screen.getByTestId("demo-strip", { includeHiddenElements: true });
-    const page = render(<DemoStrip label="Demo (data contoh)" />);
+    const page = await render(<DemoStrip label="Demo (data contoh)" />);
     expect(strip().props).toMatchObject({ accessible: true, importantForAccessibility: "auto", accessibilityElementsHidden: false });
     expect(screen.getByLabelText("Demo (data contoh)")).toBeTruthy();
     expect(tabBarNativeProps(false, "ios")).toEqual({ accessibilityElementsHidden: false });
 
     // A sheet rises: the strip leaves the accessibility tree on both platforms.
-    page.rerender(
+    await page.rerender(
       <>
         <DemoStrip label="Demo (data contoh)" />
         <SheetHeader title="Ada masalah" os="android" />
@@ -155,21 +155,21 @@ describe("the page under a sheet", () => {
     expect(tabBarNativeProps(true, "android")).toEqual({});
 
     // A confirm sheet over the first one keeps the page hidden; the page comes back only when the last sheet goes.
-    page.rerender(
+    await page.rerender(
       <>
         <DemoStrip label="Demo (data contoh)" />
         <SheetHeader title="Ada masalah" os="android" />
         <SheetHeader title="Buang laporan?" os="android" />
       </>,
     );
-    page.rerender(
+    await page.rerender(
       <>
         <DemoStrip label="Demo (data contoh)" />
         <SheetHeader title="Ada masalah" os="android" />
       </>,
     );
     expect(strip().props.importantForAccessibility).toBe("no-hide-descendants");
-    page.rerender(<DemoStrip label="Demo (data contoh)" />);
+    await page.rerender(<DemoStrip label="Demo (data contoh)" />);
     expect(strip().props).toMatchObject({ accessible: true, importantForAccessibility: "auto", accessibilityElementsHidden: false });
     expect(screen.getByLabelText("Demo (data contoh)")).toBeTruthy();
   });
@@ -189,52 +189,52 @@ describe("the strip follows the sheet's focus, not its mount", () => {
     jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
   });
 
-  it("a push over the sheet restores the strip, and coming back hides it again", () => {
+  it("a push over the sheet restores the strip, and coming back hides it again", async () => {
     // Signed out, Kirim laporan pushes /login over Ada masalah without closing it: the sheet stays mounted under it.
     const ada = fakeNavigation("tab");
-    const view = render(
+    const view = await render(
       <>
         <DemoStrip label={LABEL} />
         {sheet(ada.navigation)}
       </>,
     );
     expect(hidden()).toBe(true);
-    ada.emit("blur");
+    await ada.emit("blur");
     expect(hidden()).toBe(false);
     expect(screen.getByLabelText(LABEL)).toBeTruthy();
-    ada.emit("focus");
+    await ada.emit("focus");
     expect(hidden()).toBe(true);
-    view.unmount();
+    await view.unmount();
   });
 
-  it("a blur (tab switch) restores the strip, and the sheet leaving while blurred does not count twice", () => {
+  it("a blur (tab switch) restores the strip, and the sheet leaving while blurred does not count twice", async () => {
     // Android keeps tab A's stack, its sheet included, mounted after a switch to tab B.
     const ada = fakeNavigation("tab");
-    const view = render(
+    const view = await render(
       <>
         <DemoStrip label={LABEL} />
         {sheet(ada.navigation)}
       </>,
     );
-    ada.emit("blur");
+    await ada.emit("blur");
     expect(hidden()).toBe(false);
-    view.rerender(<DemoStrip label={LABEL} />);
+    await view.rerender(<DemoStrip label={LABEL} />);
     expect(hidden()).toBe(false);
     // A later sheet still hides the strip: the count did not go below zero.
     const next = fakeNavigation("tab");
-    view.rerender(
+    await view.rerender(
       <>
         <DemoStrip label={LABEL} />
         {sheet(next.navigation, "Ubah hari")}
       </>,
     );
     expect(hidden()).toBe(true);
-    view.unmount();
+    await view.unmount();
   });
 
-  it("a confirm over a sheet keeps the strip hidden until the last sheet goes", () => {
+  it("a confirm over a sheet keeps the strip hidden until the last sheet goes", async () => {
     const ada = fakeNavigation("tab");
-    const view = render(
+    const view = await render(
       <>
         <DemoStrip label={LABEL} />
         {sheet(ada.navigation)}
@@ -242,32 +242,32 @@ describe("the strip follows the sheet's focus, not its mount", () => {
     );
     // The root stack presents the confirm (focused) and the sheet under it blurs.
     const confirm = fakeNavigation(null);
-    view.rerender(
+    await view.rerender(
       <>
         <DemoStrip label={LABEL} />
         {sheet(ada.navigation)}
         {sheet(confirm.navigation, "Buang laporan?")}
       </>,
     );
-    ada.emit("blur");
+    await ada.emit("blur");
     expect(hidden()).toBe(true);
     // The confirm closes and the sheet takes the focus back: still hidden.
-    view.rerender(
+    await view.rerender(
       <>
         <DemoStrip label={LABEL} />
         {sheet(ada.navigation)}
       </>,
     );
-    ada.emit("focus");
+    await ada.emit("focus");
     expect(hidden()).toBe(true);
-    view.rerender(<DemoStrip label={LABEL} />);
+    await view.rerender(<DemoStrip label={LABEL} />);
     expect(hidden()).toBe(false);
-    view.unmount();
+    await view.unmount();
   });
 });
 
 describe("tab-stack form sheets", () => {
-  it("the form sheet content reserves the tab bar height", () => {
+  it("the form sheet content reserves the tab bar height", async () => {
     jest.spyOn(SafeArea, "useSafeAreaInsets").mockReturnValue({ top: 24, bottom: 24, left: 0, right: 0 });
     const keyboard: Record<string, () => void> = {};
     jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: () => void) => {
@@ -287,30 +287,30 @@ describe("tab-stack form sheets", () => {
 
     // Android, in a tab's stack: the bar (80dp and the system inset under it) is drawn over the sheet's bottom, so the
     // scroll view ends above it and the last button scrolls clear of it.
-    let view = within("tab", "android");
+    let view = await within("tab", "android");
     expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(ANDROID_TAB_BAR + 24);
     expect(StyleSheet.flatten(body().props.contentContainerStyle).paddingBottom).toBe(24);
 
     // The keyboard covers the bar: no reserve while it is up, and it returns when it goes.
-    act(() => keyboard.keyboardDidShow());
+    await act(() => keyboard.keyboardDidShow());
     expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(0);
     expect(StyleSheet.flatten(body().props.contentContainerStyle).paddingBottom).toBe(24 + 24);
-    act(() => keyboard.keyboardDidHide());
+    await act(() => keyboard.keyboardDidHide());
     expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(ANDROID_TAB_BAR + 24);
-    view.unmount();
+    await view.unmount();
 
     // A sheet over the root stack (a purchase, the Dapur import) has no bar under it; iOS presents every sheet above
     // the tab bar. Both keep the plain foot over the system inset.
-    view = within("stack", "android");
+    view = await within("stack", "android");
     expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(0);
     expect(StyleSheet.flatten(body().props.contentContainerStyle).paddingBottom).toBe(24 + 24);
-    view.unmount();
-    within("tab", "ios");
+    await view.unmount();
+    await within("tab", "ios");
     expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(0);
     expect(StyleSheet.flatten(body().props.contentContainerStyle).paddingBottom).toBe(24 + 24);
   });
 
-  it("the reserve grows with the bar's label at font scale 1.3", () => {
+  it("the reserve grows with the bar's label at font scale 1.3", async () => {
     jest.spyOn(SafeArea, "useSafeAreaInsets").mockReturnValue({ top: 24, bottom: 24, left: 0, right: 0 });
     // The bar's 12/16 label line grows 16 × 0.3 = 4.8dp at 1.3; the reserve rounds it up and never shrinks below 80.
     expect(androidTabBarHeight(1)).toBe(ANDROID_TAB_BAR);
@@ -318,7 +318,7 @@ describe("tab-stack form sheets", () => {
     expect(androidTabBarHeight(1.3)).toBe(ANDROID_TAB_BAR + 5);
     mockFontScale = 1.3;
     const { navigation } = fakeNavigation("tab");
-    render(
+    await render(
       <NavigationContext.Provider value={navigation as never}>
         <SheetBody os="android">{null}</SheetBody>
       </NavigationContext.Provider>,

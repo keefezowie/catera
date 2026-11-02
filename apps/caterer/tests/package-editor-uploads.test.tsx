@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
-import { Image as ExpoImage } from "expo-image";
 import { nativePhoto, nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { cardEdge, withAlpha } from "@catera/mobile-ui";
@@ -8,6 +7,7 @@ import { PackageEditor } from "../src/business/PackageEditor";
 import { PhotoThumb } from "../src/layout/PhotoThumb";
 import * as uploadModule from "../src/business/upload";
 import { withDapurScale } from "./dapur-scale";
+import { findAll, oneImage } from "./host-queries";
 import { lastGuard, resetSheets, unsavedGuard } from "./sheet-host";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
@@ -33,8 +33,8 @@ function runtimeWith(command?: jest.Mock): MobileRuntime {
   return runtime;
 }
 
-const mount = (runtime: MobileRuntime, props: { firstPublish?: boolean | null } = {}) =>
-  render(
+const mount = async (runtime: MobileRuntime, props: { firstPublish?: boolean | null } = {}) =>
+  await render(
     withDapurScale(
       <MobileProvider runtime={runtime} linkMapper={() => "/"}>
         <PackageEditor {...props} />
@@ -53,32 +53,32 @@ beforeEach(() => {
 
 describe("PackageEditor unsaved guard", () => {
   it("is quiet on a fresh editor, holds once a field changed, and lets go when the field is put back", async () => {
-    mount(runtimeWith());
+    await mount(runtimeWith());
     await screen.findByRole("button", { name: "Terbitkan paket" });
     expect(lastGuard()).toBeNull();
-    fireEvent.changeText(screen.getByLabelText("Nama paket"), "Makan Malam");
+    await fireEvent.changeText(screen.getByLabelText("Nama paket"), "Makan Malam");
     expect(lastGuard()).toMatchObject({ noun: "paket", voice: "kamu" });
-    fireEvent.changeText(screen.getByLabelText("Nama paket"), "");
+    await fireEvent.changeText(screen.getByLabelText("Nama paket"), "");
     expect(lastGuard()).toBeNull();
   });
 
   it("is off after a later (edit) save, before the screen goes back", async () => {
     const { router } = require("expo-router") as { router: { back: jest.Mock } };
     const command = jest.fn(async () => ({ id: "p-1" }));
-    mount(runtimeWith(command), { firstPublish: false });
-    fireEvent.changeText(await screen.findByLabelText("Nama paket"), "Makan Malam");
+    await mount(runtimeWith(command), { firstPublish: false });
+    await fireEvent.changeText(await screen.findByLabelText("Nama paket"), "Makan Malam");
     expect(lastGuard()).not.toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(router.back).toHaveBeenCalled());
     expect(lastGuard()).toBeNull();
   });
 
   it("is off after a successful save", async () => {
     const command = jest.fn(async () => ({ id: "p-1" }));
-    mount(runtimeWith(command), { firstPublish: true });
-    fireEvent.changeText(await screen.findByLabelText("Nama paket"), "Makan Malam");
+    await mount(runtimeWith(command), { firstPublish: true });
+    await fireEvent.changeText(await screen.findByLabelText("Nama paket"), "Makan Malam");
     expect(lastGuard()).not.toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await screen.findByText("Selesai");
     expect(lastGuard()).toBeNull();
   });
@@ -89,46 +89,46 @@ describe("PackageEditor errors sit by what failed", () => {
     const command = jest.fn(async () => {
       throw new Error("NETWORK");
     });
-    mount(runtimeWith(command));
-    fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
+    await mount(runtimeWith(command));
+    await fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
     const error = await screen.findByTestId("form-error-save");
     const sections = screen.getByTestId("paket-sections");
     const button = screen.getByRole("button", { name: "Terbitkan paket" });
     // The nearest ancestor that holds both the error and the button must not hold the form: it is the footer.
     let node = error.parent;
-    while (node && node.findAll((n) => n === button).length === 0) node = node.parent;
+    while (node && findAll(node, (n) => n === button).length === 0) node = node.parent;
     expect(node).toBeTruthy();
-    expect(node!.findAll((n) => n === sections)).toHaveLength(0);
+    expect(findAll(node!, (n) => n === sections)).toHaveLength(0);
   });
 
   it("shows a failed upload under the photo tile", async () => {
     picker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///x.jpg" }] });
     jest.spyOn(uploadModule, "uploadPhoto").mockRejectedValue(new Error("NETWORK"));
-    mount(runtimeWith());
+    await mount(runtimeWith());
     const tile = await screen.findByRole("button", { name: "Pilih foto paket" });
-    fireEvent.press(tile);
+    await fireEvent.press(tile);
     const error = await screen.findByTestId("form-error-upload");
     // The nearest ancestor holding both is the photo section, not the form.
     let node = error.parent;
-    while (node && node.findAll((n) => n === tile).length === 0) node = node.parent;
-    expect(node!.findAll((n) => n === screen.getByTestId("paket-sections"))).toHaveLength(0);
-    expect(node!.findAll((n) => n.props?.testID === "paket-counts")).toHaveLength(0);
+    while (node && findAll(node, (n) => n === tile).length === 0) node = node.parent;
+    expect(findAll(node!, (n) => n === screen.getByTestId("paket-sections"))).toHaveLength(0);
+    expect(findAll(node!, (n) => n.props?.testID === "paket-counts")).toHaveLength(0);
     expect(screen.queryByTestId("form-error-save")).toBeNull();
   });
 
   it("says the photo was not uploaded when the upload fails, and keeps the save error's key alone", async () => {
     picker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///x.jpg" }] });
     jest.spyOn(uploadModule, "uploadPhoto").mockRejectedValue(new Error("plain"));
-    mount(runtimeWith());
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
+    await mount(runtimeWith());
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
     expect(await screen.findByText("Foto belum terunggah. Coba lagi.")).toBeTruthy();
     expect(screen.queryByText("Foto belum bisa dipilih. Coba lagi.")).toBeNull();
   });
 
   it("catches a picker that throws and says so in Indonesian", async () => {
     picker.launchImageLibraryAsync.mockRejectedValue(new Error("no permission"));
-    mount(runtimeWith());
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
+    await mount(runtimeWith());
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
     expect(await screen.findByText("Foto belum bisa dipilih. Coba lagi.")).toBeTruthy();
   });
 });
@@ -137,21 +137,21 @@ describe("PackageEditor photo tile", () => {
   it("is busy and disabled while uploading, says Mengunggah over an existing photo, and is named Ganti foto paket", async () => {
     picker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///x.jpg" }] });
     const upload = jest.spyOn(uploadModule, "uploadPhoto").mockResolvedValueOnce("https://cdn.example.test/one.jpg");
-    mount(runtimeWith());
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
+    await mount(runtimeWith());
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
     await screen.findByTestId("paket-photo-image");
     expect(screen.queryByRole("button", { name: "Pilih foto paket" })).toBeNull();
 
     let finish: (url: string) => void = () => undefined;
     upload.mockImplementationOnce(() => new Promise<string>((resolve) => (finish = resolve)));
-    fireEvent.press(screen.getByRole("button", { name: "Ganti foto paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti foto paket" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Ganti foto paket" }).props.accessibilityState).toMatchObject({ busy: true, disabled: true }),
     );
     expect(screen.getByText("Mengunggah…")).toBeTruthy();
     expect(screen.getByTestId("paket-photo-image")).toBeTruthy();
     // A second tap while it uploads opens nothing.
-    fireEvent.press(screen.getByRole("button", { name: "Ganti foto paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti foto paket" }));
     expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(2);
     await act(async () => finish("https://cdn.example.test/two.jpg"));
     await waitFor(() =>
@@ -163,11 +163,11 @@ describe("PackageEditor photo tile", () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("dark");
     picker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///x.jpg" }] });
     const upload = jest.spyOn(uploadModule, "uploadPhoto").mockResolvedValueOnce("https://cdn.example.test/one.jpg");
-    mount(runtimeWith());
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
+    await mount(runtimeWith());
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
     await screen.findByTestId("paket-photo-image");
     upload.mockImplementationOnce(() => new Promise<string>(() => undefined));
-    fireEvent.press(screen.getByRole("button", { name: "Ganti foto paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti foto paket" }));
     const label = await screen.findByText("Mengunggah…");
     expect(flat(label).color).toBe(nativeThemes.light.cream);
     let veil = label.parent!;
@@ -176,7 +176,7 @@ describe("PackageEditor photo tile", () => {
   });
 
   it("draws the empty tile with the card edge", async () => {
-    mount(runtimeWith());
+    await mount(runtimeWith());
     const tile = await screen.findByTestId("paket-photo-empty");
     const edge = cardEdge(nativeThemes.light);
     expect(flat(tile)).toMatchObject({ borderWidth: edge.borderWidth, borderColor: edge.borderColor });
@@ -184,9 +184,9 @@ describe("PackageEditor photo tile", () => {
 });
 
 describe("PhotoThumb", () => {
-  it("rounds its image with a continuous curve and fades in on the selection beat", () => {
-    render(withDapurScale(<PhotoThumb uri="https://cdn.example.test/a.jpg" />));
-    const image = screen.UNSAFE_getByType(ExpoImage);
+  it("rounds its image with a continuous curve and fades in on the selection beat", async () => {
+    await render(withDapurScale(<PhotoThumb uri="https://cdn.example.test/a.jpg" />));
+    const image = oneImage();
     expect(flat(image)).toMatchObject({ borderCurve: "continuous" });
     expect(image.props.transition).toBe(260);
   });

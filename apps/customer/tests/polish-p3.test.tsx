@@ -84,8 +84,8 @@ function runtimeWith(over: Record<string, unknown> = {}, actor: Record<string, u
   return runtime;
 }
 
-const mount = (runtime: MobileRuntime, ui: React.ReactElement) =>
-  render(
+const mount = async (runtime: MobileRuntime, ui: React.ReactElement) =>
+  await render(
     <ThemeProvider storageKey="polish-p3">
       <MoodProvider now={() => new Date("2026-10-09T03:00:00Z")}>
         <MobileProvider runtime={runtime} linkMapper={customerLink}>
@@ -106,7 +106,7 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 describe("category art", () => {
-  it("matches the caterers' own tags to the canvas art, and nothing else", () => {
+  it("matches the caterers' own tags to the canvas art, and nothing else", async () => {
     expect(categoryArt("Menu Nusantara")).toBe("category-nusantara");
     expect(categoryArt("Sehat")).toBe("category-sehat");
     expect(categoryArt("Pedas")).toBe("spot-cabai");
@@ -117,7 +117,7 @@ describe("category art", () => {
     expect(categoryArt("Rumahan")).toBeNull();
   });
 
-  it("gives each art to its most frequent tag and leaves the rest as chips", () => {
+  it("gives each art to its most frequent tag and leaves the rest as chips", async () => {
     const o = (id: string, tags: string[]) => offer({ id, tags });
     const { tiles, chips } = categoryTiles([o("a", ["Nusantara", "Rumahan"]), o("b", ["Nusantara", "Menu Nusantara"]), o("c", ["Pedas"])], 6);
     expect(tiles).toEqual([
@@ -133,19 +133,19 @@ describe("lauk sort", () => {
   const ayam = offer({ id: "p-ayam", name: "Paket Harian" }); // its menu holds "Ayam bakar madu"
   const sayur = offer({ id: "p-sayur", name: "Paket Hijau", tags: ["Nabati"], menus: [] });
 
-  it("counts the choices a package's name, tags or menu match", () => {
+  it("counts the choices a package's name, tags or menu match", async () => {
     expect(laukScore(ayam, ["ayam", "sayur"], "id")).toBe(2); // ayam bakar madu, sayur asem
     expect(laukScore(ikan, ["ayam"], "id")).toBe(0);
     expect(laukScore(sayur, ["sayur"], "id")).toBe(1);
   });
 
-  it("puts better matches first and keeps the catalogue order otherwise; no choices changes nothing", () => {
+  it("puts better matches first and keeps the catalogue order otherwise; no choices changes nothing", async () => {
     expect(sortByLauk([ayam, ikan, sayur], ["ikan"], "id").map((o) => o.id)).toEqual(["p-ikan", "p-ayam", "p-sayur"]);
     const list = [ayam, ikan, sayur];
     expect(sortByLauk(list, [], "id")).toBe(list);
   });
 
-  it("only says tanpa santan when a caterer wrote it", () => {
+  it("only says tanpa santan when a caterer wrote it", async () => {
     expect(laukScore(offer({ name: "Sayur bening", menus: [] }), ["tanpa-santan"], "id")).toBe(0);
     expect(laukScore(offer({ name: "Sayur bening", tags: ["Tanpa santan"], menus: [] }), ["tanpa-santan"], "id")).toBe(1);
   });
@@ -157,7 +157,7 @@ describe("Jelajah", () => {
   const catalog = (items: Offer[]) => ({ catalog: jest.fn(async () => ({ items, nextCursor: null })) });
 
   it("draws an art chip for each tag that has art, in the one chip row ahead of the plain tags, filtering like a chip", async () => {
-    mount(runtimeWith(catalog([sehat, pedas])), <Jelajah />);
+    await mount(runtimeWith(catalog([sehat, pedas])), <Jelajah />);
     await screen.findByText("Menu Sehat");
     const row = within(screen.getByTestId("chip-row"));
     expect(row.getAllByRole("button").map((b) => b.props.accessibilityLabel ?? "").filter((l) => l.startsWith("Kategori"))).toEqual([
@@ -171,15 +171,15 @@ describe("Jelajah", () => {
     // A 34 chip that reaches the 44 target through its hit slop, like every chip in the row (the grid keeps its fold).
     const tile = screen.getByRole("button", { name: "Kategori Sehat" });
     expect(flat(tile).minHeight + tile.props.hitSlop.top + tile.props.hitSlop.bottom).toBe(44);
-    fireEvent.press(tile);
+    await fireEvent.press(tile);
     expect(screen.getByRole("button", { name: "Kategori Sehat" }).props.accessibilityState.selected).toBe(true);
     expect(screen.queryByText("Paket Balado")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Kategori Sehat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kategori Sehat" }));
     expect(screen.getByText("Paket Balado")).toBeTruthy();
   });
 
   it("has no art chip when no tag has art", async () => {
-    mount(runtimeWith(catalog([offer({ tags: ["Rumahan"] })])), <Jelajah />);
+    await mount(runtimeWith(catalog([offer({ tags: ["Rumahan"] })])), <Jelajah />);
     await screen.findByText("Makan Siang Rumahan");
     expect(screen.queryByTestId("category-art-chip")).toBeNull();
   });
@@ -188,7 +188,7 @@ describe("Jelajah", () => {
     mockPrefs = ["ikan"];
     const a = offer({ id: "p-a", name: "Paket Ayam", menus: [] });
     const b = offer({ id: "p-b", name: "Paket Ikan Bakar", menus: [] });
-    mount(runtimeWith(catalog([a, b])), <Jelajah />);
+    await mount(runtimeWith(catalog([a, b])), <Jelajah />);
     await screen.findByText("Paket Ikan Bakar");
     const names = screen.getAllByTestId("package-cell").map((c) => within(c).getByText(/^Paket /).props.children);
     expect(names).toEqual(["Paket Ikan Bakar", "Paket Ayam"]);
@@ -196,7 +196,7 @@ describe("Jelajah", () => {
 
   it("an area no caterer reaches shows the empty-area art and Lihat semua area", async () => {
     await SecureStore.setItemAsync("catera.area", "Menteng");
-    mount(runtimeWith(catalog([sehat])), <Jelajah />);
+    await mount(runtimeWith(catalog([sehat])), <Jelajah />);
     expect(await screen.findByText(/Belum ada katering yang antar ke/)).toBeTruthy();
     expect(art("empty-area")).toHaveLength(1);
     expect(screen.queryByTestId("mascot-mencari", hidden)).toBeNull();
@@ -204,9 +204,9 @@ describe("Jelajah", () => {
   });
 
   it("filters that match nothing show the saringan art and Hapus pilihan", async () => {
-    mount(runtimeWith(catalog([sehat])), <Jelajah />);
+    await mount(runtimeWith(catalog([sehat])), <Jelajah />);
     await screen.findByText("Menu Sehat");
-    fireEvent.changeText(screen.getByLabelText("Cari paket"), "rendang");
+    await fireEvent.changeText(screen.getByLabelText("Cari paket"), "rendang");
     expect(screen.getByText("Belum ada paket yang cocok.")).toBeTruthy();
     expect(art("spot-saringan")).toHaveLength(1);
     expect(screen.queryByTestId("mascot-mencari", hidden)).toBeNull();
@@ -214,26 +214,26 @@ describe("Jelajah", () => {
   });
 
   it("nothing on offer shows empty-area, and a meal with no packages shows the saringan art, never the mascot", async () => {
-    mount(runtimeWith(), <Jelajah />);
+    await mount(runtimeWith(), <Jelajah />);
     expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
     expect(art("empty-area")).toHaveLength(1);
-    screen.unmount();
-    mount(runtimeWith(catalog([offer({ id: "p-malam", name: "Paket Malam", meal: "dinner" })])), <Jelajah />);
+    await screen.unmount();
+    await mount(runtimeWith(catalog([offer({ id: "p-malam", name: "Paket Malam", meal: "dinner" })])), <Jelajah />);
     expect(await screen.findByText("Belum ada paket makan siang.")).toBeTruthy();
     expect(art("spot-saringan")).toHaveLength(1);
     expect(screen.queryByTestId("mascot-mencari", hidden)).toBeNull();
   });
 
   it("draws the empty art at 160, and smaller on a 360dp phone at font scale 1.3", async () => {
-    mount(runtimeWith(catalog([sehat])), <Jelajah />);
+    await mount(runtimeWith(catalog([sehat])), <Jelajah />);
     await screen.findByText("Menu Sehat");
-    fireEvent.changeText(screen.getByLabelText("Cari paket"), "rendang");
+    await fireEvent.changeText(screen.getByLabelText("Cari paket"), "rendang");
     expect(flat(art("spot-saringan")[0])).toMatchObject({ width: 160, height: 160 });
-    screen.unmount();
+    await screen.unmount();
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    mount(runtimeWith(catalog([sehat])), <Jelajah />);
+    await mount(runtimeWith(catalog([sehat])), <Jelajah />);
     await screen.findByText("Menu Sehat");
-    fireEvent.changeText(screen.getByLabelText("Cari paket"), "rendang");
+    await fireEvent.changeText(screen.getByLabelText("Cari paket"), "rendang");
     expect(flat(art("spot-saringan")[0]).width).toBeLessThan(160);
   });
 });
@@ -241,7 +241,7 @@ describe("Jelajah", () => {
 describe("Paket", () => {
   const open = async (o: Offer, request: jest.Mock = jest.fn(async () => [])) => {
     mockParams = { id: o.id };
-    mount(runtimeWith({ offer: jest.fn(async () => ({ offer: o })), request }), <PackageDetail />);
+    await mount(runtimeWith({ offer: jest.fn(async () => ({ offer: o })), request }), <PackageDetail />);
     await screen.findByTestId("paket-name");
   };
   const rows = () => screen.getAllByTestId("paket-termasuk-row");
@@ -293,7 +293,7 @@ describe("Paket", () => {
 
 describe("empty states", () => {
   it("Disimpan with nothing saved shows the lid-heart art", async () => {
-    mount(runtimeWith(), <SavedList />);
+    await mount(runtimeWith(), <SavedList />);
     expect(await screen.findByText("Belum ada paket tersimpan.")).toBeTruthy();
     expect(art("spot-lid-heart")).toHaveLength(1);
     expect(screen.queryByTestId("mascot-mencari", hidden)).toBeNull();
@@ -301,16 +301,16 @@ describe("empty states", () => {
   });
 
   it("Notifikasi with no updates shows the kentongan art and opens Pengaturan", async () => {
-    mount(runtimeWith(), <NotificationsScreen />);
+    await mount(runtimeWith(), <NotificationsScreen />);
     expect(await screen.findByText("Belum ada notifikasi baru.")).toBeTruthy();
     expect(art("empty-kentongan-lid")).toHaveLength(1);
     expect(screen.queryByTestId("mascot-tidur", hidden)).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Pengaturan notifikasi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Pengaturan notifikasi" }));
     expect(router.push).toHaveBeenCalledWith("/pengaturan");
   });
 
   it("Bantuan dan laporan with no reports shows the nota art and keeps Minta bantuan", async () => {
-    mount(runtimeWith(), <ReportList />);
+    await mount(runtimeWith(), <ReportList />);
     expect(await screen.findByText("Belum ada laporan")).toBeTruthy();
     expect(art("spot-nota")).toHaveLength(1);
     expect(screen.queryByTestId("mascot-tidur", hidden)).toBeNull();
@@ -320,7 +320,7 @@ describe("empty states", () => {
 
 describe("Akun", () => {
   it("the three tiles wear their spot art at 48, and there is no referral card", async () => {
-    mount(runtimeWith(), <Akun />);
+    await mount(runtimeWith(), <Akun />);
     await screen.findByTestId("akun-tiles");
     const tiles = { "akun-tile-paket": "spot-rantang", "akun-tile-alamat": "spot-pin-lid", "akun-tile-riwayat": "spot-nota" } as const;
     for (const [id, name] of Object.entries(tiles)) {

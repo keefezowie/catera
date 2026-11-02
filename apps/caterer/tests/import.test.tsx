@@ -10,6 +10,7 @@ import { toImportRow } from "../src/import/rows";
 import { ImportRowEditor } from "../src/import/RowEditor";
 import { declared, resetSheets, SheetHost } from "./sheet-host";
 import { withDapurScale } from "./dapur-scale";
+import { findInScreen } from "./host-queries";
 
 /** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
@@ -99,16 +100,16 @@ it("saves only the rows that need no checking", async () => {
   } as unknown as MobileRuntime["api"];
   const fetchMock = jest.fn(async () => ({ ok: true, json: async () => ({ data: { rows, needsReview: 2 } }) }));
   global.fetch = fetchMock as unknown as typeof fetch;
-  render(
+  await render(
     withDapurScale(
       <MobileProvider runtime={runtime} linkMapper={() => "/"}>
         <Impor />
       </MobileProvider>,
     ),
   );
-  fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar pelanggan saya …");
-  fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
-  fireEvent.press(await screen.findByRole("button", { name: "Simpan 25 pelanggan" }));
+  await fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar pelanggan saya …");
+  await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Simpan 25 pelanggan" }));
   await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", { catererId: "k-1", id: "pv-1" }, expect.any(String)));
   const preview = command.mock.calls.find((c) => c[0] === "import.preview")! as unknown as [string, { rows: { externalReference: string }[] }];
   expect(preview[1].rows).toHaveLength(25);
@@ -152,16 +153,16 @@ it("does not retry row by row when the connection drops", async () => {
     command,
   } as unknown as MobileRuntime["api"];
   global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ data: { rows: rows.slice(0, 3), needsReview: 0 } }) })) as unknown as typeof fetch;
-  render(
+  await render(
     withDapurScale(
       <MobileProvider runtime={runtime} linkMapper={() => "/"}>
         <Impor />
       </MobileProvider>,
     ),
   );
-  fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
-  fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
-  fireEvent.press(await screen.findByRole("button", { name: "Simpan 3 pelanggan" }));
+  await fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+  await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Simpan 3 pelanggan" }));
   await waitFor(() => expect(command).toHaveBeenCalled());
   await new Promise((r) => setTimeout(r, 50));
   expect(command).toHaveBeenCalledTimes(1);
@@ -169,7 +170,7 @@ it("does not retry row by row when the connection drops", async () => {
 });
 
 const disabled = { ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_ASSISTANT_DISABLED" } }) };
-function setup(command: jest.Mock, response: { ok: boolean; status?: number; json: () => Promise<unknown> }) {
+async function setup(command: jest.Mock, response: { ok: boolean; status?: number; json: () => Promise<unknown> }) {
   const runtime = createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" });
   runtime.api = {
     ...runtime.api,
@@ -184,7 +185,7 @@ function setup(command: jest.Mock, response: { ok: boolean; status?: number; jso
     command,
   } as unknown as MobileRuntime["api"];
   global.fetch = jest.fn(async () => response) as unknown as typeof fetch;
-  render(
+  await render(
     withDapurScale(
       <ThemeProvider storageKey="impor.undo.theme">
         <MobileProvider runtime={runtime} linkMapper={() => "/"}>
@@ -197,22 +198,22 @@ function setup(command: jest.Mock, response: { ok: boolean; status?: number; jso
   );
 }
 const read = async () => {
-  fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
-  fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+  await fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+  await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
 };
 
 it("offers manual entry, not 'try later', when the assistant is switched off", async () => {
-  setup(jest.fn(), disabled);
+  await setup(jest.fn(), disabled);
   await read();
   expect(await screen.findByText("Asisten impor belum aktif. Kamu tetap bisa memasukkan pelanggan satu per satu.")).toBeTruthy();
   expect(screen.queryByText(/Coba lagi nanti/)).toBeNull();
-  fireEvent.press(screen.getByRole("button", { name: "Isi manual" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Isi manual" }));
   expect(await screen.findByText("Tanpa nama")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Tambah baris" })).toBeTruthy();
 });
 
 it("keeps 'Coba lagi nanti' and no manual button for a real outage", async () => {
-  setup(jest.fn(), { ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) });
+  await setup(jest.fn(), { ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) });
   await read();
   expect(await screen.findByText("Asisten impor sedang tidak tersedia. Coba lagi nanti.")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Isi manual" })).toBeNull();
@@ -220,20 +221,20 @@ it("keeps 'Coba lagi nanti' and no manual button for a real outage", async () =>
 
 it("a phone typed and never blurred still reaches the preview in the +62 form", async () => {
   const command = jest.fn(async (action: string) => (action === "import.preview" ? { id: "pv-9", rows: [] } : { created: 1 }));
-  setup(command, disabled);
+  await setup(command, disabled);
   await read();
-  fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
-  fireEvent.changeText(await screen.findByLabelText("Nama"), "Bu Ani");
+  await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+  await fireEvent.changeText(await screen.findByLabelText("Nama"), "Bu Ani");
   // changeText only: the keyboard never ends the edit before Selesai is pressed.
-  fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3456 7890");
-  fireEvent.changeText(screen.getByLabelText("Alamat"), "Jl. Melati 5");
-  fireEvent.changeText(screen.getByLabelText("Area"), "Tebet");
-  fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta Selatan");
-  fireEvent.press(screen.getByRole("button", { name: "Paket Hemat Kantor" }));
-  fireEvent.changeText(screen.getByLabelText("Antar berikutnya (TTTT-BB-HH)"), "2999-01-05");
-  fireEvent.changeText(screen.getByLabelText("Sisa hari"), "8");
-  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
-  fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
+  await fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3456 7890");
+  await fireEvent.changeText(screen.getByLabelText("Alamat"), "Jl. Melati 5");
+  await fireEvent.changeText(screen.getByLabelText("Area"), "Tebet");
+  await fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta Selatan");
+  await fireEvent.press(screen.getByRole("button", { name: "Paket Hemat Kantor" }));
+  await fireEvent.changeText(screen.getByLabelText("Antar berikutnya (TTTT-BB-HH)"), "2999-01-05");
+  await fireEvent.changeText(screen.getByLabelText("Sisa hari"), "8");
+  await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
   await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", { catererId: "k-1", id: "pv-9" }, expect.any(String)));
   const preview = command.mock.calls.find((c) => c[0] === "import.preview")! as unknown as [string, { rows: Record<string, any>[] }];
   expect(preview[1].rows[0].customer.phone).toBe("+6281234567890");
@@ -241,21 +242,21 @@ it("a phone typed and never blurred still reaches the preview in the +62 form", 
 
 it("saves manually typed rows through import.preview then import.commit", async () => {
   const command = jest.fn(async (action: string) => (action === "import.preview" ? { id: "pv-9", rows: [] } : { created: 1 }));
-  setup(command, disabled);
+  await setup(command, disabled);
   await read();
-  fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
   // the empty row opens for editing; it cannot be saved yet
   expect(screen.getByRole("button", { name: "Simpan 0 pelanggan" }).props.accessibilityState?.disabled).toBe(true);
-  fireEvent.changeText(await screen.findByLabelText("Nama"), "Bu Ani");
-  fireEvent(screen.getByLabelText("Nomor WhatsApp"), "endEditing", { nativeEvent: { text: "0812 3456 7890" } });
-  fireEvent.changeText(screen.getByLabelText("Alamat"), "Jl. Melati 5");
-  fireEvent.changeText(screen.getByLabelText("Area"), "Tebet");
-  fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta Selatan");
-  fireEvent.press(screen.getByRole("button", { name: "Paket Hemat Kantor" }));
-  fireEvent.changeText(screen.getByLabelText("Antar berikutnya (TTTT-BB-HH)"), "2999-01-05");
-  fireEvent.changeText(screen.getByLabelText("Sisa hari"), "8");
-  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
-  fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
+  await fireEvent.changeText(await screen.findByLabelText("Nama"), "Bu Ani");
+  await fireEvent(screen.getByLabelText("Nomor WhatsApp"), "endEditing", { nativeEvent: { text: "0812 3456 7890" } });
+  await fireEvent.changeText(screen.getByLabelText("Alamat"), "Jl. Melati 5");
+  await fireEvent.changeText(screen.getByLabelText("Area"), "Tebet");
+  await fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta Selatan");
+  await fireEvent.press(screen.getByRole("button", { name: "Paket Hemat Kantor" }));
+  await fireEvent.changeText(screen.getByLabelText("Antar berikutnya (TTTT-BB-HH)"), "2999-01-05");
+  await fireEvent.changeText(screen.getByLabelText("Sisa hari"), "8");
+  await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
   await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", { catererId: "k-1", id: "pv-9" }, expect.any(String)));
   const preview = command.mock.calls.find((c) => c[0] === "import.preview")! as unknown as [string, { rows: Record<string, any>[] }];
   expect(preview[1].rows).toHaveLength(1);
@@ -269,29 +270,29 @@ it("saves manually typed rows through import.preview then import.commit", async 
 });
 
 it("adds another empty row with Tambah baris", async () => {
-  setup(jest.fn(), disabled);
+  await setup(jest.fn(), disabled);
   await read();
-  fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
-  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
-  fireEvent.press(screen.getByRole("button", { name: "Tambah baris" }));
-  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Tambah baris" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
   expect(screen.getAllByText("Tanpa nama")).toHaveLength(2);
 });
 
 it("a review row dims on press and still opens its editor", async () => {
   const unset = row(1, { needsReview: true, reason: "Alamat belum lengkap" });
-  setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [unset], needsReview: 1 } }) });
+  await setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [unset], needsReview: 1 } }) });
   await read();
   const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
   const edit = async () => screen.findByRole("button", { name: "Ubah Pelanggan 1, perlu dicek: Alamat belum lengkap" });
-  fireEvent(await edit(), "responderGrant", touch);
+  await fireEvent(await edit(), "responderGrant", touch);
   expect(StyleSheet.flatten((await edit()).props.style).opacity).toBe(0.7);
   // What the row still needs is a to-do: its one line on the list, bold charcoal in its sheet, never a bare danger caption.
   const bold = { color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" };
   const reason = screen.getByText("Alamat belum lengkap");
   expect(flatStyle(reason)).toMatchObject({ fontSize: 13, lineHeight: 18, color: nativeThemes.light.muted });
   expect(reason.props.numberOfLines).toBeUndefined();
-  fireEvent.press(await edit());
+  await fireEvent.press(await edit());
   expect(await screen.findByRole("button", { name: "Selesai" })).toBeTruthy();
   expect(StyleSheet.flatten(screen.getByTestId("import-row-reason").props.style)).toMatchObject(bold);
 });
@@ -303,11 +304,11 @@ describe("deleting an import row", () => {
     screen.getAllByTestId("import-row").map((card) => (within(card).getByRole("button").props.accessibilityLabel as string).split(",")[0]);
   /** Opens row 2, renames it, and takes it off with Hapus baris ini. */
   async function deleteSecond() {
-    setup(jest.fn(), three);
+    await setup(jest.fn(), three);
     await read();
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
-    fireEvent.changeText(await screen.findByLabelText("Nama"), "Budi");
-    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
+    await fireEvent.changeText(await screen.findByLabelText("Nama"), "Budi");
+    await fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
   }
 
   it("deleting an import row shows the undo toast", async () => {
@@ -319,7 +320,7 @@ describe("deleting an import row", () => {
 
   it("Urungkan restores the row at its place with its edits", async () => {
     await deleteSecond();
-    fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
     await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Budi", "Ubah Pelanggan 3"]));
     expect(screen.queryByText("Baris dihapus")).toBeNull();
   });
@@ -329,7 +330,7 @@ describe("deleting an import row", () => {
     try {
       await deleteSecond();
       expect(await screen.findByText("Baris dihapus")).toBeTruthy();
-      act(() => void jest.advanceTimersByTime(5100));
+      await act(() => void jest.advanceTimersByTime(5100));
       await waitFor(() => expect(screen.queryByText("Baris dihapus")).toBeNull());
       expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Pelanggan 3"]);
     } finally {
@@ -338,11 +339,11 @@ describe("deleting an import row", () => {
   });
 
   it("deleting the only row, then Urungkan, brings it back", async () => {
-    setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [row(1)], needsReview: 0 } }) });
+    await setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [row(1)], needsReview: 0 } }) });
     await read();
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 1" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 1" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
     await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1"]));
   });
 
@@ -357,13 +358,13 @@ describe("deleting an import row", () => {
 
   it("a row deleted during a save stays gone, and Urungkan cannot bring back a customer that got saved", async () => {
     const { command, finish } = pendingCommit();
-    setup(command, three);
+    await setup(command, three);
     await read();
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan 3 pelanggan" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan 3 pelanggan" }));
     await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", { catererId: "k-1", id: "pv-1" }, expect.any(String)));
     // The save carries row 2; while it waits, the caterer deletes row 2.
-    fireEvent.press(screen.getByRole("button", { name: "Ubah Pelanggan 2" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ubah Pelanggan 2" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
     expect(await screen.findByText("Baris dihapus")).toBeTruthy();
     await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Pelanggan 3"]));
     await act(async () => finish());
@@ -375,29 +376,29 @@ describe("deleting an import row", () => {
 
   it("a row deleted before a save was never saved, so its Urungkan stays after the save", async () => {
     const { command, finish } = pendingCommit();
-    setup(command, three);
+    await setup(command, three);
     await read();
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
-    fireEvent.changeText(await screen.findByLabelText("Nama"), "Budi");
-    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan 2 pelanggan" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
+    await fireEvent.changeText(await screen.findByLabelText("Nama"), "Budi");
+    await fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan 2 pelanggan" }));
     await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", { catererId: "k-1", id: "pv-1" }, expect.any(String)));
     await act(async () => finish());
     await waitFor(() => expect(screen.queryAllByTestId("import-row")).toHaveLength(0));
-    fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
     await waitFor(() => expect(names()).toEqual(["Ubah Budi"]));
   });
 
   it("Hapus baris ini closes the sheet first and takes the row off only once the sheet has gone (G1a)", async () => {
-    setup(jest.fn(), three);
+    await setup(jest.fn(), three);
     await read();
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
     // On the phone the sheet stays drawn while it slides away (and longer under TalkBack): here back does not unmount it.
     const back = router.back as jest.Mock;
     const unmount = back.getMockImplementation()!;
     back.mockImplementationOnce(() => {});
     const calls = back.mock.calls.length;
-    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
     expect(back).toHaveBeenCalledTimes(calls + 1);
     // While it leaves, the sheet still shows the row, never "no longer there", and the list still holds it.
     const sheet = screen.getByTestId("import-row-sheet");
@@ -405,9 +406,9 @@ describe("deleting an import row", () => {
     expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Pelanggan 2", "Ubah Pelanggan 3"]);
     expect(screen.queryByText("Baris dihapus")).toBeNull();
     // A second tap while it leaves removes nothing twice.
-    fireEvent.press(within(sheet).getByRole("button", { name: "Hapus baris ini" }));
+    await fireEvent.press(within(sheet).getByRole("button", { name: "Hapus baris ini" }));
     // The sheet has gone: now the row leaves the list and the undo is offered.
-    act(() => unmount());
+    await act(async () => await unmount());
     await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Pelanggan 3"]));
     expect(await screen.findByText("Baris dihapus")).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Urungkan" })).toHaveLength(1);
@@ -418,7 +419,7 @@ describe("deleting an import row", () => {
     const delay = jest.spyOn(reanimated.FadeIn, "delay");
     try {
       await deleteSecond();
-      fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
+      await fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
       await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Budi", "Ubah Pelanggan 3"]));
       const card = (name: string) => screen.getAllByTestId("import-row").find((c) => within(c).queryByRole("button", { name: new RegExp(`^${name}`) }))!;
       // Fade only (no rise), starting once the rows' own move (content) has run; the rows below still move with layout.
@@ -427,8 +428,8 @@ describe("deleting an import row", () => {
       expect(card("Ubah Pelanggan 3").props.layout).toBeDefined();
       expect(card("Ubah Pelanggan 3").props.entering).toBeUndefined();
       // A row typed in by hand is new, not restored: it keeps the usual rise.
-      fireEvent.press(screen.getByRole("button", { name: "Tambah baris" }));
-      if (screen.queryByTestId("import-row-sheet")) fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Tambah baris" }));
+      if (screen.queryByTestId("import-row-sheet")) await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
       const rows = screen.getAllByTestId("import-row");
       expect(rows).toHaveLength(4);
       expect(rows[3].props.entering).toBe(reanimated.FadeInDown);
@@ -442,7 +443,7 @@ describe("deleting an import row", () => {
     reanimated.useReducedMotion.mockReturnValue(true);
     try {
       await deleteSecond();
-      fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
+      await fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
       await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Budi", "Ubah Pelanggan 3"]));
       for (const card of screen.getAllByTestId("import-row")) {
         expect(card.props.entering).toBeUndefined();
@@ -464,7 +465,7 @@ const response = (list: unknown[]) => ({ ok: true, json: async () => ({ data: { 
 
 describe("the review list on the Dapur scale (spec 3.7)", () => {
   it("is one list card of 64 two-line rows, each with its name, a one-line meta and a trailing Ubah", async () => {
-    setup(jest.fn(), response([row(1), row(2), row(3)]));
+    await setup(jest.fn(), response([row(1), row(2), row(3)]));
     await read();
     const card = await screen.findByTestId("list-card");
     // One card for every row, not a card each, and a hairline between rows that starts at the text column (0).
@@ -495,7 +496,7 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
   });
 
   it("holds 20 rows in the same one card, 19 hairlines between them", async () => {
-    setup(jest.fn(), response(Array.from({ length: 20 }, (_, i) => row(i + 1))));
+    await setup(jest.fn(), response(Array.from({ length: 20 }, (_, i) => row(i + 1))));
     await read();
     const card = await screen.findByTestId("list-card");
     expect(within(card).getAllByTestId("import-row")).toHaveLength(20);
@@ -504,7 +505,7 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
   });
 
   it("draws no empty card for no rows, and still offers a row to add", async () => {
-    setup(jest.fn(), response([]));
+    await setup(jest.fn(), response([]));
     await read();
     expect(await screen.findByText("0 siap disimpan")).toBeTruthy();
     expect(screen.queryByTestId("list-card")).toBeNull();
@@ -513,7 +514,7 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
   });
 
   it("marks a row with a problem with a pale pill, and its one line says what it needs", async () => {
-    setup(jest.fn(), response([row(1), row(2, { addressLine: "", needsReview: true, reason: "Alamat belum lengkap" })]));
+    await setup(jest.fn(), response([row(1), row(2, { addressLine: "", needsReview: true, reason: "Alamat belum lengkap" })]));
     await read();
     expect(await screen.findByText("1 siap disimpan · 1 perlu dicek")).toBeTruthy();
     // Only the problem row has the pill, in the trailing column before Ubah.
@@ -534,7 +535,7 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
 
   it("names a row with no name by its place in the list, and says what a missing package needs", async () => {
     const unset = row(1, { name: "", packageId: null, remainingDays: null, needsReview: true, reason: "Paket belum dipilih" });
-    setup(jest.fn(), response([unset]));
+    await setup(jest.fn(), response([unset]));
     await read();
     expect(await screen.findByText("Tanpa nama")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Ubah baris 1, perlu dicek: Paket belum dipilih" })).toBeTruthy();
@@ -544,7 +545,7 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
   });
 
   it("tells portions other than 1 on the row's line, with the phone and area", async () => {
-    setup(jest.fn(), response([row(1), row(2, { portions: 2 }), row(3, { portions: 1 })]));
+    await setup(jest.fn(), response([row(1), row(2, { portions: 2 }), row(3, { portions: 1 })]));
     await read();
     expect(await screen.findByText("+6281234567802 · 2 porsi · Setiabudi")).toBeTruthy();
     expect(screen.getByText("+6281234567801 · Setiabudi")).toBeTruthy();
@@ -553,45 +554,45 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
   });
 
   it("the row editor tells a portion count other than 1 under the fields, and says nothing for 1", async () => {
-    setup(jest.fn(), response([row(1, { portions: 3 }), row(2)]));
+    await setup(jest.fn(), response([row(1, { portions: 3 }), row(2)]));
     await read();
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 1" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 1" }));
     const told = await screen.findByTestId("import-row-portions");
     expect(told.props.children).toBe("3 porsi per hari");
     expect(flatStyle(told)).toMatchObject({ fontSize: 13, lineHeight: 18 });
-    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
     await screen.findByLabelText("Nama");
     expect(screen.queryByTestId("import-row-portions")).toBeNull();
   });
 
   it("the buttons under the card are Tambah baris and Mulai lagi", async () => {
-    setup(jest.fn(), response([row(1)]));
+    await setup(jest.fn(), response([row(1)]));
     await read();
-    fireEvent.press(await screen.findByRole("button", { name: "Tambah baris" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Tambah baris" }));
     expect(router.push).toHaveBeenLastCalledWith("/impor-baris?n=2");
-    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
-    fireEvent.press(screen.getByRole("button", { name: "Mulai lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai lagi" }));
     expect(await screen.findByLabelText("Tempel atau ketik daftar pelanggan")).toBeTruthy();
   });
 });
 
 describe("the paste stage on the Dapur scale", () => {
   it("draws the paste field with the Field's geometry: radius 12, 16 inset, at least 160 tall, 15/22 text", async () => {
-    setup(jest.fn(), response([]));
+    await setup(jest.fn(), response([]));
     const field = await screen.findByLabelText("Tempel atau ketik daftar pelanggan");
     expect(flatStyle(field)).toMatchObject({ borderRadius: 12, padding: 16, minHeight: 160, fontSize: 15, lineHeight: 22 });
   });
 
   it("sets the intro as 15/22 body and the privacy note as 13/18 meta", async () => {
-    setup(jest.fn(), response([]));
+    await setup(jest.fn(), response([]));
     const intro = await screen.findByText(/^Tempel catatan atau chat WhatsApp/);
     expect(flatStyle(intro)).toMatchObject({ fontSize: 15, lineHeight: 22 });
     expect(flatStyle(screen.getByText(/^AI membaca data ini/))).toMatchObject({ fontSize: 13, lineHeight: 18 });
   });
 
   it("the reading state names the wait in the footer: 15/22 semibold", async () => {
-    setup(jest.fn(), { ok: true, json: () => new Promise(() => {}) });
+    await setup(jest.fn(), { ok: true, json: () => new Promise(() => {}) });
     await read();
     const said = await screen.findByText("Membaca daftar pelanggan…");
     expect(flatStyle(said)).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: "Jakarta-SemiBold" });
@@ -600,7 +601,7 @@ describe("the paste stage on the Dapur scale", () => {
 
 describe("the row editor on the Dapur scale", () => {
   const options = { customers: [], packages: [{ id: "p-hemat", name: "Paket Hemat Kantor", days: 20, areas: [], meal: "lunch" }] };
-  function editor(sellerImportOptions: jest.Mock) {
+  async function editor(sellerImportOptions: jest.Mock) {
     global.fetch = jest.fn(async () => disabled) as unknown as typeof fetch;
     const runtime = createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" });
     runtime.api = {
@@ -609,7 +610,7 @@ describe("the row editor on the Dapur scale", () => {
       sellerImportOptions,
       command: jest.fn(),
     } as unknown as MobileRuntime["api"];
-    render(
+    await render(
       withDapurScale(
         <ThemeProvider storageKey="impor.editor.theme">
           <MobileProvider runtime={runtime} linkMapper={() => "/"}>
@@ -623,9 +624,9 @@ describe("the row editor on the Dapur scale", () => {
   }
 
   it("while the package choices load, the sheet shows 50 tall field boxes, 12 apart, and a 34 chip", async () => {
-    editor(jest.fn(() => new Promise(() => {})));
+    await editor(jest.fn(() => new Promise(() => {})));
     await read();
-    fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
     const sheet = await screen.findByTestId("import-row-sheet");
     const boxes = within(within(sheet).getByLabelText("Memuat pilihan paket")).getAllByTestId(/^import-row-skeleton-/);
     expect(boxes.map((b) => flatStyle(b).height)).toEqual([50, 50, 50, 34]);
@@ -635,9 +636,9 @@ describe("the row editor on the Dapur scale", () => {
   });
 
   it("its package chips wrap with a 14 row gap so each 34 chip keeps a 48 target of its own", async () => {
-    editor(jest.fn(async () => options));
+    await editor(jest.fn(async () => options));
     await read();
-    fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
     const sheet = await screen.findByTestId("import-row-sheet");
     const chip = await within(sheet).findByRole("button", { name: "Paket Hemat Kantor" });
     expect(above(chip, "flexWrap")).toMatchObject({ flexWrap: "wrap", columnGap: 8, rowGap: 14 });
@@ -694,7 +695,7 @@ describe("photo previews", () => {
   afterEach(() => secureStore.delete("impor.theme"));
 
   type Reply = { ok: boolean; status?: number; json: () => Promise<unknown> };
-  function renderImpor(response: Reply | "pending" = { ok: true, json: async () => ({ data: { rows: [row(1)], needsReview: 0 } }) }) {
+  async function renderImpor(response: Reply | "pending" = { ok: true, json: async () => ({ data: { rows: [row(1)], needsReview: 0 } }) }) {
     const runtime = createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" });
     runtime.api = {
       ...runtime.api,
@@ -707,7 +708,7 @@ describe("photo previews", () => {
     } as unknown as MobileRuntime["api"];
     const fetchMock = jest.fn(response === "pending" ? () => new Promise<Reply>(() => {}) : async () => response);
     global.fetch = fetchMock as unknown as typeof fetch;
-    render(
+    await render(
       withDapurScale(
         <ThemeProvider storageKey="impor.theme">
           <MobileProvider runtime={runtime} linkMapper={() => "/"}>
@@ -730,7 +731,7 @@ describe("photo previews", () => {
         fileName: `IMG_${from + i}.jpg`,
       })),
     });
-    fireEvent.press(await screen.findByRole("button", { name: "Tambah foto" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Tambah foto" }));
     const total = from + count - 1;
     await screen.findByLabelText(`Foto ${total} dari ${total}`);
   }
@@ -738,7 +739,7 @@ describe("photo previews", () => {
   const thumbUri = (i: number) => screen.getByTestId(`attachment-photo-${i}`).props.source?.uri ?? null;
 
   it("starts with no attachments: the count and the add tile, no thumbnails", async () => {
-    renderImpor();
+    await renderImpor();
     expect(await screen.findByText("Lampiran · 0 dari 6")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tambah foto" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "+ PDF / Excel" })).toBeTruthy();
@@ -748,7 +749,7 @@ describe("photo previews", () => {
   });
 
   it("picked photos show as thumbnails with remove targets", async () => {
-    renderImpor();
+    await renderImpor();
     await pick(3);
     expect(screen.getByText("Lampiran · 3 dari 6")).toBeTruthy();
     for (const i of [1, 2, 3]) {
@@ -779,7 +780,7 @@ describe("photo previews", () => {
     }
     // The add tile keeps the same 10dp, so the next photo lands where it stood.
     expect(flat(screen.getByTestId("add-photo-tile"))).toMatchObject({ paddingTop: 10, paddingRight: 10 });
-    fireEvent.press(screen.getByRole("button", { name: "Hapus foto 2" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus foto 2" }));
     await waitFor(() => expect(screen.getByText("Lampiran · 2 dari 6")).toBeTruthy());
     expect(screen.queryByLabelText("Foto 3 dari 3")).toBeNull();
     expect(thumbUri(1)).toBe("file:///picked-1.jpg");
@@ -788,25 +789,25 @@ describe("photo previews", () => {
   });
 
   it("six photos hide the add tile", async () => {
-    renderImpor();
+    await renderImpor();
     await pick(4);
     // The gallery is asked for no more than the room left.
     await pick(2, 5);
     expect(picker.launchImageLibraryAsync).toHaveBeenLastCalledWith(expect.objectContaining({ selectionLimit: 2 }));
     expect(screen.getByText("Lampiran · 6 dari 6")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Tambah foto" })).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Hapus foto 6" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus foto 6" }));
     expect(await screen.findByRole("button", { name: "Tambah foto" })).toBeTruthy();
   });
 
   it("spreadsheets keep icon and name", async () => {
-    renderImpor();
+    await renderImpor();
     await pick(2);
     documents.getDocumentAsync.mockResolvedValueOnce({
       canceled: false,
       assets: [{ name: "pelanggan-oktober.xlsx", uri: "file:///cache/pelanggan-oktober.xlsx" }],
     });
-    fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+    await fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
     const name = await screen.findByText("pelanggan-oktober.xlsx");
     // The count is of photos, the cap the assistant sets; a file is a row of its own.
     expect(screen.getByText("Lampiran · 2 dari 6")).toBeTruthy();
@@ -819,15 +820,15 @@ describe("photo previews", () => {
     expect(flat(docRow).height).toBeUndefined();
     const remove = within(docRow).getByRole("button", { name: "Hapus pelanggan-oktober.xlsx" });
     expect(flat(remove)).toMatchObject({ width: 48, height: 48 });
-    fireEvent.press(remove);
+    await fireEvent.press(remove);
     await waitFor(() => expect(screen.queryByText("pelanggan-oktober.xlsx")).toBeNull());
     expect(screen.getByLabelText("Foto 2 dari 2")).toBeTruthy();
   });
 
   it("tapping a thumbnail opens the viewer", async () => {
-    renderImpor();
+    await renderImpor();
     await pick(3);
-    fireEvent.press(screen.getByLabelText("Foto 2 dari 3"));
+    await fireEvent.press(screen.getByLabelText("Foto 2 dari 3"));
     expect(router.push).toHaveBeenLastCalledWith("/impor-foto?i=2");
     const viewer = await screen.findByTestId("import-photo-viewer");
     const full = within(viewer).getByLabelText("Foto 2 dari 3");
@@ -839,7 +840,7 @@ describe("photo previews", () => {
   });
 
   it("a viewer link with no photo behind it opens Impor instead of an empty viewer", async () => {
-    render(
+    await render(
       <MobileProvider runtime={createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" })} linkMapper={() => "/"}>
         <ImportPhotoViewer i={4} />
       </MobileProvider>,
@@ -849,12 +850,12 @@ describe("photo previews", () => {
   });
 
   it("reading shows the reading mascot with the counts", async () => {
-    renderImpor("pending");
+    await renderImpor("pending");
     await pick(2);
     documents.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [{ name: "daftar.pdf", uri: "file:///cache/daftar.pdf" }] });
-    fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+    await fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
     await screen.findByText("daftar.pdf");
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
     // The mascot is decorative (hidden from screen readers); the words carry the wait.
     expect(await screen.findByTestId("mascot-reading", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByText("Membaca daftar pelanggan…")).toBeTruthy();
@@ -871,9 +872,9 @@ describe("photo previews", () => {
       expect(control.props.accessibilityHint).toBe("Bisa lagi setelah selesai membaca.");
       expect(flat(control).opacity).toBe(0.45);
     }
-    fireEvent.press(add);
+    await fireEvent.press(add);
     expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(1);
-    fireEvent.press(addFile);
+    await fireEvent.press(addFile);
     expect(documents.getDocumentAsync).toHaveBeenCalledTimes(1);
   });
 
@@ -883,21 +884,21 @@ describe("photo previews", () => {
     announce.mockClear();
     const reads = () => announce.mock.calls.filter(([said]) => /Membaca/.test(String(said)));
     try {
-      const fetchMock = renderImpor();
+      const fetchMock = await renderImpor();
       let answer: (reply: Reply) => void = () => {};
       fetchMock.mockImplementation(() => new Promise<Reply>((resolve) => (answer = resolve)));
       await pick(2);
       documents.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [{ name: "daftar.pdf", uri: "file:///cache/daftar.pdf" }] });
-      fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+      await fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
       await screen.findByText("daftar.pdf");
       expect(reads()).toEqual([]);
-      fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
       await screen.findByText("Membaca daftar pelanggan…");
       // The button the caterer pressed is gone, so the words are spoken on every platform, with what is read.
       expect(reads()).toEqual([["Membaca daftar pelanggan…, 2 foto dan 1 file"]]);
       // No live region as well, so Android does not say it twice.
-      expect(screen.UNSAFE_root.findAll((node) => node.props.accessibilityLiveRegion != null)).toEqual([]);
-      fireEvent.changeText(screen.getByLabelText("Tempel atau ketik daftar pelanggan"), "daftar baru");
+      expect(findInScreen((node) => node.props.accessibilityLiveRegion != null)).toEqual([]);
+      await fireEvent.changeText(screen.getByLabelText("Tempel atau ketik daftar pelanggan"), "daftar baru");
       expect(reads()).toHaveLength(1);
       await act(async () => answer({ ok: true, json: async () => ({ data: { rows: [row(1)], needsReview: 0 } }) }));
       expect(await screen.findByRole("button", { name: "Simpan 1 pelanggan" })).toBeTruthy();
@@ -908,7 +909,7 @@ describe("photo previews", () => {
   });
 
   it("while picked photos shrink, the add tile waits and takes no press", async () => {
-    renderImpor();
+    await renderImpor();
     let release: () => void = () => {};
     const gate = new Promise<void>((resolve) => (release = resolve));
     const base = manipulator.manipulate.getMockImplementation()!;
@@ -917,7 +918,7 @@ describe("photo previews", () => {
       const render = context.renderAsync;
       context.renderAsync = async () => {
         await gate;
-        return render();
+        return await render();
       };
       return context;
     });
@@ -925,12 +926,12 @@ describe("photo previews", () => {
       canceled: false,
       assets: [1, 2].map((n) => ({ uri: `file:///picked-${n}.jpg`, width: 3000, height: 4000, fileName: `IMG_${n}.jpg` })),
     });
-    fireEvent.press(await screen.findByRole("button", { name: "Tambah foto" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Tambah foto" }));
     // The sage ground breathing where the photos will land, and no way to pick again until they do.
     expect(await screen.findByTestId("add-photo-waiting")).toBeTruthy();
     const add = screen.getByRole("button", { name: "Tambah foto" });
     expect(add.props.accessibilityState).toMatchObject({ disabled: true, busy: true });
-    fireEvent.press(add);
+    await fireEvent.press(add);
     expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(1);
     await act(async () => release());
     expect(await screen.findByLabelText("Foto 2 dari 2")).toBeTruthy();
@@ -940,26 +941,26 @@ describe("photo previews", () => {
   });
 
   it("a quick second tap opens the gallery once", async () => {
-    renderImpor();
+    await renderImpor();
     let open: (value: unknown) => void = () => {};
     picker.launchImageLibraryAsync.mockImplementation(() => new Promise((resolve) => (open = resolve)));
     const add = await screen.findByRole("button", { name: "Tambah foto" });
-    fireEvent.press(add);
-    fireEvent.press(add);
+    await fireEvent.press(add);
+    await fireEvent.press(add);
     expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(1);
     await act(async () => open({ canceled: false, assets: [{ uri: "file:///picked-1.jpg", width: 3000, height: 4000, fileName: "IMG_1.jpg" }] }));
     expect(await screen.findByLabelText("Foto 1 dari 1")).toBeTruthy();
   });
 
   it("never holds more than six photos, even when the gallery hands back more than it was asked for", async () => {
-    renderImpor();
+    await renderImpor();
     await pick(4);
     // Some galleries ignore the selection limit; the photos past six are dropped.
     picker.launchImageLibraryAsync.mockResolvedValueOnce({
       canceled: false,
       assets: [5, 6, 7, 8].map((n) => ({ uri: `file:///picked-${n}.jpg`, width: 3000, height: 4000, fileName: `IMG_${n}.jpg` })),
     });
-    fireEvent.press(screen.getByRole("button", { name: "Tambah foto" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tambah foto" }));
     expect(await screen.findByLabelText("Foto 6 dari 6")).toBeTruthy();
     expect(screen.getByText("Lampiran · 6 dari 6")).toBeTruthy();
     expect(screen.queryByLabelText(/dari 7|dari 8/)).toBeNull();
@@ -967,7 +968,7 @@ describe("photo previews", () => {
   });
 
   it("a file row holds still when reading starts and ends: same inset, its remove slot kept", async () => {
-    renderImpor({ ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) });
+    await renderImpor({ ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) });
     const fetchMock = global.fetch as unknown as jest.Mock;
     let answer: (reply: Reply) => void = () => {};
     fetchMock.mockImplementation(() => new Promise<Reply>((resolve) => (answer = resolve)));
@@ -976,10 +977,10 @@ describe("photo previews", () => {
       canceled: false,
       assets: [{ name: "daftar-pelanggan-lama-bulan-september-dan-oktober.csv", uri: "file:///cache/a.csv" }],
     });
-    fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+    await fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
     await screen.findByText("daftar-pelanggan-lama-bulan-september-dan-oktober.csv");
     const before = flat(screen.getByTestId("attachment-file-1"));
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
     await screen.findByText("Membaca daftar pelanggan…");
     const docRow = screen.getByTestId("attachment-file-1");
     expect(flat(docRow).paddingRight).toBe(before.paddingRight);
@@ -994,27 +995,27 @@ describe("photo previews", () => {
   });
 
   it("reading names only what is there: one photo and no files", async () => {
-    renderImpor("pending");
+    await renderImpor("pending");
     await pick(1);
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
     expect(await screen.findByText("1 foto")).toBeTruthy();
     expect(screen.queryByText(/\bfile\b/)).toBeNull();
   });
 
   it("reading pasted text alone shows the mascot with no count", async () => {
-    renderImpor("pending");
-    fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await renderImpor("pending");
+    await fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
     expect(await screen.findByText("Membaca daftar pelanggan…")).toBeTruthy();
     expect(screen.queryByText(/\d+ (foto|file)/)).toBeNull();
   });
 
   it("the picked uri is kept and the base64 still uploads", async () => {
-    const fetchMock = renderImpor();
+    const fetchMock = await renderImpor();
     await pick(2);
     expect(thumbUri(1)).toBe("file:///picked-1.jpg");
     expect(thumbUri(2)).toBe("file:///picked-2.jpg");
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body);
     expect(body.images).toEqual([
@@ -1026,22 +1027,22 @@ describe("photo previews", () => {
   });
 
   it("a photo that fails to decode keeps the neutral ground and stays removable", async () => {
-    renderImpor();
+    await renderImpor();
     await pick(2);
-    act(() => screen.getByTestId("attachment-photo-1").props.onError?.({ error: "decode" }));
+    await act(() => screen.getByTestId("attachment-photo-1").props.onError?.({ error: "decode" }));
     const ground = await screen.findByTestId("attachment-photo-1");
     expect(ground.props.source).toBeUndefined();
     expect(flat(ground)).toMatchObject({ width: 76, height: 76, borderRadius: 12, backgroundColor: nativeThemes.light.canvas });
     expect(screen.getByLabelText("Foto 1 dari 2")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Hapus foto 1" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus foto 1" }));
     await waitFor(() => expect(screen.getByText("Lampiran · 1 dari 6")).toBeTruthy());
     expect(thumbUri(1)).toBe("file:///picked-2.jpg");
   });
 
   it("a failed read keeps the attachments and shows the error", async () => {
-    renderImpor({ ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) });
+    await renderImpor({ ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) });
     await pick(2);
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
     expect(await screen.findByText("Asisten impor sedang tidak tersedia. Coba lagi nanti.")).toBeTruthy();
     expect(screen.getByLabelText("Foto 2 dari 2")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Hapus foto 1" })).toBeTruthy();
@@ -1050,9 +1051,9 @@ describe("photo previews", () => {
   });
 
   it("an assistant that is switched off keeps the attachments next to Isi manual", async () => {
-    renderImpor(disabled);
+    await renderImpor(disabled);
     await pick(1);
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
     expect(await screen.findByRole("button", { name: "Isi manual" })).toBeTruthy();
     expect(screen.getByLabelText("Foto 1 dari 1")).toBeTruthy();
     expect(screen.getByText("Lampiran · 1 dari 6")).toBeTruthy();
@@ -1060,7 +1061,7 @@ describe("photo previews", () => {
 
   it("in the dark theme the thumbnails, badge and add tile read the dark palette", async () => {
     secureStore.set("impor.theme", "dark");
-    renderImpor();
+    await renderImpor();
     await pick(1);
     const dark = nativeThemes.dark;
     await waitFor(() => expect(flat(screen.getByTestId("attachment-photo-1")).backgroundColor).toBe(dark.canvas));
@@ -1071,31 +1072,31 @@ describe("photo previews", () => {
   });
 
   it("keeps every label whole at large text: nothing is cut to one line", async () => {
-    renderImpor("pending");
+    await renderImpor("pending");
     await pick(1);
     documents.getDocumentAsync.mockResolvedValueOnce({
       canceled: false,
       assets: [{ name: "daftar-pelanggan-lama-bulan-september.csv", uri: "file:///cache/a.csv" }],
     });
-    fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+    await fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
     await screen.findByText("daftar-pelanggan-lama-bulan-september.csv");
     for (const text of ["Lampiran · 1 dari 6", "daftar-pelanggan-lama-bulan-september.csv", "Foto"])
       expect({ text, lines: screen.getByText(text).props.numberOfLines }).toEqual({ text, lines: undefined });
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
     for (const text of ["Membaca daftar pelanggan…", "1 foto dan 1 file"])
       expect({ text, lines: (await screen.findByText(text)).props.numberOfLines }).toEqual({ text, lines: undefined });
   });
 
   it("a thumbnail enters when it is added and leaves when it is removed, and not under reduced motion", async () => {
-    renderImpor();
+    await renderImpor();
     await pick(1);
     const tile = screen.getByTestId("attachment-tile-1");
     expect(tile.props.entering).toBeDefined();
     expect(tile.props.exiting).toBeDefined();
-    screen.unmount();
+    await screen.unmount();
     reanimated.useReducedMotion.mockReturnValue(true);
     try {
-      renderImpor();
+      await renderImpor();
       await pick(1);
       const still = screen.getByTestId("attachment-tile-1");
       expect(still.props.entering).toBeUndefined();

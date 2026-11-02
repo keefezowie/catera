@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, Linking, Share, View } from "react-native";
-import { router } from "expo-router";
 import {
   routeMapsUrl,
   routeShareText,
@@ -21,6 +20,7 @@ import {
 import { ACTION, ActionPair, HEADING_GAP, LinkRow, TextAction } from "./rows";
 import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
 import { areaRuns, selectableStops, stopChoices, type Selection } from "./selection";
+import { pushScreen } from "../nav";
 
 /** The stops shown before "Lihat {n} alamat lainnya": enough to start the route, short enough to see the buttons below. */
 const FIRST_STOPS = 3;
@@ -115,7 +115,7 @@ export function DeliveryOrder({
   // The sheet draws from the day on screen at once, and reads it again itself.
   const openSheet = (s: Stop) => {
     parkDay(actor?.catererId ?? "", date, ops);
-    router.push(stopHref(s.deliveryId, meal, date) as never);
+    pushScreen(stopHref(s.deliveryId, meal, date));
   };
   const moreLabel = (s: Stop) =>
     `${

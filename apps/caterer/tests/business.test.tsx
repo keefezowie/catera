@@ -1,7 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
@@ -17,11 +15,11 @@ import { RoleGate } from "../src/RoleGate";
 import { Pengaturan } from "../src/settings/Pengaturan";
 import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
 import { StyleSheet, Text } from "react-native";
-import { Image as ExpoImage } from "expo-image";
 import { HeroPhotoFrame, sheetSidePadding } from "@catera/mobile-ui";
 import { DetailSkeleton } from "../src/skeletons";
 import { HapusAkun } from "../src/settings/HapusAkun";
 import { withDapurScale } from "./dapur-scale";
+import { findInScreen, hostsOf, iconsIn, oneIcon, oneImage, only } from "./host-queries";
 import * as uploadModule from "../src/business/upload";
 
 /** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
@@ -88,7 +86,7 @@ it("the package photo picker gives a tap haptic and stays a button", async () =>
   Haptics.impactAsync.mockClear();
   const picker = require("expo-image-picker") as { launchImageLibraryAsync: jest.Mock };
   picker.launchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] });
-  render(
+  await render(
     withDapurScale(
       <MobileProvider runtime={runtimeWith({})} linkMapper={() => "/"}>
         <PackageEditor />
@@ -99,7 +97,7 @@ it("the package photo picker gives a tap haptic and stays a button", async () =>
   // The photo is drawn by ratio (16:10 in a HeroPhotoFrame), never at a fixed 168.
   expect(StyleSheet.flatten(screen.getByTestId("paket-photo").props.style).aspectRatio).toBe(16 / 10);
   expect(StyleSheet.flatten(photo.props.style).height).toBeUndefined();
-  fireEvent.press(photo);
+  await fireEvent.press(photo);
   expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
   expect(picker.launchImageLibraryAsync).toHaveBeenCalled();
 });
@@ -107,13 +105,13 @@ it("the package photo picker gives a tap haptic and stays a button", async () =>
 it("asks for daily capacity before saving", async () => {
   const command = jest.fn();
   const runtime = runtimeWith({ command });
-  render(
+  await render(
     <MobileProvider runtime={runtime} linkMapper={() => "/"}>
       <PackageEditor />
     </MobileProvider>,
   );
   expect(packageIssues({ ...form, capacity: "" }).capacity).toBe("Isi kapasitas per hari");
-  fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
   expect(await screen.findByText("Isi kapasitas per hari")).toBeTruthy();
   expect(command).not.toHaveBeenCalled();
 });
@@ -135,7 +133,7 @@ const settlement: SettlementState = {
 
 it("explains all seven money states", async () => {
   const runtime = runtimeWith({ settlement: jest.fn(async () => settlement) });
-  render(
+  await render(
     <MobileProvider runtime={runtime} linkMapper={() => "/"}>
       <UangScreen />
     </MobileProvider>,
@@ -157,15 +155,15 @@ it("explains all seven money states", async () => {
 // amount is a price (bold charcoal), not a forest block with cream text.
 it("Uang paints no forest block and shows the payout amount in bold charcoal", async () => {
   const runtime = runtimeWith({ settlement: jest.fn(async () => settlement) });
-  render(
+  await render(
     <MobileProvider runtime={runtime} linkMapper={() => "/"}>
       <UangScreen />
     </MobileProvider>,
   );
   const amount = await screen.findByTestId("uang-available");
   expect(StyleSheet.flatten(amount.props.style)).toMatchObject({ color: nativeThemes.light.charcoal, fontFamily: "Jakarta-ExtraBold" });
-  const forestFills = screen.UNSAFE_root.findAll(
-    (n) => typeof n.type === "string" && StyleSheet.flatten(n.props.style)?.backgroundColor === nativeThemes.light.forest,
+  const forestFills = findInScreen(
+    (n) => StyleSheet.flatten(n.props.style)?.backgroundColor === nativeThemes.light.forest,
   );
   expect(forestFills).toHaveLength(0);
   // A money state's amount (Akan diterima, 840.000) is a price too.
@@ -176,12 +174,12 @@ it("shares a helper invite code over WhatsApp", async () => {
   const { Share } = jest.requireActual("react-native") as typeof import("react-native");
   const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
   const command = jest.fn(async () => ({ id: "i-1", code: "abc123" }));
-  render(
+  await render(
     <MobileProvider runtime={runtimeWith({ command })} linkMapper={() => "/"}>
       <TimScreen />
     </MobileProvider>,
   );
-  fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
   await waitFor(() => expect(share).toHaveBeenCalled());
   expect(command.mock.calls[0]).toEqual(["staff.invite", { catererId: "k-1" }, expect.any(String)]);
   // The helper joins through Gabung ke dapur with the code; nothing says to sign in with a phone number.
@@ -196,15 +194,15 @@ it("lets a helper join a kitchen with the invite code", async () => {
     .mockResolvedValueOnce({ actor: { id: "u-2", role: "customer", catererId: null }, demo: false })
     .mockResolvedValue({ actor: { id: "u-2", role: "staff", catererId: "k-1" }, demo: false });
   const command = jest.fn(async () => ({}));
-  render(
+  await render(
     <MobileProvider runtime={runtimeWith({ me, command })} linkMapper={() => "/"}>
       <RoleGate>
         <Text>dapur</Text>
       </RoleGate>
     </MobileProvider>,
   );
-  fireEvent.changeText(await screen.findByLabelText("Kode undangan"), " abc123 ");
-  fireEvent.press(screen.getByRole("button", { name: "Gabung ke dapur" }));
+  await fireEvent.changeText(await screen.findByLabelText("Kode undangan"), " abc123 ");
+  await fireEvent.press(screen.getByRole("button", { name: "Gabung ke dapur" }));
   expect(await screen.findByText("dapur")).toBeTruthy();
   expect(command.mock.calls[0]).toEqual(["invite.accept", { code: "abc123" }, expect.any(String)]);
 });
@@ -234,14 +232,14 @@ const liveOffer = {
 
 it("shows a live package read-only and copies it into a new package", async () => {
   const { router } = jest.requireMock("expo-router") as { router: { push: jest.Mock } };
-  render(
+  await render(
     <MobileProvider runtime={runtimeWith({})} linkMapper={() => "/"}>
       <PackageDetail offer={liveOffer} />
     </MobileProvider>,
   );
   expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Terbitkan paket" })).toBeNull();
-  fireEvent.press(screen.getByRole("button", { name: "Salin jadi paket baru" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Salin jadi paket baru" }));
   expect(router.push).toHaveBeenCalledWith("/paket/baru?from=p-live");
 });
 
@@ -252,33 +250,33 @@ it("shows the package photo", async () => {
     sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [photoOffer], datedMenus: [] })),
     request: jest.fn(async () => ({ active: null })),
   });
-  render(
+  await render(
     <MobileProvider runtime={runtime} linkMapper={() => "/"}>
       <UsahaScreen />
     </MobileProvider>,
   );
   expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
-  const photo = screen.UNSAFE_getByType(ExpoImage);
+  const photo = oneImage();
   expect(photo.props.source).toEqual({ uri: "https://catera.example.test/uploads/k-1/a.jpg" });
 });
 
-it("shows a live package's site-relative photo from the API host", () => {
-  render(
+it("shows a live package's site-relative photo from the API host", async () => {
+  await render(
     <MobileProvider runtime={runtimeWith({})} linkMapper={() => "/"}>
       <PackageDetail offer={photoOffer} />
     </MobileProvider>,
   );
-  expect(screen.UNSAFE_getByType(ExpoImage).props.source).toEqual({ uri: "https://catera.example.test/uploads/k-1/a.jpg" });
+  expect(oneImage().props.source).toEqual({ uri: "https://catera.example.test/uploads/k-1/a.jpg" });
 });
 
 it("saves a copied package as a new one, never over the original", async () => {
   const command = jest.fn(async () => ({ id: "p-new" }));
-  render(
+  await render(
     <MobileProvider runtime={runtimeWith({ command })} linkMapper={() => "/"}>
       <PackageEditor from={liveOffer} />
     </MobileProvider>,
   );
-  fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
   await waitFor(() => expect(command).toHaveBeenCalled());
   const [action, payload] = command.mock.calls[0] as unknown as [string, Record<string, unknown>];
   expect(action).toBe("package.save");
@@ -291,14 +289,14 @@ describe("Uang error guard", () => {
   it("shows a retry state instead of a blank app when the money screen cannot render", async () => {
     const errorLog = jest.spyOn(console, "error").mockImplementation(() => undefined);
     const runtime = runtimeWith({ settlement: jest.fn(async () => ({ ...settlement, nextPayoutAt: "bukan-tanggal" })) });
-    render(
+    await render(
       <MobileProvider runtime={runtime} linkMapper={() => "/"}>
         <UangScreen />
       </MobileProvider>,
     );
     const crashed = await screen.findByText("Rincian uang belum bisa ditampilkan.");
     expect(StyleSheet.flatten(crashed.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Rincian uang belum bisa ditampilkan.")).toBeTruthy();
     errorLog.mockRestore();
   });
@@ -307,8 +305,8 @@ describe("Uang error guard", () => {
 describe("Usaha mood header", () => {
   const MALAM = () => new Date("2026-10-08T08:00:00Z");
   const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
-  const renderMood = (runtime: MobileRuntime) =>
-    render(
+  const renderMood = async (runtime: MobileRuntime) =>
+    await render(
       withDapurScale(
         <MoodProvider now={MALAM}>
           <MobileProvider runtime={runtime} linkMapper={() => "/"}>
@@ -324,7 +322,7 @@ describe("Usaha mood header", () => {
     });
 
   it("titles the screen with the kitchen name in a plain header: no mood band, heroTitle beside the gear", async () => {
-    renderMood(kitchen("Dapur Bu Rina"));
+    await renderMood(kitchen("Dapur Bu Rina"));
     const header = await screen.findByTestId("usaha-header");
     // No fill and no rounded band: the header sits on the canvas.
     expect(within(header).queryByTestId("mood-fill", { includeHiddenElements: true })).toBeNull();
@@ -353,7 +351,7 @@ describe("Usaha mood header", () => {
       sellerOperations: jest.fn(() => new Promise(() => undefined)),
       request: jest.fn(async () => ({ active: null })),
     });
-    renderMood(runtime);
+    await renderMood(runtime);
     const header = await screen.findByTestId("usaha-header");
     expect(within(header).getByText("Usaha").props.accessibilityRole).toBe("header");
     expect(await screen.findByLabelText("Memuat paket")).toBeTruthy();
@@ -361,19 +359,19 @@ describe("Usaha mood header", () => {
   });
 
   it("keeps the Pengaturan gear in the header and the package rows working under it", async () => {
-    renderMood(kitchen("Dapur Bu Rina"));
+    await renderMood(kitchen("Dapur Bu Rina"));
     const header = await screen.findByTestId("usaha-header");
     const gear = within(header).getByRole("button", { name: "Pengaturan" });
     // It reads the canvas ink (charcoal), since the header has no mood band behind it.
-    expect(within(gear).UNSAFE_getByType(Ionicons).props.color).toBe(nativeThemes.light.charcoal);
+    expect(oneIcon(gear).color).toBe(nativeThemes.light.charcoal);
     expect(await screen.findByRole("button", { name: "Makan Siang Rumahan" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Keluar" })).toBeNull();
   });
 });
 
 describe("Usaha states", () => {
-  const renderUsaha = (runtime: MobileRuntime) =>
-    render(
+  const renderUsaha = async (runtime: MobileRuntime) =>
+    await render(
       <MobileProvider runtime={runtime} linkMapper={() => "/"}>
         <UsahaScreen />
       </MobileProvider>,
@@ -384,26 +382,26 @@ describe("Usaha states", () => {
       sellerOperations: jest.fn(() => new Promise(() => undefined)),
       request: jest.fn(async () => ({ active: null })),
     });
-    const first = renderUsaha(pending);
+    const first = await renderUsaha(pending);
     expect(await screen.findByLabelText("Memuat paket")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "+ Paket baru" })).toBeNull();
-    first.unmount();
+    await first.unmount();
 
     let down = true;
     const failing = jest.fn(async () => {
       if (down) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       return { caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [photoOffer], datedMenus: [] };
     });
-    renderUsaha(runtimeWith({ sellerOperations: failing, request: jest.fn(async () => ({ active: null })) }));
+    await renderUsaha(runtimeWith({ sellerOperations: failing, request: jest.fn(async () => ({ active: null })) }));
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     down = false;
-    fireEvent.press(retry);
+    await fireEvent.press(retry);
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.getByRole("button", { name: "+ Paket baru" })).toBeTruthy();
   });
 
   it("Usaha rows dim on press and still navigate", async () => {
-    renderUsaha(
+    await renderUsaha(
       runtimeWith({
         sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [photoOffer], datedMenus: [] })),
         request: jest.fn(async () => ({ active: { id: "pd-1" } })),
@@ -414,16 +412,16 @@ describe("Usaha states", () => {
     for (const name of ["Uang", "Makan Siang Rumahan"]) {
       const row = () => screen.getByRole("button", { name });
       expect(StyleSheet.flatten(row().props.style)?.opacity ?? 1).toBe(1);
-      fireEvent(row(), "responderGrant", touch);
+      await fireEvent(row(), "responderGrant", touch);
       expect(StyleSheet.flatten(row().props.style).opacity).toBe(0.7);
     }
-    fireEvent.press(screen.getByRole("button", { name: "Uang" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Uang" }));
     expect(require("expo-router").router.push).toHaveBeenCalledWith("/uang");
   });
 
   // Tampilan and Bahasa moved from Usaha to Pengaturan's choice sheets (Phase F); Usaha keeps only the way there.
   describe("Tampilan in Pengaturan", () => {
-    const canvas = () => StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor;
+    const canvas = () => StyleSheet.flatten(only(hostsOf("RNCSafeAreaView")).props.style).backgroundColor;
     // The setup keeps one in-memory store for the whole file. Pressing Gelap and English writes the theme and locale
     // to it, and later tests in the file would otherwise start in English or dark.
     const clearStore = () => (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
@@ -433,7 +431,7 @@ describe("Usaha states", () => {
     });
     afterEach(clearStore);
     const renderThemed = async (runtime: MobileRuntime) => {
-      render(
+      await render(
         <ThemeProvider storageKey={runtime.storageKey("theme")}>
           <MobileProvider runtime={runtime} linkMapper={() => "/"}>
             <Pengaturan />
@@ -456,7 +454,7 @@ describe("Usaha states", () => {
 
     it("pressing Gelap stores dark and repaints Pengaturan under the sheet", async () => {
       await renderThemed(runtimeWith({}));
-      fireEvent.press(screen.getByRole("radio", { name: "Gelap" }));
+      await fireEvent.press(screen.getByRole("radio", { name: "Gelap" }));
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith("t.theme", "dark");
       expect(canvas()).toBe("#151514");
       expect(screen.getByRole("radio", { name: "Gelap" })).toBeChecked();
@@ -465,7 +463,7 @@ describe("Usaha states", () => {
 
     it("reads Appearance, Follow system, Light and Dark in English", async () => {
       await renderThemed(runtimeWith({}));
-      fireEvent.press(screen.getByRole("radio", { name: "English" }));
+      await fireEvent.press(screen.getByRole("radio", { name: "English" }));
       expect(await screen.findByRole("button", { name: "Appearance, Follow system" })).toBeTruthy();
       expect(screen.getByRole("radio", { name: "Follow system" })).toBeChecked();
       expect(screen.getByRole("radio", { name: "Light" })).toBeTruthy();
@@ -475,7 +473,7 @@ describe("Usaha states", () => {
   });
 
   it("payments card names the action", async () => {
-    renderUsaha(
+    await renderUsaha(
       runtimeWith({
         sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [], datedMenus: [] })),
         request: jest.fn(async () => ({ active: null })),
@@ -497,14 +495,14 @@ describe("Uang and Aktifkan errors", () => {
       if (down) throw timeout();
       return settlement;
     });
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith({ settlement: settle })} linkMapper={() => "/"}>
         <UangScreen />
       </MobileProvider>,
     );
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     down = false;
-    fireEvent.press(retry);
+    await fireEvent.press(retry);
     expect(await screen.findByText("Akan masuk ke rekening")).toBeTruthy();
   });
 
@@ -514,14 +512,14 @@ describe("Uang and Aktifkan errors", () => {
       if (down) throw timeout();
       return { caterer: { id: "k-1", name: "Dapur", status: "draft" }, offers: [], datedMenus: [] };
     });
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith({ sellerOperations: ops, request: jest.fn(async () => ({ active: null })) })} linkMapper={() => "/"}>
         <AktifkanScreen />
       </MobileProvider>,
     );
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     down = false;
-    fireEvent.press(retry);
+    await fireEvent.press(retry);
     expect(await screen.findByText(/Setelah aktif/)).toBeTruthy();
   });
 });
@@ -531,8 +529,8 @@ describe("Uang and Aktifkan errors", () => {
 // ---------------------------------------------------------------------------------------------------------------
 type StyleBag = Record<string, unknown>;
 const bag = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as StyleBag;
-const scaled = (runtime: MobileRuntime, ui: React.ReactElement) =>
-  render(
+const scaled = async (runtime: MobileRuntime, ui: React.ReactElement) =>
+  await render(
     withDapurScale(
       <MobileProvider runtime={runtime} linkMapper={() => "/"}>
         {ui}
@@ -552,7 +550,7 @@ describe("Usaha on the Dapur scale", () => {
   afterEach(() => jest.restoreAllMocks());
 
   it("holds the Paket header at 48 while the packages load and after, so nothing shifts when + Paket baru arrives", async () => {
-    const first = scaled(
+    const first = await scaled(
       runtimeWith({ sellerOperations: jest.fn(() => new Promise(() => undefined)), request: jest.fn(async () => ({ active: null })) }),
       <UsahaScreen />,
     );
@@ -561,8 +559,8 @@ describe("Usaha on the Dapur scale", () => {
     expect(within(loading).getByText("Paket")).toBeTruthy();
     expect(within(loading).queryByRole("button", { name: "+ Paket baru" })).toBeNull();
     expect(bag(loading).minHeight).toBe(48);
-    first.unmount();
-    scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
+    await first.unmount();
+    await scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
     const loaded = (await screen.findAllByTestId("section-header"))[0];
     expect(await within(loaded).findByRole("button", { name: "+ Paket baru" })).toBeTruthy();
     expect(bag(loaded).minHeight).toBe(48);
@@ -570,13 +568,13 @@ describe("Usaha on the Dapur scale", () => {
 
   it.each([0, 1, 4])("Paket is a section header with + Paket baru trailing, over %i media rows", async (count) => {
     const offers = Array.from({ length: count }, (_, i) => packageNamed(i + 1));
-    scaled(usahaWith(offers, true), <UsahaScreen />);
+    await scaled(usahaWith(offers, true), <UsahaScreen />);
     const heading = await screen.findByRole("header", { name: "Paket" });
     expect(bag(heading)).toMatchObject({ fontSize: 20, lineHeight: 26 });
     const section = screen.getAllByTestId("section-header")[0];
     const add = await within(section).findByRole("button", { name: "+ Paket baru" });
     expect(within(section).getByTestId("section-header-trailing")).toBeTruthy();
-    fireEvent.press(add);
+    await fireEvent.press(add);
     expect(require("expo-router").router.push).toHaveBeenCalledWith("/paket/baru");
     for (let i = 1; i <= count; i++) {
       const row = screen.getByTestId(`usaha-package-p-${i}`);
@@ -597,27 +595,27 @@ describe("Usaha on the Dapur scale", () => {
   });
 
   it("the payments card's heading is the v2 section variant (20/26, still a header), not the classic 21/28 heading", async () => {
-    scaled(usahaWith([packageNamed(1)], false), <UsahaScreen />);
+    await scaled(usahaWith([packageNamed(1)], false), <UsahaScreen />);
     const heading = await screen.findByRole("header", { name: "Terima pembayaran lewat Catera" });
     expect(bag(heading)).toMatchObject({ fontSize: 20, lineHeight: 26 });
   });
 
   it("a package name wraps at 360dp and font scale 1.3 instead of ending in an ellipsis; its meta stays one line", async () => {
     jest.spyOn(ReactNativeModule, "useWindowDimensions").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
-    scaled(usahaWith([packageNamed(1, { name: "Ayam Panggang Hari Raya Spesial" })], true), <UsahaScreen />);
+    await scaled(usahaWith([packageNamed(1, { name: "Ayam Panggang Hari Raya Spesial" })], true), <UsahaScreen />);
     const name = await screen.findByText("Ayam Panggang Hari Raya Spesial");
     expect(name.props.numberOfLines).toBeUndefined();
     expect(screen.getByText(/^Rp\s?28\.000 \/ makan · tayang$/).props.numberOfLines).toBe(1);
   });
 
   it("a draft with no price names only its state; the row never reads a price it does not have", async () => {
-    scaled(usahaWith([packageNamed(1, { status: "draft", price: null })], true), <UsahaScreen />);
+    await scaled(usahaWith([packageNamed(1, { status: "draft", price: null })], true), <UsahaScreen />);
     expect(await screen.findByText("draf")).toBeTruthy();
     expect(screen.queryByText(/makan/)).toBeNull();
   });
 
   it("Kelola is one list card of five 48 rows ending with Pengaturan, with no one-row card", async () => {
-    scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
+    await scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
     await screen.findByText("Paket 1");
     const heading = await screen.findByRole("header", { name: "Kelola" });
     expect(bag(heading)).toMatchObject({ fontSize: 20, lineHeight: 26 });
@@ -627,14 +625,14 @@ describe("Usaha on the Dapur scale", () => {
     for (const row of rows) expect(bag(row).minHeight).toBe(48);
     // Every list card on the page has more than one row: Pengaturan's own card is gone.
     for (const list of screen.getAllByTestId("list-card")) expect(within(list).getAllByRole("button").length).toBeGreaterThan(1);
-    fireEvent.press(rows[4]);
+    await fireEvent.press(rows[4]);
     expect(require("expo-router").router.push).toHaveBeenLastCalledWith("/pengaturan");
     // The settings gear in the header is still the other way in.
     expect(screen.getAllByRole("button", { name: "Pengaturan" })).toHaveLength(2);
   });
 
   it("the payments card comes first when payments are off, and is gone with Pembayaran reading Aktif when they are on", async () => {
-    const off = scaled(usahaWith([packageNamed(1)], false), <UsahaScreen />);
+    const off = await scaled(usahaWith([packageNamed(1)], false), <UsahaScreen />);
     const button = await screen.findByRole("button", { name: "Aktifkan pembayaran" });
     expect(screen.getByRole("header", { name: "Terima pembayaran lewat Catera" })).toBeTruthy();
     // First under the header, then Paket, then Kelola: three blocks 24 apart.
@@ -642,8 +640,8 @@ describe("Usaha on the Dapur scale", () => {
     expect(bag(sections).gap).toBe(24);
     expect(within(screen.getByTestId("usaha-payments")).getByRole("button", { name: "Aktifkan pembayaran" })).toBe(button);
     expect(within(screen.getByTestId("usaha-kelola")).getByText("Belum aktif")).toBeTruthy();
-    off.unmount();
-    scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
+    await off.unmount();
+    await scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
     await screen.findByText("Paket 1");
     expect(screen.queryByRole("button", { name: "Aktifkan pembayaran" })).toBeNull();
     expect(screen.queryByTestId("usaha-payments")).toBeNull();
@@ -652,7 +650,7 @@ describe("Usaha on the Dapur scale", () => {
 
   it("keeps every primary label whole at font scale 1.3 on a 360dp phone", async () => {
     jest.spyOn(ReactNativeModule, "useWindowDimensions").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
-    scaled(usahaWith([packageNamed(1)], false), <UsahaScreen />);
+    await scaled(usahaWith([packageNamed(1)], false), <UsahaScreen />);
     expect(await screen.findByRole("button", { name: "Aktifkan pembayaran" })).toBeTruthy();
     const status = await screen.findByText("Belum aktif");
     expect(status.props.numberOfLines).toBeUndefined();
@@ -665,7 +663,7 @@ describe("Usaha on the Dapur scale", () => {
       sellerOperations: jest.fn(() => new Promise(() => undefined)),
       request: jest.fn(async () => ({ active: null })),
     });
-    scaled(pending, <UsahaScreen />);
+    await scaled(pending, <UsahaScreen />);
     expect(await screen.findByLabelText("Memuat paket")).toBeTruthy();
     const hidden = { includeHiddenElements: true } as const;
     expect(bag(screen.getByTestId("usaha-skeleton-row-0", hidden)).height).toBe(72);
@@ -679,7 +677,7 @@ describe("Uang on the Dapur scale", () => {
   const money = (over: Partial<SettlementState>) => runtimeWith({ settlement: jest.fn(async () => ({ ...settlement, ...over })) });
 
   it("leads with a meta label, the payout as the figure, and a meta caption", async () => {
-    scaled(money({}), <UangScreen />);
+    await scaled(money({}), <UangScreen />);
     const figure = await screen.findByTestId("uang-available");
     expect(bag(figure)).toMatchObject({ fontSize: 32, lineHeight: 40, color: nativeThemes.light.charcoal, fontFamily: "Jakarta-ExtraBold" });
     expect(figure.props.numberOfLines).toBeUndefined();
@@ -694,14 +692,14 @@ describe("Uang on the Dapur scale", () => {
     ["zero", "0", /^Rp.0$/],
     ["a long amount", "12345000", /^Rp.12[.]345[.]000$/],
   ])("shows the payout %s whole", async (_name, available, text) => {
-    scaled(money({ available }), <UangScreen />);
+    await scaled(money({ available }), <UangScreen />);
     const figure = await screen.findByTestId("uang-available");
     expect(figure.props.children).toBe(settlementCurrency(available, "id"));
     expect(figure.props.children).toMatch(text);
   });
 
   it("puts the seven money states in 40 rows whose values end on one right edge, and no amount changes a row's height", async () => {
-    const view = scaled(money({}), <UangScreen />);
+    const view = await scaled(money({}), <UangScreen />);
     await screen.findByTestId("uang-available");
     const keys = ["expected", "earned", "held", "available", "reserved", "paid", "recovery"];
     const geometry = () =>
@@ -716,8 +714,8 @@ describe("Uang on the Dapur scale", () => {
       expect(value.fontVariant).toEqual(["tabular-nums"]);
     }
     const before = JSON.stringify(geometry());
-    view.unmount();
-    scaled(money({ expected: "123456789012", held: "0" }), <UangScreen />);
+    await view.unmount();
+    await scaled(money({ expected: "123456789012", held: "0" }), <UangScreen />);
     await screen.findByTestId("uang-available");
     expect(JSON.stringify(geometry())).toBe(before);
     // One list card holds all seven rows.
@@ -725,7 +723,7 @@ describe("Uang on the Dapur scale", () => {
   });
 
   it("moves each row's explanation out of the rows into meta paragraphs under the list", async () => {
-    scaled(money({}), <UangScreen />);
+    await scaled(money({}), <UangScreen />);
     await screen.findByTestId("uang-available");
     const hints = screen.getByTestId("uang-hints");
     const escape = (text: string) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
@@ -748,7 +746,7 @@ describe("Uang on the Dapur scale", () => {
 
   it("keeps the long amount whole at font scale 1.3 on a 360dp phone", async () => {
     jest.spyOn(ReactNativeModule, "useWindowDimensions").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
-    scaled(money({ available: "12345000", paid: "12345000" }), <UangScreen />);
+    await scaled(money({ available: "12345000", paid: "12345000" }), <UangScreen />);
     const figure = await screen.findByTestId("uang-available");
     expect(figure.props.children).toMatch(/^Rp.12[.]345[.]000$/);
     expect(figure.props.numberOfLines).toBeUndefined();
@@ -762,7 +760,7 @@ describe("Tim and Hapus akun read the shared sheet padding", () => {
   // process.env.EXPO_OS is inlined by the Expo transform, so Jest runs the Android value: 24 (iOS is 20, which
   // `sheetSidePadding` itself pins in the shared sheet tests).
   it("Tim's side padding is sheetSidePadding", async () => {
-    scaled(runtimeWith({}), <TimScreen />);
+    await scaled(runtimeWith({}), <TimScreen />);
     const content = await screen.findByTestId("tim-content");
     expect(bag(content).paddingHorizontal).toBe(sheetSidePadding());
     expect(sheetSidePadding()).toBe(24);
@@ -770,7 +768,7 @@ describe("Tim and Hapus akun read the shared sheet padding", () => {
   });
 
   it("Hapus akun's side padding is sheetSidePadding", async () => {
-    scaled(runtimeWith({ request: jest.fn(async () => ({ requests: [] })) }), <HapusAkun />);
+    await scaled(runtimeWith({ request: jest.fn(async () => []) }), <HapusAkun />);
     const content = await screen.findByTestId("hapus-akun-content");
     expect(bag(content).paddingHorizontal).toBe(sheetSidePadding());
   });
@@ -779,8 +777,8 @@ describe("Tim and Hapus akun read the shared sheet padding", () => {
     const { Share } = jest.requireActual("react-native") as typeof import("react-native");
     jest.spyOn(Share, "share").mockResolvedValue({ action: "dismissedAction" });
     const command = jest.fn(async () => ({ id: "i-1", code: "abc123" }));
-    scaled(runtimeWith({ command }), <TimScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
+    await scaled(runtimeWith({ command }), <TimScreen />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
     const box = await screen.findByTestId("tim-code");
     expect(bag(box).borderRadius).toBe(16);
     expect(within(box).getByText("abc123").props.selectable).toBe(true);
@@ -788,24 +786,24 @@ describe("Tim and Hapus akun read the shared sheet padding", () => {
 });
 
 describe("Paket detail on the Dapur scale", () => {
-  it("draws the photo at 16:10 in a HeroPhotoFrame, with its own radius and no fixed 168", () => {
-    scaled(runtimeWith({}), <PackageDetail offer={photoOffer} />);
+  it("draws the photo at 16:10 in a HeroPhotoFrame, with its own radius and no fixed 168", async () => {
+    await scaled(runtimeWith({}), <PackageDetail offer={photoOffer} />);
     const photo = screen.getByTestId("paket-photo");
     expect(bag(photo).aspectRatio).toBe(16 / 10);
     expect(bag(photo).height).toBeUndefined();
     expect(screen.getByTestId("paket-photo-inset")).toBeTruthy();
     // The image rounds itself: a photo that finishes loading must not depend on a clipping ancestor for its corners.
-    expect(bag(screen.UNSAFE_getByType(ExpoImage))).toMatchObject({ borderRadius: 16 });
+    expect(bag(oneImage())).toMatchObject({ borderRadius: 16 });
   });
 
-  it("draws no photo block when the package has none", () => {
-    scaled(runtimeWith({}), <PackageDetail offer={{ ...photoOffer, image: "" } as typeof photoOffer} />);
+  it("draws no photo block when the package has none", async () => {
+    await scaled(runtimeWith({}), <PackageDetail offer={{ ...photoOffer, image: "" } as typeof photoOffer} />);
     expect(screen.queryByTestId("paket-photo")).toBeNull();
     expect(screen.getByText("Masakan rumahan harian dengan nasi, dua lauk dan sayur.")).toBeTruthy();
   });
 
-  it("states the facts as 40 key-value rows in one list card, and the copy action as a 50 secondary button", () => {
-    scaled(runtimeWith({}), <PackageDetail offer={photoOffer} />);
+  it("states the facts as 40 key-value rows in one list card, and the copy action as a 50 secondary button", async () => {
+    await scaled(runtimeWith({}), <PackageDetail offer={photoOffer} />);
     expect(bag(screen.getByText(/^Masakan rumahan/))).toMatchObject({ fontSize: 15, lineHeight: 22 });
     const card = screen.getByTestId("list-card");
     const rows = within(card).getAllByTestId(/^paket-fact-/);
@@ -821,13 +819,13 @@ describe("Paket detail on the Dapur scale", () => {
     expect(bag(copy).backgroundColor).not.toBe(nativeThemes.light.forest);
   });
 
-  it("a package with no price says so in the price row", () => {
-    scaled(runtimeWith({}), <PackageDetail offer={{ ...photoOffer, price: null } as unknown as typeof photoOffer} />);
+  it("a package with no price says so in the price row", async () => {
+    await scaled(runtimeWith({}), <PackageDetail offer={{ ...photoOffer, price: null } as unknown as typeof photoOffer} />);
     expect(within(screen.getByTestId("paket-fact-harga")).getByText("Belum ada harga")).toBeTruthy();
   });
 
-  it("waits as a photo block at 16:10, three 40 rows and the 50 button", () => {
-    render(withDapurScale(<DetailSkeleton shape="package" label="Memuat paket" />));
+  it("waits as a photo block at 16:10, three 40 rows and the 50 button", async () => {
+    await render(withDapurScale(<DetailSkeleton shape="package" label="Memuat paket" />));
     const hidden = { includeHiddenElements: true } as const;
     expect(bag(screen.getByTestId("detail-skeleton-photo", hidden)).aspectRatio).toBe(16 / 10);
     for (const i of [0, 1, 2]) expect(bag(screen.getByTestId(`detail-skeleton-kv-${i}`, hidden)).height).toBe(40);
@@ -842,7 +840,7 @@ describe("Paket editor on the Dapur scale", () => {
     ["new", undefined],
     ["edit", liveOffer],
   ])("a %s package lays out its sections 24 apart under section headers", async (_name, from) => {
-    scaled(runtimeWith({}), <PackageEditor from={from} />);
+    await scaled(runtimeWith({}), <PackageEditor from={from} />);
     await screen.findByRole("button", { name: from?.image ? "Ganti foto paket" : "Pilih foto paket" });
     expect(bag(screen.getByTestId("paket-sections")).gap).toBe(24);
     for (const name of sections) expect(bag(screen.getByRole("header", { name }))).toMatchObject({ fontSize: 20, lineHeight: 26 });
@@ -851,12 +849,12 @@ describe("Paket editor on the Dapur scale", () => {
   });
 
   it("a new package shows the empty photo tile at 16:10; an edit shows the photo with its own radius", async () => {
-    const fresh = scaled(runtimeWith({}), <PackageEditor />);
+    const fresh = await scaled(runtimeWith({}), <PackageEditor />);
     expect(await screen.findByText("+ Foto paket")).toBeTruthy();
     expect(bag(screen.getByTestId("paket-photo")).aspectRatio).toBe(16 / 10);
     expect(screen.queryByTestId("paket-photo-image")).toBeNull();
-    fresh.unmount();
-    scaled(runtimeWith({}), <PackageEditor from={liveOffer} />);
+    await fresh.unmount();
+    await scaled(runtimeWith({}), <PackageEditor from={liveOffer} />);
     await screen.findByRole("button", { name: "Ganti foto paket" });
     expect(bag(screen.getByTestId("paket-photo")).aspectRatio).toBe(16 / 10);
     expect(bag(screen.getByTestId("paket-photo-image"))).toMatchObject({ borderRadius: 16 });
@@ -864,14 +862,14 @@ describe("Paket editor on the Dapur scale", () => {
   });
 
   it("the portion steppers sit in one list card", async () => {
-    scaled(runtimeWith({}), <PackageEditor />);
+    await scaled(runtimeWith({}), <PackageEditor />);
     const counts = await screen.findByTestId("paket-counts");
     expect(within(counts).getByTestId("list-card")).toBeTruthy();
     expect(within(counts).getAllByRole("button", { name: /^Tambah / }).length).toBeGreaterThan(3);
   });
 
   it("delivery-day chips wrap in frames at least 48 tall, each chip keeping its 7 hit slop", async () => {
-    scaled(runtimeWith({}), <PackageEditor />);
+    await scaled(runtimeWith({}), <PackageEditor />);
     await screen.findByRole("button", { name: "Pilih foto paket" });
     const wrap = screen.getByTestId("paket-days");
     expect(bag(wrap)).toMatchObject({ flexDirection: "row", flexWrap: "wrap" });
@@ -883,7 +881,7 @@ describe("Paket editor on the Dapur scale", () => {
     const chip = within(wrap).getByRole("button", { name: "Sen" });
     expect(chip.props.hitSlop).toEqual({ top: 7, bottom: 7 });
     // Selecting still works: Sab is off in a new package.
-    fireEvent.press(within(wrap).getByRole("button", { name: "Sab" }));
+    await fireEvent.press(within(wrap).getByRole("button", { name: "Sab" }));
     expect(within(wrap).getByRole("button", { name: "Sab" }).props.accessibilityState.selected).toBe(true);
   });
 });
@@ -898,9 +896,9 @@ describe("Paket editor number fields", () => {
     ["28 000", "28000"],
     ["D28D", "28"],
   ])("typing %p into the price stores %p: every non-digit is stripped", async (typed, stored) => {
-    scaled(runtimeWith({}), <PackageEditor />);
+    await scaled(runtimeWith({}), <PackageEditor />);
     const field = await screen.findByLabelText("Harga per porsi (Rp)");
-    fireEvent.changeText(field, typed);
+    await fireEvent.changeText(field, typed);
     expect(screen.getByLabelText("Harga per porsi (Rp)").props.value).toBe(stored);
   });
 
@@ -909,18 +907,18 @@ describe("Paket editor number fields", () => {
     ["1.200", "1200"],
     ["D5", "5"],
   ])("typing %p into the capacity stores %p", async (typed, stored) => {
-    scaled(runtimeWith({}), <PackageEditor />);
+    await scaled(runtimeWith({}), <PackageEditor />);
     const field = await screen.findByLabelText("Kapasitas per hari (porsi)");
-    fireEvent.changeText(field, typed);
+    await fireEvent.changeText(field, typed);
     expect(screen.getByLabelText("Kapasitas per hari (porsi)").props.value).toBe(stored);
   });
 
   it("a price typed as 28.000 publishes as 28000", async () => {
     const command = jest.fn(async () => ({ id: "p-new" }));
-    scaled(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
-    fireEvent.changeText(await screen.findByLabelText("Harga per porsi (Rp)"), "28.000");
-    fireEvent.changeText(screen.getByLabelText("Kapasitas per hari (porsi)"), "40 porsi");
-    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
+    await scaled(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
+    await fireEvent.changeText(await screen.findByLabelText("Harga per porsi (Rp)"), "28.000");
+    await fireEvent.changeText(screen.getByLabelText("Kapasitas per hari (porsi)"), "40 porsi");
+    await fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     const payload = (command.mock.calls[0] as unknown as [string, { offer: { price: number; capacity: Record<string, number> } }])[1];
     expect(payload.offer.price).toBe(28000);
@@ -940,8 +938,8 @@ describe("the package photo is not clipped by an ancestor", () => {
     return found;
   };
 
-  it("on the detail: no ancestor of the image has overflow hidden, and the image carries the radius", () => {
-    scaled(runtimeWith({}), <PackageDetail offer={photoOffer} />);
+  it("on the detail: no ancestor of the image has overflow hidden, and the image carries the radius", async () => {
+    await scaled(runtimeWith({}), <PackageDetail offer={photoOffer} />);
     const image = screen.getByTestId("paket-photo-image");
     expect(clippers(image)).toEqual([]);
     expect(bag(image)).toMatchObject({ borderRadius: 16 });
@@ -950,7 +948,7 @@ describe("the package photo is not clipped by an ancestor", () => {
   });
 
   it("on Usaha: a package's photo carries its own radius and no ancestor, the card included, clips it", async () => {
-    scaled(usahaWith([packageNamed(1), packageNamed(3)], true), <UsahaScreen />);
+    await scaled(usahaWith([packageNamed(1), packageNamed(3)], true), <UsahaScreen />);
     for (const id of ["p-1", "p-3"]) {
       const image = await screen.findByTestId(`usaha-package-${id}-thumb-image`);
       expect(bag(image)).toMatchObject({ width: 56, height: 56, borderRadius: 8 });
@@ -968,23 +966,23 @@ describe("the package photo is not clipped by an ancestor", () => {
     const picker = require("expo-image-picker") as { launchImageLibraryAsync: jest.Mock };
     picker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///x.jpg" }] });
     jest.spyOn(uploadModule, "uploadPhoto").mockResolvedValue("https://cdn.example.test/new.jpg");
-    scaled(runtimeWith({}), <PackageEditor />);
+    await scaled(runtimeWith({}), <PackageEditor />);
     expect(screen.queryByTestId("paket-photo-image")).toBeNull();
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih foto paket" }));
     const arrived = await screen.findByTestId("paket-photo-image");
     expect(arrived.props.source).toEqual({ uri: "https://cdn.example.test/new.jpg" });
     expect(clippers(arrived)).toEqual([]);
     expect(bag(arrived)).toMatchObject({ borderRadius: 16 });
-    screen.unmount();
-    scaled(runtimeWith({}), <PackageEditor from={liveOffer} />);
+    await screen.unmount();
+    await scaled(runtimeWith({}), <PackageEditor from={liveOffer} />);
     const own = await screen.findByTestId("paket-photo-image");
     expect(clippers(own)).toEqual([]);
     expect(bag(own)).toMatchObject({ borderRadius: 16 });
     jest.restoreAllMocks();
   });
 
-  it("the default HeroPhotoFrame still clips its top corners (the customer's hero), and clip={false} drops both", () => {
-    render(
+  it("the default HeroPhotoFrame still clips its top corners (the customer's hero), and clip={false} drops both", async () => {
+    await render(
       withDapurScale(
         <>
           <HeroPhotoFrame ratio={1.6} testID="clipped" />
@@ -1025,7 +1023,7 @@ describe("the delivery days read as a range", () => {
     jest.spyOn(ReactNativeModule, "useWindowDimensions").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
     const runtime = runtimeWith({});
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
-    scaled(runtime, <PackageDetail offer={{ ...photoOffer, weekdays: [1, 2, 4, 5, 0], capacity: { "1": 40 } } as typeof photoOffer} />);
+    await scaled(runtime, <PackageDetail offer={{ ...photoOffer, weekdays: [1, 2, 4, 5, 0], capacity: { "1": 40 } } as typeof photoOffer} />);
     await screen.findByText("Delivery days");
     const days = screen.getByTestId("paket-fact-hari");
     const label = within(days).getByText("Delivery days");
@@ -1053,10 +1051,10 @@ describe("the delivery days read as a range", () => {
 
 describe("Kelola glyphs", () => {
   it("are muted, not forest: forest is for actions", async () => {
-    scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
+    await scaled(usahaWith([packageNamed(1)], true), <UsahaScreen />);
     await screen.findByText("Paket 1");
-    const glyphs = within(screen.getByTestId("usaha-kelola")).UNSAFE_getAllByType(Ionicons).filter((g) => g.props.size === 20 && g.props.name !== "chevron-forward");
+    const glyphs = iconsIn(screen.getByTestId("usaha-kelola")).filter((g) => g.size === 20 && g.name !== "chevron-forward");
     expect(glyphs).toHaveLength(5);
-    for (const glyph of glyphs) expect(glyph.props.color).toBe(nativeThemes.light.muted);
+    for (const glyph of glyphs) expect(glyph.color).toBe(nativeThemes.light.muted);
   });
 });

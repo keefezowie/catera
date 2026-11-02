@@ -1,12 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { View } from "react-native";
-import { router } from "expo-router";
 import { mealLabel, shortDate, type DeliveryIssue, type Locale, type SellerAttentionItem } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Card, DecorativeIcon, GlyphCircle, PressableRow, Text, useColors } from "@catera/mobile-ui";
 import { replyHref } from "../hrefs";
 import { dapurLink } from "../links";
-import { openLink } from "../nav";
+import { openLink, pushScreen } from "../nav";
 import { LinkRow } from "./rows";
 
 /** A to-do's text column starts after its 40 glyph circle and the 12 gap: where the hairlines and the link row begin. */
@@ -97,7 +96,7 @@ function ReportRow({ issue }: { issue: DeliveryIssue }) {
     <PressableRow
       accessibilityRole="button"
       accessibilityLabel={`${t("Buka laporan", "Open report")}: ${who}`}
-      onPress={() => router.push(replyHref(issue.id, issue.customerName) as never)}
+      onPress={() => pushScreen(replyHref(issue.id, issue.customerName))}
       style={rowStyle}
     >
       <GlyphCircle>
@@ -192,7 +191,7 @@ function MulaiCard() {
           <PressableRow
             key={href}
             accessibilityRole="button"
-            onPress={() => router.push(href as never)}
+            onPress={() => pushScreen(href)}
             style={{
               minHeight: 56,
               padding: 12,

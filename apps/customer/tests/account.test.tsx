@@ -1,7 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import * as SecureStore from "expo-secure-store";
@@ -24,6 +23,7 @@ import { customerLink } from "../src/links";
 import { AddressForm } from "../src/account/AddressForm";
 import { customerState, eightPlans, subscription, offer, TODAY } from "./fixtures";
 import { SheetHost } from "./sheetHost";
+import { hostsWhere } from "./find-hosts";
 
 let mockParams: Record<string, string> = {};
 /** Adding and editing an address is a sheet route (`/alamat-form`): the host shows it over Alamat. */
@@ -42,6 +42,15 @@ const withForm = (
 jest.mock("../src/nav", () => ({
   ...jest.requireActual("../src/nav"),
   openLink: (path: string) => require("expo-router").router.push(path),
+}));
+/**
+ * The unsaved guard holds a removal through expo-router 58's `usePreventRemove`, which needs a navigator. The stand-in
+ * records what each render asked for: `calls.at(-1)[0]` is whether a close is held right now.
+ */
+const mockPreventRemove = jest.fn<void, [boolean, (event: unknown) => void]>();
+jest.mock("expo-router/react-navigation", () => ({
+  ...jest.requireActual("expo-router/react-navigation"),
+  usePreventRemove: (prevent: boolean, callback: (event: unknown) => void) => mockPreventRemove(prevent, callback),
 }));
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
@@ -160,7 +169,7 @@ describe("Akun", () => {
     });
 
   it("opens with the initials avatar and the name in heroTitle, with the phone under it and no settings gear", async () => {
-    renderWith(runtimeWith({}, { phone: "6281234567890" }), <Akun />);
+    await renderWith(runtimeWith({}, { phone: "6281234567890" }), <Akun />);
     const header = await screen.findByTestId("akun-header");
     const avatar = within(header).getByTestId("akun-avatar", { includeHiddenElements: true });
     expect(flat(avatar)).toMatchObject({ width: 56, height: 56, borderRadius: 28 });
@@ -173,7 +182,7 @@ describe("Akun", () => {
   });
 
   it("hides the initials avatar from a screen reader, so the name is the first thing it reads", async () => {
-    renderWith(runtimeWith({}, { phone: "6281234567890" }), <Akun />);
+    await renderWith(runtimeWith({}, { phone: "6281234567890" }), <Akun />);
     const avatar = await screen.findByTestId("akun-avatar", { includeHiddenElements: true });
     expect(avatar.props.accessible).toBe(false);
     expect(avatar.props.importantForAccessibility).toBe("no-hide-descendants");
@@ -182,12 +191,12 @@ describe("Akun", () => {
   });
 
   it("takes one initial for a one-word name", async () => {
-    renderWith(runtimeWith({}, { actor: { id: "u-2", role: "customer", name: "Rani" } }), <Akun />);
+    await renderWith(runtimeWith({}, { actor: { id: "u-2", role: "customer", name: "Rani" } }), <Akun />);
     expect(within(await screen.findByTestId("akun-avatar", { includeHiddenElements: true })).getByText("R", { includeHiddenElements: true })).toBeTruthy();
   });
 
   it("shows three shortcut tiles, each with its label over its count, that open Paket saya, Alamat and Riwayat", async () => {
-    renderWith(
+    await renderWith(
       runtimeWith({ subscriptions: [subscription(), finished()], addresses: [address("a-1", "Kantor"), address("a-2", "Rumah")] }),
       <Akun />,
     );
@@ -205,40 +214,40 @@ describe("Akun", () => {
     expect(flat(screen.getByTestId("akun-tiles"))).toMatchObject({ columnGap: 8, rowGap: 8 });
     expect(flat(within(paket).getByText("Paket saya"))).toMatchObject({ fontSize: 15, lineHeight: 22 });
     expect(flat(within(paket).getByText("1 aktif"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
-    fireEvent.press(paket);
+    await fireEvent.press(paket);
     expect(router.push).toHaveBeenLastCalledWith("/paket-saya");
-    fireEvent.press(alamat);
+    await fireEvent.press(alamat);
     expect(router.push).toHaveBeenLastCalledWith("/alamat");
-    fireEvent.press(riwayat);
+    await fireEvent.press(riwayat);
     expect(router.push).toHaveBeenLastCalledWith("/pembayaran");
   });
 
   it("says Tidak ada for no running plan and no saved address", async () => {
-    renderWith(runtimeWith({ subscriptions: [finished()], addresses: [] }), <Akun />);
+    await renderWith(runtimeWith({ subscriptions: [finished()], addresses: [] }), <Akun />);
     expect(await within(await screen.findByTestId("akun-tile-paket")).findByText("Tidak ada")).toBeTruthy();
     expect(within(screen.getByTestId("akun-tile-alamat")).getByText("Tidak ada")).toBeTruthy();
   });
 
   it("counts eight running plans", async () => {
-    renderWith(runtimeWith(eightPlans()), <Akun />);
+    await renderWith(runtimeWith(eightPlans()), <Akun />);
     expect(await within(await screen.findByTestId("akun-tile-paket")).findByText("8 aktif")).toBeTruthy();
   });
 
   it("keeps the tiles reachable without counts when the plan read fails", async () => {
     const failing = async () => Promise.reject(Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" }));
     const runtime = runtimeWith(failing);
-    renderWith(runtime, <Akun />);
+    await renderWith(runtime, <Akun />);
     const paket = await screen.findByTestId("akun-tile-paket");
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     await act(async () => {});
     expect(within(paket).queryByText(/aktif|Tidak ada/)).toBeNull();
     expect(within(screen.getByTestId("akun-tile-alamat")).queryByText(/tersimpan|Tidak ada/)).toBeNull();
-    fireEvent.press(paket);
+    await fireEvent.press(paket);
     expect(router.push).toHaveBeenLastCalledWith("/paket-saya");
   });
 
   it("lists Data akun, Disimpan, Notifikasi and Bantuan dan laporan in one card of 56 rows, and Pengaturan in a card of its own", async () => {
-    renderWith(runtimeWith({}), <Akun />);
+    await renderWith(runtimeWith({}), <Akun />);
     await screen.findByTestId("akun-tiles");
     expect(screen.getAllByTestId("list-card")).toHaveLength(2);
     const [rows, settings] = screen.getAllByTestId("list-card");
@@ -252,14 +261,14 @@ describe("Akun", () => {
       ["Notifikasi", "/notifications"],
       ["Bantuan dan laporan", "/bantuan"],
     ]) {
-      fireEvent.press(within(rows).getByText(label));
+      await fireEvent.press(within(rows).getByText(label));
       expect(router.push).toHaveBeenLastCalledWith(href);
     }
     for (const row of within(rows).getAllByRole("button")) expect(flat(row)).toMatchObject({ minHeight: 56 });
     // Pengaturan sits apart and says what it holds.
     expect(within(settings).getByText("Pengaturan")).toBeTruthy();
     expect(within(settings).getByText("Bahasa, tampilan")).toBeTruthy();
-    fireEvent.press(within(settings).getByText("Pengaturan"));
+    await fireEvent.press(within(settings).getByText("Pengaturan"));
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
     // Alamat and Riwayat are tiles now, not rows; no Keluar here.
     expect(within(rows).queryByText("Alamat")).toBeNull();
@@ -268,7 +277,7 @@ describe("Akun", () => {
   });
 
   it("holds no plan rows: active plans live in Paket saya", async () => {
-    renderWith(runtimeWith({ subscriptions: [subscription(), finished()] }), <Akun />);
+    await renderWith(runtimeWith({ subscriptions: [subscription(), finished()] }), <Akun />);
     expect(await screen.findByText("1 aktif")).toBeTruthy();
     expect(screen.queryByText("Makan Siang Rumahan")).toBeNull();
     expect(screen.queryByText("Dapur Contoh · 6 hari lagi")).toBeNull();
@@ -278,7 +287,7 @@ describe("Akun", () => {
 
   it("stacks the tiles in one column and lets every label wrap at 360dp and font scale 1.3", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
-    renderWith(runtimeWith(eightPlans(), { phone: "6281234567890" }), <Akun />);
+    await renderWith(runtimeWith(eightPlans(), { phone: "6281234567890" }), <Akun />);
     await screen.findByTestId("akun-tiles");
     expect(flat(screen.getByTestId("akun-tiles")).flexDirection).toBe("column");
     // Nothing a tile or a row must show is cut to one line.
@@ -291,7 +300,7 @@ describe("Akun", () => {
 
   it("stacks the tiles at 412dp and font scale 1.3 (effective width 316): 72 rows with the glyph beside the words", async () => {
     mockWindow = { width: 412, height: 860, scale: 3, fontScale: 1.3 };
-    renderWith(runtimeWith(eightPlans(), { phone: "6281234567890" }), <Akun />);
+    await renderWith(runtimeWith(eightPlans(), { phone: "6281234567890" }), <Akun />);
     await screen.findByTestId("akun-tiles");
     expect(TILES_STACK_BELOW).toBe(340);
     expect(flat(screen.getByTestId("akun-tiles")).flexDirection).toBe("column");
@@ -308,15 +317,15 @@ describe("Akun", () => {
       { width: 360, height: 800, scale: 3, fontScale: 1 },
     ]) {
       mockWindow = w;
-      const view = renderWith(runtimeWith({}), <Akun />);
+      const view = await renderWith(runtimeWith({}), <Akun />);
       await screen.findByTestId("akun-tiles");
       expect(flat(screen.getByTestId("akun-tiles")).flexDirection).toBe("row");
-      view.unmount();
+      await view.unmount();
     }
   });
 
   it("names its tiles and rows from their non-empty parts: no glyph, leading, trailing or doubled separator", async () => {
-    renderWith(runtimeWith(eightPlans(), { phone: "6281234567890" }), <Akun />);
+    await renderWith(runtimeWith(eightPlans(), { phone: "6281234567890" }), <Akun />);
     await screen.findByTestId("akun-tiles");
     const labels = screen.getAllByRole("button").map((b) => b.props.accessibilityLabel as string | undefined).filter(Boolean) as string[];
     expect(labels.length).toBeGreaterThan(5);
@@ -328,7 +337,7 @@ describe("Akun", () => {
   it("takes the dark theme's surface for the tiles and the cards, and its ink for the labels", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const dark = nativeThemes.dark;
-    render(
+    await render(
       <ThemeProvider storageKey="akun-dark-test">
         <MobileProvider runtime={runtimeWith({})} linkMapper={customerLink}>
           <Akun />
@@ -344,7 +353,7 @@ describe("Akun", () => {
 
   it("reads the tiles in English", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
-    renderWith(runtimeWith({ subscriptions: [subscription()], addresses: [address("a-1", "Kantor")] }), <Akun />);
+    await renderWith(runtimeWith({ subscriptions: [subscription()], addresses: [address("a-1", "Kantor")] }), <Akun />);
     const paket = await screen.findByTestId("akun-tile-paket");
     expect(within(paket).getByText("My plans")).toBeTruthy();
     expect(await within(paket).findByText("1 active")).toBeTruthy();
@@ -356,7 +365,7 @@ describe("Akun", () => {
 
   it("language switch changes copy to English", async () => {
     // The language is chosen in Pengaturan's Bahasa sheet; Akun follows it.
-    renderWith(
+    await renderWith(
       runtimeWith({}),
       <>
         <Akun />
@@ -364,7 +373,7 @@ describe("Akun", () => {
       </>,
     );
     expect(await screen.findByText("Paket saya")).toBeTruthy();
-    fireEvent.press(screen.getByRole("radio", { name: "English" }));
+    await fireEvent.press(screen.getByRole("radio", { name: "English" }));
     expect(await screen.findByText("My plans")).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Settings/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Help and reports/ })).toBeTruthy();
@@ -372,34 +381,40 @@ describe("Akun", () => {
   });
 
   it("shows no caterer or admin workspace links", async () => {
-    renderWith(runtimeWith({}, { actor: { id: "u-o1", role: "owner", name: "Pemilik Contoh" } }), <Akun />);
+    await renderWith(runtimeWith({}, { actor: { id: "u-o1", role: "owner", name: "Pemilik Contoh" } }), <Akun />);
     expect(await screen.findByText("Pemilik Contoh")).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /^Pengaturan/ })).toHaveLength(1);
     expect(screen.queryByText(/ruang kerja|Catera Admin|workspace/i)).toBeNull();
   });
 
   it("signed out asks to sign in and comes back to Akun, and still offers Pengaturan", async () => {
-    renderWith(
+    await renderWith(
       runtimeWith({}, { actor: null }),
       <>
         <Akun />
         <BahasaSheet />
       </>,
     );
-    fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/akun" } });
     expect(screen.getAllByRole("button", { name: /^Pengaturan/ })).toHaveLength(1);
-    fireEvent.press(screen.getByRole("button", { name: /^Pengaturan/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /^Pengaturan/ }));
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
-    fireEvent.press(screen.getByRole("radio", { name: "English" }));
+    await fireEvent.press(screen.getByRole("radio", { name: "English" }));
     expect(await screen.findByRole("button", { name: "Sign in" })).toBeTruthy();
   });
 
   // Tampilan moved from Akun to Pengaturan's sheet (Phase F); signed out reaches it through Pengaturan too.
   describe("Tampilan in Pengaturan", () => {
-    const canvas = () => StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor;
+    // SafeAreaView draws as the host RNCSafeAreaView.
+    const safeAreaCanvas = () => {
+      const [only, ...rest] = hostsWhere({ type: "RNCSafeAreaView" });
+      expect(rest).toHaveLength(0);
+      return only;
+    };
+    const canvas = () => StyleSheet.flatten(safeAreaCanvas().props.style).backgroundColor;
     const renderThemed = async (runtime: MobileRuntime) => {
-      render(
+      await render(
         <ThemeProvider storageKey={runtime.storageKey("theme")}>
           <MobileProvider runtime={runtime} linkMapper={customerLink}>
             <Pengaturan />
@@ -422,7 +437,7 @@ describe("Akun", () => {
 
     it("pressing Gelap stores dark and repaints Pengaturan under the sheet", async () => {
       await renderThemed(runtimeWith({}));
-      fireEvent.press(screen.getByRole("radio", { name: "Gelap" }));
+      await fireEvent.press(screen.getByRole("radio", { name: "Gelap" }));
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.theme", "dark");
       expect(canvas()).toBe("#151514");
       expect(screen.getByRole("radio", { name: "Gelap" })).toBeChecked();
@@ -431,7 +446,7 @@ describe("Akun", () => {
 
     it("reads Appearance, Follow system, Light and Dark in English", async () => {
       await renderThemed(runtimeWith({}));
-      fireEvent.press(screen.getByRole("radio", { name: "English" }));
+      await fireEvent.press(screen.getByRole("radio", { name: "English" }));
       expect(await screen.findByRole("button", { name: "Appearance, Follow system" })).toBeTruthy();
       expect(screen.getByRole("radio", { name: "Follow system" })).toBeChecked();
       expect(screen.getByRole("radio", { name: "Light" })).toBeTruthy();
@@ -441,7 +456,7 @@ describe("Akun", () => {
 
     it("is offered while signed out too", async () => {
       await renderThemed(runtimeWith({}, { actor: null }));
-      fireEvent.press(screen.getByRole("radio", { name: "Gelap" }));
+      await fireEvent.press(screen.getByRole("radio", { name: "Gelap" }));
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.theme", "dark");
     });
   });
@@ -449,7 +464,7 @@ describe("Akun", () => {
 
 describe("Notifikasi", () => {
   it("lists the updates without a push card: the switch lives in Pengaturan", async () => {
-    renderWith(runtimeWith({}), <NotificationsScreen />);
+    await renderWith(runtimeWith({}), <NotificationsScreen />);
     expect(await screen.findByText("Belum ada notifikasi baru.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Aktifkan" })).toBeNull();
     expect(screen.queryByText("Nonaktif")).toBeNull();
@@ -477,21 +492,21 @@ describe("Notifikasi", () => {
         },
       ],
     });
-    renderWith(runtime, <NotificationsScreen />);
-    fireEvent.press(await screen.findByText("Makan siang sedang diantar."));
+    await renderWith(runtime, <NotificationsScreen />);
+    await fireEvent.press(await screen.findByText("Makan siang sedang diantar."));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith("notification.read", { id: "n-1" }, expect.any(String)),
     );
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/hari/d-1"));
     expect(screen.getByText(/10.15/)).toBeTruthy();
 
-    fireEvent.press(screen.getByText("Pembayaran diterima."));
+    await fireEvent.press(screen.getByText("Pembayaran diterima."));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/bayar/ck-1"));
     expect(runtime.api.command).toHaveBeenCalledTimes(1);
   });
 
   it("says plainly when there is nothing yet", async () => {
-    renderWith(runtimeWith({}), <NotificationsScreen />);
+    await renderWith(runtimeWith({}), <NotificationsScreen />);
     expect(await screen.findByText("Belum ada notifikasi baru.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Tandai semua dibaca" })).toBeNull();
   });
@@ -524,7 +539,7 @@ describe("Notifikasi", () => {
     // Each read waits until the test lets it go, so a second tap lands while the first pass is still busy.
     const pending: (() => void)[] = [];
     (runtime.api.command as jest.Mock).mockImplementation(() => new Promise<object>((done) => pending.push(() => done({}))));
-    renderWith(runtime, <NotificationsScreen />);
+    await renderWith(runtime, <NotificationsScreen />);
     expect(await screen.findByText("Kabar n-1")).toBeTruthy();
     expect(screen.queryByText("Baru")).toBeNull();
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Hari ini", "Kemarin", "Sebelumnya"]);
@@ -533,8 +548,8 @@ describe("Notifikasi", () => {
     expect(flat(screen.getByText("Kabar n-1")).fontFamily).not.toBe(flat(screen.getByText("Kabar n-2")).fontFamily);
 
     const markAll = screen.getByRole("button", { name: "Tandai semua dibaca" });
-    fireEvent.press(markAll);
-    fireEvent.press(markAll);
+    await fireEvent.press(markAll);
+    await fireEvent.press(markAll);
     for (let i = 0; i < 3; i++) {
       await waitFor(() => expect(pending.length).toBeGreaterThan(0));
       await act(async () => pending.shift()!());
@@ -556,13 +571,13 @@ describe("Notifikasi", () => {
     (runtime.api.command as jest.Mock)
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
-    renderWith(
+    await renderWith(
       runtime,
       <ToastProvider>
         <NotificationsScreen />
       </ToastProvider>,
     );
-    fireEvent.press(await screen.findByRole("button", { name: "Tandai semua dibaca" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Tandai semua dibaca" }));
     expect(await screen.findByText("Belum semua ditandai dibaca. Coba lagi.")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledTimes(2);
     expect(screen.queryByText("REQUEST_TIMEOUT")).toBeNull();
@@ -573,7 +588,7 @@ describe("Notifikasi", () => {
 
   it("all read: no mark-all action and no dots, in the dark theme too", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.theme", "dark");
-    renderWith(
+    await renderWith(
       runtimeWith({ notifications: [note("n-2", TODAY, true), note("n-5", addDays(TODAY, -9), true)] as never }),
       <ThemeProvider storageKey="catera.theme">
         <NotificationsScreen />
@@ -587,7 +602,7 @@ describe("Notifikasi", () => {
 
   it("at font 1.3 and 360dp a notification row grows and never cuts its text", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
-    renderWith(runtimeWith({ notifications: mixed() as never }), <NotificationsScreen />);
+    await renderWith(runtimeWith({ notifications: mixed() as never }), <NotificationsScreen />);
     const body = await screen.findByText("Kabar n-1");
     expect(body.props.numberOfLines).toBeUndefined();
     for (const row of screen.getAllByTestId("notification-row")) {
@@ -611,15 +626,15 @@ describe("Alamat", () => {
 
   it("edits an address with the same address.save payload", async () => {
     const runtime = runtimeWith({ addresses: [kantor] });
-    renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: /^Kantor, / }));
+    await renderWith(runtime, withForm);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Kantor, / }));
     // The form is a native sheet over Alamat, opened with the address's id.
     expect(router.push).toHaveBeenCalledWith("/alamat-form?id=a-1");
     // An edit reads the book for the address's version first.
-    fireEvent.changeText(await screen.findByLabelText("Jalan, nomor, detail"), "Jl. Baru No. 2");
+    await fireEvent.changeText(await screen.findByLabelText("Jalan, nomor, detail"), "Jl. Baru No. 2");
     // The primary action is pinned in the sheet's footer, not in the scrolling content.
     expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Simpan alamat" })).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "address.save",
@@ -644,14 +659,14 @@ describe("Alamat", () => {
 
   it("adds a new address in the chosen area", async () => {
     const runtime = runtimeWith({ addresses: [] });
-    renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    await renderWith(runtime, withForm);
+    await fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
     expect(router.push).toHaveBeenCalledWith("/alamat-form");
     expect(screen.getByRole("header", { name: "Alamat baru" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeDisabled();
-    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
-    fireEvent.press(screen.getByRole("button", { name: "Tangerang Selatan" }));
-    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    await fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
+    await fireEvent.press(screen.getByRole("button", { name: "Tangerang Selatan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "address.save",
@@ -669,8 +684,8 @@ describe("Alamat", () => {
 
   it("the label is Rumah, Kantor or Lainnya; Lainnya shows the text field", async () => {
     const runtime = runtimeWith({ addresses: [] });
-    renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    await renderWith(runtime, withForm);
+    await fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
     const chip = (name: string) => screen.getByRole("button", { name });
     expect(chip("Rumah").props.accessibilityState).toMatchObject({ selected: true });
     expect(chip("Kantor").props.accessibilityState).toMatchObject({ selected: false });
@@ -678,11 +693,11 @@ describe("Alamat", () => {
     expect(screen.getByText("Simpan sebagai")).toBeTruthy();
     // A preset label needs no typing.
     expect(screen.queryByLabelText("Label alamat")).toBeNull();
-    fireEvent.press(chip("Lainnya"));
+    await fireEvent.press(chip("Lainnya"));
     expect(chip("Lainnya").props.accessibilityState).toMatchObject({ selected: true });
-    fireEvent.changeText(screen.getByLabelText("Label alamat"), "Kos adik");
-    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    await fireEvent.changeText(screen.getByLabelText("Label alamat"), "Kos adik");
+    await fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith("address.save", expect.objectContaining({ label: "Kos adik" }), expect.any(String)),
     );
@@ -690,13 +705,13 @@ describe("Alamat", () => {
 
   it("Kantor saves the label Kantor and hides the text field", async () => {
     const runtime = runtimeWith({ addresses: [] });
-    renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
-    fireEvent.press(screen.getByRole("button", { name: "Lainnya" }));
-    fireEvent.press(screen.getByRole("button", { name: "Kantor" }));
+    await renderWith(runtime, withForm);
+    await fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lainnya" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kantor" }));
     expect(screen.queryByLabelText("Label alamat")).toBeNull();
-    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    await fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith("address.save", expect.objectContaining({ label: "Kantor" }), expect.any(String)),
     );
@@ -704,16 +719,16 @@ describe("Alamat", () => {
 
   it("a custom label opens as Lainnya with its text", async () => {
     const runtime = runtimeWith({ addresses: [{ ...kantor, id: "a-9", label: "Kos adik" }] });
-    renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: /^Kos adik, / }));
+    await renderWith(runtime, withForm);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Kos adik, / }));
     expect((await screen.findByRole("button", { name: "Lainnya" })).props.accessibilityState).toMatchObject({ selected: true });
     expect(screen.getByLabelText("Label alamat").props.value).toBe("Kos adik");
   });
 
   it("an existing Kantor opens with Kantor chosen", async () => {
     const runtime = runtimeWith({ addresses: [kantor] });
-    renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: /^Kantor, / }));
+    await renderWith(runtime, withForm);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Kantor, / }));
     await screen.findByLabelText("Petunjuk pengantaran");
     // The row under the sheet reads "Kantor" too; the chip is the one in the form.
     const form = within(screen.getByTestId("sheet-host"));
@@ -722,13 +737,13 @@ describe("Alamat", () => {
   });
 
   it("Petunjuk pengantaran shows an example", async () => {
-    renderWith(runtimeWith({ addresses: [] }), withForm);
-    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    await renderWith(runtimeWith({ addresses: [] }), withForm);
+    await fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
     expect(screen.getByText("Contoh: pagar hitam, titip satpam")).toBeTruthy();
   });
 
   it("no addresses: the empty line and Tambah alamat, no heading", async () => {
-    renderWith(runtimeWith({ addresses: [] }), withForm);
+    await renderWith(runtimeWith({ addresses: [] }), withForm);
     expect(await screen.findByText("Belum ada alamat.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tambah alamat" })).toBeTruthy();
     expect(screen.queryByText("Makanan diantar ke mana?")).toBeNull();
@@ -738,7 +753,7 @@ describe("Alamat", () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
     try {
       const long = { ...kantor, line: "Jl. Kebon Jeruk Raya No. 27, Blok C, lantai 3, sebelah warung" };
-      renderWith(
+      await renderWith(
         runtimeWith({ addresses: [kantor, { ...long, id: "a-2", label: "Rumah" }, { ...kantor, id: "a-3", label: "Kos adik" }] }),
         withForm,
       );
@@ -756,7 +771,7 @@ describe("Alamat", () => {
   it("takes the dark theme surface for an address row", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {
-      render(
+      await render(
         <ThemeProvider storageKey="alamat-dark-test">
           <MobileProvider runtime={runtimeWith({ addresses: [kantor] })} linkMapper={customerLink}>
             <Addresses />
@@ -771,22 +786,19 @@ describe("Alamat", () => {
   });
 
   describe("the unsaved guard", () => {
-    /** The form on a stand-in stack: the guard's beforeRemove listener, and whether a close was held. */
-    function mountForm(addresses: (typeof kantor)[], params: Record<string, string>) {
+    /** The form on a stand-in stack: the guard's usePreventRemove flag says whether a close is held. */
+    async function mountForm(addresses: (typeof kantor)[], params: Record<string, string>) {
       mockParams = params;
-      let listeners: ((e: { data: { action: { type: string } }; preventDefault: () => void }) => void)[] = [];
+      mockPreventRemove.mockClear();
       const nav = {
-        addListener: (event: string, fn: (typeof listeners)[number]) => {
-          if (event === "beforeRemove") listeners.push(fn);
-          return () => void (listeners = listeners.filter((l) => l !== fn));
-        },
+        addListener: () => () => undefined,
         dispatch: jest.fn(),
         getState: () => ({ routes: [{ key: "form" }] }),
         isFocused: () => true,
         canGoBack: () => true,
         setOptions: () => undefined,
       };
-      renderWith(
+      await renderWith(
         runtimeWith({ addresses }),
         <ToastProvider>
           <NavigationContext.Provider value={nav as never}>
@@ -796,27 +808,23 @@ describe("Alamat", () => {
           </NavigationContext.Provider>
         </ToastProvider>,
       );
-      return () => {
-        let held = false;
-        for (const fn of [...listeners]) fn({ data: { action: { type: "GO_BACK" } }, preventDefault: () => (held = true) });
-        return held;
-      };
+      return () => mockPreventRemove.mock.calls.at(-1)?.[0] === true;
     }
     afterEach(() => void (mockParams = {}));
 
     it("is still asked on typed changes; a label chip alone closes at once", async () => {
-      const close = mountForm([kantor], { id: "a-1" });
+      const close = await mountForm([kantor], { id: "a-1" });
       await screen.findByRole("button", { name: "Hapus alamat" });
-      fireEvent.press(screen.getByRole("button", { name: "Rumah" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Rumah" }));
       expect(close()).toBe(false);
-      fireEvent.press(screen.getByRole("button", { name: "Lainnya" }));
-      fireEvent.changeText(screen.getByLabelText("Label alamat"), "Kos adik");
+      await fireEvent.press(screen.getByRole("button", { name: "Lainnya" }));
+      await fireEvent.changeText(screen.getByLabelText("Label alamat"), "Kos adik");
       expect(close()).toBe(true);
     });
 
     it("asks for typed instructions", async () => {
-      const close = mountForm([kantor], { id: "a-1" });
-      fireEvent.changeText(await screen.findByLabelText("Petunjuk pengantaran"), "Pagar hijau");
+      const close = await mountForm([kantor], { id: "a-1" });
+      await fireEvent.changeText(await screen.findByLabelText("Petunjuk pengantaran"), "Pagar hijau");
       expect(close()).toBe(true);
     });
   });
@@ -824,9 +832,9 @@ describe("Alamat", () => {
   it("keeps the form and says so when saving fails", async () => {
     const runtime = runtimeWith({ addresses: [kantor] });
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CONFLICT"), { code: "CONFLICT" }));
-    renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: /^Kantor, / }));
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan alamat" }));
+    await renderWith(runtime, withForm);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Kantor, / }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan alamat" }));
     expect(await screen.findByTestId("address-error")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeTruthy();
     expect(router.back).not.toHaveBeenCalled();
@@ -865,7 +873,7 @@ describe("Riwayat pembayaran", () => {
         ],
       },
     );
-    renderWith(runtime, <Payments />);
+    await renderWith(runtime, <Payments />);
     expect(await screen.findByText("Makan Malam Sehat")).toBeTruthy();
     // The Menunggu chip carries the state, so the caption names only the caterer.
     expect(screen.queryByText(/Menunggu pembayaran/)).toBeNull();
@@ -874,7 +882,7 @@ describe("Riwayat pembayaran", () => {
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.getByText(/150\.000/)).toBeTruthy();
     expect(screen.queryByText("Paket Catatan")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Bayar Makan Malam Sehat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bayar Makan Malam Sehat" }));
     expect(router.push).toHaveBeenCalledWith("/bayar/ck-2");
   });
 
@@ -899,7 +907,7 @@ describe("Riwayat pembayaran", () => {
         ],
       },
     );
-    renderWith(runtime, <Payments />);
+    await renderWith(runtime, <Payments />);
     expect(await screen.findByText("Belum dibayar")).toBeTruthy();
     expect(screen.getByText("Sedang diproses")).toBeTruthy();
     // Only the two unpaid checkouts offer Bayar.
@@ -909,11 +917,11 @@ describe("Riwayat pembayaran", () => {
     expect(screen.getByText(/Pembayaran diterima, pemesanan sedang ditinjau Catera/)).toBeTruthy();
     expect(screen.getByText(/Jangan bayar lagi/)).toBeTruthy();
     // A payment being checked opens Bayar, which shows its checking state (never a way to pay).
-    fireEvent.press(screen.getByText("Paket Dicek"));
+    await fireEvent.press(screen.getByText("Paket Dicek"));
     expect(router.push).toHaveBeenCalledWith("/bayar/ck-3");
-    fireEvent.press(screen.getByText("Paket Ditinjau"));
+    await fireEvent.press(screen.getByText("Paket Ditinjau"));
     expect(router.push).toHaveBeenCalledWith("/bantuan?checkoutId=ck-4");
-    fireEvent.press(pay[0]);
+    await fireEvent.press(pay[0]);
     expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-1");
   });
 
@@ -949,7 +957,7 @@ describe("Riwayat pembayaran", () => {
         ],
       },
     );
-    renderWith(runtime, <Payments />);
+    await renderWith(runtime, <Payments />);
     // The section label and the two ran-out rows' chips; the failed payment's chip says Gagal, in the same tone.
     expect(await screen.findAllByText("Kedaluwarsa")).toHaveLength(3);
     const gagal = within(statusOf("Paket Coba")).getByText("Gagal");
@@ -960,11 +968,11 @@ describe("Riwayat pembayaran", () => {
     // A failed payment says so, with the same Bayar lagi.
     expect(screen.getByText("Pembayaran gagal · Dapur Contoh")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Bayar Paket/ })).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Habis" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Habis" }));
     expect(router.push).toHaveBeenLastCalledWith("/beli/p-rumahan?portions=2&cycles=1&addressId=a-1");
-    fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Perpanjang" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Perpanjang" }));
     expect(router.push).toHaveBeenLastCalledWith("/renew/s-1?portions=1&cycles=2&addressId=a-2");
-    fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Coba" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Coba" }));
     expect(router.push).toHaveBeenLastCalledWith("/beli/p-coba?trial=1&portions=1&addressId=a-1");
   });
 
@@ -986,7 +994,7 @@ describe("Riwayat pembayaran", () => {
         ],
       },
     );
-    renderWith(runtime, <Payments />);
+    await renderWith(runtime, <Payments />);
     expect(await screen.findByText("Sedang diproses")).toBeTruthy();
     expect(screen.getByText(/Pembayaran sedang dicek/)).toBeTruthy();
     expect(screen.queryByText("Kedaluwarsa")).toBeNull();
@@ -994,7 +1002,7 @@ describe("Riwayat pembayaran", () => {
   });
 
   it("explains an empty history", async () => {
-    renderWith(runtimeWith({ subscriptions: [] }), <Payments />);
+    await renderWith(runtimeWith({ subscriptions: [] }), <Payments />);
     expect(await screen.findByText("Belum ada pembayaran.")).toBeTruthy();
   });
 
@@ -1023,7 +1031,7 @@ describe("Riwayat pembayaran", () => {
   };
 
   it("Pembayaran rows carry Lunas / Menunggu / Diproses / Kedaluwarsa and Mulai {date}", async () => {
-    renderWith(everyStatus(), <Payments />);
+    await renderWith(everyStatus(), <Payments />);
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(within(statusOf("Makan Siang Rumahan")).getByText("Lunas")).toBeTruthy();
     expect(within(statusOf("Paket Menunggu")).getByText("Menunggu")).toBeTruthy();
@@ -1036,7 +1044,7 @@ describe("Riwayat pembayaran", () => {
 
   it("the status chips take their colours from the theme, dark included", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.theme", "dark");
-    render(
+    await render(
       <ThemeProvider storageKey="catera.theme">
         <MobileProvider runtime={everyStatus()} linkMapper={customerLink}>
           <Payments />
@@ -1051,7 +1059,7 @@ describe("Riwayat pembayaran", () => {
 
   it("at font 1.3 and 360dp the status chip and the date line wrap under the name instead of squeezing it", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
-    renderWith(everyStatus(), <Payments />);
+    await renderWith(everyStatus(), <Payments />);
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     const line = screen.getAllByTestId("payment-status-line")[0];
     expect(flat(line)).toMatchObject({ flexDirection: "row", flexWrap: "wrap" });
@@ -1082,9 +1090,9 @@ describe("Beranda: Pilih menu", () => {
 
   it("pilih menu appears only when a selection is due", async () => {
     const runtime = runtimeWith({}, { actions: [due] });
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     // One due day reads with its date ("Pilih menu Senin 12 Okt"); the action word opens it.
-    fireEvent.press(await screen.findByText(/^Pilih menu Senin \d+ \w+$/));
+    await fireEvent.press(await screen.findByText(/^Pilih menu Senin \d+ \w+$/));
     expect(router.push).toHaveBeenCalledWith(`/pilih-menu/s-1?date=${monday}&meal=lunch`);
   });
 
@@ -1093,7 +1101,7 @@ describe("Beranda: Pilih menu", () => {
       {},
       { actions: [{ ...due, id: "payment-ck-9", kind: "payment_action", status: "awaiting_payment", href: "/payment/ck-9" }] },
     );
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     expect(await screen.findByText(/^Siang ini,/)).toBeTruthy();
     await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalled());
     expect(screen.queryByText(/Pilih menu/)).toBeNull();
@@ -1101,10 +1109,15 @@ describe("Beranda: Pilih menu", () => {
 
   it("keeps the menu row, with no error line, when a later read of the action feed fails", async () => {
     const runtime = runtimeWith({}, { actions: [due] });
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     expect(await screen.findByText(/^Pilih menu Senin \d+ \w+$/)).toBeTruthy();
+    // The refresh control element rides on the scroll view's host props.
+    const refreshControl = () =>
+      hostsWhere({ type: "RCTScrollView" }).find((node) => node.props.refreshControl)!.props.refreshControl as {
+        props: { onRefresh: () => void };
+      };
     (runtime.api.customerActions as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
-    await act(async () => void screen.UNSAFE_getByType(ReactNative.RefreshControl).props.onRefresh());
+    await act(async () => void refreshControl().props.onRefresh());
     await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalledTimes(2));
     expect(screen.getByText(/^Pilih menu Senin \d+ \w+$/)).toBeTruthy();
     expect(screen.queryByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeNull();
@@ -1113,7 +1126,7 @@ describe("Beranda: Pilih menu", () => {
   it("still shows Beranda when the action feed fails", async () => {
     const runtime = runtimeWith({});
     (runtime.api.customerActions as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     expect(await screen.findByText(/^Siang ini,/)).toBeTruthy();
     expect(screen.queryByText(/Pilih menu/)).toBeNull();
   });
@@ -1133,7 +1146,7 @@ describe("Akun mood header", () => {
     );
 
   it("opens with the name on the Malam header fill, with no toggle", async () => {
-    renderMood(runtimeWith({}, { phone: "6281234567890" }));
+    await renderMood(runtimeWith({}, { phone: "6281234567890" }));
     const header = await screen.findByTestId("akun-header");
     expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe(
       nativeMood.light.malam.header,
@@ -1150,14 +1163,14 @@ describe("Akun mood header", () => {
   });
 
   it("keeps the Siang header fill before 15.00", async () => {
-    renderMood(runtimeWith({}), SIANG_NOW);
+    await renderMood(runtimeWith({}), SIANG_NOW);
     const header = await screen.findByTestId("akun-header");
     expect(flat(within(header).getByTestId("mood-fill-siang")).backgroundColor).toBe(nativeMood.light.siang.header);
     expect(flat(within(header).getByText("Rani Contoh")).color).toBe(nativeMood.light.siang.headerText);
   });
 
   it("a pushed screen signed out keeps its plain title: the Stack header above it is the only header", async () => {
-    renderMood(runtimeWith({}, { actor: null }), MALAM_NOW, <Addresses />);
+    await renderMood(runtimeWith({}, { actor: null }), MALAM_NOW, <Addresses />);
     expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
     expect(screen.queryByTestId("signin-header")).toBeNull();
     expect(screen.queryByTestId("mood-fill-siang", { includeHiddenElements: true })).toBeNull();
@@ -1167,7 +1180,7 @@ describe("Akun mood header", () => {
   });
 
   it("signed out keeps a header too, so the status icons never fall on the cream page", async () => {
-    renderMood(runtimeWith({}, { actor: null }));
+    await renderMood(runtimeWith({}, { actor: null }));
     const header = await screen.findByTestId("akun-header");
     expect(within(header).getByText("Akun")).toBeTruthy();
     expect(flat(within(header).getByText("Akun")).color).toBe("#2E2E2E");
@@ -1215,29 +1228,29 @@ describe("Secondary reads keep their copy or offer a retry", () => {
 
   it("Beranda: a failed action feed shows a retry for Perlu kamu urus only, and the retry reads it again", async () => {
     const runtime = failing();
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     expect(await screen.findByText(/^Siang ini,/)).toBeTruthy();
     expect(await screen.findByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeNull());
   });
 
   it("Perlu kamu urus: a failed action feed shows the same retry", async () => {
     const runtime = failing();
-    renderWith(runtime, <PerluDiurus />);
+    await renderWith(runtime, <PerluDiurus />);
     expect(await screen.findByText(/^Belum bisa memuat menu yang perlu dipilih/)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalledTimes(2));
   });
 
   it("Akun: a failed customer read offers a retry under the tiles, and the tiles stay", async () => {
     const runtime = runtimeWith({}, { phone: "6281234567890" });
     (runtime.api.customer as jest.Mock).mockRejectedValueOnce(new Error("REQUEST_TIMEOUT"));
-    renderWith(runtime, <Akun />);
+    await renderWith(runtime, <Akun />);
     expect(await screen.findByText(/^Belum bisa memuat jumlah paket dan alamat/)).toBeTruthy();
     expect(screen.getByTestId("akun-tile-paket")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(screen.queryByText(/^Belum bisa memuat jumlah paket/)).toBeNull());
     expect(runtime.api.customer).toHaveBeenCalledTimes(2);
   });
@@ -1246,21 +1259,21 @@ describe("Secondary reads keep their copy or offer a retry", () => {
 describe("Simpan alamat says what is missing", () => {
   it("hints the street length and names the missing fields while the button is off, then goes quiet", async () => {
     const runtime = runtimeWith({ addresses: [] });
-    renderWith(runtime, withForm);
-    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    await renderWith(runtime, withForm);
+    await fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
     expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeDisabled();
     expect(screen.getByText("Isi dulu: jalan.")).toBeTruthy();
     // A custom label starts empty: Lainnya shows the label field.
-    fireEvent.press(screen.getByRole("button", { name: "Lainnya" }));
-    fireEvent.changeText(screen.getByLabelText("Kota"), "");
+    await fireEvent.press(screen.getByRole("button", { name: "Lainnya" }));
+    await fireEvent.changeText(screen.getByLabelText("Kota"), "");
     expect(screen.getByText("Isi dulu: label, jalan, kota.")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. A");
+    await fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. A");
     expect(screen.getByText("Isi dulu: label, kota.")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl");
+    await fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl");
     expect(screen.getByText("Tulis jalan dan nomornya, minimal 5 karakter.")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
-    fireEvent.changeText(screen.getByLabelText("Label alamat"), "Rumah");
-    fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta");
+    await fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
+    await fireEvent.changeText(screen.getByLabelText("Label alamat"), "Rumah");
+    await fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta");
     expect(screen.queryByText(/^Isi dulu:/)).toBeNull();
     expect(screen.queryByText(/minimal 5 karakter/)).toBeNull();
     expect(screen.getByRole("button", { name: "Simpan alamat" })).not.toBeDisabled();

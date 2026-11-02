@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react-nat
 import type { ReactElement, ReactNode } from "react";
 import { spyFades } from "./fade";
 import * as ReactNative from "react-native";
-import { StyleSheet, Text as RNText } from "react-native";
+import { StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -155,8 +155,8 @@ function runtimeWith(actor: typeof owner, api: Api = {}): MobileRuntime {
   return runtime;
 }
 
-function renderWith(runtime: MobileRuntime, node: ReactNode, now = SIANG) {
-  return render(
+async function renderWith(runtime: MobileRuntime, node: ReactNode, now = SIANG) {
+  return await render(
     <ThemeProvider storageKey="sk.theme">
       <MoodProvider now={now}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
@@ -172,6 +172,8 @@ const skeletonNames = () =>
   screen.queryAllByRole("progressbar").map((n) => n.props.accessibilityLabel as string);
 
 type Node = ReturnType<typeof screen.getByTestId>;
+/** Every node under (and including) one, as the old `findAll` listed them. */
+const findAllOf = (root: Node, test: (n: Node) => boolean) => root.queryAll(test, { includeSelf: true });
 /** The drawn views directly under a node, looking through the components between them. */
 const drawnChildren = (n: Node): Node[] =>
   n.children.flatMap((c) => (typeof c === "string" ? [] : host(c) ? [c] : drawnChildren(c)));
@@ -194,12 +196,12 @@ function stackHeight(n: Node): number {
 }
 
 /** The text drawn inside a subtree; a skeleton draws none, so a larger font cannot make it taller. */
-const textsIn = (node: ReturnType<typeof screen.getByTestId>) => node.findAll((n) => n.type === RNText || (n.type as unknown) === "Text");
+const textsIn = (node: ReturnType<typeof screen.getByTestId>) => findAllOf(node, (n) => n.type === "Text");
 
 describe("Hari ini", () => {
   it("Hari ini loading shows the count card and checklist skeleton under the live header", async () => {
     const day = jest.fn(never);
-    renderWith(runtimeWith(owner, { sellerOperations: day }), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner, { sellerOperations: day }), withDapurScale(<TodayScreen />));
     // The header is live: its date button and the Siang / Malam toggle work while the day loads.
     const header = await screen.findByTestId("mood-header");
     expect(within(header).getByLabelText(/, ganti hari$/)).toBeTruthy();
@@ -207,7 +209,7 @@ describe("Hari ini", () => {
     // The count card's numbers sit on the mood surface, in the header, hidden from screen readers (the body names the wait).
     const count = within(header).getByTestId("today-count-skeleton", { includeHiddenElements: true });
     expect(count.props.accessibilityElementsHidden).toBe(true);
-    const blocks = count.findAll((n) => host(n) && typeof n.props.testID === "string" && n.props.testID.startsWith("today-count-block"));
+    const blocks = findAllOf(count, (n) => host(n) && typeof n.props.testID === "string" && n.props.testID.startsWith("today-count-block"));
     expect(blocks.length).toBeGreaterThanOrEqual(3);
     for (const block of blocks) expect(flat(block).backgroundColor).toBe(nativeMood.light.siang.arcTrack);
     // The body holds the session card's shape: four checklist rows, one progress bar named for the kitchen.
@@ -225,7 +227,7 @@ describe("Hari ini", () => {
 
   it("the loaded day replaces both skeletons", async () => {
     const read = held<SellerOperationsState>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     expect(await screen.findByLabelText("Memuat dapur")).toBeTruthy();
     await act(async () => read.answer(today()));
     expect(await screen.findByTestId("session-count")).toBeTruthy();
@@ -235,7 +237,7 @@ describe("Hari ini", () => {
 
   it("the count skeleton's track is as tall as the loaded rantang track, so the header keeps its height at the swap", async () => {
     const read = held<SellerOperationsState>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
     const track = within(header).getByTestId("today-count-track", { includeHiddenElements: true });
     // The stop labels' row sits under the rail, its blocks on the mood surface like the rest.
@@ -254,7 +256,7 @@ describe("Hari ini", () => {
 
   it("the count skeleton's strip is as tall as the loaded figure strip, and both sit 12 under the date and 12 apart", async () => {
     const read = held<SellerOperationsState>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
     const skeleton = within(header).getByTestId("today-count-skeleton", { includeHiddenElements: true });
     const waitingStrip = stackHeight(within(skeleton).getByTestId("today-count-strip", { includeHiddenElements: true }));
@@ -279,7 +281,7 @@ describe("Hari ini", () => {
     const read = held<SellerOperationsState>();
     const runtime = runtimeWith(owner, { sellerOperations: read.fn });
     secureStore.set(runtime.storageKey("locale"), "en");
-    renderWith(runtime, withDapurScale(<TodayScreen />));
+    await renderWith(runtime, withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
     await waitFor(() => expect(within(header).getByLabelText(/, change day$/)).toBeTruthy());
     const waiting = stackHeight(within(header).getByTestId("today-count-track", { includeHiddenElements: true }));
@@ -292,10 +294,10 @@ describe("Hari ini", () => {
   });
 
   it("Malam's skeleton sits on the Malam header, visible against its fill", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />), MALAM);
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />), MALAM);
     const header = await screen.findByTestId("mood-header");
     const count = within(header).getByTestId("today-count-skeleton", { includeHiddenElements: true });
-    const block = count.find((n) => host(n) && n.props.testID === "today-count-block-number");
+    const block = findAllOf(count, (n) => host(n) && n.props.testID === "today-count-block-number")[0];
     expect(flat(block).backgroundColor).toBe(nativeMood.light.malam.arcTrack);
     expect(nativeMood.light.malam.arcTrack).not.toBe(nativeMood.light.malam.header);
     expect(screen.getByLabelText("Memuat dapur")).toBeTruthy();
@@ -303,7 +305,7 @@ describe("Hari ini", () => {
 
   it("in the dark theme the skeleton reads the dark mood and the dark sage", async () => {
     secureStore.set("sk.theme", "dark");
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
     // The stored choice is read from the phone, so the dark palette lands a moment after the first frame.
     await waitFor(() =>
@@ -312,12 +314,12 @@ describe("Hari ini", () => {
       ),
     );
     const row = within(screen.getByLabelText("Memuat dapur")).getByTestId("today-skeleton-row-0", { includeHiddenElements: true });
-    const fills = row.findAll((n) => flat(n).backgroundColor === nativeThemes.dark.sage);
+    const fills = findAllOf(row, (n) => flat(n).backgroundColor === nativeThemes.dark.sage);
     expect(fills.length).toBeGreaterThan(0);
   });
 
   it("a failed first read shows the error with Coba lagi, never a skeleton", async () => {
-    renderWith(
+    await renderWith(
       runtimeWith(owner, {
         sellerOperations: jest.fn(async () => {
           throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
@@ -332,7 +334,7 @@ describe("Hari ini", () => {
 
   it("the kept day offline keeps its kept-data note and shows no skeleton", async () => {
     (offline.loadCachedDay as jest.Mock).mockResolvedValue({ savedAt: "2026-10-08T01:00:00.000Z", data: today() });
-    renderWith(
+    await renderWith(
       runtimeWith(owner, {
         sellerOperations: jest.fn(async () => {
           throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
@@ -347,7 +349,7 @@ describe("Hari ini", () => {
 
   it("pull to refresh on Hari ini keeps the session on screen", async () => {
     const day = jest.fn(async () => today());
-    renderWith(runtimeWith(owner, { sellerOperations: day }), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner, { sellerOperations: day }), withDapurScale(<TodayScreen />));
     expect(await screen.findByTestId("session-count")).toBeTruthy();
     const scroll = screen.getByTestId("screen-scroll");
     const control = scroll.props.refreshControl as ReactElement<ReactNative.RefreshControlProps>;
@@ -373,7 +375,7 @@ describe("Hari ini", () => {
   });
 
   it("the pull spinner takes the theme's ink and surface", async () => {
-    renderWith(runtimeWith(owner), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner), withDapurScale(<TodayScreen />));
     await screen.findByTestId("session-count");
     const control = screen.getByTestId("screen-scroll").props.refreshControl as ReactElement<ReactNative.RefreshControlProps>;
     expect(control.props.tintColor).toBe(nativeThemes.light.forest);
@@ -386,7 +388,7 @@ describe("Hari ini", () => {
     const repeat = jest.spyOn(Reanimated, "withRepeat");
     const timing = jest.spyOn(Reanimated, "withTiming");
     const read = held<SellerOperationsState>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     expect(await screen.findByLabelText("Memuat dapur")).toBeTruthy();
     expect(repeat).not.toHaveBeenCalled();
     await act(async () => read.answer(today()));
@@ -395,7 +397,7 @@ describe("Hari ini", () => {
   });
 
   it("skeleton rows hold the checklist row's height and draw no text, so a 1.3 font scale only makes the loaded day taller", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />));
     const body = await screen.findByLabelText("Memuat dapur");
     for (let i = 0; i < 4; i += 1) {
       const row = within(body).getByTestId(`today-skeleton-row-${i}`, { includeHiddenElements: true });
@@ -408,7 +410,7 @@ describe("Hari ini", () => {
   });
 
   it("the body skeleton is built from the loaded layout's numbers: 56 check rows with a 48 quantity column and a 40 photo, 40 package rows, 24 between the sections", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<TodayScreen />));
     const body = await screen.findByLabelText("Memuat dapur");
     const hiddenToo = { includeHiddenElements: true };
     const row = within(body).getByTestId("today-skeleton-row-0", hiddenToo);
@@ -432,12 +434,12 @@ describe("Hari ini", () => {
 describe("staff", () => {
   it("staff loading never shows Usaha skeletons", async () => {
     const runtime = runtimeWith(staff, { sellerOperations: jest.fn(never), sellerCustomers: jest.fn(never), settlement: jest.fn(never) });
-    const first = renderWith(runtime, <TodayScreen />);
+    const first = await renderWith(runtime, <TodayScreen />);
     expect(await screen.findByLabelText("Memuat dapur")).toBeTruthy();
     expect(skeletonNames()).toEqual(["Memuat dapur"]);
-    first.unmount();
+    await first.unmount();
     // Menu while it loads: the week's shape, and no placeholder for the owner's Salin minggu lalu.
-    renderWith(runtime, <MenuWeek />);
+    await renderWith(runtime, <MenuWeek />);
     expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
     expect(skeletonNames()).toEqual(["Memuat menu"]);
     expect(screen.queryByTestId("menu-skeleton-copy", { includeHiddenElements: true })).toBeNull();
@@ -450,7 +452,7 @@ describe("staff", () => {
   });
 
   it("the owner's Menu skeleton keeps a place for Salin minggu lalu", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <MenuWeek />);
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <MenuWeek />);
     expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
     expect(screen.getByTestId("menu-skeleton-copy", { includeHiddenElements: true })).toBeTruthy();
   });
@@ -464,7 +466,7 @@ function ancestor(node: Node, test: (n: Node) => boolean): Node | null {
 
 describe("Menu", () => {
   it("while the week loads the header and controls are live and the day card is a skeleton", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => menuOps()), menuMonth: jest.fn(never) }), withDapurScale(<MenuWeek />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => menuOps()), menuMonth: jest.fn(never) }), withDapurScale(<MenuWeek />));
     expect(await screen.findByRole("button", { name: "Bagikan menu" })).toBeTruthy();
     expect(skeletonNames()).toEqual(["Memuat menu"]);
     // Only the day card waits: the package chips and buttons are real, so they are not drawn twice.
@@ -475,7 +477,7 @@ describe("Menu", () => {
 
   it("Menu's first load draws the loaded header's shape on the Malam surface and keeps the day card on the page", async () => {
     const read = held<unknown>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn, menuMonth: jest.fn(never) }), withDapurScale(<MenuWeek />), MALAM);
+    await renderWith(runtimeWith(owner, { sellerOperations: read.fn, menuMonth: jest.fn(never) }), withDapurScale(<MenuWeek />), MALAM);
     const header = await screen.findByTestId("mood-header");
     // The week line is already true (the screen opens on this week), and the title row keeps the step buttons' 44dp.
     expect(within(header).getByText("Minggu ini")).toBeTruthy();
@@ -483,7 +485,7 @@ describe("Menu", () => {
     // One row of five day blocks at the day tiles' 56dp and radius 12, on the Malam surface, hidden from screen readers.
     const strip = within(header).getByTestId("menu-strip-skeleton", { includeHiddenElements: true });
     expect(strip.props.accessibilityElementsHidden).toBe(true);
-    const days = strip.findAll((n) => host(n) && /^menu-strip-skeleton-day-/.test(String(n.props.testID ?? "")));
+    const days = findAllOf(strip, (n) => host(n) && /^menu-strip-skeleton-day-/.test(String(n.props.testID ?? "")));
     expect(days).toHaveLength(5);
     for (const day of days) {
       expect(flat(day).height).toBe(56);
@@ -493,7 +495,7 @@ describe("Menu", () => {
     expect(nativeMood.light.malam.arcTrack).not.toBe(nativeMood.light.malam.header);
     // The page holds the controls and the day card; only the day card names the wait.
     expect(skeletonNames()).toEqual(["Memuat menu"]);
-    const fills = screen.getByLabelText("Memuat menu").findAll((n) => flat(n).backgroundColor === nativeThemes.light.sage);
+    const fills = findAllOf(screen.getByLabelText("Memuat menu"), (n) => flat(n).backgroundColor === nativeThemes.light.sage);
     expect(fills.length).toBeGreaterThan(0);
     // The packages arrive: the week's five day buttons take the blocks' place at the same height.
     await act(async () => read.answer(menuOps()));
@@ -505,16 +507,16 @@ describe("Menu", () => {
   });
 
   it("the strip skeleton shares one row evenly and keeps the 4 gap of the loaded strip", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
     const strip = await screen.findByTestId("menu-strip-skeleton", { includeHiddenElements: true });
-    const row = strip.findAll((n) => host(n) && flat(n).flexDirection === "row")[0];
+    const row = findAllOf(strip, (n) => host(n) && flat(n).flexDirection === "row")[0];
     expect(flat(row)).toMatchObject({ gap: 4 });
     expect(flat(row).flexWrap).not.toBe("wrap");
   });
 
   it("the controls skeleton is built from the loaded controls' constants: a 34 chip in a 48 frame, then two 50 pill buttons", async () => {
     jest.spyOn(require("react-native") as typeof ReactNative, "useWindowDimensions").mockReturnValue({ width: 412, height: 860, scale: 3, fontScale: 1 });
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
     const chip = await screen.findByTestId("menu-skeleton-chip", { includeHiddenElements: true });
     expect(flat(chip).height).toBe(34);
     // The frame around the chip is 48 tall, like the package chips' frame once loaded.
@@ -529,19 +531,19 @@ describe("Menu", () => {
 
   it("the controls skeleton stacks its two buttons where the loaded pair stacks (360 at font scale 1.3)", async () => {
     jest.spyOn(require("react-native") as typeof ReactNative, "useWindowDimensions").mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
     const copy = await screen.findByTestId("menu-skeleton-copy", { includeHiddenElements: true });
     expect(flat(ancestor(copy, (n) => flat(n).flexDirection === "column" && flat(n).gap === 8)!)).toMatchObject({ gap: 8 });
   });
 
   it("the day card's skeleton is a section header line over 64 rows with 48 thumbs, like the loaded day", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuWeek />));
     const day = await screen.findByTestId("menu-skeleton-day", { includeHiddenElements: true });
-    const rows = day.findAll((n) => host(n) && flat(n).minHeight === 64);
+    const rows = findAllOf(day, (n) => host(n) && flat(n).minHeight === 64);
     expect(rows).toHaveLength(3);
     // The owner's header holds "Ubah menu", so its line is the 48 target.
     expect(flat(drawnChildren(drawnChildren(day)[0])[0]).height).toBe(48);
-    const thumbs = day.findAll((n) => host(n) && flat(n).width === 48 && flat(n).height === 48);
+    const thumbs = findAllOf(day, (n) => host(n) && flat(n).width === 48 && flat(n).height === 48);
     expect(thumbs).toHaveLength(3);
     for (const thumb of thumbs) expect(flat(thumb).borderRadius).toBe(8);
     // Rows sit in a list card, not in a card of their own: no Card border, the list card's radius 16.
@@ -553,7 +555,7 @@ describe("Menu", () => {
     const ops = held<unknown>();
     const month = held<unknown>();
     const timing = spyFades();
-    renderWith(runtimeWith(owner, { sellerOperations: ops.fn, menuMonth: month.fn }), withDapurScale(<MenuWeek />));
+    await renderWith(runtimeWith(owner, { sellerOperations: ops.fn, menuMonth: month.fn }), withDapurScale(<MenuWeek />));
     const day = await screen.findByTestId("menu-skeleton-day", { includeHiddenElements: true });
     await act(async () => ops.answer(menuOps()));
     expect(await screen.findByRole("button", { name: "Bagikan menu" })).toBeTruthy();
@@ -573,7 +575,7 @@ describe("Menu", () => {
   it("a kitchen with no packages yet fades its empty state in from the skeleton", async () => {
     const ops = held<unknown>();
     const timing = spyFades();
-    renderWith(runtimeWith(owner, { sellerOperations: ops.fn }), withDapurScale(<MenuWeek />));
+    await renderWith(runtimeWith(owner, { sellerOperations: ops.fn }), withDapurScale(<MenuWeek />));
     expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
     await act(async () => ops.answer({ ...menuOps(), offers: [] }));
     expect(await screen.findByRole("button", { name: "Buat paket" })).toBeTruthy();
@@ -582,13 +584,13 @@ describe("Menu", () => {
   });
 
   it("a failed Menu read keeps Menu belum bisa dimuat with Coba lagi", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => menuOps()), menuMonth: jest.fn(async () => Promise.reject(new Error("400"))) }), withDapurScale(<MenuWeek />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => menuOps()), menuMonth: jest.fn(async () => Promise.reject(new Error("400"))) }), withDapurScale(<MenuWeek />));
     expect(await screen.findByText("Menu belum bisa dimuat.")).toBeTruthy();
     expect(skeletonNames()).toEqual([]);
   });
 
   it("the day screen waits behind the menu skeleton", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuDayScreen date="2026-10-08" packageId="p-1" meal="lunch" />));
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), withDapurScale(<MenuDayScreen date="2026-10-08" packageId="p-1" meal="lunch" />));
     expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
     expect(screen.queryByText("Memuat…")).toBeNull();
   });
@@ -632,7 +634,7 @@ describe("Pelanggan", () => {
 
   it("Pelanggan loading shows customer rows under the live header, then the list fades in once", async () => {
     const read = held<unknown>();
-    renderWith(runtimeWith(owner, { sellerCustomers: read.fn }), withDapurScale(<CustomerList />));
+    await renderWith(runtimeWith(owner, { sellerCustomers: read.fn }), withDapurScale(<CustomerList />));
     const header = await screen.findByTestId("pelanggan-header");
     expect(within(header).getByText("Pelanggan")).toBeTruthy();
     expect(skeletonNames()).toEqual(["Memuat pelanggan"]);
@@ -658,7 +660,7 @@ describe("Pelanggan", () => {
   });
 
   it("a failed list keeps its error and Coba lagi", async () => {
-    renderWith(
+    await renderWith(
       runtimeWith(owner, {
         sellerCustomers: jest.fn(async () => {
           throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
@@ -672,7 +674,7 @@ describe("Pelanggan", () => {
 
   it("pull to refresh on Pelanggan keeps the list on screen", async () => {
     const list = jest.fn(async () => ({ customers: [customer], total: 1, packages: [] }));
-    renderWith(runtimeWith(owner, { sellerCustomers: list }), <CustomerList />);
+    await renderWith(runtimeWith(owner, { sellerCustomers: list }), <CustomerList />);
     expect(await screen.findByText("Andre Kusuma")).toBeTruthy();
     let answer!: (v: unknown) => void;
     list.mockImplementationOnce(() => new Promise((r) => (answer = r)));
@@ -686,9 +688,9 @@ describe("Pelanggan", () => {
     expect((screen.getByTestId("screen-scroll").props.refreshControl as ReactElement<ReactNative.RefreshControlProps>).props.refreshing).toBe(false);
   });
 
-  it("the shared skeletons keep their default shapes for every other screen", () => {
+  it("the shared skeletons keep their default shapes for every other screen", async () => {
     // The customer shapes are opt-in (`shape="customer"`); the default DetailSkeleton and ListSkeleton are as they were.
-    renderWith(
+    await renderWith(
       runtimeWith(owner),
       withDapurScale(
         <>
@@ -717,7 +719,7 @@ describe("Pelanggan", () => {
   });
 
   it("a customer's page waits behind the customer skeleton under the name its link carried", async () => {
-    renderWith(runtimeWith(owner, { sellerCustomers: jest.fn(never) }), withDapurScale(<CustomerDetail id="c-01" title="Andre Kusuma" />));
+    await renderWith(runtimeWith(owner, { sellerCustomers: jest.fn(never) }), withDapurScale(<CustomerDetail id="c-01" title="Andre Kusuma" />));
     expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
     // The detail's shape, from the loaded layout: five 40 key-value rows in one card, the 50 action row and the 56
     // address well.
@@ -732,16 +734,16 @@ describe("Pelanggan", () => {
 
 describe("the other screens", () => {
   it("a report waits behind Memuat laporan, and a failed read keeps Coba lagi", async () => {
-    const first = renderWith(runtimeWith(owner, { request: jest.fn(never) }), <ReportScreen id="i-1" />);
+    const first = await renderWith(runtimeWith(owner, { request: jest.fn(never) }), <ReportScreen id="i-1" />);
     expect(await screen.findByLabelText("Memuat laporan")).toBeTruthy();
-    first.unmount();
-    renderWith(runtimeWith(owner, { request: jest.fn(async () => Promise.reject(new Error("REQUEST_TIMEOUT"))) }), <ReportScreen id="i-1" />);
+    await first.unmount();
+    await renderWith(runtimeWith(owner, { request: jest.fn(async () => Promise.reject(new Error("REQUEST_TIMEOUT"))) }), <ReportScreen id="i-1" />);
     expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
     expect(skeletonNames()).toEqual([]);
   });
 
   it("Usaha's package rows wait behind Memuat paket inside their card, under the live header", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never), request: jest.fn(async () => ({ active: null })) }), <UsahaScreen />);
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never), request: jest.fn(async () => ({ active: null })) }), <UsahaScreen />);
     const header = await screen.findByTestId("usaha-header");
     expect(within(header).getByText("Usaha")).toBeTruthy();
     expect(await screen.findByLabelText("Memuat paket")).toBeTruthy();
@@ -751,13 +753,13 @@ describe("the other screens", () => {
   });
 
   it("Uang waits behind Memuat uang", async () => {
-    renderWith(runtimeWith(owner, { settlement: jest.fn(never) }), <UangScreen />);
+    await renderWith(runtimeWith(owner, { settlement: jest.fn(never) }), <UangScreen />);
     expect(await screen.findByLabelText("Memuat uang")).toBeTruthy();
     expect(screen.queryByText("Memuat…")).toBeNull();
   });
 
   it("Aktifkan waits behind Memuat pembayaran", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <AktifkanScreen />);
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <AktifkanScreen />);
     expect(await screen.findByLabelText("Memuat pembayaran")).toBeTruthy();
     expect(screen.queryByText("Memuat…")).toBeNull();
   });
@@ -766,8 +768,8 @@ describe("the other screens", () => {
 describe("UangSkeleton", () => {
   const hidden = { includeHiddenElements: true } as const;
 
-  it("draws the lead block, the seven 40 rows and the explanations from the loaded layout's constants, 24 apart", () => {
-    renderWith(runtimeWith(owner), withDapurScale(<UangSkeleton />));
+  it("draws the lead block, the seven 40 rows and the explanations from the loaded layout's constants, 24 apart", async () => {
+    await renderWith(runtimeWith(owner), withDapurScale(<UangSkeleton />));
     expect(screen.getByLabelText("Memuat uang")).toBeTruthy();
     expect(flat(screen.getByTestId("uang-skeleton-sections", hidden)).gap).toBe(24);
     // The lead: a meta line (18), the figure's 40 line and a meta caption (18), the way the loaded lead stacks them.
@@ -788,9 +790,9 @@ describe("UangSkeleton", () => {
     expect(flat(screen.getByTestId("uang-skeleton-hints", hidden)).gap).toBe(8);
   });
 
-  it("holds still under reduced motion and names the wait for screen readers", () => {
+  it("holds still under reduced motion and names the wait for screen readers", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    renderWith(runtimeWith(owner), withDapurScale(<UangSkeleton />));
+    await renderWith(runtimeWith(owner), withDapurScale(<UangSkeleton />));
     expect(skeletonNames()).toEqual(["Memuat uang"]);
   });
 });
@@ -804,10 +806,10 @@ describe("package routes", () => {
   it("an existing package waits behind Memuat paket and keeps its read error", async () => {
     params.current = { id: "p-1" };
     const Edit = (require("../app/(tabs)/(index,pelanggan,menu,usaha)/paket/[id]") as { default: () => ReactElement }).default;
-    const first = renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <Edit />);
+    const first = await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <Edit />);
     expect(await screen.findByLabelText("Memuat paket")).toBeTruthy();
-    first.unmount();
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => Promise.reject(Object.assign(new Error("x"), { code: "REQUEST_TIMEOUT" }))) }), <Edit />);
+    await first.unmount();
+    await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => Promise.reject(Object.assign(new Error("x"), { code: "REQUEST_TIMEOUT" }))) }), <Edit />);
     await waitFor(() => expect(skeletonNames()).toEqual([]));
   });
 
@@ -815,7 +817,7 @@ describe("package routes", () => {
     params.current = { from: "p-404" };
     const New = (require("../app/(tabs)/(index,pelanggan,menu,usaha)/paket/baru") as { default: () => ReactElement }).default;
     const read = held<unknown>();
-    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), <New />);
+    await renderWith(runtimeWith(owner, { sellerOperations: read.fn }), <New />);
     expect(await screen.findByLabelText("Memuat paket")).toBeTruthy();
     await act(async () => read.answer(menuOps()));
     expect(await screen.findByText("Paket ini tidak ditemukan.")).toBeTruthy();

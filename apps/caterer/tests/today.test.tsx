@@ -1,8 +1,8 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react-native";
 import { render } from "./render-dapur";
+import { findAll, findInScreen, iconsIn, oneIcon } from "./host-queries";
 import * as ReactNative from "react-native";
 import { Share, StyleSheet } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { errorLabel, kitchenSession, type SellerOperationsState } from "@catera/domain";
@@ -45,7 +45,11 @@ const pinToday = () =>
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
 jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
 // Links from attention cards open through the app's link opener, which selects a tab for a tab root.
-jest.mock("../src/nav", () => ({ openLink: jest.fn(), goToTab: jest.fn() }));
+jest.mock("../src/nav", () => ({
+  openLink: jest.fn(),
+  goToTab: jest.fn(),
+  pushScreen: (href: string) => require("expo-router").router.push(href),
+}));
 jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -81,8 +85,8 @@ const stopSheet = ({ path, params }: Opened) =>
     <ExceptionSheet id={path.split("/")[2]} meal={params.meal === "dinner" ? "dinner" : "lunch"} date={params.date} />
   ) : null;
 
-const renderToday = (runtime: MobileRuntime, date?: string) =>
-  render(
+const renderToday = async (runtime: MobileRuntime, date?: string) =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h}>
       <TodayScreen date={date} />
       <SheetHost render={stopSheet} />
@@ -107,7 +111,7 @@ const stopMenu = async (n: number) =>
   within(await screen.findByTestId(`stop-${n}`)).getByLabelText(/^(Laporkan masalah|Pindah tanggal)/);
 
 it("shows the lunch cooking total for the day", async () => {
-  renderToday(runtimeWith(same(canvasDay())));
+  await renderToday(runtimeWith(same(canvasDay())));
   expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
   expect(screen.getByText("Makan Siang Rumahan")).toBeTruthy();
   // The count is the strip's lead figure, once: no second large number, and the old 40 "number" style is gone.
@@ -115,8 +119,8 @@ it("shows the lunch cooking total for the day", async () => {
   expect(screen.getAllByText("34")).toHaveLength(1);
   // RollingNumber keeps an invisible "0" (to measure a digit) beside the figure; only visible text counts.
   const lead = (size: number) =>
-    screen.UNSAFE_root.findAll((n) => {
-      const style = typeof n.type === "string" && n.type === "Text" ? StyleSheet.flatten(n.props.style) : undefined;
+    findInScreen((n) => {
+      const style = n.type === "Text" ? StyleSheet.flatten(n.props.style) : undefined;
       return style?.fontSize === size && style.opacity !== 0;
     });
   expect(lead(32)).toHaveLength(1);
@@ -126,8 +130,8 @@ it("shows the lunch cooking total for the day", async () => {
 
 it("shares the route as WhatsApp-ready text", async () => {
   const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
-  renderToday(runtimeWith(same(canvasDay())));
-  fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
+  await renderToday(runtimeWith(same(canvasDay())));
+  await fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
   await waitFor(() => expect(share).toHaveBeenCalled());
   expect(share.mock.calls[0][0]).toEqual(
     expect.objectContaining({ message: expect.stringMatching(/^\*Antar siang/) }),
@@ -136,10 +140,10 @@ it("shares the route as WhatsApp-ready text", async () => {
 
 it("reports a failed delivery by stepping it to the issue status", async () => {
   const runtime = runtimeWith(same(canvasDay()));
-  renderToday(runtime);
-  fireEvent.press(await stopMenu(3));
-  fireEvent.press(await screen.findByText("Gagal diantar"));
-  fireEvent.press(screen.getByText("Tandai gagal diantar"));
+  await renderToday(runtime);
+  await fireEvent.press(await stopMenu(3));
+  await fireEvent.press(await screen.findByText("Gagal diantar"));
+  await fireEvent.press(screen.getByText("Tandai gagal diantar"));
   await lastConfirm().press("Tandai gagal");
   await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
   const calls = (runtime.api.command as jest.Mock).mock.calls;
@@ -155,7 +159,7 @@ it("keeps showing the last loaded day when offline", async () => {
     savedAt: "2026-10-07T23:12:00.000Z",
     data: canvasDay(),
   });
-  renderToday(
+  await renderToday(
     runtimeWith(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
@@ -165,12 +169,12 @@ it("keeps showing the last loaded day when offline", async () => {
 });
 
 it("welcomes a new caterer with the setup card instead of empty lists", async () => {
-  renderToday(runtimeWith(async () => emptyDay()));
+  await renderToday(runtimeWith(async () => emptyDay()));
   expect(await screen.findByText("Siapkan dapurmu")).toBeTruthy();
 });
 
 it("heads the setup card and the 'once you have customers' card in the section type, not the classic heading", async () => {
-  renderToday(runtimeWith(async () => emptyDay()));
+  await renderToday(runtimeWith(async () => emptyDay()));
   for (const title of ["Siapkan dapurmu", "Setelah ada pelanggan"]) {
     expect(StyleSheet.flatten((await screen.findByText(title)).props.style)).toMatchObject({ fontSize: 20, lineHeight: 26 });
   }
@@ -179,26 +183,26 @@ it("heads the setup card and the 'once you have customers' card in the section t
 it("report cards and setup rows dim on press and still navigate", async () => {
   const runtime = runtimeWith(same(canvasDay()));
   (runtime.api.request as jest.Mock).mockImplementation(async (path: string) => (path.startsWith("delivery-issues") ? [report()] : []));
-  const first = renderToday(runtime);
+  const first = await renderToday(runtime);
   const card = () => screen.getByRole("button", { name: "Buka laporan: Nadia Putri" });
   await screen.findByText("Nadia Putri melaporkan masalah");
   expect(StyleSheet.flatten(card().props.style)?.opacity ?? 1).toBe(1);
-  fireEvent(card(), "responderGrant", touch);
+  await fireEvent(card(), "responderGrant", touch);
   expect(StyleSheet.flatten(card().props.style).opacity).toBe(0.7);
   // The disclosure chevron is iOS only; Jest compiles the Android build.
-  expect(within(card()).UNSAFE_queryAllByType(Ionicons).find((i) => i.props.name === "chevron-forward")).toBeUndefined();
-  fireEvent.press(card());
+  expect(iconsIn(card()).find((i) => i.name === "chevron-forward")).toBeUndefined();
+  await fireEvent.press(card());
   // The link opens the reply sheet and carries the customer's name, so its title is final on its first frame.
   expect(router.push).toHaveBeenCalledWith("/balas/i-1?title=Nadia%20Putri");
-  first.unmount();
+  await first.unmount();
 
-  renderToday(runtimeWith(async () => emptyDay()));
+  await renderToday(runtimeWith(async () => emptyDay()));
   const step = () => screen.getByRole("button", { name: /Buat paket pertama/ });
   await screen.findByText("Siapkan dapurmu");
   expect(StyleSheet.flatten(step().props.style)).toMatchObject({ minHeight: 56, backgroundColor: nativeThemes.light.forest });
-  fireEvent(step(), "responderGrant", touch);
+  await fireEvent(step(), "responderGrant", touch);
   expect(StyleSheet.flatten(step().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: nativeThemes.light.forest });
-  fireEvent.press(step());
+  await fireEvent.press(step());
   expect(router.push).toHaveBeenCalledWith("/paket/baru");
 });
 
@@ -207,7 +211,7 @@ describe("the setup card in the dark theme", () => {
 
   it("draws the setup card plain, with forest on the first step only, in the dark theme", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    render(
+    await render(
       <ThemeProvider storageKey="t.theme">
         <MobileProvider runtime={runtimeWith(async () => emptyDay())} linkMapper={(h) => h}>
           <TodayScreen />
@@ -235,7 +239,7 @@ describe("issueSteps", () => {
 it("opens on the day a notification points to", async () => {
   const runtime = runtimeWith(same(canvasDay()));
   const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date(Date.now() + 86400000));
-  render(
+  await render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h}>
       <TodayScreen date={tomorrow} />
     </MobileProvider>,
@@ -244,14 +248,14 @@ it("opens on the day a notification points to", async () => {
 });
 
 it("keeps the day toggle for a kitchen with packages on a day without deliveries", async () => {
-  renderToday(runtimeWith(async () => quietDay()));
+  await renderToday(runtimeWith(async () => quietDay()));
   expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
   expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
 });
 
 it("never shows helpers the owner setup steps", async () => {
-  renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
+  await renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
   expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
   expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
@@ -264,26 +268,26 @@ it("moves a customer's day from Besok while the cutoff is still ahead", async ()
   Object.assign(d, { cutoff_at: "2099-01-01T10:00:00Z", customerRecordId: "cr-1" });
   const runtime = runtimeWith(async () => day);
   const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date(Date.now() + 86400000));
-  renderToday(runtime, tomorrow);
-  fireEvent.press(await stopMenu(3));
+  await renderToday(runtime, tomorrow);
+  await fireEvent.press(await stopMenu(3));
   expect(screen.queryByText("Gagal diantar")).toBeNull();
   // The date is chosen on the calendar sheet, which replaces this one (the whole move is covered in selection-mode).
-  fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" }));
   // The calendar opens once the tab stack reports the stop sheet has finished leaving.
   await waitFor(() => expect(router.push).toHaveBeenLastCalledWith(`/pindah-tanggal/${d.id}?meal=lunch&date=${tomorrow}`));
 });
 
 it("the stop menu button and the problem options give haptics", async () => {
-  renderToday(runtimeWith(same(canvasDay())));
-  fireEvent.press(await stopMenu(1));
+  await renderToday(runtimeWith(same(canvasDay())));
+  await fireEvent.press(await stopMenu(1));
   expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
-  fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
   expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
 });
 
 it("tells the caterer plainly what a failed delivery means", async () => {
-  renderToday(runtimeWith(same(canvasDay())));
-  fireEvent.press(await stopMenu(3));
+  await renderToday(runtimeWith(same(canvasDay())));
+  await fireEvent.press(await stopMenu(3));
   expect(await screen.findByText(/tidak dihitung sebagai pengantaran/)).toBeTruthy();
   expect(screen.queryByText(/pengembalian dana diurus Catera/)).toBeNull();
 });
@@ -303,13 +307,13 @@ it("names the customer, day and meal on a problem report and opens it", async ()
     nextCursor: null,
     timezone: "Asia/Jakarta",
   });
-  renderToday(runtime);
+  await renderToday(runtime);
   // One to-do shows (the report, which comes first); the question waits behind "1 lainnya" and opens in place.
   expect(await screen.findByText("Nadia Putri melaporkan masalah")).toBeTruthy();
   expect(screen.queryByText("Pertanyaan pelanggan menunggu")).toBeNull();
-  fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
+  await fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
   expect(await screen.findByText("Pertanyaan pelanggan menunggu")).toBeTruthy();
-  fireEvent.press(await screen.findByText("Nadia Putri melaporkan masalah"));
+  await fireEvent.press(await screen.findByText("Nadia Putri melaporkan masalah"));
   expect(router.push).toHaveBeenCalledWith("/balas/i-1?title=Nadia%20Putri");
   expect(screen.getByText("Kamis 8 Okt · Makan siang")).toBeTruthy();
   expect(screen.getByText("Belum sampai")).toBeTruthy();
@@ -326,25 +330,25 @@ it("offers Pindah tanggal on today's stop of a customer before the change deadli
   const day = canvasDay();
   const sari = day.deliveries.find((x) => x.customer.name === "Bu Sari Wulandari")!;
   const runtime = runtimeWith(async () => day);
-  renderToday(runtime);
-  fireEvent.press(await stopMenu(1));
+  await renderToday(runtime);
+  await fireEvent.press(await stopMenu(1));
   expect(await screen.findByText("Gagal diantar")).toBeTruthy();
-  fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" }));
   await waitFor(() => expect(router.push).toHaveBeenLastCalledWith(`/pindah-tanggal/${sari.id}?meal=lunch&date=${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date())}`));
   expect(screen.queryByLabelText("Tanggal baru (TTTT-BB-HH)")).toBeNull();
 });
 
 it("keeps only Gagal diantar today once the deadline has passed or the package has fixed dates", async () => {
-  renderToday(runtimeWith(same(canvasDay())));
-  fireEvent.press(await stopMenu(3));
+  await renderToday(runtimeWith(same(canvasDay())));
+  await fireEvent.press(await stopMenu(3));
   expect(await screen.findByText("Gagal diantar")).toBeTruthy();
   expect(screen.queryByText("Pindah tanggal")).toBeNull();
 });
 
 it("shows the move button on Besok only for days that can still move", async () => {
   const runtime = runtimeWith(same(canvasDay()));
-  renderToday(runtime, tomorrowDay());
-  fireEvent.press(await stopMenu(1));
+  await renderToday(runtime, tomorrowDay());
+  await fireEvent.press(await stopMenu(1));
   expect(screen.queryByText("Gagal diantar")).toBeNull();
   expect(screen.getByText("Pindah tanggal")).toBeTruthy();
   // Past the deadline (Keluarga Hartono, 3) or a fixed-date package (Kantor PT Sinar Rasa, 2): no button at all.
@@ -359,10 +363,10 @@ it("says when customer reports could not be loaded and retries", async () => {
     if (failing) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     return [report()];
   });
-  renderToday(runtime);
+  await renderToday(runtime);
   expect(await screen.findByText("Laporan pelanggan belum bisa dimuat.")).toBeTruthy();
   failing = false;
-  fireEvent.press(screen.getByText("Coba lagi"));
+  await fireEvent.press(screen.getByText("Coba lagi"));
   expect(await screen.findByText("Nadia Putri melaporkan masalah")).toBeTruthy();
   expect(screen.queryByText("Laporan pelanggan belum bisa dimuat.")).toBeNull();
 });
@@ -377,7 +381,7 @@ describe("session cards", () => {
       ...base,
       deliveries: [{ ...base.deliveries[0], portions: 1, customer: { id: "c-9", name: "Nadia Putri" } }],
     } as unknown as typeof base;
-    renderToday(runtimeWith(async () => day));
+    await renderToday(runtimeWith(async () => day));
     expect(await screen.findByTestId("session-card")).toBeTruthy();
     expect(within(screen.getByTestId("session-count")).getByTestId("session-figures-cell-0").props.accessibilityLabel).toBe("1 porsi");
     expect(screen.getByText("Nadia Putri")).toBeTruthy();
@@ -386,15 +390,15 @@ describe("session cards", () => {
   });
 
   it("shows a calm empty state", async () => {
-    renderToday(runtimeWith(async () => quietDay()));
+    await renderToday(runtimeWith(async () => quietDay()));
     expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
     expect(screen.getByText("Pesanan baru akan muncul di sini.")).toBeTruthy();
   });
 
   it("words the empty state for tomorrow", async () => {
-    renderToday(runtimeWith(async () => quietDay()));
+    await renderToday(runtimeWith(async () => quietDay()));
     await screen.findByText("Tidak ada yang dimasak hari ini");
-    fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
+    await fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
     expect(await screen.findByText("Tidak ada yang dimasak besok")).toBeTruthy();
   });
 });
@@ -411,8 +415,8 @@ describe("Hari ini by mood", () => {
   const SIANG_NOW = () => new Date("2026-10-08T07:59:00Z");
   const MALAM_NOW = () => new Date("2026-10-08T08:00:00Z");
 
-  const renderMood = (runtime: MobileRuntime, now = SIANG_NOW) =>
-    render(
+  const renderMood = async (runtime: MobileRuntime, now = SIANG_NOW) =>
+    await render(
       <MoodProvider now={now}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
           <TodayScreen />
@@ -448,27 +452,27 @@ describe("Hari ini by mood", () => {
 
   it("titles the header with the date, a button that switches between today and tomorrow", async () => {
     pinToday();
-    renderMood(runtimeWith(same(canvasDay())));
+    await renderMood(runtimeWith(same(canvasDay())));
     const button = await screen.findByRole("button", { name: CHANGE_DAY });
     expect(within(button).getByText("Kamis 8 Okt")).toBeTruthy();
     expect(StyleSheet.flatten(button.props.style).minHeight).toBe(48);
     // Label in Name (WCAG 2.5.3): the accessible name begins with the text the eye reads.
     expect(button.props.accessibilityLabel).toBe("Kamis 8 Okt, ganti hari");
     expect(button.props.accessibilityHint).toBeUndefined();
-    expect(within(button).UNSAFE_getByType(Ionicons).props).toMatchObject({
+    expect(oneIcon(button)).toMatchObject({
       name: "chevron-down",
       color: nativeMood.light.siang.headerText,
     });
     expect(StyleSheet.flatten(within(button).getByText("Kamis 8 Okt").props.style).color).toBe(nativeMood.light.siang.headerText);
     expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
 
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
     expect(screen.getByText("Jumat 9 Okt")).toBeTruthy();
 
     const back = screen.getByRole("button", { name: CHANGE_DAY });
     expect(back.props.accessibilityLabel).toBe("Jumat 9 Okt, ganti hari");
-    fireEvent.press(back);
+    await fireEvent.press(back);
     expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
     expect(screen.getByText("Kamis 8 Okt")).toBeTruthy();
   });
@@ -478,9 +482,9 @@ describe("Hari ini by mood", () => {
     // Tomorrow's read never answers, so the screen stays in its loading state for that day.
     const stuck = new Promise<never>(() => {});
     const byDate = (_id: string, date: string) => (date === "2026-10-09" ? stuck : Promise.resolve(canvasDay()));
-    renderMood(runtimeWith(byDate as unknown as () => Promise<unknown>));
+    await renderMood(runtimeWith(byDate as unknown as () => Promise<unknown>));
     await screen.findByText("Dapur Bu Rina · Hari ini");
-    fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
+    await fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
     expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
     expect(screen.getByLabelText("Memuat dapur")).toBeTruthy();
   });
@@ -489,21 +493,19 @@ describe("Hari ini by mood", () => {
     pinToday();
     const runtime = runtimeWith(same(canvasDay()));
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
-    renderMood(runtime);
+    await renderMood(runtime);
     const button = await screen.findByRole("button", { name: /, change day$/ });
     expect(button.props.accessibilityLabel).toBe("Thu 8 Oct, change day");
     expect(await screen.findByText("Dapur Bu Rina · Today")).toBeTruthy();
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(await screen.findByText("Dapur Bu Rina · Tomorrow")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Fri 9 Oct, change day" })).toBeTruthy();
   });
 
   it("has exactly one tablist, the mood toggle", async () => {
-    renderMood(runtimeWith(same(canvasDay())));
+    await renderMood(runtimeWith(same(canvasDay())));
     await screen.findByTestId("session-count");
-    const tablists = screen.UNSAFE_root.findAll(
-      (n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist",
-    );
+    const tablists = findInScreen((n) => n.props.accessibilityRole === "tablist");
     expect(tablists).toHaveLength(1);
     expect(screen.getAllByRole("tab").map((t) => t.props.accessibilityLabel)).toEqual(["Siang", "Malam"]);
     expect(tabsSelected()).toEqual([true, false]);
@@ -511,11 +513,11 @@ describe("Hari ini by mood", () => {
   });
 
   it("draws the band's Siang / Malam toggle compact: a 34 track that keeps the 36 row, its tabs reaching 48 by hitSlop 7", async () => {
-    renderMood(runtimeWith(same(canvasDay())));
+    await renderMood(runtimeWith(same(canvasDay())));
     await screen.findByTestId("session-count");
     const row = within(screen.getByTestId("mood-header")).getByTestId("mood-header-row");
     expect(StyleSheet.flatten(row.props.style).minHeight).toBe(36);
-    const [track] = screen.UNSAFE_root.findAll((n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist");
+    const [track] = findInScreen((n) => n.props.accessibilityRole === "tablist");
     // 34 = the 1 edge, the 1 padding and the 30 pills: shorter than the row, so the row stays 36 (the 54 regular track grew it to 48).
     expect(StyleSheet.flatten(track.props.style)).toMatchObject({ borderWidth: 1, padding: 1 });
     expect(Number.isInteger(StyleSheet.flatten(track.props.style).width)).toBe(true);
@@ -532,17 +534,17 @@ describe("Hari ini by mood", () => {
 
   it("springs the toggle's pill to the tapped tab on the toggle spring, so a re-tap turns it around with its speed", async () => {
     const spring = jest.spyOn(Reanimated, "withSpring");
-    renderMood(runtimeWith(same(canvasDay())));
+    await renderMood(runtimeWith(same(canvasDay())));
     await screen.findByTestId("session-count");
     spring.mockClear();
-    fireEvent.press(screen.getAllByRole("tab")[1]);
+    await fireEvent.press(screen.getAllByRole("tab")[1]);
     await waitFor(() => expect(spring).toHaveBeenCalledWith(1, { damping: 26, stiffness: 320, mass: 1 }));
     spring.mockRestore();
   });
 
   describe("the figure strip", () => {
     it("is the theme's surface under the date, leading with the mood's portions", async () => {
-      renderMood(runtimeWith(async () => timedDay()));
+      await renderMood(runtimeWith(async () => timedDay()));
       const card = await screen.findByTestId("session-count");
       const strip = within(card).getByTestId("session-figures");
       const number = within(strip).getByText("34");
@@ -565,23 +567,23 @@ describe("Hari ini by mood", () => {
 
     it("needs no fill that fades: the strip is the same surface in Siang and Malam while the header's own fill fades", async () => {
       jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-      renderMood(runtimeWith(async () => toDinner(timedDay())));
+      await renderMood(runtimeWith(async () => toDinner(timedDay())));
       await screen.findByTestId("session-count");
       expect(nativeMood.light.siang.hero).toBe(nativeThemes.light.surface);
       expect(nativeMood.light.malam.hero).toBe(nativeThemes.light.surface);
       expect(flat("mood-fill-malam").opacity).toBe(0);
       expect(flat("session-figures").backgroundColor).toBe(nativeThemes.light.surface);
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       expect(await within(screen.getByTestId("session-count")).findByText("23")).toBeTruthy();
       expect(flat("mood-fill-malam").opacity).toBe(1);
       expect(flat("session-figures").backgroundColor).toBe(nativeThemes.light.surface);
-      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
       expect(await within(screen.getByTestId("session-count")).findByText("11")).toBeTruthy();
       expect(flat("mood-fill-malam").opacity).toBe(0);
     });
 
     it("follows the mood to the dinner session", async () => {
-      renderMood(runtimeWith(async () => toDinner(timedDay())), MALAM_NOW);
+      await renderMood(runtimeWith(async () => toDinner(timedDay())), MALAM_NOW);
       const card = await screen.findByTestId("session-count");
       expect(within(card).getByText("23")).toBeTruthy();
       expect(within(card).getByTestId("session-figures-cell-2").props.accessibilityLabel).toBe("1 alamat");
@@ -591,7 +593,7 @@ describe("Hari ini by mood", () => {
     it("is worded in English", async () => {
       const runtime = runtimeWith(async () => timedDay());
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
-      renderMood(runtime);
+      await renderMood(runtime);
       const card = await screen.findByTestId("session-count");
       expect(await within(card).findByText("portions")).toBeTruthy();
       expect(within(card).getByText("packages")).toBeTruthy();
@@ -602,23 +604,23 @@ describe("Hari ini by mood", () => {
 
   describe("one session at a time", () => {
     it("shows only the mood's session card and swaps it with the toggle", async () => {
-      renderMood(runtimeWith(async () => toDinner(canvasDay())));
+      await renderMood(runtimeWith(async () => toDinner(canvasDay())));
       expect(await screen.findByText("Keluarga Hartono")).toBeTruthy();
       expect(screen.queryByText("Kost Damai")).toBeNull();
 
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       expect(await screen.findByText("Kost Damai")).toBeTruthy();
       expect(screen.queryByText("Keluarga Hartono")).toBeNull();
       expect(tabsSelected()).toEqual([false, true]);
     });
 
     it("in Malam with only lunch work says so and offers the lunch session", async () => {
-      renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
+      await renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
       expect(await screen.findByText("Tidak ada pengantaran makan malam")).toBeTruthy();
       expect(screen.queryByTestId("session-count")).toBeNull();
       expect(tabsSelected()).toEqual([false, true]);
 
-      fireEvent.press(screen.getByRole("button", { name: "Lihat makan siang · 34 porsi" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Lihat makan siang · 34 porsi" }));
       expect(await screen.findByTestId("session-card")).toBeTruthy();
       expect(tabsSelected()).toEqual([true, false]);
       expect(screen.queryByText("Tidak ada pengantaran makan malam")).toBeNull();
@@ -626,15 +628,15 @@ describe("Hari ini by mood", () => {
     });
 
     it("in Siang with only dinner work offers the dinner session", async () => {
-      renderMood(runtimeWith(async () => dinnerOnly()));
+      await renderMood(runtimeWith(async () => dinnerOnly()));
       expect(await screen.findByText("Tidak ada pengantaran makan siang")).toBeTruthy();
-      fireEvent.press(screen.getByRole("button", { name: "Lihat makan malam · 34 porsi" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Lihat makan malam · 34 porsi" }));
       expect(await screen.findByTestId("session-card")).toBeTruthy();
       expect(tabsSelected()).toEqual([false, true]);
     });
 
     it("keeps the whole-day empty card when neither meal has work", async () => {
-      renderMood(runtimeWith(async () => quietDay()), MALAM_NOW);
+      await renderMood(runtimeWith(async () => quietDay()), MALAM_NOW);
       expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
       expect(screen.queryByText("Tidak ada pengantaran makan malam")).toBeNull();
       expect(screen.queryByText(/^Lihat makan/)).toBeNull();
@@ -643,7 +645,7 @@ describe("Hari ini by mood", () => {
     it("words the empty session and its way across in English", async () => {
       const runtime = runtimeWith(same(canvasDay()));
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
-      renderMood(runtime, MALAM_NOW);
+      await renderMood(runtime, MALAM_NOW);
       expect(await screen.findByText("No dinner deliveries")).toBeTruthy();
       expect(screen.getByRole("button", { name: "See lunch · 34 portions" })).toBeTruthy();
     });
@@ -652,7 +654,7 @@ describe("Hari ini by mood", () => {
   describe("in Malam", () => {
     it("paints the header on the deep Malam fill and keeps the title readable on it", async () => {
       jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-      renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
+      await renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
       await screen.findByText("Tidak ada pengantaran makan malam");
       expect(flat("mood-fill-malam").backgroundColor).toBe("#E2ECDD");
       // The fill is always mounted; in Malam it is the opaque layer.
@@ -663,7 +665,7 @@ describe("Hari ini by mood", () => {
 
     it("keeps a failed read readable: the message sits on the body in the error colour, not inside the header", async () => {
       (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
-      renderMood(
+      await renderMood(
         runtimeWith(async () => {
           throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
         }),
@@ -701,14 +703,14 @@ describe("route sharing after a same-day revision", () => {
         />
       </MobileProvider>
     );
-    const view = render(card(long));
-    fireEvent.press(screen.getByText("Bagikan rute ke WhatsApp"));
+    const view = await render(card(long));
+    await fireEvent.press(screen.getByText("Bagikan rute ke WhatsApp"));
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
-    fireEvent.press(await screen.findByText("Bagikan bagian 2"));
+    await fireEvent.press(await screen.findByText("Bagikan bagian 2"));
     await waitFor(() => expect(share).toHaveBeenCalledTimes(2));
     // Now on part 3 of a longer route; the revision leaves a single part.
-    view.rerender(card(short));
-    fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
+    await view.rerender(card(short));
+    await fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
     await waitFor(() => expect(share).toHaveBeenCalledTimes(3));
     expect(share.mock.calls[2][0]).toEqual(expect.objectContaining({ message: expect.stringMatching(/^\*Antar siang/) }));
   });
@@ -717,7 +719,7 @@ describe("route sharing after a same-day revision", () => {
 it("Today error offers Coba lagi", async () => {
   (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
   let failing = true;
-  renderToday(
+  await renderToday(
     runtimeWith(async () => {
       if (failing) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       return canvasDay();
@@ -725,12 +727,12 @@ it("Today error offers Coba lagi", async () => {
   );
   const retry = await screen.findByRole("button", { name: "Coba lagi" });
   failing = false;
-  fireEvent.press(retry);
+  await fireEvent.press(retry);
   expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
 });
 
 it("new kitchen card makes no time claim", async () => {
-  renderToday(runtimeWith(async () => emptyDay()));
+  await renderToday(runtimeWith(async () => emptyDay()));
   expect(await screen.findByText("Nama, foto, harga, hari antar")).toBeTruthy();
   expect(screen.queryByText(/menit/)).toBeNull();
 });
@@ -759,7 +761,7 @@ describe("unfilled menus on the session card", () => {
   };
 
   it("names the slots nobody filled, one line per package, and each Isi menu opens its own package", async () => {
-    renderToday(runtimeWith(same(canvasDay())));
+    await renderToday(runtimeWith(same(canvasDay())));
     expect(await screen.findByText("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur")).toBeTruthy();
     expect(screen.getByText("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur")).toBeTruthy();
     // A to-do status in strong charcoal (bodyStrong), never a bare danger caption.
@@ -769,30 +771,30 @@ describe("unfilled menus on the session card", () => {
     expect(screen.queryByText(/Nasi ×/)).toBeNull();
     const buttons = screen.getAllByText("Isi menu");
     expect(buttons).toHaveLength(2);
-    fireEvent.press(buttons[0]);
+    await fireEvent.press(buttons[0]);
     expect(router.push).toHaveBeenLastCalledWith(`/menu/${today()}?pkg=p-rumahan&meal=lunch`);
-    fireEvent.press(buttons[1]);
+    await fireEvent.press(buttons[1]);
     expect(router.push).toHaveBeenLastCalledWith(`/menu/${today()}?pkg=p-hemat&meal=lunch`);
   });
 
   it("lists only the package that is still unfilled when the other is complete", async () => {
     const day = filled();
     day.datedMenus = day.datedMenus!.filter((m) => m.package_id === "p-rumahan");
-    renderToday(runtimeWith(async () => day));
+    await renderToday(runtimeWith(async () => day));
     expect(await screen.findByText("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur")).toBeTruthy();
     expect(screen.queryByText(/Makan Siang Rumahan:/)).toBeNull();
-    fireEvent.press(screen.getByText("Isi menu"));
+    await fireEvent.press(screen.getByText("Isi menu"));
     expect(router.push).toHaveBeenLastCalledWith(`/menu/${today()}?pkg=p-hemat&meal=lunch`);
   });
 
   it("shows helpers the line but not the button", async () => {
-    renderToday(runtimeWith(async () => canvasDay(), { ...owner, role: "staff" }));
+    await renderToday(runtimeWith(async () => canvasDay(), { ...owner, role: "staff" }));
     expect((await screen.findAllByText(/^Menu belum diisi · /)).length).toBe(2);
     expect(screen.queryByText("Isi menu")).toBeNull();
   });
 
   it("shows no unfilled line when the menu is complete", async () => {
-    renderToday(runtimeWith(async () => filled()));
+    await renderToday(runtimeWith(async () => filled()));
     expect(await screen.findByText("Ayam bakar")).toBeTruthy();
     expect(screen.queryByText(/Menu belum diisi/)).toBeNull();
     expect(screen.queryByText("Isi menu")).toBeNull();
@@ -800,8 +802,8 @@ describe("unfilled menus on the session card", () => {
 
   it("puts the unfilled line, not placeholder dishes, in the shared recap", async () => {
     const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
-    renderToday(runtimeWith(same(canvasDay())));
-    fireEvent.press(await screen.findByRole("button", { name: "Bagikan" }));
+    await renderToday(runtimeWith(same(canvasDay())));
+    await fireEvent.press(await screen.findByRole("button", { name: "Bagikan" }));
     const message = (share.mock.calls[0][0] as { message: string }).message;
     expect(message).toContain("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur");
     expect(message).toContain("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur");
@@ -812,8 +814,8 @@ describe("unfilled menus on the session card", () => {
 describe("printed recap", () => {
   it("prints the unfilled line too", async () => {
     const Print = require("expo-print") as { printAsync: jest.Mock };
-    renderToday(runtimeWith(same(canvasDay())));
-    fireEvent.press(await screen.findByRole("button", { name: "Cetak" }));
+    await renderToday(runtimeWith(same(canvasDay())));
+    await fireEvent.press(await screen.findByRole("button", { name: "Cetak" }));
     expect(Print.printAsync.mock.calls[0][0].html).toContain("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur");
     expect(Print.printAsync.mock.calls[0][0].html).toContain("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur");
   });
@@ -831,7 +833,7 @@ describe("attention cards", () => {
       items: [{ id: "a-9", kind: "delivery", priority: 1, at_time: "2026-10-08T05:40:00Z", context: "2026-10-20 · dinner · Paket Hemat", href: "/seller" }],
       total: 1, nextCursor: null, timezone: "Asia/Jakarta",
     });
-    renderToday(runtime);
+    await renderToday(runtime);
     const body = await screen.findByTestId("attention-body-a-9");
     expect(within(body).queryByText(/2026-10-20|dinner/)).toBeNull();
     expect(within(body).getByText("Selasa 20 Okt · Makan malam · Paket Hemat")).toBeTruthy();
@@ -846,18 +848,18 @@ describe("attention cards", () => {
       ],
       total: 2, nextCursor: null, timezone: "Asia/Jakarta",
     });
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await within(await screen.findByTestId("attention-body-a-7")).findByText("Rabu 21 Okt · Makan siang · Paket Hemat")).toBeTruthy();
     // The second item is behind "1 lainnya".
-    fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
+    await fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
     expect(within(screen.getByTestId("attention-body-a-8")).getByText("Rabu 21 Okt · Makan malam")).toBeTruthy();
   });
 
   it("opens its link when the href maps to a Dapur screen", async () => {
     const runtime = runtimeWith(same(canvasDay()));
     (runtime.api.sellerAttention as jest.Mock).mockResolvedValue(attention("/seller/customers"));
-    renderToday(runtime);
-    fireEvent.press(await screen.findByRole("link", { name: /Ada pembayaran yang perlu dicek/ }));
+    await renderToday(runtime);
+    await fireEvent.press(await screen.findByRole("link", { name: /Ada pembayaran yang perlu dicek/ }));
     expect(require("../src/nav").openLink).toHaveBeenCalledWith("/pelanggan");
     expect(router.push).not.toHaveBeenCalled();
   });
@@ -871,14 +873,14 @@ describe("attention cards", () => {
       ],
       total: 2, nextCursor: null, timezone: "Asia/Jakarta",
     });
-    renderToday(runtime);
+    await renderToday(runtime);
     const link = await screen.findByRole("link", { name: /Ada pembayaran yang perlu dicek/ });
-    const chevrons = within(link).UNSAFE_getAllByType(Ionicons).filter((i) => String(i.props.name).startsWith("chevron"));
+    const chevrons = iconsIn(link).filter((i) => i.name.startsWith("chevron"));
     // The chevron is iOS only; Jest compiles the Android build (see dapur-d2.test.tsx).
     expect(chevrons).toHaveLength(0);
-    fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
-    const plain = within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicons);
-    expect(plain.filter((i) => String(i.props.name).startsWith("chevron"))).toHaveLength(0);
+    await fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
+    const plain = iconsIn(screen.getByTestId("attention-a-2"));
+    expect(plain.filter((i) => i.name.startsWith("chevron"))).toHaveLength(0);
     // Both kinds are 64 rows: the title (rowTitle) and its context in the same text column.
     for (const id of ["a-1", "a-2"]) {
       expect(StyleSheet.flatten(screen.getByTestId(`attention-${id}`).props.style)).toMatchObject({ minHeight: 64, gap: 12 });
@@ -888,10 +890,10 @@ describe("attention cards", () => {
   it("stays a plain card when the href has no Dapur screen", async () => {
     const runtime = runtimeWith(same(canvasDay()));
     (runtime.api.sellerAttention as jest.Mock).mockResolvedValue(attention("/seller/support?case=c-1", "support"));
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("Pertanyaan pelanggan menunggu")).toBeTruthy();
     expect(screen.queryByRole("link", { name: /Pertanyaan pelanggan menunggu/ })).toBeNull();
-    fireEvent.press(screen.getByText("Pertanyaan pelanggan menunggu"));
+    await fireEvent.press(screen.getByText("Pertanyaan pelanggan menunggu"));
     expect(router.push).not.toHaveBeenCalled();
   });
 });
@@ -915,7 +917,7 @@ describe("the live slot", () => {
   };
 
   it("shows one to-do and opens the other two in place from the 2 lainnya link", async () => {
-    renderToday(busy());
+    await renderToday(busy());
     const slot = await screen.findByTestId("live-slot");
     // The first, in the existing order (reports, then attention items): the report; the rest wait.
     expect(within(slot).getByText("Nadia Putri melaporkan masalah")).toBeTruthy();
@@ -925,11 +927,11 @@ describe("the live slot", () => {
     expect(box(more).minHeight).toBe(48);
     expect(more.props.accessibilityState).toMatchObject({ expanded: false });
     const card = within(slot).getByTestId("live-card");
-    fireEvent.press(more);
+    await fireEvent.press(more);
     // In place: the same card holds all three, in order, and the link is gone. No route was opened.
     expect(within(slot).getByTestId("live-card")).toBe(card);
     const labels = ["Nadia Putri melaporkan masalah", "Pertanyaan pelanggan menunggu", "Ada pembayaran yang perlu dicek"];
-    const all = card.findAll((n) => typeof n.type === "string");
+    const all = findAll(card, () => true);
     const places = labels.map((label) => all.indexOf(within(card).getByText(label)));
     expect(places).toEqual([...places].sort((a, b) => a - b));
     // The link stays where it is and now reads expanded, so focus is never left on a control that vanished.
@@ -937,17 +939,17 @@ describe("the live slot", () => {
     expect(open.props.accessibilityState).toMatchObject({ expanded: true });
     expect(router.push).not.toHaveBeenCalled();
     // Pressing it again closes the two.
-    fireEvent.press(open);
+    await fireEvent.press(open);
     expect(within(slot).queryByText("Pertanyaan pelanggan menunggu")).toBeNull();
     expect(within(slot).getByRole("button", { name: "2 lainnya" }).props.accessibilityState).toMatchObject({ expanded: false });
-    fireEvent.press(within(slot).getByRole("button", { name: "2 lainnya" }));
+    await fireEvent.press(within(slot).getByRole("button", { name: "2 lainnya" }));
     // Every row is a 64.
     for (const row of [within(card).getByRole("button", { name: "Buka laporan: Nadia Putri" }), within(card).getByTestId("attention-a-1")])
       expect(box(row).minHeight).toBe(64);
   });
 
   it("draws the card in the attention tone, as the reports and items had", async () => {
-    renderToday(busy());
+    await renderToday(busy());
     const card = await screen.findByTestId("live-card");
     expect(box(card)).toMatchObject({
       backgroundColor: nativeThemes.light.cream,
@@ -957,23 +959,23 @@ describe("the live slot", () => {
   });
 
   it("says when the report was already replied to, and says nothing more when it was not", async () => {
-    const first = renderToday(busy());
+    const first = await renderToday(busy());
     await screen.findByText("Nadia Putri melaporkan masalah");
     expect(screen.queryByText("Sudah kamu balas. Tandai selesai kalau sudah beres.")).toBeNull();
-    first.unmount();
-    renderToday(busy({ status: "responded" }));
+    await first.unmount();
+    await renderToday(busy({ status: "responded" }));
     expect(await screen.findByText("Sudah kamu balas. Tandai selesai kalau sudah beres.")).toBeTruthy();
   });
 
   it("is left out when nothing waits, and on Besok even when reports do", async () => {
-    const first = renderToday(runtimeWith(same(canvasDay())));
+    const first = await renderToday(runtimeWith(same(canvasDay())));
     await screen.findByTestId("session-card");
     expect(screen.queryByTestId("live-slot")).toBeNull();
-    first.unmount();
+    await first.unmount();
 
-    renderToday(busy());
+    await renderToday(busy());
     await screen.findByTestId("live-slot");
-    fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
+    await fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
     await waitFor(() => expect(screen.queryByTestId("live-slot")).toBeNull());
     expect(screen.queryByRole("button", { name: "Pilih" })).toBeNull();
   });
@@ -981,29 +983,29 @@ describe("the live slot", () => {
   it("keeps a new kitchen's setup card first, with the reports one tap behind it", async () => {
     const runtime = runtimeWith(async () => emptyDay());
     (runtime.api.request as jest.Mock).mockImplementation(async (path: string) => (path.startsWith("delivery-issues") ? [report()] : []));
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByText("Siapkan dapurmu")).toBeTruthy();
     expect(screen.queryByText("Nadia Putri melaporkan masalah")).toBeNull();
     // The setup steps are 56 rows.
     for (const name of [/Buat paket pertama/, /Impor pelanggan lama/, /Aktifkan pembayaran/])
       expect(box(screen.getByRole("button", { name })).minHeight).toBe(56);
-    fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
+    await fireEvent.press(screen.getByRole("button", { name: "1 lainnya" }));
     expect(await screen.findByText("Nadia Putri melaporkan masalah")).toBeTruthy();
   });
 
   it("words the link in English", async () => {
     const runtime = busy();
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
-    renderToday(runtime);
+    await renderToday(runtime);
     expect(await screen.findByRole("button", { name: "2 more" })).toBeTruthy();
     (SecureStore as unknown as { __store: Map<string, string> }).__store.delete(runtime.storageKey("locale"));
   });
 });
 
 describe("the compact rantang track and the regular one", () => {
-  it("leaves the regular track as it was: a 64 rail, the words line drawn, the marker above the rail", () => {
+  it("leaves the regular track as it was: a 64 rail, the words line drawn, the marker above the rail", async () => {
     const { RantangTrack } = require("@catera/mobile-ui") as typeof import("@catera/mobile-ui");
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith(same(canvasDay()))} linkMapper={(h) => h}>
         <RantangTrack stage="preparing" caption="Dimasak 08.10" />
       </MobileProvider>,
@@ -1022,7 +1024,7 @@ describe("dark Malam", () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const day = canvasDay();
     for (const d of day.deliveries) d.meals = d.meals.map((m) => ({ ...m, meal: "dinner" }));
-    render(
+    await render(
       <ThemeProvider storageKey="t.theme">
         <MoodProvider now={() => new Date("2026-10-08T12:00:00Z")}>
           <MobileProvider runtime={runtimeWith(async () => day)} linkMapper={(h) => h}>

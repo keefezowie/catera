@@ -62,8 +62,8 @@ afterEach(() => jest.useRealTimers());
 describe("MascotArt", () => {
   it.each(mascotPoses.flatMap((pose) => [120, 180].map((size) => [pose, size] as const)))(
     "MascotArt scales the pose so its visible height equals size (%s at %i)",
-    (pose: MascotPose, size: number) => {
-      render(<MascotArt pose={pose} size={size} />);
+    async (pose: MascotPose, size: number) => {
+      await render(<MascotArt pose={pose} size={size} />);
       // The runtime file is trimmed: its box is a fraction of that file, whose true shape is `aspect`.
       const { box, aspect } = stillRuntime[pose];
       // Expected from the fixture box: the file scales so the box is `size` tall, the box's top sits at the top of
@@ -97,32 +97,32 @@ describe("MascotArt", () => {
     },
   );
 
-  it("draws at once on mount, dissolves only when the pose changes, and never under reduced motion", () => {
-    const view = render(<MascotArt pose="tidur" size={120} />);
+  it("draws at once on mount, dissolves only when the pose changes, and never under reduced motion", async () => {
+    const view = await render(<MascotArt pose="tidur" size={120} />);
     expect(screen.getByTestId("mascot-art-image", hidden).props.transition).toBe(0);
-    view.rerender(<MascotArt pose="membaca" size={120} />);
+    await view.rerender(<MascotArt pose="membaca" size={120} />);
     expect(screen.getByTestId("mascot-art-image", hidden).props.transition).toBe(200);
-    view.unmount();
+    await view.unmount();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    const reduced = render(<MascotArt pose="tidur" size={120} />);
-    reduced.rerender(<MascotArt pose="membaca" size={120} />);
+    const reduced = await render(<MascotArt pose="tidur" size={120} />);
+    await reduced.rerender(<MascotArt pose="membaca" size={120} />);
     expect(screen.getByTestId("mascot-art-image", hidden).props.transition).toBe(0);
   });
 
   it("loads every runtime still once through expo-image, then draws from the ref", async () => {
     const { Image } = require("expo-image");
     __resetMascotWarmForTests();
-    const view = render(<MascotArt pose="tidur" size={120} />);
+    const view = await render(<MascotArt pose="tidur" size={120} />);
     await act(async () => {});
-    view.rerender(<MascotArt pose="membaca" size={120} />);
-    render(<MascotArt pose="bingung" size={120} />);
+    await view.rerender(<MascotArt pose="membaca" size={120} />);
+    await render(<MascotArt pose="bingung" size={120} />);
     expect(Image.loadAsync).toHaveBeenCalledTimes(mascotPoses.length);
     expect(screen.getAllByTestId("mascot-art-image", hidden)[0].props.source.__ref).toBeDefined();
   });
 
   it("draws the same file in the dark theme", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <MascotArt pose="tidur" size={120} />
       </ThemeProvider>,
@@ -131,8 +131,8 @@ describe("MascotArt", () => {
     expect(sourceOf("mascot-art-image")).toContain("phase-f/runtime/mascot-tidur.png");
   });
 
-  it("mascot art is hidden from screen readers", () => {
-    render(
+  it("mascot art is hidden from screen readers", async () => {
+    await render(
       <>
         <MascotArt pose="bingung" size={120} />
         <SuccessRig size={180} play={false} />
@@ -152,8 +152,8 @@ describe("MascotArt", () => {
 });
 
 describe("SuccessRig", () => {
-  it("stacks the seven success layers in the rig's draw order, untrimmed", () => {
-    render(<SuccessRig size={180} play={false} />);
+  it("stacks the seven success layers in the rig's draw order, untrimmed", async () => {
+    await render(<SuccessRig size={180} play={false} />);
     const layers = screen.getAllByTestId(/^success-rig-layer-/, hidden).map((node) => node.props.testID);
     expect(layers).toEqual([
       "success-rig-layer-body",
@@ -178,8 +178,8 @@ describe("SuccessRig", () => {
     expect(flat("success-rig-layer-eyes-closed").opacity).toBe(0);
   });
 
-  it("rests on its own final frame before it plays: no swap to the still", () => {
-    render(<SuccessRig size={180} play={false} />);
+  it("rests on its own final frame before it plays: no swap to the still", async () => {
+    await render(<SuccessRig size={180} play={false} />);
     expect(screen.queryByTestId("mascot-art", hidden)).toBeNull();
     expect(successRigFrame(SUCCESS_RIG_MS)).toEqual({
       hop: 0,
@@ -194,19 +194,19 @@ describe("SuccessRig", () => {
     expect(flat("success-rig-layer-sparkles").opacity).toBe(0);
   });
 
-  it("mounted already playing, paints the timeline's first frame, never a flash of the resting frame", () => {
+  it("mounted already playing, paints the timeline's first frame, never a flash of the resting frame", async () => {
     jest.useFakeTimers();
     const onDone = jest.fn();
-    render(<SuccessRig size={180} play onDone={onDone} />);
+    await render(<SuccessRig size={180} play onDone={onDone} />);
     // The first painted frame: the badge has not appeared yet and the sparkles are hidden.
     expect(flat("success-rig-layer-badge").opacity).toBe(0);
     expect(flat("success-rig-layer-badge").transform).toEqual([{ scale: 0.6 }]);
     expect(flat("success-rig-layer-sparkles").opacity).toBe(0);
-    act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("follows the success timeline: squash, hop with the lid open, badge pop, sparkles fade", () => {
+  it("follows the success timeline: squash, hop with the lid open, badge pop, sparkles fade", async () => {
     expect(successRigFrame(0)).toMatchObject({ hop: 0, bodyScaleY: 1, lidRotate: 0, badgeOpacity: 0, sparkleOpacity: 0 });
     close(successRigFrame(120).bodyScaleY, 0.96);
     close(successRigFrame(420).hop, 0.06);
@@ -229,74 +229,74 @@ describe("SuccessRig", () => {
     }
   });
 
-  it("SuccessRig under reduced motion renders the merayakan still", () => {
+  it("SuccessRig under reduced motion renders the merayakan still", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    render(<SuccessRig size={180} play />);
+    await render(<SuccessRig size={180} play />);
     expect(screen.queryAllByTestId(/^success-rig-layer-/, hidden)).toHaveLength(0);
     expect(sourceOf("mascot-art-image")).toContain("phase-f/runtime/mascot-merayakan.png");
     expect(flat("mascot-art").height).toBe(180);
   });
 
-  it("SuccessRig calls onDone once per play", () => {
+  it("SuccessRig calls onDone once per play", async () => {
     jest.useFakeTimers();
     const timing = jest.spyOn(Reanimated, "withTiming");
     const onDone = jest.fn();
-    const view = render(<SuccessRig size={180} play={false} onDone={onDone} />);
-    act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS * 2));
+    const view = await render(<SuccessRig size={180} play={false} onDone={onDone} />);
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS * 2));
     expect(onDone).not.toHaveBeenCalled();
     expect(timing).not.toHaveBeenCalled();
 
-    view.rerender(<SuccessRig size={180} play onDone={onDone} />);
+    await view.rerender(<SuccessRig size={180} play onDone={onDone} />);
     // The play starts from the first frame of the timeline.
     expect(timing).toHaveBeenCalledTimes(1);
     expect(timing.mock.calls[0][0]).toBe(SUCCESS_RIG_MS);
-    act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS - 1));
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS - 1));
     expect(onDone).not.toHaveBeenCalled();
-    act(() => jest.advanceTimersByTime(1));
+    await act(() => jest.advanceTimersByTime(1));
     expect(onDone).toHaveBeenCalledTimes(1);
 
     // A re-render with a new callback is not a new play.
     const later = jest.fn();
-    view.rerender(<SuccessRig size={180} play onDone={later} />);
-    act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS * 2));
+    await view.rerender(<SuccessRig size={180} play onDone={later} />);
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS * 2));
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(later).not.toHaveBeenCalled();
 
     // Played twice in one mount: the second play restarts from rest and calls back once more.
-    view.rerender(<SuccessRig size={180} play={false} onDone={later} />);
-    view.rerender(<SuccessRig size={180} play onDone={later} />);
+    await view.rerender(<SuccessRig size={180} play={false} onDone={later} />);
+    await view.rerender(<SuccessRig size={180} play onDone={later} />);
     expect(timing).toHaveBeenCalledTimes(2);
-    act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
     expect(later).toHaveBeenCalledTimes(1);
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onDone once per play under reduced motion too, without animating", () => {
+  it("calls onDone once per play under reduced motion too, without animating", async () => {
     jest.useFakeTimers();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const timing = jest.spyOn(Reanimated, "withTiming");
     const onDone = jest.fn();
-    const view = render(<SuccessRig size={180} play={false} onDone={onDone} />);
-    view.rerender(<SuccessRig size={180} play onDone={onDone} />);
-    act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
+    const view = await render(<SuccessRig size={180} play={false} onDone={onDone} />);
+    await view.rerender(<SuccessRig size={180} play onDone={onDone} />);
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(timing).not.toHaveBeenCalled();
   });
 
-  it("cancels a play that is stopped before it ends: no late callback", () => {
+  it("cancels a play that is stopped before it ends: no late callback", async () => {
     jest.useFakeTimers();
     const onDone = jest.fn();
-    const view = render(<SuccessRig size={180} play onDone={onDone} />);
-    act(() => jest.advanceTimersByTime(400));
-    view.unmount();
-    act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
+    const view = await render(<SuccessRig size={180} play onDone={onDone} />);
+    await act(() => jest.advanceTimersByTime(400));
+    await view.unmount();
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
     expect(onDone).not.toHaveBeenCalled();
   });
 });
 
 describe("MascotReading", () => {
-  it("draws the reading rig: body, the paper highlight, each eye clipped at the seam, and the magnifier", () => {
-    render(<MascotReading size={120} />);
+  it("draws the reading rig: body, the paper highlight, each eye clipped at the seam, and the magnifier", async () => {
+    await render(<MascotReading size={120} />);
     const order = screen
       .getAllByTestId(/^mascot-reading-(body|highlight|eye-left|eye-right|magnifier)$/, hidden)
       .map((node) => node.props.testID);
@@ -319,11 +319,11 @@ describe("MascotReading", () => {
     expect(flat("mascot-reading-highlight").backgroundColor).toBe("#F47B2A");
   });
 
-  it("loops while its screen is focused and pauses when it loses focus", () => {
+  it("loops while its screen is focused and pauses when it loses focus", async () => {
     const repeat = jest.spyOn(Reanimated, "withRepeat");
     const cancel = jest.spyOn(Reanimated, "cancelAnimation");
     const screenNavigation = navigation(true);
-    render(
+    await render(
       <NavigationContext.Provider value={screenNavigation as never}>
         <MascotReading size={120} />
       </NavigationContext.Provider>,
@@ -332,18 +332,18 @@ describe("MascotReading", () => {
     expect(cancel).not.toHaveBeenCalled();
 
     // Another screen covers it: the loop stops while the rig stays mounted.
-    act(() => screenNavigation.emit("blur"));
+    await act(() => screenNavigation.emit("blur"));
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("mascot-reading-body", hidden)).toBeTruthy();
     expect(repeat).toHaveBeenCalledTimes(1);
 
     // Back in focus, it loops again.
-    act(() => screenNavigation.emit("focus"));
+    await act(() => screenNavigation.emit("focus"));
     expect(repeat).toHaveBeenCalledTimes(2);
 
-    screen.unmount();
+    await screen.unmount();
     repeat.mockClear();
-    render(
+    await render(
       <NavigationContext.Provider value={navigation(false) as never}>
         <MascotReading size={120} />
       </NavigationContext.Provider>,
@@ -351,10 +351,10 @@ describe("MascotReading", () => {
     expect(repeat).not.toHaveBeenCalled();
   });
 
-  it("shows the membaca still under reduced motion and never loops", () => {
+  it("shows the membaca still under reduced motion and never loops", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const repeat = jest.spyOn(Reanimated, "withRepeat");
-    render(<MascotReading size={120} />);
+    await render(<MascotReading size={120} />);
     expect(screen.queryByTestId("mascot-reading-body", hidden)).toBeNull();
     expect(sourceOf("mascot-art-image")).toContain("phase-f/runtime/mascot-membaca.png");
     expect(repeat).not.toHaveBeenCalled();
@@ -362,10 +362,10 @@ describe("MascotReading", () => {
 });
 
 describe("SuccessRing and Sparkle", () => {
-  it("SuccessRing grows from 0.35 to 1 by transform with its progress", () => {
-    const view = render(<SuccessRing size={180} progress={{ value: 0 } as never} />);
+  it("SuccessRing grows from 0.35 to 1 by transform with its progress", async () => {
+    const view = await render(<SuccessRing size={180} progress={{ value: 0 } as never} />);
     expect(flat("success-ring").transform).toEqual([{ scale: 0.35 }]);
-    view.rerender(<SuccessRing size={180} progress={{ value: 1 } as never} />);
+    await view.rerender(<SuccessRing size={180} progress={{ value: 1 } as never} />);
     expect(flat("success-ring").transform).toEqual([{ scale: 1 }]);
     const disc = flat("success-ring");
     expect(disc.width).toBe(180);
@@ -376,7 +376,7 @@ describe("SuccessRing and Sparkle", () => {
 
   it.each(["light", "dark"] as const)("SuccessRing keeps its cream disc and sunrise-ink ring in the %s theme", async (scheme) => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <SuccessRing size={180} progress={{ value: 1 } as never} />
       </ThemeProvider>,
@@ -387,18 +387,18 @@ describe("SuccessRing and Sparkle", () => {
     expect(flat("success-ring").borderColor).toBe("#9B4309");
   });
 
-  it("Sparkle draws a four-point star or a dot in the colour it is given", () => {
-    const view = render(<Sparkle kind="star" color="#9B4309" size={14} />);
+  it("Sparkle draws a four-point star or a dot in the colour it is given", async () => {
+    const view = await render(<Sparkle kind="star" color="#9B4309" size={14} />);
     expect(screen.getByTestId("sparkle-star", hidden).props.fill.payload).toBe(ReactNative.processColor("#9B4309"));
-    view.rerender(<Sparkle kind="dot" color="#163D2E" size={6} />);
+    await view.rerender(<Sparkle kind="dot" color="#163D2E" size={6} />);
     expect(screen.queryByTestId("sparkle-star", hidden)).toBeNull();
     expect(screen.getByTestId("sparkle-dot", hidden).props.fill.payload).toBe(ReactNative.processColor("#163D2E"));
   });
 });
 
 describe("MascotReading transform origins", () => {
-  it("renders with magnifierPivot y 0.8094098883572568", () => {
-    render(<MascotReading size={120} />);
+  it("renders with magnifierPivot y 0.8094098883572568", async () => {
+    await render(<MascotReading size={120} />);
     {
       const origin = flat("mascot-reading-magnifier").transformOrigin;
       // Numbers, never a string holding an unrounded float.
@@ -410,12 +410,12 @@ describe("MascotReading transform origins", () => {
 });
 
 describe("stateArtSize", () => {
-  it("draws 88, or 72 on a 360dp phone at font scale 1.3 or more", () => {
+  it("draws 88, or 72 on a 360dp phone at font scale 1.3 or more", async () => {
     expect(stateArtSize({ width: 360, fontScale: 1 })).toBe(88);
     expect(stateArtSize({ width: 360, fontScale: 1.3 })).toBe(72);
     expect(stateArtSize({ width: 412, fontScale: 1.3 })).toBe(88);
   });
-  it("scales a base by the same four-fifths rule: 72 stays 72, and becomes 59 when compact", () => {
+  it("scales a base by the same four-fifths rule: 72 stays 72, and becomes 59 when compact", async () => {
     expect(stateArtSize({ width: 411, fontScale: 1 }, 72)).toBe(72);
     expect(stateArtSize({ width: 360, fontScale: 1.3 }, 72)).toBe(59);
   });

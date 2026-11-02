@@ -174,9 +174,7 @@ type Nav = { key: string; name: string; params?: Record<string, unknown>; state?
 let state: () => { routes: Nav[] };
 
 async function mount(initialUrl = "/") {
-  const { storeRef } = require("expo-router/build/global-state/store");
-  if (storeRef.current) storeRef.current.routeInfo = undefined;
-  const result = renderRouter(appRoutes() as never, { initialUrl });
+  const result = await renderRouter(appRoutes() as never, { initialUrl });
   state = () => result.getRouterState() as unknown as { routes: Nav[] };
   await act(async () => {});
   return result;
@@ -207,8 +205,8 @@ const overAlamat = () => {
   expect(stack("(index)")).toEqual(["index", "alamat"]);
   expect(root()).toEqual(["(tabs)", "alamat-form"]);
 };
-const go = async (work: () => void) => {
-  act(work);
+const go = async (work: () => unknown) => {
+  await act(async () => void (await work()));
   await act(async () => {});
 };
 /** Opens the day over Beranda the way a row does: a push of its link. */
@@ -219,8 +217,8 @@ async function mountDay(id: string) {
 }
 type Host = { type: unknown; props: Record<string, unknown> };
 const screenOf = (route: string) => {
-  const found = (screen.UNSAFE_root.findAll((n) => n.type === "RNSScreen") as unknown as Host[])
-    .filter((s) => String(s.props.screenId).startsWith(`${route}-`))
+  const found = (screen.container.queryAll((n) => n.type === "RNSScreen") as unknown as Host[])
+    .filter((s) => String(s.props.screenId).startsWith(`${route}:`))
     .at(-1);
   if (!found) throw new Error(`no screen for ${route}`);
   return found;
@@ -264,13 +262,13 @@ const stateWith = (deliveries: Delivery[], more: Partial<CustomerState> = {}): C
   ...more,
 });
 const rowLabels = () =>
-  (screen.UNSAFE_root.findAll((n) => typeof n.props.testID === "string" && n.props.testID.startsWith("action-row-") && typeof n.type === "string") as unknown as Host[]).map(
+  (screen.container.queryAll((n) => typeof n.props.testID === "string" && n.props.testID.startsWith("action-row-")) as unknown as Host[]).map(
     (n) => n.props.accessibilityLabel,
   );
 
 /** The vertical scroll views inside a mounted node (React Native's jest ScrollView renders an RCTScrollView host). */
-type Node = Host & { parent: Node | null; findAll: (match: (n: Node) => boolean) => Node[] };
-const scrollersIn = (node: unknown) => (node as Node).findAll((n) => n.type === "RCTScrollView" && !n.props.horizontal);
+type Node = Host & { parent: Node | null; queryAll: (match: (n: Node) => boolean) => Node[] };
+const scrollersIn = (node: unknown) => (node as Node).queryAll((n) => n.type === "RCTScrollView" && !n.props.horizontal);
 const isInside = (inner: unknown, outer: unknown) => {
   for (let n = inner as Node | null; n; n = n.parent) if (n === outer) return true;
   return false;
@@ -316,12 +314,23 @@ const expectFitScrolls = (route: string, reachable: unknown[]) => {
 };
 /** Waits out the iOS sheet's own slide away, as the question routes do before they answer (renderRouter fakes timers). */
 const sheetClosed = async () => {
-  act(() => void jest.advanceTimersByTime(SHEET_CLOSE_MS));
+  await act(() => void jest.advanceTimersByTime(SHEET_CLOSE_MS));
   await act(async () => {});
 };
 /** A sheet that closes on its outcome shows the toast once it is on its way out, so the toast meets the page under it. */
 const expectToastAfterBack = async (message: string, run: () => Promise<void>) => {
-  const back = jest.spyOn(router, "back");
+  // The mounting app binds its own `router.back` onto the shared router (an assignment, which would replace a plain
+  // spy), so the spy wraps whichever function is bound.
+  const back = jest.fn();
+  let bound = router.back;
+  Object.defineProperty(router, "back", {
+    enumerable: true,
+    configurable: true,
+    get: () => (...args: Parameters<typeof router.back>) => (back(...args), bound(...args)),
+    set: (fn: typeof router.back) => void (bound = fn),
+  });
+  back.mockRestore = () =>
+    void Object.defineProperty(router, "back", { configurable: true, enumerable: true, writable: true, value: bound });
   const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility");
   try {
     await run();
@@ -367,7 +376,7 @@ describe("routes", () => {
       expect(within(screenOf(route) as never).getAllByRole("header").length).toBeGreaterThan(0);
       await go(() => router.back());
     }
-    app.unmount();
+    await app.unmount();
 
     // Beli's pickers sit in the root stack over the purchase; the address and help forms do too, from Alamat or Bantuan
     // opened over it.
@@ -389,7 +398,7 @@ describe("routes", () => {
     await go(() => router.back());
     await go(() => router.push("/pembelian/bantuan-form?kind=help"));
     expectSheet("pembelian/bantuan-form", "form");
-    beli.unmount();
+    await beli.unmount();
   });
 
   it.each([false, true])(
@@ -418,7 +427,7 @@ describe("routes", () => {
         expect(presented(route)).toEqual({ route, presentation: "formSheet", animation: undefined });
         await go(() => router.back());
       }
-      app.unmount();
+      await app.unmount();
       const beli = await mount("/");
       await go(() => router.push("/beli/p-1"));
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
@@ -427,7 +436,7 @@ describe("routes", () => {
         presentation: "formSheet",
         animation: undefined,
       });
-      beli.unmount();
+      await beli.unmount();
     },
   );
 });
@@ -439,14 +448,14 @@ describe("the day's actions", () => {
     const cold = await mount(systemPath("/hari/d1", true));
     await act(async () => {});
     atHari();
-    cold.unmount();
+    await cold.unmount();
     const app = await mountDay("d1");
     atHari();
     expectSheet("hari/[id]", "day");
     // It has no title row and no stack header: the day's own line is the first text, a header for the screen reader.
     expect(screen.getByRole("header", { name: new RegExp(`^${shortDate(addDays(TODAY, 2), "id")}`) })).toBeTruthy();
     expect(screenOf("hari/[id]").props.headerShown ?? false).toBe(false);
-    app.unmount();
+    await app.unmount();
   });
 
   it("Lihat menu and Pilih menu close the day sheet and open their page in the tab: the page is on top, the sheet is gone", async () => {
@@ -457,7 +466,7 @@ describe("the day's actions", () => {
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Lihat menu" })));
     expect(stack("(index)")).toEqual(["index", "paket/[id]"]);
     expect(root()).toEqual(["(tabs)"]);
-    app.unmount();
+    await app.unmount();
     // A pick-your-own package: the menu choice.
     const picks = { ...d, offer: { ...d.offer, menuSelectionMode: "customer" } } as Delivery;
     answer("day:d1", stateWith([picks]));
@@ -465,7 +474,7 @@ describe("the day's actions", () => {
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Pilih menu" })));
     expect(stack("(index)")).toEqual(["index", "pilih-menu/[id]"]);
     expect(root()).toEqual(["(tabs)"]);
-    app.unmount();
+    await app.unmount();
   });
 
   it("the circles open Ubah hari, Ganti alamat and Ada masalah over the day, each on its own side", async () => {
@@ -486,12 +495,12 @@ describe("the day's actions", () => {
     expect(screen.queryByRole("button", { name: /^Pilihan untuk / })).toBeNull();
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ada masalah" })));
     overDay("masalah/[id]");
-    app.unmount();
+    await app.unmount();
     app = await mountDay("d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
     overDay("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Ganti alamat" }).props.accessibilityState.selected).toBe(true);
-    app.unmount();
+    await app.unmount();
   });
 
   it("the day's … sheet lists only allowed actions, report last", async () => {
@@ -510,7 +519,7 @@ describe("the day's actions", () => {
     // Laporkan masalah opens Ada masalah for that meal over Hari.
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Laporkan masalah" })));
     overHome("masalah/[id]");
-    app.unmount();
+    await app.unmount();
 
     // After the cutoff: no Pindah tanggal, no Ganti alamat pengantaran ini.
     mockHomeDay = past("d1", TODAY, {}, { status: "out_for_delivery" });
@@ -520,7 +529,7 @@ describe("the day's actions", () => {
     expect(rowLabels()).toEqual(["Chat Dapur Contoh", "Laporkan masalah"]);
     expect(within(screen.getByTestId("action-context")).getByText("Sudah tidak bisa diubah")).toBeTruthy();
     await swipeAway("aksi");
-    app.unmount();
+    await app.unmount();
   });
 
   it("Pindah tanggal and Ganti alamat open Ubah hari on their side over the day", async () => {
@@ -534,10 +543,10 @@ describe("the day's actions", () => {
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat pengantaran ini" })));
     overHome("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Ganti alamat" }).props.accessibilityState.selected).toBe(true);
-    app.unmount();
+    await app.unmount();
   });
 
-  it("each item shows only when allowed: a fixed plan, no caterer phone, a day already reported, nothing at all", () => {
+  it("each item shows only when allowed: a fixed plan, no caterer phone, a day already reported, nothing at all", async () => {
     const now = new Date();
     const items = (d: Delivery, meal?: "lunch" | "dinner") =>
       dayActionInput(d, now, { t: mockT, locale: "id", apiBase: "https://api.test", meal }).input.items.map((i) => i.key);
@@ -585,7 +594,7 @@ describe("outcomes", () => {
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Tambah alamat" })));
       overAlamat();
       expect(screen.getByRole("header", { name: "Alamat baru" })).toBeTruthy();
-      fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Kenanga No. 4");
+      await fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Kenanga No. 4");
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" })));
       expect(mockCommand).toHaveBeenCalledWith(
         "address.save",
@@ -594,7 +603,7 @@ describe("outcomes", () => {
       await act(async () => {});
       expect(stack("(index)")).toEqual(["index", "alamat"]);
       expect(screen.getByText("Alamat disimpan")).toBeTruthy();
-      app.unmount();
+      await app.unmount();
     }));
 
   it("an edited address with typed changes asks before closing; nothing typed closes at once", async () => {
@@ -609,7 +618,7 @@ describe("outcomes", () => {
       await go(() => void back.press());
       expect(stack("(index)")).toEqual(["index", "alamat"]);
       await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
-      fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
+      await fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
       await act(async () => {});
       await go(() => void back.press());
       expect(screen.getByRole("header", { name: "Buang alamat?" })).toBeTruthy();
@@ -619,7 +628,7 @@ describe("outcomes", () => {
       await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" })));
       expect(mockCommand).toHaveBeenCalledWith("address.save", expect.objectContaining({ id: "a-2", version: 3 }));
-      app.unmount();
+      await app.unmount();
     } finally {
       back.restore();
     }
@@ -652,7 +661,7 @@ describe("outcomes", () => {
       // One form over Alamat, not one stacked on another.
       overAlamat();
       expect(mockCommand).not.toHaveBeenCalled();
-      app.unmount();
+      await app.unmount();
     } finally {
       delete api.addressUse;
     }
@@ -677,7 +686,7 @@ describe("outcomes", () => {
     await act(async () => {});
     atHari();
     expect(screen.getByText(`Pengantaran pindah ke ${shortDate(target, "id")}`)).toBeTruthy();
-    app.unmount();
+    await app.unmount();
   });
 
   it("sending a review closes the sheet, toasts Ulasan terkirim and marks the row dealt with", () =>
@@ -705,7 +714,7 @@ describe("outcomes", () => {
       expect(stack("(index)")).toEqual(["index"]);
       expect(screen.getByText("Ulasan terkirim")).toBeTruthy();
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-1", "done");
-      app.unmount();
+      await app.unmount();
     }));
 
   it("the review starts with no stars and Kirim is disabled with Pilih bintang dulu.", async () => {
@@ -724,7 +733,7 @@ describe("outcomes", () => {
     await go(() => fireEvent.press(screen.getByRole("button", { name: "5 bintang" })));
     expect(screen.queryByText("Pilih bintang dulu.")).toBeNull();
     expect(screen.getByRole("button", { name: "Kirim ulasan" }).props.accessibilityState.disabled).toBeFalsy();
-    app.unmount();
+    await app.unmount();
   });
 
   it("a changed sub-rating survives closing and reopening the review", async () => {
@@ -732,9 +741,9 @@ describe("outcomes", () => {
     const first = await mount("/");
     await go(() => router.push("/ulasan/s-1"));
     await go(() => fireEvent.press(screen.getByRole("button", { name: "4 bintang" })));
-    fireEvent.changeText(screen.getByLabelText("Cerita singkat (opsional)"), "Datang agak telat");
+    await fireEvent.changeText(screen.getByLabelText("Cerita singkat (opsional)"), "Datang agak telat");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Pengantaran 3 bintang" })));
-    first.unmount();
+    await first.unmount();
     const again = await mount("/");
     await go(() => router.push("/ulasan/s-1"));
     expect(screen.getByLabelText("Cerita singkat (opsional)").props.value).toBe("Datang agak telat");
@@ -744,7 +753,7 @@ describe("outcomes", () => {
     expect(screen.getByRole("button", { name: "Rasa 4 bintang" }).props.accessibilityState.selected).toBe(true);
     // Nanti saja drops the draft, so no later test starts from it.
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Nanti saja" })));
-    again.unmount();
+    await again.unmount();
   });
 
   it("Kirim sends once while busy", async () => {
@@ -755,12 +764,12 @@ describe("outcomes", () => {
     await go(() => router.push("/ulasan/s-1"));
     await go(() => fireEvent.press(screen.getByRole("button", { name: "3 bintang" })));
     const send = screen.getByRole("button", { name: "Kirim ulasan" });
-    fireEvent.press(send);
-    fireEvent.press(send);
-    fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
+    await fireEvent.press(send);
+    await fireEvent.press(send);
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
     expect(mockCommand.mock.calls.filter(([a]) => a === "review.save")).toHaveLength(1);
     await go(() => finish({}));
-    app.unmount();
+    await app.unmount();
   });
 
   it("the sub-ratings at font 1.3 put each label over its stars", async () => {
@@ -774,7 +783,7 @@ describe("outcomes", () => {
     expect(screen.getByText("Pengantaran").props.numberOfLines).toBeUndefined();
     const star = StyleSheet.flatten(screen.getByRole("button", { name: "Pengantaran 1 bintang" }).props.style);
     expect([star.width, star.height]).toEqual([44, 44]);
-    app.unmount();
+    await app.unmount();
   });
 
   it("asking for help closes the sheet and toasts Permintaan bantuan terkirim", () =>
@@ -784,7 +793,7 @@ describe("outcomes", () => {
       await go(() => router.push("/bantuan-form?kind=help"));
       expect(screen.getByRole("header", { name: "Minta bantuan" })).toBeTruthy();
       await go(() => fireEvent.press(screen.getByRole("radio", { name: /^Pembatalan, / })));
-      fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota bulan depan.");
+      await fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota bulan depan.");
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim" })));
       expect(mockCommand).toHaveBeenCalledWith("support.create", {
         subscriptionId: "s-1",
@@ -794,7 +803,7 @@ describe("outcomes", () => {
       await act(async () => {});
       expect(stack("(index)")).toEqual(["index", "bantuan"]);
       expect(screen.getByText("Permintaan bantuan terkirim")).toBeTruthy();
-      app.unmount();
+      await app.unmount();
     }));
 });
 
@@ -814,7 +823,7 @@ describe("handing off once a sheet has closed", () => {
     await sheetClosed();
     overHome("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Pindah tanggal" }).props.accessibilityState.selected).toBe(true);
-    app.unmount();
+    await app.unmount();
   });
 
   it("on iOS a discard confirm closes the form under it only once the confirm has gone", async () => {
@@ -825,7 +834,7 @@ describe("handing off once a sheet has closed", () => {
     try {
       const app = await mount("/alamat");
       await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
-      fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
+      await fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
       await act(async () => {});
       await go(() => void back.press());
       expect(screen.getByRole("header", { name: "Buang alamat?" })).toBeTruthy();
@@ -834,7 +843,7 @@ describe("handing off once a sheet has closed", () => {
       await sheetClosed();
       expect(stack("(index)")).toEqual(["index", "alamat"]);
       expect(root()).toEqual(["(tabs)"]);
-      app.unmount();
+      await app.unmount();
     } finally {
       back.restore();
     }
@@ -860,32 +869,31 @@ describe("handing off once a sheet has closed", () => {
     });
     expect(root()).toEqual(["(tabs)", "beli/[id]"]);
     expect(screen.getByTestId("beli-picked").props.children).toBe("null");
-    app.unmount();
+    await app.unmount();
   });
 
   it("on Android the asker hears the answer only after /aksi has left the stack", async () => {
     const d = open("d1", TODAY, {}, { status: "out_for_delivery" });
     mockHomeDay = d;
     answer("day:d1", stateWith([d]));
-    const original = router.push.bind(router);
-    const push = jest.spyOn(router, "push");
     const atPush: string[][] = [];
-    push.mockImplementation(((...args: Parameters<typeof router.push>) => {
-      atPush.push(root());
-      return original(...args);
-    }) as never);
+    let push: jest.SpyInstance | undefined;
     try {
       const app = await mount("/");
-      push.mockClear();
-      atPush.length = 0;
+      // Spied once mounted: the app binds its own `router.push` onto the shared router as it mounts.
+      const original = router.push.bind(router);
+      push = jest.spyOn(router, "push").mockImplementation(((...args: Parameters<typeof router.push>) => {
+        atPush.push(root());
+        return original(...args);
+      }) as never);
       await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
       atPush.length = 0;
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Laporkan masalah" })));
       expect(atPush).toEqual([["(tabs)"]]);
       overHome("masalah/[id]");
-      app.unmount();
+      await app.unmount();
     } finally {
-      push.mockRestore();
+      push?.mockRestore();
     }
   });
 });
@@ -912,7 +920,7 @@ describe("Beli and its sheets", () => {
     expect(root()).toEqual(["(tabs)", "beli/[id]", "pembelian/alamat"]);
     // Beli is under Alamat now, hidden from the screen reader, with the answer it got.
     expect(screen.getByTestId("beli-picked", { includeHiddenElements: true }).props.children).toBe("kelola");
-    app.unmount();
+    await app.unmount();
   });
 
   it("a long address book scrolls under its fixed title: the last address and Kelola alamat stay reachable", async () => {
@@ -929,13 +937,13 @@ describe("Beli and its sheets", () => {
     await go(() => fireEvent.press(sheet.getByRole("radio", { name: "Alamat 30, Jl. Contoh No. 30" })));
     expect(root()).toEqual(["(tabs)", "beli/[id]"]);
     expect(screen.getByTestId("beli-picked").props.children).toBe("a-30");
-    app.unmount();
+    await app.unmount();
   });
 
   it("a cold link to a Beli choice sheet has no purchase to choose for: it lands on Beranda", async () => {
     const app = await mount("/pembelian/mulai?id=9");
     expect(root()).toEqual(["(tabs)"]);
-    app.unmount();
+    await app.unmount();
   });
 });
 
@@ -953,7 +961,7 @@ describe("Jelajah's area", () => {
     // Next time the kept area is marked.
     await go(() => router.push("/area"));
     expect(screen.getByRole("radio", { name: "Jakarta Selatan" }).props.accessibilityState.checked).toBe(true);
-    app.unmount();
+    await app.unmount();
   });
 
   it("the area rows scroll under the fixed title when they outgrow the screen", async () => {
@@ -963,7 +971,7 @@ describe("Jelajah's area", () => {
     await go(() => router.push("/area"));
     const radios = within(screenOf("area") as never).getAllByRole("radio");
     expectScrollsUnderTitle("area", "Area pengantaran", [radios[0], radios.at(-1)]);
-    app.unmount();
+    await app.unmount();
   });
 });
 
@@ -979,13 +987,13 @@ describe("every fit sheet scrolls once it outgrows the screen", () => {
     const action = within(screenOf("aksi") as never);
     expectFitScrolls("aksi", [action.getByRole("button", { name: "Pindah tanggal" }), action.getByRole("button", { name: "Laporkan masalah" })]);
     await swipeAway("aksi");
-    app.unmount();
+    await app.unmount();
 
     const back = hardwareBack();
     try {
       app = await mount("/alamat");
       await go(() => fireEvent.press(screen.getByRole("button", { name: /^Rumah, / })));
-      fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
+      await fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
       await act(async () => {});
       await go(() => void back.press());
       const confirm = within(screenOf("konfirmasi") as never);
@@ -994,7 +1002,7 @@ describe("every fit sheet scrolls once it outgrows the screen", () => {
         confirm.getByRole("button", { name: "Lanjut menulis" }),
         confirm.getByRole("button", { name: "Buang" }),
       ]);
-      app.unmount();
+      await app.unmount();
     } finally {
       back.restore();
     }
@@ -1014,7 +1022,7 @@ describe("states", () => {
     await go(() => router.push("/ubah-hari/d1"));
     expect(screen.getByRole("header", { name: "Ubah hari" })).toBeTruthy();
     expect(within(screenOf("ubah-hari/[id]") as never).getByRole("button", { name: "Masuk" })).toBeTruthy();
-    app.unmount();
+    await app.unmount();
   });
 
   it("at a larger font the sheets grow with their text: no fixed heights, no cut or capped lines", async () => {
@@ -1022,7 +1030,7 @@ describe("states", () => {
     /** Every line of text in the sheet scales with the phone's font and wraps; every row with text grows with it. */
     const expectGrows = (route: string) => {
       const sheet = screenOf(route) as unknown as Node;
-      const texts = sheet.findAll((n) => n.type === "Text");
+      const texts = sheet.queryAll((n) => n.type === "Text");
       expect(texts.length).toBeGreaterThan(2);
       for (const text of texts) {
         // The header's context line is the one kept to a single line on purpose: it ends in "…" and is spoken whole.
@@ -1037,8 +1045,8 @@ describe("states", () => {
           maxFontSizeMultiplier: undefined,
         });
       }
-      const rows = sheet.findAll(
-        (n) => typeof n.type === "string" && ["radio", "button"].includes(n.props.accessibilityRole as string) && n.findAll((m) => m.type === "Text").length > 0,
+      const rows = sheet.queryAll(
+        (n) => typeof n.type === "string" && ["radio", "button"].includes(n.props.accessibilityRole as string) && n.queryAll((m) => m.type === "Text").length > 0,
       );
       expect(rows.length).toBeGreaterThan(0);
       for (const row of rows) {
@@ -1060,14 +1068,14 @@ describe("states", () => {
     // A form sheet.
     await go(() => router.push("/alamat-form"));
     expectGrows("alamat-form");
-    app.unmount();
+    await app.unmount();
     // The choice sheets: Beli's address picker, whose two-line rows are Material's 72dp list items at the least.
     app = await mount("/");
     await go(() => router.push("/beli/p-1"));
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
     expectGrows("pembelian/alamat-pilih");
     expect(StyleSheet.flatten(screen.getByRole("radio", { name: "Rumah, Jl. Mawar No. 9" }).props.style).minHeight).toBe(72);
-    app.unmount();
+    await app.unmount();
   });
 
   it.each(["light", "dark"] as const)("a choice sheet reads the %s palette: its ground, title and rows", async (scheme) => {
@@ -1084,7 +1092,7 @@ describe("states", () => {
       expect(StyleSheet.flatten(title.props.style).color).toBe(palette.charcoal);
       expect(StyleSheet.flatten(sheet.getByText("Kantor").props.style).color).toBe(palette.charcoal);
       expect(StyleSheet.flatten(sheet.getByText("Jl. Contoh No. 1").props.style).color).toBe(palette.muted);
-      app.unmount();
+      await app.unmount();
     } finally {
       system.mockRestore();
     }
@@ -1092,7 +1100,7 @@ describe("states", () => {
 });
 
 describe("the custom Sheet", () => {
-  it("the custom Sheet is no longer imported by the customer app", () => {
+  it("the custom Sheet is no longer imported by the customer app", async () => {
     const root = join(__dirname, "..");
     const sources = [...files(join(root, "src")), ...files(join(root, "app"))].filter((f) => /\.tsx?$/.test(f));
     const importing = sources.filter((file) => {

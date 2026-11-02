@@ -88,8 +88,8 @@ function runtimeWith(caterStatus: string, payoutActive: boolean, list: SellerCus
   return runtime;
 }
 
-const wrap = (runtime: MobileRuntime, node: React.ReactNode) =>
-  render(
+const wrap = async (runtime: MobileRuntime, node: React.ReactNode) =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h}>
       {node}
     </MobileProvider>,
@@ -117,8 +117,8 @@ describe("rules", () => {
 });
 
 it("filters to customers whose package ends within three days", async () => {
-  wrap(runtimeWith("approved", true), <CustomerList />);
-  fireEvent.press(await screen.findByText("Segera berakhir · 1"));
+  await wrap(runtimeWith("approved", true), <CustomerList />);
+  await fireEvent.press(await screen.findByText("Segera berakhir · 1"));
   expect(screen.getByText("Andre Kusuma")).toBeTruthy();
   expect(screen.queryByText("Dewi Saraswati")).toBeNull();
   expect(screen.queryByText("Bayu Tri")).toBeNull();
@@ -137,7 +137,7 @@ it("counts ending customers as active", async () => {
   });
   try {
     // One customer with a single delivery left is both on a running package and about to end.
-    wrap(runtimeWith("approved", true, [customer("c-09", "Rina Maharani", [sub(1)])]), <CustomerList />);
+    await wrap(runtimeWith("approved", true, [customer("c-09", "Rina Maharani", [sub(1)])]), <CustomerList />);
     expect(await screen.findByText("Aktif · 1")).toBeTruthy();
     expect(screen.getByText("Segera berakhir · 1")).toBeTruthy();
     expect(screen.getByText("Selesai · 0")).toBeTruthy();
@@ -150,7 +150,7 @@ it("counts ending customers as active", async () => {
 });
 
 it("lists ending and active customers together under Aktif, without the ended ones", async () => {
-  wrap(runtimeWith("approved", true), <CustomerList />);
+  await wrap(runtimeWith("approved", true), <CustomerList />);
   expect(await screen.findByText("Aktif · 2")).toBeTruthy();
   expect(screen.getByText("Andre Kusuma")).toBeTruthy();
   expect(screen.getByText("Dewi Saraswati")).toBeTruthy();
@@ -160,8 +160,8 @@ it("lists ending and active customers together under Aktif, without the ended on
 it("sends an account-less customer a claim link on WhatsApp", async () => {
   const runtime = runtimeWith("approved", true);
   const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
-  wrap(runtime, <CustomerDetail id="c-01" />);
-  fireEvent.press(await screen.findByText("Kirim tautan perpanjang"));
+  await wrap(runtime, <CustomerDetail id="c-01" />);
+  await fireEvent.press(await screen.findByText("Kirim tautan perpanjang"));
   await waitFor(() => expect(open).toHaveBeenCalled());
   expect((runtime.api.command as jest.Mock).mock.calls[0][0]).toBe("customer.invite");
   expect(open.mock.calls[0][0]).toMatch(/^https:\/\/wa\.me\/628123450001\?text=.*claim%2Ftok123/);
@@ -169,21 +169,21 @@ it("sends an account-less customer a claim link on WhatsApp", async () => {
 
 it("asks to turn on payments before the first renewal", async () => {
   const runtime = runtimeWith("submitted", false);
-  wrap(runtime, <CustomerDetail id="c-01" />);
-  fireEvent.press(await screen.findByText("Kirim tautan perpanjang"));
+  await wrap(runtime, <CustomerDetail id="c-01" />);
+  await fireEvent.press(await screen.findByText("Kirim tautan perpanjang"));
   await waitFor(() => expect(router.push).toHaveBeenCalledWith("/aktifkan"));
   expect(runtime.api.command).not.toHaveBeenCalled();
 });
 
 it("lists the live address under Alamat antar and no card when the customer has none left", async () => {
   const live = { id: "a-kantor", label: "Kantor", line: "Jl. Kantor 5", area: "Tebet" };
-  const first = wrap(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(2)], { user_id: "u-a", address: live })]), <CustomerDetail id="c-01" />);
+  const first = await wrap(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(2)], { user_id: "u-a", address: live })]), <CustomerDetail id="c-01" />);
   // The address's own label rides on the heading line, as the board draws it.
   expect(await screen.findByText("Alamat antar · Kantor")).toBeTruthy();
   expect(screen.getByText("Jl. Kantor 5, Tebet")).toBeTruthy();
-  first.unmount();
+  await first.unmount();
   // The server answers an empty address once every address was removed.
-  wrap(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(2)], { user_id: "u-a", address: {} as never })]), <CustomerDetail id="c-01" />);
+  await wrap(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(2)], { user_id: "u-a", address: {} as never })]), <CustomerDetail id="c-01" />);
   expect(await screen.findByText("Kirim tautan perpanjang")).toBeTruthy();
   expect(screen.queryByText(/^Alamat antar/)).toBeNull();
 });
@@ -191,8 +191,8 @@ it("lists the live address under Alamat antar and no card when the customer has 
 describe("Pelanggan plain header", () => {
   const MALAM = () => new Date("2026-10-08T08:00:00Z");
   const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
-  const renderMood = (runtime: MobileRuntime) =>
-    render(
+  const renderMood = async (runtime: MobileRuntime) =>
+    await render(
       <MoodProvider now={MALAM}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
           {withDapurScale(<CustomerList />)}
@@ -201,7 +201,7 @@ describe("Pelanggan plain header", () => {
     );
 
   it("titles the list on the canvas in Malam too (no mood band), with the customers' card below it on the theme surface", async () => {
-    renderMood(runtimeWith("approved", true));
+    await renderMood(runtimeWith("approved", true));
     const header = await screen.findByTestId("pelanggan-header");
     expect(within(header).queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
     const title = within(header).getByText("Pelanggan");
@@ -218,30 +218,30 @@ describe("Pelanggan plain header", () => {
   });
 
   it("keeps + Impor pelanggan as a 48dp button that opens the import", async () => {
-    renderMood(runtimeWith("approved", true));
+    await renderMood(runtimeWith("approved", true));
     const add = await screen.findByRole("button", { name: "+ Impor pelanggan" });
     expect(StyleSheet.flatten(add.props.style).minHeight).toBe(48);
-    fireEvent.press(add);
+    await fireEvent.press(add);
     expect(router.push).toHaveBeenCalledWith("/impor");
   });
 
   it("shows the customer skeleton inside the page while loading, and the error with its retry when the read fails", async () => {
     const pending = runtimeWith("approved", true);
     (pending.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(() => new Promise(() => undefined));
-    const first = renderMood(pending);
+    const first = await renderMood(pending);
     expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
     expect(within(screen.getByTestId("pelanggan-header")).getByText("Pelanggan")).toBeTruthy();
     // The row holds the title and the action: 48 tall under Dapur's 48 target, 8 under the status bar, no empty row.
     const row = screen.getByTestId("mood-header-row");
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48 });
     expect(StyleSheet.flatten(screen.getByTestId("pelanggan-header").props.style)).toMatchObject({ paddingTop: 8 });
-    first.unmount();
+    await first.unmount();
 
     const broken = runtimeWith("approved", true);
     (broken.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async () => {
       throw new Error("REQUEST_TIMEOUT");
     });
-    renderMood(broken);
+    await renderMood(broken);
     expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
     expect(within(screen.getByTestId("pelanggan-header")).queryByRole("button", { name: "Coba lagi" })).toBeNull();
   });
@@ -254,7 +254,7 @@ it("counts every customer of a kitchen with more than one page of them", async (
     const offset = Number(new URLSearchParams(query.replace(/^\?/, "")).get("offset") ?? 0);
     return { customers: many.slice(offset, offset + 100), total: 150, packages: [] };
   });
-  wrap(runtime, <CustomerList />);
+  await wrap(runtime, <CustomerList />);
   expect(await screen.findByText("Aktif · 150")).toBeTruthy();
 });
 
@@ -266,7 +266,7 @@ it("opens a customer's own record with their delivery schedule", async () => {
   (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async (_id: string, query = "") =>
     query.includes("customerRecordId=c-01") ? { customers: [detailed], total: 1, packages: [] } : { customers: [], total: 0, packages: [] },
   );
-  wrap(runtime, <CustomerDetail id="c-01" />);
+  await wrap(runtime, <CustomerDetail id="c-01" />);
   expect(await screen.findByText("Kamis 8 Okt")).toBeTruthy();
   expect(screen.getByText("Jadwal")).toBeTruthy();
 });
@@ -324,7 +324,7 @@ describe("customers with more than one package", () => {
   };
 
   it("lists every active package, soonest ending first, each with its own dates and days left", async () => {
-    wrap(withMulti(runtimeWith("approved", true)), withDapurScale(<CustomerDetail id="c-07" />));
+    await wrap(withMulti(runtimeWith("approved", true)), withDapurScale(<CustomerDetail id="c-07" />));
     expect(await screen.findByLabelText("Sisa, 1 hari")).toBeTruthy();
     expect(screen.getByLabelText(`Berakhir, ${shortDate(today, "id")}`)).toBeTruthy();
     expect(screen.getByLabelText("Sisa, 9 hari")).toBeTruthy();
@@ -337,9 +337,9 @@ describe("customers with more than one package", () => {
   it("renews the package whose button was pressed", async () => {
     const runtime = withMulti(runtimeWith("approved", true));
     jest.spyOn(Linking, "openURL").mockResolvedValue(true);
-    wrap(runtime, <CustomerDetail id="c-07" />);
+    await wrap(runtime, <CustomerDetail id="c-07" />);
     const buttons = await screen.findAllByText("Kirim tautan perpanjang");
-    fireEvent.press(buttons[1]);
+    await fireEvent.press(buttons[1]);
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalled());
     expect((runtime.api.command as jest.Mock).mock.calls[0].slice(0, 2)).toEqual([
       "customer.followup",
@@ -348,8 +348,8 @@ describe("customers with more than one package", () => {
   });
 
   it("labels a package whose last day is today as ending today in the list", async () => {
-    wrap(withMulti(runtimeWith("approved", true)), <CustomerList />);
-    fireEvent.press(await screen.findByText(/Segera berakhir/));
+    await wrap(withMulti(runtimeWith("approved", true)), <CustomerList />);
+    await fireEvent.press(await screen.findByText(/Segera berakhir/));
     expect(await screen.findByText(/Berakhir hari ini/)).toBeTruthy();
     expect(screen.queryByText(/Berakhir besok/)).toBeNull();
     expect(screen.getByText(/\+1 paket lain/)).toBeTruthy();
@@ -364,12 +364,12 @@ describe("customers with more than one package", () => {
       total: 1,
       packages: [],
     }));
-    const list = wrap(runtime, <CustomerList />);
-    fireEvent.press(await screen.findByText(/Segera berakhir/));
+    const list = await wrap(runtime, <CustomerList />);
+    await fireEvent.press(await screen.findByText(/Segera berakhir/));
     expect(await screen.findByText(/sisa 1 hari/)).toBeTruthy();
     expect(screen.queryByText(/Berakhir/)).toBeNull();
-    list.unmount();
-    wrap(runtime, <CustomerDetail id="c-09" />);
+    await list.unmount();
+    await wrap(runtime, <CustomerDetail id="c-09" />);
     expect(await screen.findByLabelText("Sisa, 1 hari")).toBeTruthy();
     expect(screen.queryByText(/Berakhir/)).toBeNull();
   });
@@ -381,8 +381,8 @@ describe("customers with more than one package", () => {
       total: 1,
       packages: [],
     }));
-    wrap(runtime, <CustomerList />);
-    fireEvent.press(await screen.findByText(/Segera berakhir/));
+    await wrap(runtime, <CustomerList />);
+    await fireEvent.press(await screen.findByText(/Segera berakhir/));
     expect(await screen.findByText(/Berakhir besok/)).toBeTruthy();
   });
 });
@@ -391,7 +391,7 @@ describe("Pelanggan loading and error states", () => {
   it("Pelanggan shows loading, hides counts", async () => {
     const runtime = runtimeWith("approved", true);
     (runtime.api.sellerCustomers as jest.Mock).mockImplementation(() => new Promise(() => undefined));
-    wrap(runtime, <CustomerList />);
+    await wrap(runtime, <CustomerList />);
     expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
     expect(screen.queryByText(/^Aktif/)).toBeNull();
     expect(screen.queryByText(/^Selesai/)).toBeNull();
@@ -405,10 +405,10 @@ describe("Pelanggan loading and error states", () => {
       if (failing) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       return { customers, total: customers.length, packages: [] };
     });
-    wrap(runtime, <CustomerList />);
+    await wrap(runtime, <CustomerList />);
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     failing = false;
-    fireEvent.press(retry);
+    await fireEvent.press(retry);
     expect(await screen.findByText("Aktif · 2")).toBeTruthy();
     expect(screen.queryByLabelText("Memuat pelanggan")).toBeNull();
   });
@@ -420,10 +420,10 @@ describe("Pelanggan loading and error states", () => {
       if (failing) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       return { customers, total: customers.length, packages: [] };
     });
-    wrap(runtime, <CustomerDetail id="c-01" />);
+    await wrap(runtime, <CustomerDetail id="c-01" />);
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     failing = false;
-    fireEvent.press(retry);
+    await fireEvent.press(retry);
     expect(await screen.findByText("Andre Kusuma")).toBeTruthy();
   });
 });
@@ -432,19 +432,19 @@ describe("Pelanggan row feedback", () => {
   const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
 
   it("customer rows dim on press and still open the record", async () => {
-    wrap(runtimeWith("approved", true), <CustomerList />);
+    await wrap(runtimeWith("approved", true), <CustomerList />);
     await screen.findByText("Andre Kusuma");
     const row = () => screen.getByRole("button", { name: /Andre Kusuma/ });
     expect(StyleSheet.flatten(row().props.style)?.opacity ?? 1).toBe(1);
-    fireEvent(row(), "responderGrant", touch);
+    await fireEvent(row(), "responderGrant", touch);
     expect(StyleSheet.flatten(row().props.style).opacity).toBe(0.7);
-    fireEvent.press(row());
+    await fireEvent.press(row());
     // The link carries the customer's name, so the detail's header is final on its first frame.
     expect(router.push).toHaveBeenCalledWith("/pelanggan/c-01?title=Andre%20Kusuma");
   });
 
   it("chat button is 48dp", async () => {
-    wrap(runtimeWith("approved", true), <CustomerList />);
+    await wrap(runtimeWith("approved", true), <CustomerList />);
     const chat = await screen.findByRole("link", { name: "Chat Andre Kusuma" });
     const flat = StyleSheet.flatten(chat.props.style);
     expect([flat.width, flat.height]).toEqual([48, 48]);
@@ -457,7 +457,7 @@ describe("Pelanggan on the Dapur scale", () => {
   const phone = (width: number, fontScale: number) => {
     mockWindow = { width, height: 760, scale: 3, fontScale };
   };
-  const dapur = (runtime: MobileRuntime, node: React.ReactNode) => wrap(runtime, withDapurScale(node));
+  const dapur = async (runtime: MobileRuntime, node: React.ReactNode) => await wrap(runtime, withDapurScale(node));
   const many = (n: number) =>
     Array.from({ length: n }, (_, i) => customer(`c-${String(i).padStart(3, "0")}`, `Pelanggan ${i}`, [sub(10)]));
   const hold = (runtime: MobileRuntime) => {
@@ -467,7 +467,7 @@ describe("Pelanggan on the Dapur scale", () => {
 
   describe("header", () => {
     it("is a plain 48 row: Pelanggan in heroTitle, the + Impor pelanggan action 48 tall, no mood band and no empty row", async () => {
-      dapur(runtimeWith("approved", true), <CustomerList />);
+      await dapur(runtimeWith("approved", true), <CustomerList />);
       const header = await screen.findByTestId("pelanggan-header");
       expect(within(header).queryByTestId("mood-fill", { includeHiddenElements: true })).toBeNull();
       const rows = within(header).getAllByTestId("mood-header-row");
@@ -483,29 +483,29 @@ describe("Pelanggan on the Dapur scale", () => {
       // The whole 48 is inside the 48 row: no negative margin pulls it out (a touch outside a parent's bounds is lost on Android).
       expect(sty(add).marginVertical).toBeUndefined();
       expect(sty(add).marginRight).toBeUndefined();
-      fireEvent.press(add);
+      await fireEvent.press(add);
       expect(router.push).toHaveBeenCalledWith("/impor");
     });
 
     it("gives + Impor pelanggan the tap haptic the Button had, once per press", async () => {
       const Haptics = require("expo-haptics") as { impactAsync: jest.Mock };
-      dapur(runtimeWith("approved", true), <CustomerList />);
+      await dapur(runtimeWith("approved", true), <CustomerList />);
       const add = await screen.findByRole("button", { name: "+ Impor pelanggan" });
       Haptics.impactAsync.mockClear();
-      fireEvent.press(add);
+      await fireEvent.press(add);
       expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
       expect(router.push).toHaveBeenLastCalledWith("/impor");
     });
 
     it("stays the same while the list loads and when the read fails", async () => {
-      const first = dapur(hold(runtimeWith("approved", true)), <CustomerList />);
+      const first = await dapur(hold(runtimeWith("approved", true)), <CustomerList />);
       const header = await screen.findByTestId("pelanggan-header");
       expect(within(header).getByRole("button", { name: "+ Impor pelanggan" })).toBeTruthy();
       expect(sty(within(header).getByTestId("mood-header-row")).minHeight).toBe(48);
-      first.unmount();
+      await first.unmount();
       const runtime = runtimeWith("approved", true);
       (runtime.api.sellerCustomers as jest.Mock).mockRejectedValue(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
-      dapur(runtime, <CustomerList />);
+      await dapur(runtime, <CustomerList />);
       expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
       expect(within(screen.getByTestId("pelanggan-header")).getByRole("button", { name: "+ Impor pelanggan" })).toBeTruthy();
     });
@@ -513,7 +513,7 @@ describe("Pelanggan on the Dapur scale", () => {
 
   describe("filter chips", () => {
     it("sit in a 48 frame, one row that scrolls sideways, with the 7 hit slop inside it; the counts are in the labels", async () => {
-      dapur(runtimeWith("approved", true), <CustomerList />);
+      await dapur(runtimeWith("approved", true), <CustomerList />);
       expect(await screen.findByText("Aktif · 2")).toBeTruthy();
       const frame = screen.getByTestId("pelanggan-chips-frame");
       expect(sty(frame).height).toBe(48);
@@ -530,26 +530,26 @@ describe("Pelanggan on the Dapur scale", () => {
 
     it("stay one scrolling row at 360dp and font scale 1.3, and hide their counts while the list loads", async () => {
       phone(360, 1.3);
-      const first = dapur(hold(runtimeWith("approved", true)), <CustomerList />);
+      const first = await dapur(hold(runtimeWith("approved", true)), <CustomerList />);
       expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
       expect(screen.queryByRole("button", { name: /^Aktif/ })).toBeNull();
       expect(screen.queryByText(/· \d/)).toBeNull();
-      first.unmount();
-      dapur(runtimeWith("approved", true), <CustomerList />);
+      await first.unmount();
+      await dapur(runtimeWith("approved", true), <CustomerList />);
       await screen.findByText("Aktif · 2");
       expect(screen.getByTestId("pelanggan-chips").props.horizontal).toBe(true);
       expect(sty(screen.getByTestId("pelanggan-chips")).flexWrap).toBeUndefined();
     });
 
     it("each filter shows its own customers, with the counts from the loaded list", async () => {
-      dapur(runtimeWith("approved", true), <CustomerList />);
+      await dapur(runtimeWith("approved", true), <CustomerList />);
       expect(await screen.findByText("Aktif · 2")).toBeTruthy();
       expect(screen.getByText("Segera berakhir · 1")).toBeTruthy();
       expect(screen.getByText("Selesai · 1")).toBeTruthy();
-      fireEvent.press(screen.getByRole("button", { name: /^Selesai/ }));
+      await fireEvent.press(screen.getByRole("button", { name: /^Selesai/ }));
       expect(screen.getByText("Bayu Tri")).toBeTruthy();
       expect(screen.queryByText("Andre Kusuma")).toBeNull();
-      fireEvent.press(screen.getByRole("button", { name: /^Segera berakhir/ }));
+      await fireEvent.press(screen.getByRole("button", { name: /^Segera berakhir/ }));
       expect(screen.getByText("Andre Kusuma")).toBeTruthy();
       expect(screen.queryByText("Dewi Saraswati")).toBeNull();
     });
@@ -557,7 +557,7 @@ describe("Pelanggan on the Dapur scale", () => {
 
   describe("rows", () => {
     it("are TwoLineRows of 64 in one card drawn in pieces: rowTitle name, meta line, a 48 chat button, hairlines between", async () => {
-      dapur(runtimeWith("approved", true, many(8)), <CustomerList />);
+      await dapur(runtimeWith("approved", true, many(8)), <CustomerList />);
       await screen.findByText("Pelanggan 0");
       expect(screen.getAllByTestId("customer-row")).toHaveLength(8);
       expect(screen.getAllByTestId("list-card-separator")).toHaveLength(7);
@@ -569,7 +569,7 @@ describe("Pelanggan on the Dapur scale", () => {
       const chat = screen.getByRole("link", { name: "Chat Pelanggan 0" });
       expect([sty(chat).width, sty(chat).height]).toEqual([48, 48]);
       // The row opens the record, as before.
-      fireEvent.press(row);
+      await fireEvent.press(row);
       expect(router.push).toHaveBeenCalledWith("/pelanggan/c-000?title=Pelanggan%200");
     });
 
@@ -577,7 +577,7 @@ describe("Pelanggan on the Dapur scale", () => {
       const today = jakartaDay(new Date());
       const soon = { ...sub(1), ends_on: today };
       const later = { ...sub(9), ends_on: addDays(today, 9) };
-      dapur(
+      await dapur(
         runtimeWith("approved", true, [
           customer("c-01", "Andre Kusuma", [later], { address: { line: "Kost Damai", area: "Setiabudi" } }),
           customer("c-02", "Sari Wulandari", [later, soon], { user_id: "u-s" }),
@@ -593,18 +593,18 @@ describe("Pelanggan on the Dapur scale", () => {
     });
 
     it("keep the 64 row without a chat number: no chat button, the text takes the width", async () => {
-      dapur(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(5)], { phone: null })]), <CustomerList />);
+      await dapur(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(5)], { phone: null })]), <CustomerList />);
       await screen.findByText("Andre Kusuma");
       expect(screen.queryByRole("link", { name: /^Chat/ })).toBeNull();
       expect(sty(screen.getByRole("button", { name: /Andre Kusuma/ })).minHeight).toBe(64);
     });
 
     it("one customer is one row, no hairline; none says Belum ada pelanggan di sini and draws no empty card", async () => {
-      const one = dapur(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(5)])]), <CustomerList />);
+      const one = await dapur(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(5)])]), <CustomerList />);
       await screen.findByText("Andre Kusuma");
       expect(screen.queryAllByTestId("list-card-separator")).toHaveLength(0);
-      one.unmount();
-      dapur(runtimeWith("approved", true, []), <CustomerList />);
+      await one.unmount();
+      await dapur(runtimeWith("approved", true, []), <CustomerList />);
       expect(await screen.findByText("Belum ada pelanggan di sini.")).toBeTruthy();
       expect(screen.queryByTestId("list-card")).toBeNull();
       expect(screen.getByText("Aktif · 0")).toBeTruthy();
@@ -624,13 +624,13 @@ describe("Pelanggan on the Dapur scale", () => {
       Array.from({ length: n }, (_, i) => ({ id: `d-${i}`, service_date: addDays(today, i), status: i === 0 ? "delivered" : "scheduled" }));
     const record = (subs: ReturnType<typeof sub>[], extra: Partial<SellerCustomer> = {}) =>
       customer("c-01", "Andre Kusuma", subs as never, extra);
-    const open = (list: SellerCustomer[], runtime = runtimeWith("approved", true, list)) => {
+    const open = async (list: SellerCustomer[], runtime = runtimeWith("approved", true, list)) => {
       (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async () => ({ customers: list, total: list.length, packages: [] }));
-      return dapur(runtime, <CustomerDetail id="c-01" />);
+      return await dapur(runtime, <CustomerDetail id="c-01" />);
     };
 
     it("opens with a meta status line, then one ListCard of five 40 key-value rows", async () => {
-      open([record([running], { user_id: "u-a", origin: "marketplace" })]);
+      await open([record([running], { user_id: "u-a", origin: "marketplace" })]);
       const status = await screen.findByText("Aktif · Dari marketplace · dibayar lewat Catera");
       expect(sty(status)).toMatchObject({ fontSize: 13, lineHeight: 18 });
       const labels = ["Paket", "Mulai", "Berakhir", "Sisa", "Porsi"];
@@ -650,21 +650,21 @@ describe("Pelanggan on the Dapur scale", () => {
     });
 
     it("an attention status reads Segera berakhir, a finished package Selesai", async () => {
-      const first = open([record([{ ...running, remaining: 2 }])]);
+      const first = await open([record([{ ...running, remaining: 2 }])]);
       expect(await screen.findByText(/^Segera berakhir · Pelangganmu/)).toBeTruthy();
-      first.unmount();
-      open([record([{ ...sub(0, "completed"), starts_on: "2026-09-01", ends_on: "2026-09-12" }])]);
+      await first.unmount();
+      await open([record([{ ...sub(0, "completed"), starts_on: "2026-09-01", ends_on: "2026-09-12" }])]);
       expect(await screen.findByText(/^Selesai · Pelangganmu/)).toBeTruthy();
     });
 
     it("a package kept running past its booked last day shows only the days left, no past Selesai", async () => {
-      open([record([{ ...running, ends_on: addDays(today, -1), remaining: 1 }])]);
+      await open([record([{ ...running, ends_on: addDays(today, -1), remaining: 1 }])]);
       expect(await screen.findByLabelText("Sisa, 1 hari")).toBeTruthy();
       expect(screen.queryByLabelText(/^Berakhir,/)).toBeNull();
     });
 
     it("puts WhatsApp and the renew action side by side at 50, the renew hint under them", async () => {
-      open([record([running])]);
+      await open([record([running])]);
       const renew = await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
       const chat = screen.getByRole("button", { name: "Chat WhatsApp" });
       const row = screen.getByTestId("customer-actions");
@@ -681,20 +681,20 @@ describe("Pelanggan on the Dapur scale", () => {
     it("the renew error shows under the row with its retry", async () => {
       const runtime = runtimeWith("approved", true);
       (runtime.api.command as jest.Mock).mockRejectedValue(new Error("X"));
-      open([record([running])], runtime);
-      fireEvent.press(await screen.findByRole("button", { name: "Kirim tautan perpanjang" }));
+      await open([record([running])], runtime);
+      await fireEvent.press(await screen.findByRole("button", { name: "Kirim tautan perpanjang" }));
       const message = await screen.findByText("Tautan perpanjang belum terkirim. Coba lagi.");
       expect(within(screen.getByTestId("customer-actions")).queryByText(message.props.children)).toBeNull();
     });
 
     it("the renew action alone takes the full row when the customer has no chat number; with neither there is no row", async () => {
-      const first = open([record([running], { user_id: "u-a", phone: null })]);
+      const first = await open([record([running], { user_id: "u-a", phone: null })]);
       const renew = await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
       expect(screen.queryByRole("button", { name: "Chat WhatsApp" })).toBeNull();
       const row = screen.getByTestId("customer-actions");
       expect(within(row).getAllByRole("button")).toEqual([renew]);
-      first.unmount();
-      open([record([running], { phone: null })]);
+      await first.unmount();
+      await open([record([running], { phone: null })]);
       await screen.findByLabelText("Paket, Makan Siang Rumahan");
       expect(screen.queryByTestId("customer-actions")).toBeNull();
     });
@@ -703,10 +703,10 @@ describe("Pelanggan on the Dapur scale", () => {
       // 360 / 1.0 = 360 and 360 / 1.3 = 277 are both under the 400 effective width the row needs.
       for (const scale of [1, 1.3]) {
         phone(360, scale);
-        const view = open([record([running])]);
+        const view = await open([record([running])]);
         await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
         expect(sty(screen.getByTestId("customer-actions")).flexDirection).toBe("column");
-        view.unmount();
+        await view.unmount();
       }
     });
 
@@ -719,7 +719,7 @@ describe("Pelanggan on the Dapur scale", () => {
       const key = runtime.storageKey("locale");
       store.set(key, "en");
       try {
-        open(list, runtime);
+        await open(list, runtime);
         const name = await screen.findByText("Family Lunch Package Deluxe 30");
         const row = screen.getByLabelText("Package, Family Lunch Package Deluxe 30");
         expect(name.props.numberOfLines).toBeUndefined();
@@ -741,7 +741,7 @@ describe("Pelanggan on the Dapur scale", () => {
       // Both labels (about 100 and 180, with 16 padding either side and the 8 gap) come to about 350 of the 380 inner
       // width, so they share one line; the row wraps, so the renew button drops to a full-width line if a font is wider.
       phone(412, 1);
-      open([record([running])]);
+      await open([record([running])]);
       const renew = await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
       const row = screen.getByTestId("customer-actions");
       expect(sty(row)).toMatchObject({ flexDirection: "row", flexWrap: "wrap", gap: 8 });
@@ -752,13 +752,13 @@ describe("Pelanggan on the Dapur scale", () => {
 
     it("a lone action fills the row: the renew button alone grows to the full width", async () => {
       phone(412, 1);
-      open([record([running], { user_id: "u-a", phone: null })]);
+      await open([record([running], { user_id: "u-a", phone: null })]);
       const renew = await screen.findByRole("button", { name: "Kirim tautan perpanjang" });
       expect(sty(renew).flexGrow).toBe(1);
     });
 
     it("draws the address in a 56 canvas-tone well, with its label and instructions", async () => {
-      open([
+      await open([
         record([running], { address: { id: "a-1", label: "Rumah", line: "Jl. Melati 4", area: "Kebayoran", instructions: "Pagar hijau" } as never }),
       ]);
       expect(await screen.findByText("Alamat antar · Rumah")).toBeTruthy();
@@ -769,19 +769,19 @@ describe("Pelanggan on the Dapur scale", () => {
     });
 
     it("caps a 12-delivery schedule at five 48 rows, then Lihat semua 12 shows them all in place", async () => {
-      open([record([{ ...running, deliveries: deliveries(12) as never }])]);
+      await open([record([{ ...running, deliveries: deliveries(12) as never }])]);
       expect(await screen.findByText("Jadwal")).toBeTruthy();
       expect(screen.getAllByTestId("schedule-row")).toHaveLength(5);
       expect(sty(screen.getAllByTestId("schedule-row")[0]).minHeight).toBe(48);
       const more = screen.getByRole("button", { name: "Lihat semua 12" });
       expect(sty(more).minHeight).toBe(48);
-      fireEvent.press(more);
+      await fireEvent.press(more);
       expect(screen.getAllByTestId("schedule-row")).toHaveLength(12);
       expect(screen.queryByRole("button", { name: "Lihat semua 12" })).toBeNull();
     });
 
     it("a schedule of five or fewer has no Lihat semua", async () => {
-      open([record([{ ...running, deliveries: deliveries(5) as never }])]);
+      await open([record([{ ...running, deliveries: deliveries(5) as never }])]);
       await screen.findByText("Jadwal");
       expect(screen.getAllByTestId("schedule-row")).toHaveLength(5);
       expect(screen.queryByRole("button", { name: /^Lihat semua/ })).toBeNull();
@@ -791,7 +791,7 @@ describe("Pelanggan on the Dapur scale", () => {
       const a = { ...running, id: "s-a", package_name: "Paket A", deliveries: deliveries(2) as never };
       const b = { ...running, id: "s-b", package_name: "Paket B", ends_on: addDays(today, 6), deliveries: deliveries(7) as never };
       const c = { ...running, id: "s-c", package_name: "Paket C", ends_on: addDays(today, 7), deliveries: [] as never };
-      open([record([c, b, a], { user_id: "u-a" })]);
+      await open([record([c, b, a], { user_id: "u-a" })]);
       await screen.findByLabelText("Paket, Paket A");
       expect(screen.getByLabelText("Paket, Paket B")).toBeTruthy();
       expect(screen.getByLabelText("Paket, Paket C")).toBeTruthy();
@@ -805,7 +805,7 @@ describe("Pelanggan on the Dapur scale", () => {
     });
 
     it("says so when the customer is not there", async () => {
-      dapur(runtimeWith("approved", true, []), <CustomerDetail id="c-404" />);
+      await dapur(runtimeWith("approved", true, []), <CustomerDetail id="c-404" />);
       expect(await screen.findByText("Pelanggan ini tidak ditemukan.")).toBeTruthy();
     });
   });

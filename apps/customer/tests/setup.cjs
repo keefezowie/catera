@@ -1,6 +1,17 @@
 jest.mock("react-native-worklets", () =>
   require("react-native-worklets/src/mock"),
 );
+// The router chooses layout effects only under React Native (`navigator.product`), which Jest's window does not claim;
+// with passive effects the root layout's own effects run before the imperative router is bound.
+Object.defineProperty(globalThis.navigator, "product", { value: "ReactNative", configurable: true });
+// RN 0.88 keeps its asset registry at a path jest-expo 58 does not mock, so the icon fonts' `Font.loadAsync` found the
+// real, empty registry and rejected. Every bundled asset resolves to one stand-in entry.
+jest.mock("react-native/src/private/assets/AssetRegistry", () => {
+  const asset = { fileSystemLocation: "/x", httpServerLocation: "/assets/x", scales: [1], fileHashes: ["md5"],
+    name: "name", exists: true, type: "ttf", hash: "md5", uri: "uri", width: 1, height: 1 };
+  const AssetRegistry = { registerAsset: jest.fn(() => 1), getAssetByID: jest.fn(() => asset) };
+  return { AssetRegistry, ...AssetRegistry };
+});
 // Jest runs Reanimated's JS module, whose CSS event hook throws when 4.7's native initializer registers one: load the
 // web initializer the JS module belongs with.
 jest.mock("react-native-reanimated/src/initializers", () => jest.requireActual("react-native-reanimated/src/initializers.ts"));

@@ -49,14 +49,14 @@ beforeEach(() => {
 });
 
 describe("theme", () => {
-  it("uses the light palette with no provider", () => {
-    render(<Probe />);
+  it("uses the light palette with no provider", async () => {
+    await render(<Probe />);
     expect(text("canvas")).toBe(LIGHT_CANVAS);
   });
 
   it("follows the system scheme by default", async () => {
     mockSystemScheme("dark");
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Probe />
       </ThemeProvider>,
@@ -68,7 +68,7 @@ describe("theme", () => {
 
   it("treats a null system scheme as light", async () => {
     mockSystemScheme(null);
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Probe />
       </ThemeProvider>,
@@ -80,7 +80,7 @@ describe("theme", () => {
   it("applies a stored preference", async () => {
     store.set("k", "dark");
     mockSystemScheme("light");
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Probe />
       </ThemeProvider>,
@@ -92,7 +92,7 @@ describe("theme", () => {
   it("ignores an unknown stored value", async () => {
     store.set("k", "blue");
     mockSystemScheme("dark");
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Probe />
       </ThemeProvider>,
@@ -105,7 +105,7 @@ describe("theme", () => {
 
   it("survives a failing storage read", async () => {
     (SecureStore.getItemAsync as jest.Mock).mockRejectedValueOnce(new Error("keystore locked"));
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Probe />
       </ThemeProvider>,
@@ -121,13 +121,13 @@ describe("theme", () => {
     (SecureStore.getItemAsync as jest.Mock).mockImplementationOnce(
       () => new Promise<string | null>((resolve) => (resolveRead = resolve)),
     );
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Probe />
       </ThemeProvider>,
     );
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
-    act(() => setPreferenceRef("dark"));
+    await act(() => setPreferenceRef("dark"));
     await act(async () => resolveRead("light"));
     expect(text("preference")).toBe("dark");
     expect(text("canvas")).toBe(DARK_CANVAS);
@@ -135,13 +135,13 @@ describe("theme", () => {
   });
 
   it("setPreference stores and applies immediately", async () => {
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Probe />
       </ThemeProvider>,
     );
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
-    act(() => setPreferenceRef("dark"));
+    await act(() => setPreferenceRef("dark"));
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("k", "dark");
     expect(text("canvas")).toBe(DARK_CANVAS);
     expect(text("preference")).toBe("dark");
@@ -151,30 +151,30 @@ describe("theme", () => {
   // to be handed to it; "system" gives control back with "unspecified".
   it("hands the choice to the system-drawn UI and takes it back on Sistem", async () => {
     const setScheme = jest.spyOn(ReactNative.Appearance, "setColorScheme").mockImplementation(() => {});
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Probe />
       </ThemeProvider>,
     );
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
     expect(setScheme).toHaveBeenLastCalledWith("unspecified");
-    act(() => setPreferenceRef("dark"));
+    await act(() => setPreferenceRef("dark"));
     expect(setScheme).toHaveBeenLastCalledWith("dark");
-    act(() => setPreferenceRef("light"));
+    await act(() => setPreferenceRef("light"));
     expect(setScheme).toHaveBeenLastCalledWith("light");
-    act(() => setPreferenceRef("system"));
+    await act(() => setPreferenceRef("system"));
     expect(setScheme).toHaveBeenLastCalledWith("unspecified");
   });
 
   it("keeps the choice in memory when the write fails", async () => {
     (SecureStore.setItemAsync as jest.Mock).mockRejectedValueOnce(new Error("disk full"));
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Probe />
       </ThemeProvider>,
     );
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
-    act(() => setPreferenceRef("dark"));
+    await act(() => setPreferenceRef("dark"));
     await act(async () => {});
     expect(text("canvas")).toBe(DARK_CANVAS);
   });
@@ -188,7 +188,7 @@ describe("theme", () => {
       seen.push(a, b);
       return <View testID="box" style={a.box} />;
     }
-    render(
+    await render(
       <ThemeProvider storageKey="k">
         <Styled />
         <Probe />
@@ -198,7 +198,7 @@ describe("theme", () => {
     expect(seen[0]).toBe(seen[1]);
     expect(ReactNative.StyleSheet.flatten(screen.getByTestId("box").props.style).backgroundColor).toBe(LIGHT_CANVAS);
 
-    act(() => setPreferenceRef("dark"));
+    await act(() => setPreferenceRef("dark"));
     const last = seen[seen.length - 1];
     expect(ReactNative.StyleSheet.flatten(screen.getByTestId("box").props.style).backgroundColor).toBe(DARK_CANVAS);
     expect(seen[seen.length - 2]).toBe(last);

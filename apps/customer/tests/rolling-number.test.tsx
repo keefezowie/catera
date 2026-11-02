@@ -10,8 +10,8 @@ const wrap = (value: string) => (
   </ThemeProvider>
 );
 const measure = (width = 10, height = 22) =>
-  act(() => {
-    fireEvent(screen.getByTestId("rolling-measure", hidden), "layout", { nativeEvent: { layout: { x: 0, y: 0, width, height } } });
+  act(async () => {
+    await fireEvent(screen.getByTestId("rolling-measure", hidden), "layout", { nativeEvent: { layout: { x: 0, y: 0, width, height } } });
   });
 
 beforeEach(() => {
@@ -22,16 +22,16 @@ beforeEach(() => {
 
 describe("RollingNumber", () => {
   it("shows the whole value as one findable text and labels the wrapper with it", async () => {
-    render(wrap("Rp 125.000"));
+    await render(wrap("Rp 125.000"));
     await act(async () => {});
     expect(screen.getByText("Rp 125.000")).toBeTruthy();
     expect(screen.getAllByLabelText("Rp 125.000").length).toBeGreaterThan(0);
   });
 
-  it("splits into digit columns and static characters once the column size is measured", () => {
-    render(wrap("Rp 125.000"));
+  it("splits into digit columns and static characters once the column size is measured", async () => {
+    await render(wrap("Rp 125.000"));
     expect(screen.queryByTestId("rolling-row", hidden)).toBeNull();
-    measure();
+    await measure();
     expect(screen.getAllByTestId("rolling-column", hidden)).toHaveLength(6);
     // The full value is still there for selection and for tests, and the columns are hidden from accessibility.
     expect(screen.getByText("Rp 125.000")).toBeTruthy();
@@ -40,24 +40,24 @@ describe("RollingNumber", () => {
     expect(first.props.style).toMatchObject({ width: 10, height: 22, overflow: "hidden" });
   });
 
-  it("rolls a changed digit, and only that one, with a timed slide", () => {
+  it("rolls a changed digit, and only that one, with a timed slide", async () => {
     const timing = jest.spyOn(Reanimated, "withTiming");
-    const view = render(wrap("Rp 125.000"));
-    measure();
+    const view = await render(wrap("Rp 125.000"));
+    await measure();
     expect(timing).not.toHaveBeenCalled();
-    view.rerender(wrap("Rp 125.001"));
+    await view.rerender(wrap("Rp 125.001"));
     expect(timing).toHaveBeenCalledTimes(1);
     expect(timing.mock.calls[0][0]).toBe(1);
     expect(timing.mock.calls[0][1]).toMatchObject({ duration: 200 });
     expect(screen.getByText("Rp 125.001")).toBeTruthy();
   });
 
-  it("swaps plain text with no animation under reduced motion", () => {
+  it("swaps plain text with no animation under reduced motion", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const timing = jest.spyOn(Reanimated, "withTiming");
-    const view = render(wrap("12"));
+    const view = await render(wrap("12"));
     expect(screen.queryByTestId("rolling-measure", hidden)).toBeNull();
-    view.rerender(wrap("13"));
+    await view.rerender(wrap("13"));
     expect(screen.getByText("13")).toBeTruthy();
     expect(screen.queryByTestId("rolling-row", hidden)).toBeNull();
     expect(timing).not.toHaveBeenCalled();

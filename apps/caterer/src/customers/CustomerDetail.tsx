@@ -1,7 +1,6 @@
 import { Fragment, useState } from "react";
 import { Linking, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { errorLabel, jakartaDay, shortDate, whatsappUrl, type CustomerSubscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
@@ -25,6 +24,7 @@ import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
 import { ReadError } from "../ReadError";
 import { DetailSkeleton } from "../skeletons";
+import { pushScreen } from "../nav";
 
 /** A schedule shows this many deliveries before "Lihat semua". */
 const SCHEDULE_CAP = 5;
@@ -55,7 +55,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const [busy, renew] = useBusy(async (s: CustomerSubscription) => {
     if (!c) return;
     if (payments !== true) {
-      router.push("/aktifkan" as never);
+      pushScreen("/aktifkan");
       return;
     }
     setWhich(s.id);

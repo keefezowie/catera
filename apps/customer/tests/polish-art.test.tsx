@@ -33,8 +33,8 @@ describe("POLISH_ART registry", () => {
 });
 
 describe("PolishArt", () => {
-  it("draws contained at a square size and is hidden from screen readers by default", () => {
-    render(<PolishArt name="spot-rantang" size={48} />);
+  it("draws contained at a square size and is hidden from screen readers by default", async () => {
+    await render(<PolishArt name="spot-rantang" size={48} />);
     const node = image();
     expect(node.props.source).toBe(POLISH_ART["spot-rantang"]);
     expect(node.props.contentFit).toBe("contain");
@@ -44,20 +44,20 @@ describe("PolishArt", () => {
     expect(node.props.accessibilityLabel).toBeUndefined();
   });
 
-  it("covers for welcome-meja, and width/height win over size", () => {
-    render(<PolishArt name="welcome-meja" width={430} height={640} style={{ opacity: 0.5 }} />);
+  it("covers for welcome-meja, and width/height win over size", async () => {
+    await render(<PolishArt name="welcome-meja" width={430} height={640} style={{ opacity: 0.5 }} />);
     const node = image();
     expect(node.props.contentFit).toBe("cover");
     expect(StyleSheet.flatten(node.props.style)).toMatchObject({ width: 430, height: 640, opacity: 0.5 });
   });
 
-  it("accepts an explicit fit", () => {
-    render(<PolishArt name="plate-ayam" size={120} contentFit="cover" />);
+  it("accepts an explicit fit", async () => {
+    await render(<PolishArt name="plate-ayam" size={120} contentFit="cover" />);
     expect(image().props.contentFit).toBe("cover");
   });
 
-  it("is announced as an image when given a label", () => {
-    render(<PolishArt name="dapur-kosong" size={120} accessibilityLabel="Belum ada pesanan" />);
+  it("is announced as an image when given a label", async () => {
+    await render(<PolishArt name="dapur-kosong" size={120} accessibilityLabel="Belum ada pesanan" />);
     const node = screen.getByLabelText("Belum ada pesanan");
     expect(node.props.accessible).toBe(true);
     expect(node.props.accessibilityRole).toBe("image");

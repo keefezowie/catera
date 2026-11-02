@@ -60,7 +60,7 @@ beforeEach(() => {
 });
 
 it("speaks Indonesian by default", async () => {
-  render(
+  await render(
     <MobileProvider runtime={fakeRuntime()} linkMapper={(h) => h}>
       <Probe loader={async () => "x"} />
     </MobileProvider>,
@@ -70,7 +70,7 @@ it("speaks Indonesian by default", async () => {
 
 it("reloads data after a successful command", async () => {
   const loader = jest.fn(async () => "loaded");
-  render(
+  await render(
     <MobileProvider runtime={fakeRuntime()} linkMapper={(h) => h}>
       <Probe loader={loader} />
     </MobileProvider>,
@@ -90,7 +90,7 @@ it("sends the demo token before any Supabase session", async () => {
 });
 
 it("routes notification taps through the app's link mapper", async () => {
-  render(
+  await render(
     <MobileProvider runtime={fakeRuntime()} linkMapper={(h) => h.replace("/seller/schedule", "/")}>
       <Probe loader={async () => "x"} />
     </MobileProvider>,
@@ -98,7 +98,7 @@ it("routes notification taps through the app's link mapper", async () => {
   await screen.findByText("Halo");
   const responders = (Notifications as unknown as { __responders: ((r: unknown) => void)[] })
     .__responders;
-  act(() => {
+  await act(() => {
     responders[responders.length - 1]({
       actionIdentifier: "default",
       notification: { request: { identifier: "n1", content: { data: { href: "/seller/schedule?date=2026-10-08" } } } },
@@ -109,14 +109,14 @@ it("routes notification taps through the app's link mapper", async () => {
 
 it("hands notification taps to the app's link opener when it has one", async () => {
   const openLink = jest.fn();
-  render(
+  await render(
     <MobileProvider runtime={fakeRuntime()} linkMapper={(h) => h.replace("/seller/customers", "/pelanggan")} openLink={openLink}>
       <Probe loader={async () => "x"} />
     </MobileProvider>,
   );
   await screen.findByText("Halo");
   const responders = (Notifications as unknown as { __responders: ((r: unknown) => void)[] }).__responders;
-  act(() => {
+  await act(() => {
     responders[responders.length - 1]({
       actionIdentifier: "default",
       notification: { request: { identifier: "n2", content: { data: { href: "/seller/customers" } } } },

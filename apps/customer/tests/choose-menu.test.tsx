@@ -113,31 +113,31 @@ beforeEach(() => {
   } as unknown as MobileRuntime["api"];
 });
 
-const renderMenu = () =>
-  render(
+const renderMenu = async () =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
       <ChooseMenu />
     </MobileProvider>,
   );
 
 async function choose() {
-  fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
   expect(screen.getByRole("button", { name: "Tinjau pilihan" })).toBeDisabled();
-  fireEvent.press(screen.getByRole("button", { name: "Ayam panggang · 1 potong" }));
-  fireEvent.press(screen.getByRole("button", { name: "Tinjau pilihan" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Ayam panggang · 1 potong" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Tinjau pilihan" }));
 }
 
 it("reads the month with an ISO month-start date", async () => {
-  renderMenu();
+  await renderMenu();
   await waitFor(() => expect(runtime.api.customerMenuMonth).toHaveBeenCalledWith("subscription", "2026-11-01", "lunch"));
   expect(await screen.findByText("Paket pilihan")).toBeTruthy();
 });
 
 it("saves the selected date, whole-delivery version and exact dish version", async () => {
-  renderMenu();
+  await renderMenu();
   await choose();
   expect(screen.getByText("Lauk · Ayam panggang")).toBeTruthy();
-  fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
   await waitFor(() =>
     expect(runtime.api.command).toHaveBeenCalledWith(
       "customerMenu.saveBatch",
@@ -154,9 +154,9 @@ it("saves the selected date, whole-delivery version and exact dish version", asy
 
 it("a menu conflict keeps the selected dishes available for correction", async () => {
   (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CONFLICT"), { code: "CONFLICT" }));
-  renderMenu();
+  await renderMenu();
   await choose();
-  fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
   expect(await screen.findByTestId("menu-error")).toBeTruthy();
   expect(screen.getByText("Lauk · Ayam panggang")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Lanjut memilih" })).toBeTruthy();
@@ -166,13 +166,13 @@ it("applies one choice to another open date too", async () => {
   (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(
     month([day(), day({ date: "2026-11-04", dayId: "day-2", deliveryVersion: 2 })]),
   );
-  renderMenu();
-  fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
-  fireEvent.press(screen.getByRole("button", { name: "Ayam panggang · 1 potong" }));
-  fireEvent.press(screen.getByRole("button", { name: "Terapkan juga ke tanggal lain" }));
-  fireEvent.press(screen.getByRole("button", { name: "Rabu 4 November" }));
-  fireEvent.press(screen.getByRole("button", { name: "Tinjau pilihan" }));
-  fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
+  await renderMenu();
+  await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Ayam panggang · 1 potong" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Terapkan juga ke tanggal lain" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Rabu 4 November" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Tinjau pilihan" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
   await waitFor(() =>
     expect(runtime.api.command).toHaveBeenCalledWith(
       "customerMenu.saveBatch",
@@ -192,9 +192,9 @@ it("clears saved choices with resetBatch after confirming", async () => {
     month([day({ version: 2, selectionStatus: "selected", details: { meal: "lunch", name: "", description: "", image: "", items: [{ id: "main:0", name: "Ayam panggang", optionId: "option", optionVersion: 4 }] } })]),
   );
   mockConfirm.mockResolvedValueOnce(true);
-  renderMenu();
-  fireEvent.press(await screen.findByRole("button", { name: "Ubah menu" }));
-  fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan, biar katering memilih" }));
+  await renderMenu();
+  await fireEvent.press(await screen.findByRole("button", { name: "Ubah menu" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan, biar katering memilih" }));
   await waitFor(() =>
     expect(runtime.api.command).toHaveBeenCalledWith(
       "customerMenu.resetBatch",
@@ -220,12 +220,12 @@ it("clears saved choices with resetBatch after confirming", async () => {
 
 it("discarding menu changes asks through a confirm sheet", async () => {
   const { usePreventRemove } = require("expo-router/react-navigation") as { usePreventRemove: jest.Mock };
-  renderMenu();
+  await renderMenu();
   await choose();
-  fireEvent.press(screen.getByRole("button", { name: "Lanjut memilih" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Lanjut memilih" }));
   // Close with a dish chosen: the confirm sheet asks; "Lanjut memilih" keeps the choice on screen.
   mockConfirm.mockResolvedValueOnce(false);
-  fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
   await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
   expect(mockConfirm.mock.calls[0][0]).toEqual({
     title: "Buang pilihan menu?",
@@ -238,7 +238,7 @@ it("discarding menu changes asks through a confirm sheet", async () => {
   expect(screen.getByRole("button", { name: "Tinjau pilihan" })).toBeTruthy();
   // "Buang" drops the choice.
   mockConfirm.mockResolvedValueOnce(true);
-  fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
   expect(await screen.findByRole("button", { name: "Pilih hidangan" })).toBeTruthy();
   // Leaving the screen while dirty (back, a swipe) is held and asks the same way; "Buang" lets the removal go on.
   await choose();
@@ -251,9 +251,9 @@ it("discarding menu changes asks through a confirm sheet", async () => {
 });
 
 it("saving toasts Menu {weekday} tersimpan", async () => {
-  renderMenu();
+  await renderMenu();
   await choose();
-  fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ message: "Menu Selasa tersimpan", tone: "success" }));
 });
 
@@ -261,17 +261,17 @@ it("after the cutoff the caterer chooses and nothing can be edited", async () =>
   (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(
     month([day({ cutoffAt: "2020-01-01T10:00:00Z", editable: false })]),
   );
-  renderMenu();
+  await renderMenu();
   expect(await screen.findByText(/katering yang pilihkan/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Pilih hidangan" })).toBeNull();
 });
 
 it("date rows are 48dp picks with a selection haptic", async () => {
-  renderMenu();
+  await renderMenu();
   const row = await screen.findByRole("button", { name: /Selasa 3 November/ });
   expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(48);
   expect(row.props.accessibilityState.selected).toBe(true);
-  fireEvent.press(row);
+  await fireEvent.press(row);
   expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
 });
 
@@ -305,8 +305,8 @@ describe("Pilih menu as photo cards (R4)", () => {
 
   it("options are photo cards with name and serving", async () => {
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
-    renderMenu();
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    await renderMenu();
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
     // A dish with a photo draws it; one without gets the utensil tile at the same size, never an empty hole.
     expect(within(card("option")).getByTestId("dish-photo-option")).toBeTruthy();
     expect(within(card("option")).getByText("Ayam panggang")).toBeTruthy();
@@ -317,11 +317,11 @@ describe("Pilih menu as photo cards (R4)", () => {
 
   it("the selected card has the accent ring and accessibilityState selected", async () => {
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
-    renderMenu();
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    await renderMenu();
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
     expect(card("option").props.accessibilityState).toMatchObject({ selected: false });
     expect(screen.queryByTestId("dish-check-option")).toBeNull();
-    fireEvent.press(card("option"));
+    await fireEvent.press(card("option"));
     const on = StyleSheet.flatten(card("option").props.style);
     expect(card("option").props.accessibilityState).toMatchObject({ selected: true });
     expect(on.borderWidth).toBe(2);
@@ -336,26 +336,26 @@ describe("Pilih menu as photo cards (R4)", () => {
 
   it("Pilih sebelum {cutoff} shows and turns to the warning tone under 24h", async () => {
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
-    const view = renderMenu();
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    const view = await renderMenu();
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
     const calm = screen.getByTestId("menu-deadline");
     expect(within(calm).getByText(/^Pilih sebelum \S+ 2 November 17\.00$/)).toBeTruthy();
     expect(StyleSheet.flatten(calm.props.style)?.backgroundColor).toBeUndefined();
-    view.unmount();
+    await view.unmount();
 
     const soon = new Date(Date.now() + 3 * 3600_000).toISOString();
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes([day({ cutoffAt: soon })]));
     for (const scheme of ["light", "dark"] as const) {
       const palette = nativeThemes[scheme];
       jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
-      const shown = render(
+      const shown = await render(
         <ThemeProvider storageKey={`choose-menu-test-${scheme}`}>
           <MobileProvider runtime={runtime} linkMapper={customerLink}>
             <ChooseMenu />
           </MobileProvider>
         </ThemeProvider>,
       );
-      fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+      await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
       // Under a day away the line sits on the `fill` ground with the warm attention edge, from the palette's own tokens.
       const warn = screen.getByTestId("menu-deadline");
       expect(within(warn).getByText(/^Pilih sebelum /)).toBeTruthy();
@@ -367,7 +367,7 @@ describe("Pilih menu as photo cards (R4)", () => {
       expect(style.backgroundColor).not.toBe(palette.cream);
       expect(style.backgroundColor).not.toBe(palette.forest);
       expect(style.backgroundColor).not.toBe(palette.canvas);
-      shown.unmount();
+      await shown.unmount();
     }
   });
 
@@ -375,32 +375,34 @@ describe("Pilih menu as photo cards (R4)", () => {
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(
       withDishes([day(), day({ date: "2026-11-04", dayId: "day-2", ...saved }), day({ date: "2026-11-05", dayId: "day-3" })]),
     );
-    const view = renderMenu();
+    const view = await renderMenu();
     expect(await screen.findByText("1 dari 3 hari sudah dipilih")).toBeTruthy();
-    view.unmount();
+    await view.unmount();
 
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes([day(), day({ date: "2026-11-04", dayId: "day-2" })]));
-    const none = renderMenu();
+    const none = await renderMenu();
     expect(await screen.findByText("0 dari 2 hari sudah dipilih")).toBeTruthy();
-    none.unmount();
+    await none.unmount();
 
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(
       withDishes([day(saved), day({ date: "2026-11-04", dayId: "day-2", ...saved })]),
     );
-    renderMenu();
+    await renderMenu();
     expect(await screen.findByText("2 dari 2 hari sudah dipilih")).toBeTruthy();
   });
 
   it("Simpan menu is pinned in the footer", async () => {
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
-    renderMenu();
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    // Awaiting a press flushes the save, so hold the command open: the second press lands while the first is in flight.
+    (runtime.api.command as jest.Mock).mockReturnValue(new Promise(() => {}));
+    await renderMenu();
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
     const footer = () => within(screen.getByTestId("screen-footer"));
     expect(footer().getByRole("button", { name: "Tinjau pilihan" })).toBeDisabled();
-    fireEvent.press(card("option"));
-    fireEvent.press(footer().getByRole("button", { name: "Tinjau pilihan" }));
-    fireEvent.press(footer().getByRole("button", { name: "Simpan menu" }));
-    fireEvent.press(footer().getByRole("button", { name: "Simpan menu" }));
+    await fireEvent.press(card("option"));
+    await fireEvent.press(footer().getByRole("button", { name: "Tinjau pilihan" }));
+    await fireEvent.press(footer().getByRole("button", { name: "Simpan menu" }));
+    await fireEvent.press(footer().getByRole("button", { name: "Simpan menu" }));
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(1));
   });
 
@@ -414,11 +416,11 @@ describe("Pilih menu as photo cards (R4)", () => {
       ]),
     );
     (runtime.api.command as jest.Mock).mockImplementation(() => new Promise(() => {}));
-    renderMenu();
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah menu" }));
+    await renderMenu();
+    await fireEvent.press(await screen.findByRole("button", { name: "Ubah menu" }));
     const review = () => within(screen.getByTestId("screen-footer")).getByRole("button", { name: "Tinjau pilihan" });
     expect(review()).toBeEnabled();
-    fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan, biar katering memilih" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan, biar katering memilih" }));
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(1));
     expect(review()).toBeDisabled();
   });
@@ -426,8 +428,8 @@ describe("Pilih menu as photo cards (R4)", () => {
   it("at font scale 1.3 on a 360dp phone the cards keep 2 columns and the name wraps to 2 lines", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes());
-    renderMenu();
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    await renderMenu();
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
     for (const id of ["option", "option-2"]) {
       const cell = StyleSheet.flatten(screen.getByTestId(`dish-cell-${id}`).props.style);
       expect(cell.maxWidth).toBe("50%");
@@ -441,14 +443,14 @@ describe("Pilih menu as photo cards (R4)", () => {
     try {
       const cutoff = new Date(Date.now() + 10_000).toISOString();
       (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(withDishes([day({ cutoffAt: cutoff })]));
-      renderMenu();
-      fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
-      act(() => {
+      await renderMenu();
+      await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+      await act(() => {
         jest.advanceTimersByTime(31_000);
       });
       expect(await screen.findByText(/Batas pilih sudah lewat/)).toBeTruthy();
       expect(card("option").props.accessibilityState).toMatchObject({ disabled: true });
-      fireEvent.press(card("option"));
+      await fireEvent.press(card("option"));
       expect(card("option").props.accessibilityState).toMatchObject({ selected: false });
       expect(screen.queryByTestId("menu-deadline")).toBeNull();
     } finally {
@@ -459,7 +461,7 @@ describe("Pilih menu as photo cards (R4)", () => {
 
 describe("polish: month arrows and the reason a button waits", () => {
   it("the month arrows are 44dp icon buttons named in words, and still move the month", async () => {
-    renderMenu();
+    await renderMenu();
     const next = await screen.findByRole("button", { name: "Bulan berikutnya" });
     const prev = screen.getByRole("button", { name: "Bulan sebelumnya" });
     for (const arrow of [prev, next]) {
@@ -469,20 +471,20 @@ describe("polish: month arrows and the reason a button waits", () => {
     }
     expect(screen.queryByText("‹")).toBeNull();
     expect(screen.queryByText("›")).toBeNull();
-    fireEvent.press(next);
+    await fireEvent.press(next);
     await waitFor(() => expect(runtime.api.customerMenuMonth).toHaveBeenCalledWith("subscription", "2026-12-01", "lunch"));
-    fireEvent.press(await screen.findByRole("button", { name: "Bulan sebelumnya" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Bulan sebelumnya" }));
     await waitFor(() => expect(runtime.api.customerMenuMonth).toHaveBeenLastCalledWith("subscription", "2026-11-01", "lunch"));
   });
 
   it("Tinjau pilihan says why it is off, and the line goes once every dish is chosen", async () => {
-    renderMenu();
-    fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
+    await renderMenu();
+    await fireEvent.press(await screen.findByRole("button", { name: "Pilih hidangan" }));
     const review = () => screen.getByRole("button", { name: "Tinjau pilihan" });
     expect(review()).toBeDisabled();
     expect(review().props.accessibilityHint).toBe("Lengkapi semua hidangan dulu.");
     expect(screen.getByTestId("menu-review-hint")).toHaveTextContent("Lengkapi semua hidangan dulu.");
-    fireEvent.press(screen.getByRole("button", { name: "Ayam panggang · 1 potong" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ayam panggang · 1 potong" }));
     expect(review()).toBeEnabled();
     expect(review().props.accessibilityHint).toBeUndefined();
     expect(screen.queryByTestId("menu-review-hint")).toBeNull();

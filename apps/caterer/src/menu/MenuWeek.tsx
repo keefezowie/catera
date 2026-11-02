@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, ScrollView, Share, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import {
   addDays,
@@ -51,6 +50,7 @@ import { photoUri } from "../photo";
 import { ReadError } from "../ReadError";
 import { MenuControlsSkeleton, MenuStripSkeleton, MenuWeekSkeleton } from "../skeletons";
 import { SettingsGear } from "../settings/Pengaturan";
+import { pushScreen } from "../nav";
 
 export { mealOf } from "./logic";
 
@@ -392,7 +392,7 @@ export function MenuWeek() {
           {canEdit ? (
             <>
               <Text>{t("Buat paket dulu, lalu isi menunya di sini.", "Create a package first, then fill its menu here.")}</Text>
-              <Button label={t("Buat paket", "Create a package")} onPress={() => router.push("/paket/baru" as never)} />
+              <Button label={t("Buat paket", "Create a package")} onPress={() => pushScreen("/paket/baru")} />
             </>
           ) : (
             <Text>{t("Belum ada paket.", "No packages yet.")}</Text>
@@ -613,7 +613,7 @@ export function MenuWeek() {
                     accessibilityRole="button"
                     accessibilityLabel={t("Ubah menu", "Edit menu")}
                     haptic="tap"
-                    onPress={() => router.push(`/menu/${selected.date}?pkg=${offer.id}&meal=${meal}` as never)}
+                    onPress={() => pushScreen(`/menu/${selected.date}?pkg=${offer.id}&meal=${meal}`)}
                     // 48 x 48 at least, inside the header row, and its label ends at the screen margin (no padding on that side).
                     style={{ minHeight: 48, minWidth: 48, paddingLeft: 12, paddingRight: 0, alignItems: "flex-end", justifyContent: "center" }}
                   >

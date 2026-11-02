@@ -64,14 +64,14 @@ const rowNames = () =>
 const person = { id: "u-1", role: "customer", name: "Rani Contoh" };
 
 test("both apps render the same Pengaturan rows from one component", async () => {
-  const customerSide = renderWith(
+  const customerSide = await renderWith(
     runtimeWith(person),
     <Pengaturan voice="kamu" supporting="Makanan berangkat, menu besok, pembayaran" channelName="Pengantaran & bantuan" onSignedOut={jest.fn()} />,
   );
   await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
   const customerRows = rowNames();
-  customerSide.unmount();
-  renderWith(
+  await customerSide.unmount();
+  await renderWith(
     runtimeWith({ ...person, id: "u-2", role: "owner" }),
     <Pengaturan voice="kamu" supporting="Pesanan baru, laporan, pembayaran" channelName="Catera Dapur" onSignedOut={jest.fn()} />,
   );
@@ -91,14 +91,14 @@ test("both apps render the same Pengaturan rows from one component", async () =>
 test("the after-logout hook receives onSignedOut", async () => {
   const onSignedOut = jest.fn();
   const runtime = runtimeWith(person);
-  renderWith(runtime, <Pengaturan voice="kamu" supporting="x" channelName="Catera" onSignedOut={onSignedOut} />);
-  fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
+  await renderWith(runtime, <Pengaturan voice="kamu" supporting="x" channelName="Catera" onSignedOut={onSignedOut} />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
   await waitFor(() => expect(onSignedOut).toHaveBeenCalledTimes(1));
   expect(runtime.signOut).toHaveBeenCalled();
 });
 
 test("extraRows render after Tentang", async () => {
-  renderWith(
+  await renderWith(
     runtimeWith(person),
     <Pengaturan voice="kamu" supporting="x" channelName="Catera" onSignedOut={jest.fn()} extraRows={<RNText testID="extra">Data akun</RNText>} />,
   );

@@ -102,7 +102,7 @@ beforeEach(() => {
 describe("Data akun", () => {
   it("Data akun hides the password row for phone accounts", async () => {
     const { runtime } = runtimeWith({ user: phoneUser });
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-3456-7890/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Nama, Rani Contoh/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Email/ })).toBeTruthy();
@@ -112,14 +112,14 @@ describe("Data akun", () => {
 
   it("shows the password row for an email account", async () => {
     const { runtime } = runtimeWith({ user: emailUser });
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     expect(await screen.findByRole("button", { name: /^Email, rani@example\.test/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Kata sandi" })).toBeTruthy();
   });
 
   it("names a demo account as sample data and still offers every row", async () => {
     const { runtime } = runtimeWith({ demo: true });
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     expect(
       await screen.findByText("Demo (data contoh): nomor HP, email, dan kata sandi hanya disimulasikan."),
     ).toBeTruthy();
@@ -130,14 +130,14 @@ describe("Data akun", () => {
     const { runtime } = runtimeWith({ user: phoneUser });
     let settle = () => {};
     (runtime.api.command as jest.Mock).mockImplementation(() => new Promise((resolve) => (settle = () => resolve({ name: "Rani Baru" }))));
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Nama, / }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Nama, / }));
     const field = screen.getByLabelText("Nama");
     expect(screen.getByRole("button", { name: "Simpan nama" }).props.accessibilityState.disabled).toBe(true);
-    fireEvent.changeText(field, "Rani Baru");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan nama" }));
+    await fireEvent.changeText(field, "Rani Baru");
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan nama" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Simpan nama" }).props.accessibilityState.busy).toBe(true));
-    fireEvent.press(screen.getByRole("button", { name: "Simpan nama" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan nama" }));
     expect(runtime.api.command).toHaveBeenCalledTimes(1);
     expect(runtime.api.command).toHaveBeenCalledWith("profile.update", { name: "Rani Baru" }, expect.any(String));
     await act(async () => settle());
@@ -147,13 +147,13 @@ describe("Data akun", () => {
 
   it("saves the number as a plain field through profile.update, with no SMS code", async () => {
     const { runtime, auth } = runtimeWith({ user: phoneUser });
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-3456-7890/ }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-3456-7890/ }));
     const field = screen.getByLabelText("Nomor WhatsApp");
     expect(field.props.value).toBe("0812-3456-7890");
     expect(screen.getByRole("button", { name: "Simpan nomor" }).props.accessibilityState.disabled).toBe(true);
-    fireEvent.changeText(field, "0812 5555 0000");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
+    await fireEvent.changeText(field, "0812 5555 0000");
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith("profile.update", { phone: "+6281255550000" }, expect.any(String)),
     );
@@ -165,47 +165,47 @@ describe("Data akun", () => {
 
   it("refuses a malformed number before the server, and an emptied field clears it", async () => {
     const { runtime } = runtimeWith({ user: phoneUser });
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Nomor WhatsApp, / }));
-    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Nomor WhatsApp, / }));
+    await fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812");
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
     expect(await screen.findByText("Nomor WhatsApp belum benar. Cek lagi.")).toBeTruthy();
     expect(runtime.api.command).not.toHaveBeenCalledWith("profile.update", expect.anything(), expect.any(String));
-    fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
+    await fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "");
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan nomor" }));
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledWith("profile.update", { phone: null }, expect.any(String)));
   });
 
   it("shows the profile's own number before the session's", async () => {
     const { runtime } = runtimeWith({ user: emailUser });
     (runtime.api.me as jest.Mock).mockResolvedValue({ actor: { ...actor, phone: "+6281299990001" }, demo: false });
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-9999-0001/ })).toBeTruthy();
   });
 
   it("asks for the email change by link and says nothing has changed yet", async () => {
     const { runtime, auth } = runtimeWith({ user: emailUser });
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Email, / }));
-    fireEvent.changeText(screen.getByLabelText("Email baru"), "baru@example.test");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan" }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Email, / }));
+    await fireEvent.changeText(screen.getByLabelText("Email baru"), "baru@example.test");
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan" }));
     await waitFor(() => expect(auth.updateUser).toHaveBeenCalledWith({ email: "baru@example.test" }));
     expect((await screen.findByTestId("email-sent")).props.children).toMatch(/Email baru berlaku setelah kedua tautan dibuka/);
   });
 
   it("changes the password after checking the current one", async () => {
     const { runtime, auth } = runtimeWith({ user: emailUser });
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: "Kata sandi" }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Kata sandi" }));
     const save = () => screen.getByRole("button", { name: "Ganti kata sandi" });
     expect(save().props.accessibilityState.disabled).toBe(true);
-    fireEvent.changeText(screen.getByLabelText("Kata sandi saat ini"), "lama-1234");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi baru"), "baru-12345");
-    fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi baru"), "baru-1234x");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi saat ini"), "lama-1234");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi baru"), "baru-12345");
+    await fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi baru"), "baru-1234x");
     expect(save().props.accessibilityState.disabled).toBe(true);
-    fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi baru"), "baru-12345");
+    await fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi baru"), "baru-12345");
     expect(save().props.accessibilityState.disabled).toBe(false);
-    fireEvent.press(save());
+    await fireEvent.press(save());
     await waitFor(() => expect(auth.updateUser).toHaveBeenCalledWith({ password: "baru-12345" }));
     expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: "rani@example.test", password: "lama-1234" });
   });
@@ -213,12 +213,12 @@ describe("Data akun", () => {
   it("puts a failed change in the form error, in words that say what to do", async () => {
     const { runtime, auth } = runtimeWith({ user: emailUser });
     auth.signInWithPassword.mockResolvedValue({ data: { session: null, user: null }, error: { status: 400 } });
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: "Kata sandi" }));
-    fireEvent.changeText(screen.getByLabelText("Kata sandi saat ini"), "salah-1234");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi baru"), "baru-12345");
-    fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi baru"), "baru-12345");
-    fireEvent.press(screen.getByRole("button", { name: "Ganti kata sandi" }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Kata sandi" }));
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi saat ini"), "salah-1234");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi baru"), "baru-12345");
+    await fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi baru"), "baru-12345");
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti kata sandi" }));
     const error = await screen.findByTestId("password-error");
     expect(within(error).getByText("Kata sandi saat ini belum cocok.")).toBeTruthy();
     expect(auth.updateUser).not.toHaveBeenCalled();
@@ -226,33 +226,33 @@ describe("Data akun", () => {
 
   it("says a simulated demo change did not change anything", async () => {
     const { runtime } = runtimeWith({ demo: true });
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: "Kata sandi" }));
-    fireEvent.changeText(screen.getByLabelText("Kata sandi saat ini"), "lama-1234");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi baru"), "baru-12345");
-    fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi baru"), "baru-12345");
-    fireEvent.press(screen.getByRole("button", { name: "Ganti kata sandi" }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Kata sandi" }));
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi saat ini"), "lama-1234");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi baru"), "baru-12345");
+    await fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi baru"), "baru-12345");
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti kata sandi" }));
     expect(await screen.findByText("Contoh saja: kata sandi tidak berubah")).toBeTruthy();
     expect(screen.queryByText("Kata sandi diganti")).toBeNull();
   });
 
   it("rows that open an editor say whether it is open, and the editor takes the focus", async () => {
     const { runtime } = runtimeWith({ user: emailUser });
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     const row = await screen.findByRole("button", { name: /^Nama, / });
     expect(row.props.accessibilityState.expanded).toBe(false);
-    fireEvent.press(row);
+    await fireEvent.press(row);
     expect(screen.getByRole("button", { name: /^Nama, / }).props.accessibilityState.expanded).toBe(true);
     expect(screen.getByLabelText("Nama").props.autoFocus).toBe(true);
-    fireEvent.press(screen.getByRole("button", { name: /^Nama, / }));
+    await fireEvent.press(screen.getByRole("button", { name: /^Nama, / }));
     expect(screen.getByRole("button", { name: /^Nama, / }).props.accessibilityState.expanded).toBe(false);
   });
 
   it("moves the screen reader to the editor's first field, not just the keyboard", async () => {
     const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
     const { runtime } = runtimeWith({ user: emailUser });
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Nama, / }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Nama, / }));
     await waitFor(() => expect(focus).toHaveBeenCalled());
     const [target, event] = focus.mock.calls.at(-1) as [{ props: { accessibilityLabel?: string } }, string];
     expect(event).toBe("focus");
@@ -262,17 +262,17 @@ describe("Data akun", () => {
 
   it("in demo the hints and toasts do not claim anything was sent or changed", async () => {
     const { runtime } = runtimeWith({ demo: true });
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Email/ }));
-    fireEvent.changeText(screen.getByLabelText("Email baru"), "baru@example.test");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan" }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Email/ }));
+    await fireEvent.changeText(screen.getByLabelText("Email baru"), "baru@example.test");
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan" }));
     expect((await screen.findByTestId("email-sent")).props.children).toBe("Demo: tidak ada email yang dikirim dan emailmu tidak berubah.");
     expect(screen.queryByText(/Kami mengirim tautan/)).toBeNull();
   });
 
   it("Data akun under the customer scale uses the same grouped cards, with trailing values", async () => {
     const { runtime } = runtimeWith({ user: emailUser });
-    renderWith(
+    await renderWith(
       runtime,
       <LayoutScaleProvider value="v2">
         <DataAkun />
@@ -289,8 +289,8 @@ describe("Data akun", () => {
 
   it("opens the delete request sheet", async () => {
     const { runtime } = runtimeWith({ user: phoneUser });
-    renderWith(runtime, <DataAkun />);
-    fireEvent.press(await screen.findByRole("button", { name: "Hapus akun" }));
+    await renderWith(runtime, <DataAkun />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Hapus akun" }));
     expect(router.push).toHaveBeenCalledWith("/hapus-akun");
   });
 });
@@ -313,7 +313,7 @@ describe("Hapus akun", () => {
   it("Hapus akun with 8 plans shows one callout and three consequence lines, and no plan names", async () => {
     const state = eightPlans();
     const { runtime } = runtimeWith({ user: phoneUser, state });
-    renderWith(runtime, <HapusAkunRoute />);
+    await renderWith(runtime, <HapusAkunRoute />);
     const callout = within(await screen.findByTestId("hapus-akun-plans"));
     expect(callout.getByText("8 paket masih berjalan")).toBeTruthy();
     expect(callout.getAllByTestId("hapus-akun-consequence").map((line) => line.props.children)).toEqual(consequences);
@@ -325,7 +325,7 @@ describe("Hapus akun", () => {
   it.each(["light", "dark"] as const)("the plans callout stands off the sheet surface (%s)", async (name) => {
     scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(name);
     const { runtime } = runtimeWith({ user: phoneUser, state: eightPlans() });
-    renderWith(runtime, <HapusAkunRoute />);
+    await renderWith(runtime, <HapusAkunRoute />);
     const ground = StyleSheet.flatten((await screen.findByTestId("hapus-akun-plans")).props.style).backgroundColor;
     expect(ground).toBe(nativeThemes[name].well);
     expect(ground).not.toBe(nativeThemes[name].surface);
@@ -333,7 +333,7 @@ describe("Hapus akun", () => {
 
   it("the send button is the danger variant", async () => {
     const { runtime } = runtimeWith({ user: phoneUser, state: eightPlans() });
-    renderWith(runtime, <HapusAkunRoute />);
+    await renderWith(runtime, <HapusAkunRoute />);
     const send = await screen.findByRole("button", { name: "Kirim permintaan hapus akun" });
     expect(StyleSheet.flatten(send.props.style).backgroundColor).toBe(nativeThemes.light.danger);
     expect(StyleSheet.flatten(within(send).getByText("Kirim permintaan hapus akun").props.style).color).toBe(nativeThemes.light.cream);
@@ -346,7 +346,7 @@ describe("Hapus akun", () => {
   it("the callout reads at font 1.3 and 360dp: every line wraps, none is cut", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
     const { runtime } = runtimeWith({ user: phoneUser, state: eightPlans() });
-    renderWith(runtime, <HapusAkunRoute />);
+    await renderWith(runtime, <HapusAkunRoute />);
     const callout = await screen.findByTestId("hapus-akun-plans");
     for (const text of within(callout).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
     expect(StyleSheet.flatten(callout.props.style).height).toBeUndefined();
@@ -357,7 +357,7 @@ describe("Hapus akun", () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
     const state = { ...customerState(null), subscriptions: [running("Makan Siang Rumahan", "s-1")] };
     const { runtime } = runtimeWith({ user: phoneUser, state });
-    renderWith(runtime, <HapusAkunRoute />);
+    await renderWith(runtime, <HapusAkunRoute />);
     const callout = await screen.findByTestId("hapus-akun-plans");
     expect(await within(callout).findByText("1 plan still running")).toBeTruthy();
     expect(StyleSheet.flatten(callout.props.style).borderRadius).toBe(nativeLayout.radius.card);
@@ -366,7 +366,7 @@ describe("Hapus akun", () => {
   it("Hapus akun with a running plan sends the request with the plan names for the team", async () => {
     const state = { ...customerState(null), subscriptions: [running("Makan Siang Rumahan", "s-1"), running("Paket Sehat", "s-2")] };
     const { runtime } = runtimeWith({ user: phoneUser, state });
-    renderWith(runtime, <HapusAkunRoute />);
+    await renderWith(runtime, <HapusAkunRoute />);
     const plans = within(await screen.findByTestId("hapus-akun-plans"));
     expect(plans.getByText("2 paket masih berjalan")).toBeTruthy();
     expect(plans.queryByText("Makan Siang Rumahan")).toBeNull();
@@ -374,7 +374,7 @@ describe("Hapus akun", () => {
     expect(plans.getByText(consequences[2])).toBeTruthy();
     // The primary action is pinned in the sheet's footer, not in the scrolling content.
     expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim permintaan hapus akun" })).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan hapus akun" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan hapus akun" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "accountRequest.create",
@@ -393,8 +393,8 @@ describe("Hapus akun", () => {
 
   it("with no running plan it says nothing about plans", async () => {
     const { runtime } = runtimeWith({ user: phoneUser, state: { ...customerState(null), subscriptions: [] } });
-    renderWith(runtime, <HapusAkunRoute />);
-    fireEvent.press(await screen.findByRole("button", { name: "Kirim permintaan hapus akun" }));
+    await renderWith(runtime, <HapusAkunRoute />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Kirim permintaan hapus akun" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "accountRequest.create",
@@ -408,19 +408,19 @@ describe("Hapus akun", () => {
   it("a failure stays at the button and sending again works from the same sheet", async () => {
     const { runtime } = runtimeWith({ user: phoneUser, state: { ...customerState(null), subscriptions: [] } });
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" }));
-    renderWith(runtime, <HapusAkunRoute />);
-    fireEvent.press(await screen.findByRole("button", { name: "Kirim permintaan hapus akun" }));
+    await renderWith(runtime, <HapusAkunRoute />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Kirim permintaan hapus akun" }));
     expect(await screen.findByTestId("hapus-akun-error")).toBeTruthy();
     expect(screen.queryByTestId("hapus-akun-sent")).toBeNull();
     // Sending again works from the same sheet.
-    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan hapus akun" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan hapus akun" }));
     expect(await screen.findByTestId("hapus-akun-sent")).toBeTruthy();
   });
 
   it("links the privacy page", async () => {
     const { runtime } = runtimeWith({ user: phoneUser, state: { ...customerState(null), subscriptions: [] } });
-    renderWith(runtime, <HapusAkunRoute />);
-    fireEvent.press(await screen.findByRole("button", { name: "Baca kebijakan privasi" }));
+    await renderWith(runtime, <HapusAkunRoute />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Baca kebijakan privasi" }));
     expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith("https://api.example.test/syarat-dan-privasi#privasi");
   });
 });
@@ -430,7 +430,7 @@ describe("Data akun reads", () => {
   it("holds the session rows as a skeleton while the session is read, never 'Belum ada'", async () => {
     const { runtime, auth } = runtimeWith({ user: phoneUser });
     auth.getSession.mockImplementation(() => new Promise(() => undefined));
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     expect(await screen.findByRole("button", { name: /^Nama, / })).toBeTruthy();
     expect(screen.getByLabelText("Memuat data akun")).toBeTruthy();
     expect(screen.getAllByTestId("list-skeleton-row")).toHaveLength(2);
@@ -442,11 +442,11 @@ describe("Data akun reads", () => {
   it("a failed session read says so with Coba lagi, and the retry brings the rows", async () => {
     const { runtime, auth } = runtimeWith({ user: phoneUser });
     auth.getSession.mockRejectedValueOnce(new Error("offline"));
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     expect(await screen.findByText(/^Belum bisa memuat nomor HP dan email/)).toBeTruthy();
     expect(screen.queryByText("Belum ada")).toBeNull();
     expect(screen.queryByTestId("list-skeleton")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-3456-7890/ })).toBeTruthy();
     expect(screen.queryByText(/^Belum bisa memuat nomor HP/)).toBeNull();
   });
@@ -454,27 +454,27 @@ describe("Data akun reads", () => {
   it("a session read that resolves with an error (expired token, offline) is a failure, not 'Belum ada'", async () => {
     const { runtime, auth } = runtimeWith({ user: phoneUser });
     auth.getSession.mockResolvedValueOnce({ data: { session: null }, error: new Error("fetch failed") });
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     expect(await screen.findByText(/^Belum bisa memuat nomor HP dan email/)).toBeTruthy();
     expect(screen.queryByText("Belum ada")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, 0812-3456-7890/ })).toBeTruthy();
   });
 
   it("a person with no phone or email still reads 'Belum ada' once the session answered", async () => {
     const { runtime } = runtimeWith({ user: { id: "u-c1", app_metadata: { provider: "email" } } });
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     expect(await screen.findByRole("button", { name: /^Nomor WhatsApp, Belum ada/ })).toBeTruthy();
   });
 
   it("a failed read of the deletion request offers a retry for that section only", async () => {
     const { runtime } = runtimeWith({ user: phoneUser });
     (runtime.api.request as jest.Mock).mockRejectedValueOnce(new Error("REQUEST_TIMEOUT"));
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     expect(await screen.findByText(/^Belum bisa memeriksa permintaan hapus akun/)).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Nomor WhatsApp, 0812/ })).toBeTruthy();
     (runtime.api.request as jest.Mock).mockResolvedValueOnce([{ id: "r1", kind: "deletion", status: "open" }]);
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Permintaan sudah terkirim")).toBeTruthy();
     expect(screen.queryByText(/^Belum bisa memeriksa permintaan/)).toBeNull();
   });

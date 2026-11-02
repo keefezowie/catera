@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { iconsIn } from "./find-hosts";
 import { AccessibilityInfo } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { FormError, Field, PasswordField, PasswordMatch, PasswordRule, useFieldCheck } from "@catera/mobile-ui";
@@ -32,95 +32,95 @@ describe("form primitives", () => {
     focusName.mockClear();
   });
 
-  it("no message while typing for the first time", () => {
-    render(<Form />);
-    fireEvent.changeText(screen.getByLabelText("Email"), "abc");
+  it("no message while typing for the first time", async () => {
+    await render(<Form />);
+    await fireEvent.changeText(screen.getByLabelText("Email"), "abc");
     expect(screen.queryByText("Format email belum benar.")).toBeNull();
   });
 
-  it("blur with text shows the message", () => {
-    render(<Form />);
-    fireEvent.changeText(screen.getByLabelText("Email"), "abc");
-    fireEvent(screen.getByLabelText("Email"), "blur");
+  it("blur with text shows the message", async () => {
+    await render(<Form />);
+    await fireEvent.changeText(screen.getByLabelText("Email"), "abc");
+    await fireEvent(screen.getByLabelText("Email"), "blur");
     expect(screen.getByText("Format email belum benar.")).toBeTruthy();
     expect(screen.getByLabelText("Email").props.accessibilityHint).toBe("Format email belum benar.");
   });
 
-  it("an empty field left on blur stays quiet", () => {
-    render(<Form />);
-    fireEvent(screen.getByLabelText("Email"), "blur");
+  it("an empty field left on blur stays quiet", async () => {
+    await render(<Form />);
+    await fireEvent(screen.getByLabelText("Email"), "blur");
     expect(screen.queryByText("Format email belum benar.")).toBeNull();
   });
 
-  it("re-checks on change once shown", () => {
-    render(<Form />);
+  it("re-checks on change once shown", async () => {
+    await render(<Form />);
     const input = screen.getByLabelText("Email");
-    fireEvent.changeText(input, "abc");
-    fireEvent(input, "blur");
-    fireEvent.changeText(input, "a@b.co");
+    await fireEvent.changeText(input, "abc");
+    await fireEvent(input, "blur");
+    await fireEvent.changeText(input, "a@b.co");
     expect(screen.queryByText("Format email belum benar.")).toBeNull();
-    fireEvent.changeText(input, "a@b");
+    await fireEvent.changeText(input, "a@b");
     expect(screen.getByText("Format email belum benar.")).toBeTruthy();
   });
 
-  it("submit focuses the first failing field and announces the count", () => {
+  it("submit focuses the first failing field and announces the count", async () => {
     const spy = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     const onRun = jest.fn();
-    render(<Form onRun={onRun} />);
-    fireEvent.press(screen.getByText("Kirim"));
+    await render(<Form onRun={onRun} />);
+    await fireEvent.press(screen.getByText("Kirim"));
     expect(spy).toHaveBeenCalledWith("2 isian perlu diperbaiki");
     expect(screen.getByText("Tulis namamu.")).toBeTruthy();
     expect(onRun).not.toHaveBeenCalled();
     expect(focusName).toHaveBeenCalledTimes(1);
   });
 
-  it("submit runs when all checks pass", () => {
+  it("submit runs when all checks pass", async () => {
     const onRun = jest.fn();
-    render(<Form onRun={onRun} />);
-    fireEvent.changeText(screen.getByLabelText("Nama"), "Sari");
-    fireEvent.changeText(screen.getByLabelText("Email"), "a@b.co");
-    fireEvent.press(screen.getByText("Kirim"));
+    await render(<Form onRun={onRun} />);
+    await fireEvent.changeText(screen.getByLabelText("Nama"), "Sari");
+    await fireEvent.changeText(screen.getByLabelText("Email"), "a@b.co");
+    await fireEvent.press(screen.getByText("Kirim"));
     expect(onRun).toHaveBeenCalledTimes(1);
   });
 
-  it("PasswordRule announces met once", () => {
+  it("PasswordRule announces met once", async () => {
     const spy = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     spy.mockClear();
-    const view = render(<PasswordRule value="abc" failed={false} />);
+    const view = await render(<PasswordRule value="abc" failed={false} />);
     expect(spy).not.toHaveBeenCalled();
-    view.rerender(<PasswordRule value="abcdefgh" failed={false} />);
-    view.rerender(<PasswordRule value="abcdefghi" failed={false} />);
+    await view.rerender(<PasswordRule value="abcdefgh" failed={false} />);
+    await view.rerender(<PasswordRule value="abcdefghi" failed={false} />);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith("Syarat kata sandi terpenuhi");
     expect(screen.getByText("Minimal 8 karakter")).toBeTruthy();
   });
 
-  it("PasswordRule failed and short shows danger text with the alert glyph", () => {
-    render(<PasswordRule value="abc" failed />);
+  it("PasswordRule failed and short shows danger text with the alert glyph", async () => {
+    await render(<PasswordRule value="abc" failed />);
     expect(screen.getByText("Minimal 8 karakter")).toBeTruthy();
-    expect(screen.getByTestId("password-rule").findByType(Ionicons).props.name).toBe("alert-circle");
+    expect(iconsIn(screen.getByTestId("password-rule")).map((i) => i.name)).toEqual(["alert-circle"]);
   });
 
-  it("submit with one failing field announces a count of one", () => {
+  it("submit with one failing field announces a count of one", async () => {
     const spy = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     spy.mockClear();
-    const view = render(<Form />);
-    fireEvent.changeText(screen.getByLabelText("Nama"), "Sari");
-    fireEvent.press(screen.getByText("Kirim"));
+    const view = await render(<Form />);
+    await fireEvent.changeText(screen.getByLabelText("Nama"), "Sari");
+    await fireEvent.press(screen.getByText("Kirim"));
     expect(spy).toHaveBeenCalledWith("1 isian perlu diperbaiki");
-    view.unmount();
+    await view.unmount();
   });
 
-  it("PasswordMatch quiet until the second field is as long as the first", () => {
-    const view = render(<PasswordMatch first="abcdefgh" second="abc" touched={false} />);
+  it("PasswordMatch quiet until the second field is as long as the first", async () => {
+    const view = await render(<PasswordMatch first="abcdefgh" second="abc" touched={false} />);
     expect(screen.queryByTestId("password-match")).toBeNull();
-    view.rerender(<PasswordMatch first="abcdefgh" second="abcdefgx" touched={false} />);
+    await view.rerender(<PasswordMatch first="abcdefgh" second="abcdefgx" touched={false} />);
     expect(screen.getByText("Kata sandinya belum sama.")).toBeTruthy();
-    view.rerender(<PasswordMatch first="abcdefgh" second="abcdefgh" touched={false} />);
+    await view.rerender(<PasswordMatch first="abcdefgh" second="abcdefgh" touched={false} />);
     expect(screen.getByText("Kata sandinya sama")).toBeTruthy();
   });
 
-  it("toggling a controlled PasswordField pair shows both", () => {
+  it("toggling a controlled PasswordField pair shows both", async () => {
     function Pair() {
       const [shown, setShown] = useState(false);
       const p = { showA11y: "Tampilkan", hideA11y: "Sembunyikan", shown, onShownChange: setShown };
@@ -131,21 +131,21 @@ describe("form primitives", () => {
         </>
       );
     }
-    render(<Pair />);
+    await render(<Pair />);
     expect(screen.getByLabelText("Sandi").props.secureTextEntry).toBe(true);
-    fireEvent.press(screen.getAllByLabelText("Tampilkan")[0]);
+    await fireEvent.press(screen.getAllByLabelText("Tampilkan")[0]);
     expect(screen.getByLabelText("Sandi").props.secureTextEntry).toBe(false);
     expect(screen.getByLabelText("Ulangi").props.secureTextEntry).toBe(false);
   });
 
-  it("FormError action calls onPress, and retry still works", () => {
+  it("FormError action calls onPress, and retry still works", async () => {
     const onPress = jest.fn();
     const retry = jest.fn();
-    const view = render(<FormError message="x" action={{ label: "Kirim lagi", onPress }} />);
-    fireEvent.press(screen.getByText("Kirim lagi"));
+    const view = await render(<FormError message="x" action={{ label: "Kirim lagi", onPress }} />);
+    await fireEvent.press(screen.getByText("Kirim lagi"));
     expect(onPress).toHaveBeenCalled();
-    view.rerender(<FormError message="x" retry={retry} />);
-    fireEvent.press(screen.getByText("Coba lagi"));
+    await view.rerender(<FormError message="x" retry={retry} />);
+    await fireEvent.press(screen.getByText("Coba lagi"));
     expect(retry).toHaveBeenCalled();
   });
 });

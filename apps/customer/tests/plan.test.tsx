@@ -80,8 +80,8 @@ function runtimeWith(read: () => Promise<unknown>, usage: UsageMock = jest.fn(as
   return runtime;
 }
 
-const renderPlan = (runtime: MobileRuntime) =>
-  render(
+const renderPlan = async (runtime: MobileRuntime) =>
+  await render(
     <LayoutScaleProvider value="v2">
       <MobileProvider runtime={runtime} linkMapper={customerLink}>
         <PlanDetailScreen />
@@ -140,7 +140,7 @@ afterEach(() => {
 
 describe("Plan detail states", () => {
   it("loading shows the plan skeleton, named Memuat paket, while the read is pending", async () => {
-    renderPlan(runtimeWith(() => new Promise(() => undefined)));
+    await renderPlan(runtimeWith(() => new Promise(() => undefined)));
     expect(await screen.findByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
     expect(screen.getByTestId("plan-skeleton")).toBeTruthy();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
@@ -150,19 +150,19 @@ describe("Plan detail states", () => {
     const runtime = runtimeWith(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
-    renderPlan(runtime);
+    await renderPlan(runtime);
     // Nothing is kept to show: the failure is the page, with the read error's own words and the way to try again.
     expect(await screen.findByText("Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledTimes(2));
   });
 
   it("a cold link to a plan the read does not hold says so and goes home (Review Focus 1)", async () => {
     mockParams = { id: "s-cancelled-elsewhere" };
     const usage: UsageMock = jest.fn(async () => undefined);
-    renderPlan(runtimeWith(async () => planState(), usage));
+    await renderPlan(runtimeWith(async () => planState(), usage));
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
     expect(router.replace).toHaveBeenCalledWith("/");
     expect(usageNames(usage)).not.toContain("plan_sheet_opened");
   });
@@ -172,12 +172,12 @@ describe("Plan detail states", () => {
     const nativeTitle = () => within(screen.getByTestId("screen-native-title")).getByRole("header").props.children;
     // Loading: the carried name, so "Paket" never flashes.
     mockParams = { id: "s-1", title: carried };
-    let view = renderPlan(runtimeWith(() => new Promise(() => undefined)));
+    let view = await renderPlan(runtimeWith(() => new Promise(() => undefined)));
     await screen.findByTestId("plan-skeleton");
     expect(nativeTitle()).toBe(carried);
-    view.unmount();
+    await view.unmount();
     // A failed read: the carried name was never checked against a plan, so the screen is "Paket" again.
-    view = renderPlan(
+    view = await renderPlan(
       runtimeWith(async () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
@@ -185,24 +185,24 @@ describe("Plan detail states", () => {
     await screen.findByText("Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.");
     expect(nativeTitle()).toBe("Paket");
     expect(screen.queryByText(carried)).toBeNull();
-    view.unmount();
+    await view.unmount();
     // A plan the read does not hold.
     mockParams = { id: "s-cancelled-elsewhere", title: carried };
-    view = renderPlan(runtimeWith(async () => planState()));
+    view = await renderPlan(runtimeWith(async () => planState()));
     await screen.findByText("Paket tidak ditemukan.");
     expect(nativeTitle()).toBe("Paket");
     expect(screen.queryByText(carried)).toBeNull();
-    view.unmount();
+    await view.unmount();
     // A long carried name is capped at 60 characters, at a word, with "…".
     mockParams = { id: "s-1", title: "Paket Makan Siang Rumahan Sehat Sekeluarga Lima Hari Kerja Penuh Gizi Seimbang" };
-    renderPlan(runtimeWith(() => new Promise(() => undefined)));
+    await renderPlan(runtimeWith(() => new Promise(() => undefined)));
     await screen.findByTestId("plan-skeleton");
     expect(nativeTitle()).toBe("Paket Makan Siang Rumahan Sehat Sekeluarga Lima Hari Kerja…");
   });
 
   it("pulling down reads the plan again, and a page with no plan yet has no pull", async () => {
     const runtime = runtimeWith(async () => planState());
-    renderPlan(runtime);
+    await renderPlan(runtime);
     await screen.findByTestId("plan-hero");
     const control = () => screen.getByTestId("screen-scroll").props.refreshControl;
     expect(control()).toBeTruthy();
@@ -212,13 +212,13 @@ describe("Plan detail states", () => {
   });
 
   it("a failed first read has no pull to refresh, only Coba lagi", async () => {
-    renderPlan(runtimeWith(async () => { throw new Error("offline"); }));
+    await renderPlan(runtimeWith(async () => { throw new Error("offline"); }));
     await screen.findByRole("button", { name: "Coba lagi" });
     expect(screen.getByTestId("screen-scroll").props.refreshControl).toBeUndefined();
   });
 
   it("an active plan that is not due: native title, hero with days left, no footer action", async () => {
-    renderPlan(runtimeWith(async () => planState()));
+    await renderPlan(runtimeWith(async () => planState()));
     // The package name is the screen's native title (Android's first content line; iOS's large title) and there is no
     // mood header: the back is the platform's own. The caterer moved into the hero's meta line.
     // Waits for the plan itself: before the session is read the screen already has a title, over its skeleton.
@@ -239,7 +239,7 @@ describe("Plan detail states", () => {
   });
 
   it("the hero card is the Beranda hero's: photo 16:10 on top, radius 16 with no 10 frame, the mood fill with its shadow", async () => {
-    renderPlan(runtimeWith(async () => planState()));
+    await renderPlan(runtimeWith(async () => planState()));
     const hero = await screen.findByTestId("plan-hero");
     expect(flat(hero)).toMatchObject({ borderRadius: nativeLayout.radius.card });
     expect(flat(hero).padding).toBeUndefined();
@@ -262,7 +262,7 @@ describe("Plan detail states", () => {
   });
 
   it("the hero's headline is the 24/30 heroTitle, its caterer and dates are meta lines", async () => {
-    renderPlan(runtimeWith(async () => planState()));
+    await renderPlan(runtimeWith(async () => planState()));
     const hero = await screen.findByTestId("plan-hero");
     expect(flat(within(hero).getByText("6 hari lagi"))).toMatchObject({ fontSize: 24, lineHeight: 30 });
     expect(flat(within(hero).getByText("Dapur Contoh · makan siang"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
@@ -270,7 +270,7 @@ describe("Plan detail states", () => {
   });
 
   it("Berikutnya is a section heading over one card of this plan's next five days as 72 media rows", async () => {
-    renderPlan(runtimeWith(async () => planState()));
+    await renderPlan(runtimeWith(async () => planState()));
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
     expect(flat(screen.getByText("Berikutnya"))).toMatchObject({ fontSize: 20, lineHeight: 26 });
     expect(screen.getAllByTestId("list-card")).toHaveLength(1);
@@ -292,13 +292,13 @@ describe("Plan detail states", () => {
     expect(within(rows[2]).getByText("Ikan bakar")).toBeTruthy();
     // The photo is a plain 56 thumb, not the old ring.
     expect(screen.queryByTestId("photo-ring", { includeHiddenElements: true })).toBeNull();
-    fireEvent.press(rows[1]);
+    await fireEvent.press(rows[1]);
     // The link carries the day, so the day sheet's bar is final on its first frame.
     expect(router.push).toHaveBeenCalledWith(`/hari/d-1?title=${encodeURIComponent(shortDate(at(1), "id"))}`);
   });
 
   it("the date is the title the row must show, so it may wrap at large text while the dishes stay one line", async () => {
-    renderPlan(runtimeWith(async () => planState()));
+    await renderPlan(runtimeWith(async () => planState()));
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
     const row = screen.getAllByTestId("plan-upcoming-row")[1];
     expect(within(row).getByText(`Besok, ${shortDate(at(1), "id")}`).props.numberOfLines).toBeUndefined();
@@ -307,7 +307,7 @@ describe("Plan detail states", () => {
 
   it("a day whose menu is not set says so on a not-set thumb", async () => {
     const bare = delivery("d-1", at(1), {}, { offer: offer({ menus: [] }) });
-    renderPlan(runtimeWith(async () => planState({}, { deliveries: [bare] })));
+    await renderPlan(runtimeWith(async () => planState({}, { deliveries: [bare] })));
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
     const row = screen.getByTestId("plan-upcoming-row");
     expect(within(row).getByText("Menu belum diisi")).toBeTruthy();
@@ -315,7 +315,7 @@ describe("Plan detail states", () => {
   });
 
   it("the rows carry no per-row ...: every day action lives in the day sheet", async () => {
-    renderPlan(runtimeWith(async () => planState()));
+    await renderPlan(runtimeWith(async () => planState()));
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
     expect(screen.queryByTestId("header-more")).toBeNull();
     expect(screen.queryByTestId("day-more-slot", { includeHiddenElements: true })).toBeNull();
@@ -324,7 +324,7 @@ describe("Plan detail states", () => {
 
   it("offline, the kept copy still lists the rows (they open the day sheet) and offers no action", async () => {
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValueOnce({ savedAt: "2026-10-07T23:12:00Z", data: planState() });
-    renderPlan(
+    await renderPlan(
       runtimeWith(async () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
@@ -337,7 +337,7 @@ describe("Plan detail states", () => {
 
   it("today's day leaves Berikutnya once its meal has arrived", async () => {
     const deliveries = [delivery("d-today", DAY, { status: "delivered" }), delivery("d-1", at(1))];
-    renderPlan(runtimeWith(async () => planState({}, { deliveries })));
+    await renderPlan(runtimeWith(async () => planState({}, { deliveries })));
     expect(await screen.findByText("Berikutnya")).toBeTruthy();
     const rows = screen.getAllByTestId("plan-upcoming-row");
     expect(rows).toHaveLength(1);
@@ -346,7 +346,7 @@ describe("Plan detail states", () => {
 
   it("a one-day trial on its day lists that day under Berikutnya, not an empty line", async () => {
     const trial = { offer: offer(), total: 30000, trial: true } as unknown as Subscription["snapshot"];
-    renderPlan(
+    await renderPlan(
       runtimeWith(async () =>
         planState(
           { snapshot: trial, starts_on: DAY, ends_on: DAY, remaining: 1 },
@@ -360,13 +360,13 @@ describe("Plan detail states", () => {
     expect(rows).toHaveLength(1);
     expect(within(rows[0]).getByText(shortDate(DAY, "id"))).toBeTruthy();
     expect(screen.queryByText("Belum ada pengantaran berikutnya.")).toBeNull();
-    fireEvent.press(rows[0]);
+    await fireEvent.press(rows[0]);
     expect(router.push).toHaveBeenCalledWith(`/hari/d-today?title=${encodeURIComponent(shortDate(DAY, "id"))}`);
   });
 
   it("in dark the hero's text reads the mood's hero inks and the rows sit on the dark surface", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    render(
+    await render(
       <LayoutScaleProvider value="v2">
         <ThemeProvider storageKey="plan-dark-test">
           <MobileProvider runtime={runtimeWith(async () => planState())} linkMapper={customerLink}>
@@ -382,7 +382,7 @@ describe("Plan detail states", () => {
   });
 
   it("the sticky action keeps its place and conditions under the new hero (renewal due)", async () => {
-    renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) })));
+    await renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) })));
     const action = await screen.findByTestId("sticky-action");
     expect(within(action).getByRole("button", { name: "Perpanjang" })).toBeTruthy();
     // The hero carries no second renew button: the one primary control is the footer.
@@ -391,16 +391,16 @@ describe("Plan detail states", () => {
 
   it("an active plan due for renewal: Perpanjang opens Perpanjang and counts renew_started", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
-    renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) }), usage));
+    await renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) }), usage));
     const action = await screen.findByTestId("sticky-action");
-    fireEvent.press(within(action).getByRole("button", { name: "Perpanjang" }));
+    await fireEvent.press(within(action).getByRole("button", { name: "Perpanjang" }));
     expect(router.push).toHaveBeenCalledWith("/renew/s-1");
     expect(usageNames(usage).filter((n) => n === "renew_started")).toHaveLength(1);
   });
 
   it("a plan already renewed says Sudah diperpanjang and offers no renewal (Review Focus 2)", async () => {
     const next = subscription({ id: "s-2", renewed_from: "s-1", starts_on: at(3), ends_on: at(10), remaining: 5 });
-    renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) }, { subscriptions: [next] })));
+    await renderPlan(runtimeWith(async () => planState({ remaining: 2, ends_on: at(2) }, { subscriptions: [next] })));
     expect(await screen.findByText("Sudah diperpanjang")).toBeTruthy();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
     expect(screen.queryByText("Perpanjang")).toBeNull();
@@ -409,16 +409,16 @@ describe("Plan detail states", () => {
   it("a trial invites the full package and counts no renewal", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     const trial = { offer: offer(), total: 30000, trial: true } as unknown as Subscription["snapshot"];
-    renderPlan(runtimeWith(async () => planState({ snapshot: trial, remaining: 1, ends_on: at(1) }), usage));
+    await renderPlan(runtimeWith(async () => planState({ snapshot: trial, remaining: 1, ends_on: at(1) }), usage));
     const action = await screen.findByTestId("sticky-action");
-    fireEvent.press(within(action).getByRole("button", { name: "Perpanjang paket penuh" }));
+    await fireEvent.press(within(action).getByRole("button", { name: "Perpanjang paket penuh" }));
     // Paket opens named after the package, never "Paket", while it loads.
     expect(router.push).toHaveBeenCalledWith(`/paket/p-rumahan?title=${encodeURIComponent(offer().name)}`);
     expect(usageNames(usage)).not.toContain("renew_started");
   });
 
   it("a completed plan reads Paket selesai with its dates, no upcoming days, and offers to continue", async () => {
-    renderPlan(
+    await renderPlan(
       runtimeWith(async () =>
         planState({ status: "completed", remaining: 0, starts_on: at(-7), ends_on: at(-3) }, { deliveries: [] }),
       ),
@@ -435,7 +435,7 @@ describe("Plan detail states", () => {
     ["a completed one-day plan", { status: "completed", starts_on: at(-1), ends_on: at(-1), remaining: 0 }, at(-1)],
     ["a cancelled one-day plan", { status: "cancelled", starts_on: at(3), ends_on: at(3), remaining: 1 }, at(3)],
   ] as const)("%s shows its single date, not the same day twice", async (_why, sub, day) => {
-    renderPlan(runtimeWith(async () => planState(sub as Partial<Subscription>, { deliveries: [] })));
+    await renderPlan(runtimeWith(async () => planState(sub as Partial<Subscription>, { deliveries: [] })));
     const hero = await screen.findByTestId("plan-hero");
     expect(within(hero).getByText(shortDate(day, "id"))).toBeTruthy();
     expect(within(hero).queryByText(/–/)).toBeNull();
@@ -443,7 +443,7 @@ describe("Plan detail states", () => {
 
   it("a cancelled plan reads Paket dibatalkan with its dates, and offers nothing and lists nothing", async () => {
     // The plan's later days are still in the read; a cancelled plan does not list them as coming up.
-    renderPlan(runtimeWith(async () => planState({ status: "cancelled", remaining: 4 })));
+    await renderPlan(runtimeWith(async () => planState({ status: "cancelled", remaining: 4 })));
     const hero = await screen.findByTestId("plan-hero");
     expect(within(hero).getByText("Paket dibatalkan")).toBeTruthy();
     expect(within(hero).getByText(`${shortDate(at(-3), "id")} sampai ${shortDate(at(7), "id")}`)).toBeTruthy();
@@ -455,11 +455,11 @@ describe("Plan detail states", () => {
 
   it("a plan in a status the screen does not know reads as not found and goes home", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
-    renderPlan(runtimeWith(async () => planState({ status: "paused" }), usage));
+    await renderPlan(runtimeWith(async () => planState({ status: "paused" }), usage));
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
     expect(screen.queryByTestId("plan-hero")).toBeNull();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
     expect(router.replace).toHaveBeenCalledWith("/");
     expect(usageNames(usage)).not.toContain("plan_sheet_opened");
   });
@@ -473,7 +473,7 @@ describe("Plan detail states", () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
     goOffline();
-    renderPlan(runtime);
+    await renderPlan(runtime);
     expect(await screen.findByText("2 hari lagi")).toBeTruthy();
     expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
     expect(screen.getByText(keptLine("2026-10-07T23:12:00Z"))).toBeTruthy();
@@ -486,9 +486,9 @@ describe("Plan detail states", () => {
   it("counts plan_sheet_opened once per open, however often the screen renders", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     const runtime = runtimeWith(async () => planState(), usage);
-    const view = renderPlan(runtime);
+    const view = await renderPlan(runtime);
     expect(await screen.findByText("6 hari lagi")).toBeTruthy();
-    view.rerender(
+    await view.rerender(
       <LayoutScaleProvider value="v2">
         <MobileProvider runtime={runtime} linkMapper={customerLink}>
           <PlanDetailScreen />
@@ -497,8 +497,8 @@ describe("Plan detail states", () => {
     );
     await act(async () => undefined);
     expect(usageNames(usage).filter((n) => n === "plan_sheet_opened")).toHaveLength(1);
-    view.unmount();
-    renderPlan(runtime);
+    await view.unmount();
+    await renderPlan(runtime);
     expect(await screen.findByText("6 hari lagi")).toBeTruthy();
     await waitFor(() => expect(usageNames(usage).filter((n) => n === "plan_sheet_opened")).toHaveLength(2));
   });
@@ -512,8 +512,8 @@ describe("Plan detail chat in the native header", () => {
     const calls = navigation.setOptions.mock.calls.filter(([o]) => "headerRight" in (o as object));
     return calls.length ? (calls[calls.length - 1][0] as { headerRight: HeaderRight }).headerRight : undefined;
   };
-  const renderInStack = (runtime: MobileRuntime) =>
-    render(
+  const renderInStack = async (runtime: MobileRuntime) =>
+    await render(
       <NavigationContext.Provider value={navigation as never}>
         <MobileProvider runtime={runtime} linkMapper={customerLink}>
           <PlanDetailScreen />
@@ -526,20 +526,20 @@ describe("Plan detail chat in the native header", () => {
 
   it("a plan with the caterer's number gets a trailing chat button that opens WhatsApp", async () => {
     const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
-    renderInStack(runtimeWith(async () => withPhone()));
+    await renderInStack(runtimeWith(async () => withPhone()));
     expect(await screen.findByTestId("plan-hero")).toBeTruthy();
     await waitFor(() => expect(lastHeaderRight()).toBeDefined());
-    const bar = render(lastHeaderRight()!());
+    const bar = await render(lastHeaderRight()!());
     const chat = bar.getByRole("button", { name: "Chat Dapur Contoh" });
     expect(chat.props.testID).toBe("header-chat");
-    fireEvent.press(chat);
+    await fireEvent.press(chat);
     // The same link ChatKatering opens: wa.me with the number in international form and no prefilled text.
     expect(openUrl).toHaveBeenCalledWith("https://wa.me/6281234567890?text=");
     openUrl.mockRestore();
   });
 
   it("a plan without the caterer's number has no chat button", async () => {
-    renderInStack(runtimeWith(async () => planState()));
+    await renderInStack(runtimeWith(async () => planState()));
     expect(await screen.findByTestId("plan-hero")).toBeTruthy();
     await act(async () => undefined);
     expect(navigation.setOptions).toHaveBeenCalledWith(expect.objectContaining({ headerRight: undefined }));
@@ -548,7 +548,7 @@ describe("Plan detail chat in the native header", () => {
 
   it("another plan's number does not put a chat button on this plan", async () => {
     const other = delivery("d-other", at(2), {}, { subscription_id: "s-other", catererPhone: PHONE });
-    renderInStack(runtimeWith(async () => planState({}, { deliveries: [delivery("d-today", DAY), other] })));
+    await renderInStack(runtimeWith(async () => planState({}, { deliveries: [delivery("d-today", DAY), other] })));
     expect(await screen.findByTestId("plan-hero")).toBeTruthy();
     await act(async () => undefined);
     expect(lastHeaderRight()).toBeUndefined();

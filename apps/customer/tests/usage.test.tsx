@@ -95,10 +95,10 @@ describe("usage counts", () => {
   it("useTrack sends the name with this app", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     const runtime = runtimeWith(customer, usage);
-    mount(runtime);
+    await mount(runtime);
     await waitFor(() => expect(runtime.api.me).toHaveBeenCalled());
     await waitFor(() => expect(appOpenCalls(usage)).toHaveLength(1));
-    act(() => track("journey_viewed"));
+    await act(() => track("journey_viewed"));
     expect(usage).toHaveBeenCalledWith("journey_viewed", "customer");
   });
 
@@ -112,10 +112,10 @@ describe("usage counts", () => {
       jest.spyOn(console, "warn").mockImplementation(() => undefined),
       jest.spyOn(console, "log").mockImplementation(() => undefined),
     ];
-    mount(runtime);
+    await mount(runtime);
     await waitFor(() => expect(appOpenCalls(usage)).toHaveLength(1));
     let result: unknown = "unset";
-    expect(() => act(() => void (result = track("plan_sheet_opened")))).not.toThrow();
+    await act(() => void (result = track("plan_sheet_opened")));
     expect(result).toBeUndefined();
     await settle();
     expect(usage).toHaveBeenCalledWith("plan_sheet_opened", "customer");
@@ -129,18 +129,18 @@ describe("usage counts", () => {
       throw new Error("synchronous failure");
     });
     const runtime = runtimeWith(customer, usage);
-    mount(runtime);
+    await mount(runtime);
     await waitFor(() => expect(usage).toHaveBeenCalled());
-    expect(() => act(() => track("journey_viewed"))).not.toThrow();
+    await act(() => track("journey_viewed"));
   });
 
   it("does nothing without an actor", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     const runtime = runtimeWith(null, usage);
-    mount(runtime);
+    await mount(runtime);
     await waitFor(() => expect(runtime.api.me).toHaveBeenCalled());
     await settle();
-    act(() => track("journey_viewed"));
+    await act(() => track("journey_viewed"));
     await becomeActive();
     await settle();
     expect(usage).not.toHaveBeenCalled();
@@ -149,7 +149,7 @@ describe("usage counts", () => {
   it("app_open is sent once on mount, not on a later foreground the same Jakarta day", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     const runtime = runtimeWith(customer, usage);
-    mount(runtime);
+    await mount(runtime);
     await waitFor(() => expect(appOpenCalls(usage)).toHaveLength(1));
     expect(appOpenCalls(usage)[0]).toEqual(["app_open", "customer"]);
     await waitFor(() =>
@@ -166,7 +166,7 @@ describe("usage counts", () => {
   it("app_open counts again once the clock passes midnight in Jakarta", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     const runtime = runtimeWith(customer, usage);
-    mount(runtime);
+    await mount(runtime);
     await waitFor(() => expect(appOpenCalls(usage)).toHaveLength(1));
     jest.setSystemTime(new Date(AFTER_MIDNIGHT_JAKARTA));
     // Two foreground events at once, before the store has answered, still make one count.
@@ -187,7 +187,7 @@ describe("usage counts", () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     await SecureStore.setItemAsync("catera.usage.app_open", "2026-10-08");
     const runtime = runtimeWith(customer, usage);
-    mount(runtime);
+    await mount(runtime);
     await waitFor(() => expect(runtime.api.me).toHaveBeenCalled());
     await settle();
     expect(appOpenCalls(usage)).toHaveLength(0);
@@ -202,7 +202,7 @@ describe("app_open waits for the server to confirm the account", () => {
     const runtime = runtimeWith(customer, usage);
     let answer: (v: { actor: typeof customer; demo: boolean }) => void = () => undefined;
     (runtime.api as unknown as { me: jest.Mock }).me = jest.fn(() => new Promise((resolve) => (answer = resolve as typeof answer)));
-    mount(runtime);
+    await mount(runtime);
     await waitFor(() => expect(runtime.api.me).toHaveBeenCalled());
     await settle();
     // The phone holds an account and paints from it, but nothing is confirmed yet.
@@ -221,7 +221,7 @@ describe("app_open waits for the server to confirm the account", () => {
     (runtime.api as unknown as { me: jest.Mock }).me = jest.fn(async () => {
       throw Object.assign(new Error("UNAUTHORIZED"), { code: "UNAUTHORIZED" });
     });
-    mount(runtime);
+    await mount(runtime);
     await waitFor(() => expect(runtime.api.me).toHaveBeenCalled());
     await settle();
     expect(usage).not.toHaveBeenCalled();

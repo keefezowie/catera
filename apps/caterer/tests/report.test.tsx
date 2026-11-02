@@ -31,8 +31,8 @@ function runtimeWith(issue: ReturnType<typeof report>, actor: Record<string, unk
   return runtime;
 }
 
-const show = (runtime: MobileRuntime) =>
-  render(
+const show = async (runtime: MobileRuntime) =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h}>
       <ReportScreen id="i-1" />
     </MobileProvider>,
@@ -47,7 +47,7 @@ beforeEach(() => {
 
 it("shows who reported what, for which day and meal, and when", async () => {
   const runtime = runtimeWith(report());
-  show(runtime);
+  await show(runtime);
   expect(await screen.findByText("Nadia Putri")).toBeTruthy();
   expect(runtime.api.request).toHaveBeenCalledWith("delivery-issues?id=k-1&issue=i-1");
   expect(screen.getByText("Kamis 8 Okt · Makan siang")).toBeTruthy();
@@ -62,14 +62,14 @@ it("shows who reported what, for which day and meal, and when", async () => {
 
 it("sends the reply text with Balas", async () => {
   const runtime = runtimeWith(report());
-  show(runtime);
+  await show(runtime);
   const balas = await screen.findByText("Balas");
-  fireEvent.changeText(screen.getByLabelText("Balasan untuk pelanggan"), "Oke");
-  fireEvent.press(balas);
+  await fireEvent.changeText(screen.getByLabelText("Balasan untuk pelanggan"), "Oke");
+  await fireEvent.press(balas);
   // Shorter than the five characters the server needs: nothing is sent.
   expect(runtime.api.command).not.toHaveBeenCalled();
-  fireEvent.changeText(screen.getByLabelText("Balasan untuk pelanggan"), "  Maaf, kami antar ulang sekarang.  ");
-  fireEvent.press(screen.getByText("Balas"));
+  await fireEvent.changeText(screen.getByLabelText("Balasan untuk pelanggan"), "  Maaf, kami antar ulang sekarang.  ");
+  await fireEvent.press(screen.getByText("Balas"));
   await waitFor(() =>
     expect(runtime.api.command).toHaveBeenCalledWith(
       "deliveryIssue.respond",
@@ -81,15 +81,15 @@ it("sends the reply text with Balas", async () => {
 
 it("says Balasan terkirim on the page once the reply is sent, and stays on the report", async () => {
   const runtime = runtimeWith(report());
-  render(
+  await render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h}>
       <ToastProvider>
         <ReportScreen id="i-1" />
       </ToastProvider>
     </MobileProvider>,
   );
-  fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
-  fireEvent.press(screen.getByText("Balas"));
+  await fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
+  await fireEvent.press(screen.getByText("Balas"));
   expect(await screen.findByText("Balasan terkirim")).toBeTruthy();
   expect(screen.getByLabelText("Balasan untuk pelanggan").props.value).toBe("");
   const { router } = jest.requireMock("expo-router") as { router: { back: jest.Mock } };
@@ -104,10 +104,10 @@ it("closes the report with Tandai selesai", async () => {
       events: [{ id: "e-1", action: "deliveryIssue.respond", body: "Kami antar ulang jam dua.", created_at: "2026-10-08T06:00:00Z" }],
     }),
   );
-  show(runtime);
+  await show(runtime);
   expect(await screen.findByText("Dibalas")).toBeTruthy();
   expect(screen.getByText("Kami antar ulang jam dua.")).toBeTruthy();
-  fireEvent.press(screen.getByText("Tandai selesai"));
+  await fireEvent.press(screen.getByText("Tandai selesai"));
   await waitFor(() =>
     expect(runtime.api.command).toHaveBeenCalledWith(
       "deliveryIssue.resolve",
@@ -119,9 +119,9 @@ it("closes the report with Tandai selesai", async () => {
 
 it("lets staff answer too, as the server allows", async () => {
   const runtime = runtimeWith(report(), staff);
-  show(runtime);
-  fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Kurir sedang menuju ke sana.");
-  fireEvent.press(screen.getByText("Tandai selesai"));
+  await show(runtime);
+  await fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Kurir sedang menuju ke sana.");
+  await fireEvent.press(screen.getByText("Tandai selesai"));
   await waitFor(() =>
     expect(runtime.api.command).toHaveBeenCalledWith(
       "deliveryIssue.resolve",
@@ -133,19 +133,19 @@ it("lets staff answer too, as the server allows", async () => {
 
 it("opens WhatsApp with the customer when they have a number", async () => {
   const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
-  show(runtimeWith(report()));
-  fireEvent.press(await screen.findByText("Chat WhatsApp"));
+  await show(runtimeWith(report()));
+  await fireEvent.press(await screen.findByText("Chat WhatsApp"));
   expect(open).toHaveBeenCalledWith("https://wa.me/6281234567001?text=");
 });
 
 it("offers no WhatsApp without a number and no actions once Catera is reviewing or it is done", async () => {
-  const { unmount } = show(runtimeWith(report({ customerPhone: null, status: "escalated", case_id: "case-1" })));
+  const { unmount } = await show(runtimeWith(report({ customerPhone: null, status: "escalated", case_id: "case-1" })));
   expect(await screen.findByText("Ditinjau Catera")).toBeTruthy();
   expect(screen.queryByText("Chat WhatsApp")).toBeNull();
   expect(screen.queryByText("Balas")).toBeNull();
   expect(screen.queryByText("Tandai selesai")).toBeNull();
-  unmount();
-  show(runtimeWith(report({ status: "resolved", version: 3 })));
+  await unmount();
+  await show(runtimeWith(report({ status: "resolved", version: 3 })));
   expect(await screen.findByText("Selesai")).toBeTruthy();
   expect(screen.queryByText("Balas")).toBeNull();
   expect(screen.queryByText("Tandai selesai")).toBeNull();
@@ -156,9 +156,9 @@ describe("Tandai selesai says what the customer will read", () => {
 
   it("with an empty field shows and sends the Indonesian note, even in English", async () => {
     const runtime = runtimeWith(report());
-    show(runtime);
+    await show(runtime);
     expect(await screen.findByText(`Pelanggan akan menerima: “${note}”`)).toBeTruthy();
-    fireEvent.press(screen.getByText("Tandai selesai"));
+    await fireEvent.press(screen.getByText("Tandai selesai"));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "deliveryIssue.resolve",
@@ -170,13 +170,13 @@ describe("Tandai selesai says what the customer will read", () => {
 
   it("sends the Indonesian note when the caterer uses English", async () => {
     const runtime = runtimeWith(report());
-    render(
+    await render(
       <MobileProvider runtime={runtime} linkMapper={(h) => h}>
         <EnglishReport />
       </MobileProvider>,
     );
     expect(await screen.findByText(`The customer will receive, in Indonesian: “${note}”`)).toBeTruthy();
-    fireEvent.press(screen.getByText("Mark as done"));
+    await fireEvent.press(screen.getByText("Mark as done"));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "deliveryIssue.resolve",
@@ -188,24 +188,24 @@ describe("Tandai selesai says what the customer will read", () => {
 
   it("with 1 to 4 characters disables both buttons and asks for at least 5", async () => {
     const runtime = runtimeWith(report());
-    show(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Oke");
+    await show(runtime);
+    await fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Oke");
     expect(screen.getByText("Tulis minimal 5 karakter.")).toBeTruthy();
     // A field validation goes through Field's own error: the input takes the danger edge with the line under it.
     expect(StyleSheet.flatten(screen.getByLabelText("Balasan untuk pelanggan").props.style).borderColor).toBe(nativeThemes.light.danger);
     expect(screen.queryByText(/Pelanggan akan menerima/)).toBeNull();
     expect(screen.getByRole("button", { name: "Tandai selesai" }).props.accessibilityState.disabled).toBe(true);
     expect(screen.getByRole("button", { name: "Balas" }).props.accessibilityState.disabled).toBe(true);
-    fireEvent.press(screen.getByText("Tandai selesai"));
+    await fireEvent.press(screen.getByText("Tandai selesai"));
     expect(runtime.api.command).not.toHaveBeenCalled();
   });
 
   it("with 5 or more characters sends what was typed", async () => {
     const runtime = runtimeWith(report());
-    show(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Sudah diganti, maaf ya.");
+    await show(runtime);
+    await fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Sudah diganti, maaf ya.");
     expect(screen.queryByText(/Pelanggan akan menerima/)).toBeNull();
-    fireEvent.press(screen.getByText("Tandai selesai"));
+    await fireEvent.press(screen.getByText("Tandai selesai"));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "deliveryIssue.resolve",
@@ -227,15 +227,15 @@ it("reloads the report after a refused action so the next tap uses the fresh ver
     refused = true;
     throw Object.assign(new Error("CONFLICT"), { code: "CONFLICT" });
   });
-  show(runtime);
-  fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Kami antar ulang sekarang.");
-  fireEvent.press(screen.getByText("Balas"));
+  await show(runtime);
+  await fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Kami antar ulang sekarang.");
+  await fireEvent.press(screen.getByText("Balas"));
   expect(await screen.findByText("Ada yang berubah. Muat ulang, lalu coba lagi.")).toBeTruthy();
   // Nothing else reloads after a failed command: only the screen itself can fetch the new version.
   expect(await screen.findByText("Dibalas")).toBeTruthy();
   // The message and the typed reply survive the reload.
   expect(screen.getByText("Ada yang berubah. Muat ulang, lalu coba lagi.")).toBeTruthy();
-  fireEvent.press(screen.getByText("Balas"));
+  await fireEvent.press(screen.getByText("Balas"));
   await waitFor(() =>
     expect(runtime.api.command).toHaveBeenLastCalledWith(
       "deliveryIssue.respond",
@@ -254,8 +254,8 @@ function EnglishReport() {
 }
 
 describe("the report page on the Dapur scale", () => {
-  const dapur = (runtime: MobileRuntime) =>
-    render(
+  const dapur = async (runtime: MobileRuntime) =>
+    await render(
       withDapurScale(
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
           <ReportScreen id="i-1" />
@@ -264,7 +264,7 @@ describe("the report page on the Dapur scale", () => {
     );
 
   it("draws the report and its replies as ListCards, with no attention card", async () => {
-    dapur(
+    await dapur(
       runtimeWith(
         report({
           status: "responded",
@@ -288,8 +288,8 @@ describe("the report page on the Dapur scale", () => {
   it("pins Balas and Tandai selesai to the page's footer, with a failed send above them", async () => {
     const runtime = runtimeWith(report());
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
-    dapur(runtime);
-    fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
+    await dapur(runtime);
+    await fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
     const footer = await screen.findByTestId("screen-footer");
     expect(within(footer).getByRole("button", { name: "Balas" })).toBeTruthy();
     expect(within(footer).getByRole("button", { name: "Tandai selesai" })).toBeTruthy();
@@ -297,13 +297,13 @@ describe("the report page on the Dapur scale", () => {
     // The field and the WhatsApp link stay in the scrolling body.
     expect(within(screen.getByTestId("screen-scroll")).getByLabelText("Balasan untuk pelanggan")).toBeTruthy();
     expect(within(screen.getByTestId("screen-scroll")).getByRole("button", { name: "Chat WhatsApp" })).toBeTruthy();
-    fireEvent.press(within(footer).getByRole("button", { name: "Balas" }));
+    await fireEvent.press(within(footer).getByRole("button", { name: "Balas" }));
     expect(await within(await screen.findByTestId("screen-footer")).findByTestId("form-error")).toBeTruthy();
     expect(within(screen.getByTestId("screen-scroll")).queryByTestId("form-error")).toBeNull();
   });
 
   it("has no footer once Catera is reviewing the report", async () => {
-    dapur(runtimeWith(report({ status: "escalated", case_id: "case-1" })));
+    await dapur(runtimeWith(report({ status: "escalated", case_id: "case-1" })));
     expect(await screen.findByText("Ditinjau Catera")).toBeTruthy();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
   });

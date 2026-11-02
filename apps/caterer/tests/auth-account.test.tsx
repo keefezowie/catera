@@ -32,8 +32,8 @@ function makeRuntime(options: { demo?: boolean; request?: jest.Mock; command?: j
   return runtime;
 }
 
-const renderWith = (runtime: MobileRuntime, ui: React.ReactNode) =>
-  render(
+const renderWith = async (runtime: MobileRuntime, ui: React.ReactNode) =>
+  await render(
     withDapurScale(
       <MoodProvider now={() => new Date("2026-10-08T08:00:00Z")}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
@@ -48,7 +48,7 @@ afterEach(() => jest.useRealTimers());
 
 describe("Masuk autofill tags", () => {
   it("tags email and password", async () => {
-    renderWith(makeRuntime(), <Masuk />);
+    await renderWith(makeRuntime(), <Masuk />);
     expect((await screen.findByLabelText("Email")).props).toMatchObject({ autoComplete: "email", textContentType: "emailAddress" });
     expect(screen.getByLabelText("Kata sandi").props).toMatchObject({ autoComplete: "current-password", textContentType: "password" });
   });
@@ -56,15 +56,15 @@ describe("Masuk autofill tags", () => {
 
 describe("Daftar autofill tags", () => {
   it("tags the WhatsApp number, the email and the new password", async () => {
-    renderWith(makeRuntime(), <Daftar />);
-    fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Rina");
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
-    fireEvent.press(await screen.findByText("Jakarta Selatan"));
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await renderWith(makeRuntime(), <Daftar />);
+    await fireEvent.changeText(await screen.findByLabelText("Nama usaha katering"), "Dapur Rina");
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await fireEvent.press(await screen.findByText("Jakarta Selatan"));
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
     const phone = await screen.findByLabelText("Nomor WhatsApp");
     expect(phone.props).toMatchObject({ autoComplete: "tel", keyboardType: "phone-pad" });
-    fireEvent.changeText(phone, "081234567890");
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await fireEvent.changeText(phone, "081234567890");
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
     expect((await screen.findByLabelText("Email")).props).toMatchObject({ autoComplete: "email" });
     expect(screen.getByLabelText("Kata sandi").props).toMatchObject({ autoComplete: "new-password", textContentType: "newPassword" });
   });
@@ -72,19 +72,19 @@ describe("Daftar autofill tags", () => {
 
 describe("Data akun hints, tags and failed reads", () => {
   it("says what the disabled buttons wait for", async () => {
-    renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
+    await renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
     await screen.findByLabelText("Apa yang diubah?");
     expect(screen.getByTestId("request-reason")).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Apa yang diubah?"), "nama baru");
+    await fireEvent.changeText(screen.getByLabelText("Apa yang diubah?"), "nama baru");
     expect(screen.queryByTestId("request-reason")).toBeNull();
   });
 
   it("tags the kitchen WhatsApp, email and the password fields", async () => {
-    renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
+    await renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
     expect((await screen.findByLabelText("Nomor WhatsApp dapur")).props).toMatchObject({ autoComplete: "tel", keyboardType: "phone-pad" });
-    fireEvent.press(screen.getByRole("button", { name: "Ganti email" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti email" }));
     expect(screen.getByLabelText("Email baru").props).toMatchObject({ autoComplete: "email" });
-    fireEvent.press(await screen.findByRole("button", { name: "Ganti kata sandi" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Ganti kata sandi" }));
     expect((await screen.findByLabelText("Kata sandi saat ini")).props).toMatchObject({ autoComplete: "current-password" });
     expect(screen.getByLabelText("Kata sandi baru").props).toMatchObject({ autoComplete: "new-password", textContentType: "newPassword" });
   });
@@ -101,9 +101,9 @@ describe("Data akun hints, tags and failed reads", () => {
       channel: () => channel,
       removeChannel: jest.fn(),
     };
-    renderWith(runtime, <DataAkun />);
+    await renderWith(runtime, <DataAkun />);
     await screen.findByText("Belum bisa membaca akunmu.");
-    fireEvent.press(screen.getByText("Coba lagi"));
+    await fireEvent.press(screen.getByText("Coba lagi"));
     // The password row comes back, with the address the account read named.
     await screen.findByTestId("data-akun-row-password");
     expect(screen.getByText("rina@example.test")).toBeTruthy();
@@ -111,7 +111,7 @@ describe("Data akun hints, tags and failed reads", () => {
   });
 
   it("the disabled button carries the reason as an accessibility hint", async () => {
-    renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
+    await renderWith(makeRuntime({ demo: true, actor: owner }), <DataAkun />);
     await screen.findByLabelText("Apa yang diubah?");
     expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityHint).toMatch(/5 karakter/);
   });
@@ -122,10 +122,10 @@ describe("Data akun hints, tags and failed reads", () => {
       if (fail) throw new Error("NETWORK");
       return [];
     });
-    renderWith(makeRuntime({ demo: true, actor: owner, request }), <DataAkun />);
+    await renderWith(makeRuntime({ demo: true, actor: owner, request }), <DataAkun />);
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     fail = false;
-    await act(async () => fireEvent.press(retry));
+    await act(async () => await fireEvent.press(retry));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Coba lagi" })).toBeNull());
   });
 });
@@ -137,12 +137,12 @@ describe("Hapus akun read states", () => {
       if (fail) throw new Error("NETWORK");
       return [];
     });
-    renderWith(makeRuntime({ demo: true, actor: owner, request }), <HapusAkun />);
+    await renderWith(makeRuntime({ demo: true, actor: owner, request }), <HapusAkun />);
     expect(screen.queryByRole("button", { name: "Kirim permintaan hapus akun" })).toBeNull();
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     expect(screen.queryByRole("button", { name: "Kirim permintaan hapus akun" })).toBeNull();
     fail = false;
-    await act(async () => fireEvent.press(retry));
+    await act(async () => await fireEvent.press(retry));
     await screen.findByRole("button", { name: "Kirim permintaan hapus akun" });
   });
 });

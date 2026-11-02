@@ -65,8 +65,8 @@ beforeEach(() => {
   runtime.api = { ...runtime.api, me, request: jest.fn(async () => []), usage: jest.fn(async () => undefined) } as unknown as MobileRuntime["api"];
 });
 
-const renderWith = (ui: React.ReactNode) =>
-  render(
+const renderWith = async (ui: React.ReactNode) =>
+  await render(
     withDapurScale(
       <MoodProvider now={() => new Date("2026-10-08T08:00:00Z")}>
         <MobileProvider runtime={runtime} linkMapper={(h) => h}>
@@ -87,56 +87,56 @@ const recoveryLink = () => {
   });
 };
 const savePassword = async (repeat = "synthetic-password-2026") => {
-  fireEvent.changeText(await screen.findByLabelText("Kata sandi baru"), "synthetic-password-2026");
-  fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi"), repeat);
-  fireEvent.press(screen.getByRole("button", { name: "Simpan kata sandi" }));
+  await fireEvent.changeText(await screen.findByLabelText("Kata sandi baru"), "synthetic-password-2026");
+  await fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi"), repeat);
+  await fireEvent.press(screen.getByRole("button", { name: "Simpan kata sandi" }));
 };
 
 describe("Dapur Masuk to Pulihkan", () => {
   it("Masuk links to Pulihkan", async () => {
-    renderWith(<Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lupa kata sandi?" }));
+    await renderWith(<Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lupa kata sandi?" }));
     expect(router.push).toHaveBeenCalledWith("/pulihkan");
   });
 
   it("the second wrong password adds Lupa kata sandi? to the error", async () => {
     runtime.signInPassword = jest.fn(async () => Promise.reject(new Error("INVALID_CREDENTIALS"))) as never;
-    renderWith(<Masuk />);
-    fireEvent.changeText(await screen.findByLabelText("Email"), "rina@example.test");
+    await renderWith(<Masuk />);
+    await fireEvent.changeText(await screen.findByLabelText("Email"), "rina@example.test");
     const attempt = async (n: number) => {
-      fireEvent.changeText(screen.getByLabelText("Kata sandi"), "salah-salah");
-      fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+      await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "salah-salah");
+      await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
       await waitFor(() => expect(runtime.signInPassword).toHaveBeenCalledTimes(n));
       await screen.findByTestId("form-error");
     };
     await attempt(1);
     expect(within(screen.getByTestId("form-error")).queryByText("Lupa kata sandi?")).toBeNull();
     await attempt(2);
-    fireEvent.press(await within(screen.getByTestId("form-error")).findByText("Lupa kata sandi?"));
+    await fireEvent.press(await within(screen.getByTestId("form-error")).findByText("Lupa kata sandi?"));
     expect(router.push).toHaveBeenCalledWith("/pulihkan");
   });
 });
 
 describe("Pulihkan", () => {
   it("an empty press shows the email message and sends nothing", async () => {
-    renderWith(<Pulihkan />);
-    fireEvent.press(await screen.findByRole("button", { name: "Kirim tautan pemulihan" }));
+    await renderWith(<Pulihkan />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Kirim tautan pemulihan" }));
     expect(await screen.findByText("Isi emailmu dulu.")).toBeTruthy();
     expect(supabase.auth.resetPasswordForEmail).not.toHaveBeenCalled();
   });
 
   it("an invalid email shows the format message", async () => {
-    renderWith(<Pulihkan />);
-    fireEvent.changeText(await screen.findByLabelText("Email"), "rina@");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
+    await renderWith(<Pulihkan />);
+    await fireEvent.changeText(await screen.findByLabelText("Email"), "rina@");
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
     expect(await screen.findByText("Format email belum benar. Contoh: nama@gmail.com")).toBeTruthy();
     expect(supabase.auth.resetPasswordForEmail).not.toHaveBeenCalled();
   });
 
   it("Pulihkan sends with redirect catera-dapur://auth/callback, remembers the request, then shows Cek emailmu", async () => {
-    renderWith(<Pulihkan />);
-    fireEvent.changeText(await screen.findByLabelText("Email"), "rina@example.test");
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
+    await renderWith(<Pulihkan />);
+    await fireEvent.changeText(await screen.findByLabelText("Email"), "rina@example.test");
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan pemulihan" }));
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
     expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith("rina@example.test", { redirectTo: "catera-dapur://auth/callback" });
     expect(JSON.parse(store.get(pendingKey(runtime))!)).toMatchObject({ purpose: "recovery", email: "rina@example.test" });
@@ -146,7 +146,7 @@ describe("Pulihkan", () => {
 describe("callback", () => {
   it("callback recovery shows the new-password form and the outcome", async () => {
     recoveryLink();
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     expect(await screen.findByRole("header", { name: "Kata sandi baru" })).toBeTruthy();
     await savePassword();
     expect(await screen.findByRole("header", { name: "Kata sandi diganti" })).toBeTruthy();
@@ -154,13 +154,13 @@ describe("callback", () => {
     expect(supabase.auth.signOut).not.toHaveBeenCalled();
     expect(me).toHaveBeenCalled();
     expect(store.has(pendingKey(runtime))).toBe(false);
-    fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lanjut" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
   });
 
   it("a mismatch saves nothing", async () => {
     recoveryLink();
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     await savePassword("synthetic-password-2027");
     expect(await screen.findByText("Kata sandinya belum sama.")).toBeTruthy();
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
@@ -168,7 +168,7 @@ describe("callback", () => {
 
   it("the outcome locks its exits and every removal goes where Lanjut goes", async () => {
     recoveryLink();
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     await savePassword();
     await screen.findByRole("header", { name: "Kata sandi diganti" });
     expect(mockSetOptions).toHaveBeenCalledWith(expect.objectContaining({ headerBackVisible: false, gestureEnabled: false }));
@@ -185,7 +185,7 @@ describe("callback", () => {
       data: { user: { id: "kitchen-user" }, session: { access_token: "synthetic" }, redirectType: null },
       error: null,
     });
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
     expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
@@ -197,10 +197,10 @@ describe("callback", () => {
       data: { user: null, session: null },
       error: { name: "AuthRetryableFetchError", status: 0 },
     } as never);
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     expect(await screen.findByText("Belum ada koneksi. Cek internetmu, lalu coba lagi.")).toBeTruthy();
     expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByLabelText("Kata sandi baru")).toBeTruthy();
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(2);
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenLastCalledWith("one-time-code");
@@ -212,7 +212,7 @@ describe("callback", () => {
       data: { user: null, session: null },
       error: { name: "AuthApiError", status: 400, code: "flow_state_expired" },
     } as never);
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
     expect(screen.queryByText(/Belum ada koneksi/)).toBeNull();
   });
@@ -220,7 +220,7 @@ describe("callback", () => {
   it("refuses to set a password for a different user than the link signed in", async () => {
     recoveryLink();
     supabase.auth.getUser.mockResolvedValue({ data: { user: { id: "someone-else" } }, error: null } as never);
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     await savePassword();
     expect(await screen.findByTestId("identity-error")).toBeTruthy();
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
@@ -235,7 +235,7 @@ describe("callback", () => {
     });
     supabase.rpc.mockImplementation((async (fn: string) =>
       fn === "catera_v1_read" ? { data: { id: "kitchen-user", role: "customer", name: "Dapur Bu Rina" }, error: null } : { data: {}, error: null }) as never);
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith("one-time-code");
     expect(supabase.rpc).toHaveBeenCalledWith("catera_v1_command", expect.objectContaining({ action: "profile.ensure", payload: { name: "Dapur Bu Rina" } }));
@@ -245,16 +245,16 @@ describe("callback", () => {
   it("an expired sign-up link offers a new verification link and the way back to Daftar", async () => {
     mockParams = { error: "access_denied", code: "one-time-code" };
     intent("signup");
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     expect(await screen.findByText(/rina@example.test/)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan baru" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan baru" }));
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
     expect(supabase.auth.resend).toHaveBeenCalledWith({ type: "signup", email: "rina@example.test", options: { emailRedirectTo: "catera-dapur://auth/callback" } });
   });
 
   it("with no pending request it fails fast and asks for the email", async () => {
     mockParams = { code: "one-time-code" };
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
     expect(supabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Kirim tautan baru" })).toBeNull();
@@ -263,10 +263,10 @@ describe("callback", () => {
   it("an error param fails fast, names the stored address and resends a recovery link", async () => {
     mockParams = { error: "access_denied", code: "one-time-code" };
     intent("recovery");
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     expect(await screen.findByText(/rina@example.test/)).toBeTruthy();
     expect(supabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan baru" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kirim tautan baru" }));
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
     expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith("rina@example.test", { redirectTo: "catera-dapur://auth/callback" });
   });
@@ -274,7 +274,7 @@ describe("callback", () => {
   it("an expired code from the server shows expired", async () => {
     recoveryLink();
     supabase.auth.exchangeCodeForSession.mockResolvedValue({ data: { user: null, session: null }, error: { message: "expired" } });
-    renderWith(<AuthCallback />);
+    await renderWith(<AuthCallback />);
     expect(await screen.findByText("Tautannya sudah tidak berlaku")).toBeTruthy();
   });
 });

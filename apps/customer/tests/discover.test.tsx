@@ -1,5 +1,6 @@
 import * as ReactNative from "react-native";
-import { ActivityIndicator, FlatList, ScrollView, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
+import type { TestInstance } from "test-renderer";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -7,8 +8,7 @@ import * as Haptics from "expo-haptics";
 import { currency, shortDate, startDates, type Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { androidTabBarHeight, DEMO_STRIP_HEIGHT, FadeSwap, fonts, LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
+import { androidTabBarHeight, DEMO_STRIP_HEIGHT, fonts, LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { topTags } from "../src/discover/categories";
 import { Jelajah } from "../src/discover/Jelajah";
@@ -18,6 +18,7 @@ import { AreaSheet } from "../src/discover/area";
 import { BODY_GAP } from "../src/discover/ChipRow";
 import { offer } from "./fixtures";
 import { SheetHost } from "./sheetHost";
+import { hostsWhere, iconsIn } from "./find-hosts";
 
 /** The phone the screen is drawn on; a test sets it to try another width or text size. */
 let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
@@ -121,13 +122,21 @@ const jelajahWithArea = (
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
 
 /** The grid's gaps as the Jelajah list sets them: the columns' gap on a row, the row gap as the separator's height. */
+const gridLists = () => hostsWhere({ type: "RCTScrollView" }).filter((node) => "getItemCount" in node.props);
+/** The first grid row: FlatList keeps numColumns and columnWrapperStyle for itself, so they are read off the row it draws. */
+const gridRow = () => {
+  let node: TestInstance | null = screen.getAllByTestId("package-cell")[0];
+  while (node && !("columnGap" in flat(node))) node = node.parent;
+  return node!;
+};
 const gridGaps = () => {
-  const list = screen.UNSAFE_getByType(FlatList);
+  const [list, ...others] = gridLists();
+  expect(others).toHaveLength(0);
   const separator = list.props.ItemSeparatorComponent() as { props: { style: unknown } };
   return {
-    columnGap: flat({ props: { style: list.props.columnWrapperStyle } }).columnGap,
+    columnGap: flat(gridRow()).columnGap,
     rowGap: flat(separator).height,
-    numColumns: list.props.numColumns,
+    numColumns: within(gridRow()).getAllByTestId("package-cell").length,
   };
 };
 
@@ -143,9 +152,9 @@ beforeEach(() => {
 
 describe("Jelajah", () => {
   it("keeps the filter chips in one scrolling row", async () => {
-    const view = wrap(runtimeWith(), <Jelajah />);
+    const view = await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    const row = view.UNSAFE_getAllByType(ScrollView).find((r) => r.props.horizontal);
+    const row = hostsWhere({ type: "RCTScrollView", props: { horizontal: true } })[0];
     expect(row).toBeTruthy();
     expect(row!.props.showsHorizontalScrollIndicator).toBe(false);
     expect(screen.getByRole("button", { name: "Bisa coba 1 hari" })).toBeTruthy();
@@ -153,9 +162,9 @@ describe("Jelajah", () => {
 
   it("chips filter by budget", async () => {
     const runtime = runtimeWith();
-    wrap(runtime, <Jelajah />);
+    await wrap(runtime, <Jelajah />);
     expect(await screen.findByText("Menu Sehat Premium")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Di bawah Rp30.000" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Di bawah Rp30.000" }));
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Di bawah Rp30.000" }).props.accessibilityState.selected).toBe(true);
@@ -164,36 +173,36 @@ describe("Jelajah", () => {
   });
 
   it("the meal tabs switch between the two meals and a second press changes nothing", async () => {
-    wrap(runtimeWith(), <Jelajah />);
+    await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
-    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
   });
 
   it("trial chip keeps only packages with a one-day trial", async () => {
-    wrap(runtimeWith(), <Jelajah />);
+    await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    fireEvent.press(screen.getByRole("button", { name: "Bisa coba 1 hari" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bisa coba 1 hari" }));
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("coba 1 hari")).toBeTruthy();
   });
 
   it("toggling a chip never asks the server again or shows the spinner", async () => {
     const runtime = runtimeWith();
-    const view = wrap(runtime, <Jelajah />);
+    const view = await wrap(runtime, <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     const calls = (runtime.api.catalog as jest.Mock).mock.calls.length;
     for (const name of ["Siang", "Di bawah Rp30.000", "Bisa coba 1 hari", "Malam"]) {
-      fireEvent.press(screen.getByRole(name === "Siang" || name === "Malam" ? "tab" : "button", { name }));
-      expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+      await fireEvent.press(screen.getByRole(name === "Siang" || name === "Malam" ? "tab" : "button", { name }));
+      expect(hostsWhere({ type: "ActivityIndicator" })).toHaveLength(0);
       expect(screen.queryByText("Nasi Ayam Bakar") || screen.queryByText("Belum ada paket yang cocok.")).toBeTruthy();
     }
     expect((runtime.api.catalog as jest.Mock).mock.calls.length).toBe(calls);
@@ -201,7 +210,7 @@ describe("Jelajah", () => {
   });
 
   it("every control has a real 44 point target: the chips sit in a 44 tall row and the area and meal tabs are 44 tall", async () => {
-    render(
+    await render(
       <LayoutScaleProvider value="v2">
         <MoodProvider now={SIANG_NOW}>
           <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
@@ -233,40 +242,40 @@ describe("Jelajah", () => {
   });
 
   it("filter chips and the other meal tab give a selection haptic, the chosen tab stays quiet", async () => {
-    wrap(runtimeWith(), <Jelajah />);
+    await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
     expect(Haptics.selectionAsync).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
-    fireEvent.press(screen.getByRole("button", { name: "Di bawah Rp30.000" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Di bawah Rp30.000" }));
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
   });
 
   it("search narrows by name or caterer without another request", async () => {
     const runtime = runtimeWith();
-    wrap(runtime, <Jelajah />);
+    await wrap(runtime, <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     const calls = (runtime.api.catalog as jest.Mock).mock.calls.length;
-    fireEvent.changeText(screen.getByPlaceholderText("Cari menu atau katering…"), "sehat");
+    await fireEvent.changeText(screen.getByPlaceholderText("Cari menu atau katering…"), "sehat");
     await waitFor(() => expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull());
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     expect((runtime.api.catalog as jest.Mock).mock.calls.length).toBe(calls);
   });
 
   it("single-meal offer shows only / makan", async () => {
-    wrap(runtimeWith(), <Jelajah />);
+    await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     // Two lunch packages on Siang; the dinner one shows on Malam.
     expect(screen.getAllByText("/ makan")).toHaveLength(2);
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     expect(screen.getAllByText("/ makan")).toHaveLength(1);
     expect(screen.queryByText("2 kali makan / hari")).toBeNull();
   });
 
   it("combined offer shows its per-meal price on the tile; the 2 meals a day is on the package page", async () => {
     const both = offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", price: 60000 });
-    wrap(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both], nextCursor: null })) }), <Jelajah />);
+    await wrap(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both], nextCursor: null })) }), <Jelajah />);
     await screen.findByText("Siang dan Malam");
     expect(screen.getByText("/ makan")).toBeTruthy();
     // The tile has no note line: name, caterer, price and meta only.
@@ -276,7 +285,7 @@ describe("Jelajah", () => {
   });
 
   it("shows the caterer line without inventing a distance", async () => {
-    wrap(runtimeWith(), <Jelajah />);
+    await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Nasi Ayam Bakar");
     expect(screen.getAllByText("Dapur Contoh").length).toBeGreaterThan(0);
     expect(screen.queryByText(/km/)).toBeNull();
@@ -286,18 +295,18 @@ describe("Jelajah", () => {
     const runtime = runtimeWith(customer, {
       catalog: jest.fn(async () => ({ items: [{ ...cheap, distanceKm: 2.4 }], nextCursor: null })),
     });
-    wrap(runtime, <Jelajah />);
+    await wrap(runtime, <Jelajah />);
     expect(await screen.findByText("Dapur Contoh, 2,4 km")).toBeTruthy();
   });
 
   it("remembers the delivery area in SecureStore and sends it to the catalog", async () => {
     const runtime = runtimeWith();
-    wrap(runtime, jelajahWithArea);
+    await wrap(runtime, jelajahWithArea);
     await screen.findByText("Menu Sehat Premium");
-    fireEvent.press(screen.getByRole("button", { name: "Pilih area pengantaran" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Pilih area pengantaran" }));
     // The area is a native choice sheet over Jelajah; a choice closes it.
     expect(router.push).toHaveBeenCalledWith("/area");
-    fireEvent.press(await screen.findByRole("radio", { name: "Jakarta Selatan" }));
+    await fireEvent.press(await screen.findByRole("radio", { name: "Jakarta Selatan" }));
     expect(router.back).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.area", "Jakarta Selatan"));
     await waitFor(() => expect(lastCatalogQuery(runtime)).toContain("area=Jakarta+Selatan"));
@@ -310,13 +319,13 @@ describe("Jelajah", () => {
     const areaRuntime = () =>
       runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [selatan, bandung, both], nextCursor: null })) });
     const choose = async (name: string) => {
-      fireEvent.press(screen.getByRole("button", { name: "Pilih area pengantaran" }));
-      fireEvent.press(await screen.findByRole("radio", { name }));
+      await fireEvent.press(screen.getByRole("button", { name: "Pilih area pengantaran" }));
+      await fireEvent.press(await screen.findByRole("radio", { name }));
     };
 
     it("shows only packages that deliver to the chosen area", async () => {
       const runtime = areaRuntime();
-      wrap(runtime, jelajahWithArea);
+      await wrap(runtime, jelajahWithArea);
       await screen.findByText("Menu Sehat Premium");
       await choose("Bandung");
       await waitFor(() => expect(lastCatalogQuery(runtime)).toContain("area=Bandung"));
@@ -324,13 +333,13 @@ describe("Jelajah", () => {
       expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
       // The dinner package delivers to Bandung too; it shows once the list is on Malam.
       expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
     });
 
     it("Semua area shows everything again", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.area", "Bandung");
-      wrap(areaRuntime(), jelajahWithArea);
+      await wrap(areaRuntime(), jelajahWithArea);
       await screen.findByText("Menu Sehat Premium");
       expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
       await choose("Semua area");
@@ -340,10 +349,10 @@ describe("Jelajah", () => {
 
     it("says when no caterer delivers there, and Lihat semua area clears the area", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.area", "Jakarta Utara");
-      wrap(areaRuntime(), jelajahWithArea);
+      await wrap(areaRuntime(), jelajahWithArea);
       expect(await screen.findByText("Belum ada katering yang antar ke Jakarta Utara.")).toBeTruthy();
       expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
-      fireEvent.press(screen.getByRole("button", { name: "Lihat semua area" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Lihat semua area" }));
       expect(await screen.findByText("Nasi Ayam Bakar")).toBeTruthy();
       expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
       await waitFor(() => expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.area", ""));
@@ -354,15 +363,15 @@ describe("Jelajah", () => {
   });
 
   it("opens a package when its card is pressed", async () => {
-    wrap(runtimeWith(), <Jelajah />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Nasi Ayam Bakar,/ }));
+    await wrap(runtimeWith(), <Jelajah />);
+    await fireEvent.press(await screen.findByRole("button", { name: /^Nasi Ayam Bakar,/ }));
     expect(router.push).toHaveBeenCalledWith("/paket/p-murah?title=Nasi%20Ayam%20Bakar");
   });
 
   it("heart while signed out asks to sign in and comes back", async () => {
     const runtime = runtimeWith(null);
-    wrap(runtime, <Jelajah />);
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
+    await wrap(runtime, <Jelajah />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
     expect(router.push).toHaveBeenCalledWith("/login?next=/jelajah");
     expect(runtime.api.command).not.toHaveBeenCalled();
   });
@@ -370,8 +379,8 @@ describe("Jelajah", () => {
   it("heart while signed in saves the package and stays saved after the list reloads", async () => {
     const server = savedServer();
     const runtime = runtimeWith(customer, server);
-    wrap(runtime, <Jelajah />);
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
+    await wrap(runtime, <Jelajah />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
     await waitFor(() =>
       expect(server.command).toHaveBeenCalledWith("savedPackage.set", { packageId: "p-murah", saved: true }, expect.any(String)),
     );
@@ -384,8 +393,8 @@ describe("Jelajah", () => {
 
   it("heart goes back and says so when saving fails", async () => {
     const server = savedServer([], true);
-    wrap(runtimeWith(customer, server), <Jelajah />);
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
+    await wrap(runtimeWith(customer, server), <Jelajah />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
     expect(await screen.findByText("Belum tersimpan. Coba lagi.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" })).toBeNull();
@@ -393,8 +402,8 @@ describe("Jelajah", () => {
 
   it("an already saved package shows a filled heart and un-saving survives the reload", async () => {
     const server = savedServer(["p-murah"]);
-    wrap(runtimeWith(customer, server), <Jelajah />);
-    fireEvent.press(await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
+    await wrap(runtimeWith(customer, server), <Jelajah />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
     await waitFor(() => expect(server.savedPackages).toHaveBeenCalledTimes(2));
     await act(async () => {});
     expect(screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeTruthy();
@@ -402,7 +411,7 @@ describe("Jelajah", () => {
 
   it("says plainly that there are no packages when the catalogue is empty, with no meal to switch to", async () => {
     const runtime = runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [], nextCursor: null })) });
-    wrap(runtime, <Jelajah />);
+    await wrap(runtime, <Jelajah />);
     expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
     expect(screen.queryByText(/Belum ada paket makan/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Lihat makan malam" })).toBeNull();
@@ -410,12 +419,12 @@ describe("Jelajah", () => {
   });
 
   it("says so when a search matches nothing, with Hapus pilihan", async () => {
-    wrap(runtimeWith(), <Jelajah />);
+    await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    fireEvent.changeText(screen.getByPlaceholderText("Cari menu atau katering…"), "tidak ada");
+    await fireEvent.changeText(screen.getByPlaceholderText("Cari menu atau katering…"), "tidak ada");
     expect(await screen.findByText("Belum ada paket yang cocok.")).toBeTruthy();
     expect(screen.getByText("Coba kata kunci atau pilihan lain.")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan" }));
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
   });
 
@@ -424,7 +433,7 @@ describe("Jelajah", () => {
       runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [cheap, pricey], nextCursor: null })) });
 
     it("on a Malam launch names the meal and switches to the other one", async () => {
-      render(
+      await render(
         <MoodProvider now={MALAM_NOW}>
           <MobileProvider runtime={lunchOnly()} linkMapper={customerLink}>
             <Jelajah />
@@ -433,7 +442,7 @@ describe("Jelajah", () => {
       );
       expect(await screen.findByText("Belum ada paket makan malam.")).toBeTruthy();
       expect(screen.queryByText("Belum ada paket yang cocok.")).toBeNull();
-      fireEvent.press(screen.getByRole("button", { name: "Lihat makan siang" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Lihat makan siang" }));
       expect(await screen.findByText("Menu Sehat Premium")).toBeTruthy();
       expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
       expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(true);
@@ -442,7 +451,7 @@ describe("Jelajah", () => {
 
     it("names the area when one is chosen", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.area", "Tebet");
-      render(
+      await render(
         <MoodProvider now={MALAM_NOW}>
           <MobileProvider runtime={lunchOnly()} linkMapper={customerLink}>
             <Jelajah />
@@ -455,10 +464,10 @@ describe("Jelajah", () => {
 
     it("goes the other way from Siang when only dinner is on offer", async () => {
       const runtime = runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [dinner], nextCursor: null })) });
-      wrap(runtime, <Jelajah />);
+      await wrap(runtime, <Jelajah />);
       expect(await screen.findByText("Belum ada paket makan siang.")).toBeTruthy();
       expect(screen.queryByText("Belum ada paket.")).toBeNull();
-      fireEvent.press(screen.getByRole("button", { name: "Lihat makan malam" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Lihat makan malam" }));
       expect(await screen.findByText("Makan Malam Nabati")).toBeTruthy();
     });
   });
@@ -466,11 +475,11 @@ describe("Jelajah", () => {
 
 describe("Jelajah list root", () => {
   it("the two column grid is the scroll root: one FlatList, no outer ScrollView", async () => {
-    const view = wrap(runtimeWith(), <Jelajah />);
+    const view = await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    const lists = view.UNSAFE_getAllByType(FlatList);
+    const lists = gridLists();
     expect(lists).toHaveLength(1);
-    expect(lists[0].props.numColumns).toBe(2);
+    expect(gridGaps().numColumns).toBe(2);
     expect(lists[0].props.contentInsetAdjustmentBehavior).toBeDefined();
     expect(lists[0].props.keyboardShouldPersistTaps).toBe("handled");
     expect(screen.getAllByTestId("package-cell")).toHaveLength(2);
@@ -478,7 +487,7 @@ describe("Jelajah list root", () => {
 
   it("keeps the header, the search and the chips above the grid, and the loading skeleton before it", async () => {
     const runtime = runtimeWith(customer, { catalog: jest.fn(() => new Promise(() => undefined)) });
-    wrap(runtime, <Jelajah />);
+    await wrap(runtime, <Jelajah />);
     expect(await screen.findByTestId("jelajah-skeleton")).toBeTruthy();
     expect(screen.getByTestId("jelajah-title")).toBeTruthy();
     expect(screen.getByTestId("jelajah-search")).toBeTruthy();
@@ -488,21 +497,21 @@ describe("Jelajah list root", () => {
   it("the tiles come in with the chips as one block, only when the read finishes", async () => {
     let release: (v: unknown) => void = () => undefined;
     const runtime = runtimeWith(customer, { catalog: jest.fn(() => new Promise((r) => (release = r))) });
-    wrap(runtime, <Jelajah />);
+    await wrap(runtime, <Jelajah />);
     await screen.findByTestId("jelajah-skeleton");
     await waitFor(() => expect(runtime.api.catalog).toHaveBeenCalled());
     await act(async () => release({ items: [cheap, pricey], nextCursor: null }));
     const cells = await screen.findAllByTestId("package-cell");
     for (const cell of cells) expect(cell.props.entering).toBeDefined();
     // A search later adds and removes tiles without any entrance.
-    fireEvent.changeText(screen.getByLabelText("Cari paket"), "Nasi");
+    await fireEvent.changeText(screen.getByLabelText("Cari paket"), "Nasi");
     for (const cell of screen.getAllByTestId("package-cell")) expect(cell.props.entering).toBeUndefined();
   });
 
   it("the empty block comes in with the chips when the read finishes", async () => {
     let release: (v: unknown) => void = () => undefined;
     const runtime = runtimeWith(customer, { catalog: jest.fn(() => new Promise((r) => (release = r))) });
-    wrap(runtime, <Jelajah />);
+    await wrap(runtime, <Jelajah />);
     await screen.findByTestId("jelajah-skeleton");
     await waitFor(() => expect(runtime.api.catalog).toHaveBeenCalled());
     await act(async () => release({ items: [], nextCursor: null }));
@@ -512,14 +521,14 @@ describe("Jelajah list root", () => {
   });
 
   it("scrolling the results puts the keyboard away, and the search does not autocorrect a dish name", async () => {
-    const view = wrap(runtimeWith(), <Jelajah />);
+    const view = await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    expect(view.UNSAFE_getAllByType(FlatList)[0].props.keyboardDismissMode).toBe("on-drag");
+    expect(gridLists()[0].props.keyboardDismissMode).toBe("on-drag");
     expect(screen.getByLabelText("Cari paket").props.autoCorrect).toBe(false);
   });
 
   it("a tile reads its name, caterer, price per meal and meta line as one button", async () => {
-    wrap(runtimeWith(), <Jelajah />);
+    await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     const trial = screen.getByRole("button", { name: /^Nasi Ayam Bakar, / });
     expect(trial.props.accessibilityLabel).toMatch(/^Nasi Ayam Bakar, .+, Rp\s?[\d.]+ \/ makan, .*coba 1 hari$/);
@@ -528,9 +537,9 @@ describe("Jelajah list root", () => {
   });
 
   it("the chip row answers the first tap while the search keyboard is up", async () => {
-    const view = wrap(runtimeWith(), <Jelajah />);
+    const view = await wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    const row = view.UNSAFE_getAllByType(ScrollView).find((r) => r.props.horizontal);
+    const row = hostsWhere({ type: "RCTScrollView", props: { horizontal: true } })[0];
     expect(row!.props.keyboardShouldPersistTaps).toBe("handled");
   });
 });
@@ -572,7 +581,7 @@ describe("topTags", () => {
 });
 
 describe("Jelajah mood header", () => {
-  function mount(runtime: MobileRuntime, { now = SIANG_NOW, scheme = "light" as "light" | "dark" } = {}) {
+  async function mount(runtime: MobileRuntime, { now = SIANG_NOW, scheme = "light" as "light" | "dark" } = {}) {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
     return render(
       <LayoutScaleProvider value="v2">
@@ -601,7 +610,7 @@ describe("Jelajah mood header", () => {
   afterEach(() => jest.restoreAllMocks());
 
   it("shows the area chip, the heart, the one-line title and the 44 point search pill in the header", async () => {
-    mount(runtimeWith());
+    await mount(runtimeWith());
     await screen.findByText("Menu Sehat Premium");
     expect(header().getByRole("button", { name: "Pilih area pengantaran" })).toBeTruthy();
     expect(header().getByText("Pilih area")).toBeTruthy();
@@ -614,13 +623,13 @@ describe("Jelajah mood header", () => {
   });
 
   it("names the Malam meal in the title when the mood is Malam", async () => {
-    mount(runtimeWith(), { now: MALAM_NOW });
+    await mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
     expect(title()).toBe("Makan malam minggu depan?");
   });
 
   it("has no 60 point meal buttons in the header: Siang and Malam are a 34 point segment that is the mood and the meal filter", async () => {
-    mount(runtimeWith());
+    await mount(runtimeWith());
     await screen.findByText("Menu Sehat Premium");
     expect(title()).toBe("Makan siang minggu depan?");
     expect(header().queryByRole("tab")).toBeNull();
@@ -645,21 +654,21 @@ describe("Jelajah mood header", () => {
     expect(flat(screen.getByTestId("meal-pill-malam")).minHeight).toBe(30);
     expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(true);
     expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(false);
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     // The list keeps dinner and combined packages only, and the title follows.
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
     expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
     expect(title()).toBe("Makan malam minggu depan?");
-    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
     expect(title()).toBe("Makan siang minggu depan?");
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
   });
 
   it("puts the meal segment first in the one chip row, then the filter chips, then the categories", async () => {
-    mount(taggedRuntime());
+    await mount(taggedRuntime());
     await screen.findByText("Menu Sehat Premium");
     const row = screen.getByTestId("chip-row");
     expect(row.props.horizontal).toBe(true);
@@ -689,7 +698,7 @@ describe("Jelajah mood header", () => {
   });
 
   it("opens on Malam with the Malam tab selected and the lunch packages hidden", async () => {
-    mount(runtimeWith(), { now: MALAM_NOW });
+    await mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
     expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
     expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
@@ -704,7 +713,7 @@ describe("Jelajah mood header", () => {
       return null;
     }
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
-    render(
+    await render(
       <ThemeProvider storageKey="jelajah-probe-test">
         <MoodProvider now={SIANG_NOW}>
           <Probe />
@@ -715,13 +724,13 @@ describe("Jelajah mood header", () => {
       </ThemeProvider>,
     );
     await screen.findByText("Menu Sehat Premium");
-    act(() => setMoodOutside("malam"));
+    await act(() => setMoodOutside("malam"));
     expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
     expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
     expect(title()).toBe("Makan malam minggu depan?");
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
-    act(() => setMoodOutside("siang"));
+    await act(() => setMoodOutside("siang"));
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
   });
@@ -729,16 +738,16 @@ describe("Jelajah mood header", () => {
   it("keeps a combined package under the Malam tab", async () => {
     const both = offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", price: 60000 });
     const runtime = runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both, cheap, dinner], nextCursor: null })) });
-    mount(runtime);
+    await mount(runtime);
     await screen.findByText("Siang dan Malam");
     expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     expect(screen.getByText("Siang dan Malam")).toBeTruthy();
     expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
   });
 
   it("no longer carries Siang and Malam as filter chips, and keeps the budget and trial chips", async () => {
-    mount(runtimeWith());
+    await mount(runtimeWith());
     await screen.findByText("Menu Sehat Premium");
     expect(screen.queryByRole("button", { name: "Siang" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Malam" })).toBeNull();
@@ -751,7 +760,7 @@ describe("Jelajah mood header", () => {
   });
 
   it("draws the header on the canvas: no mood band, no rounded panel, ink and surface from the theme", async () => {
-    mount(runtimeWith(), { now: MALAM_NOW });
+    await mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
     const colors = nativeThemes.light;
     expect(screen.queryByTestId("mood-fill-siang", { includeHiddenElements: true })).toBeNull();
@@ -772,7 +781,7 @@ describe("Jelajah mood header", () => {
   });
 
   it("draws the selected meal with a 1.5 forest ring on a surface pill, a 700 forest label and its glyph, and the idle one with a 500 label and no ring", async () => {
-    mount(runtimeWith(), { now: MALAM_NOW });
+    await mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
     const selected = screen.getByTestId("meal-pill-malam");
     const idle = screen.getByTestId("meal-pill-siang");
@@ -785,15 +794,15 @@ describe("Jelajah mood header", () => {
     expect(flat(within(idle).getByText("Siang")).color).not.toBe(nativeThemes.light.forest);
     expect(flat(within(idle).getByText("Siang")).fontFamily).toBe("Jakarta-Medium");
     // A sun before Siang and a moon before Malam.
-    expect(within(selected).UNSAFE_getByType(Ionicons).props.name).toBe("moon");
-    expect(within(idle).UNSAFE_getByType(Ionicons).props.name).toBe("sunny");
+    expect(iconsIn(selected).map((i) => i.name)).toEqual(["moon"]);
+    expect(iconsIn(idle).map((i) => i.name)).toEqual(["sunny"]);
     // The track is the surface colour.
     expect(flat(screen.getByTestId("meal-track")).backgroundColor).toBe(nativeThemes.light.inputFill);
   });
 
   describe("category circles", () => {
     it("renders a 34 point chip per top tag, without the meal tags and with no photo ring", async () => {
-      mount(taggedRuntime());
+      await mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
       expect(screen.getByRole("button", { name: "Kategori Hemat" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" })).toBeTruthy();
@@ -803,9 +812,9 @@ describe("Jelajah mood header", () => {
     });
 
     it("filters by the tapped tag, marks it selected, and clears on a second tap", async () => {
-      mount(taggedRuntime());
+      await mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
       expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
       expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(true);
@@ -814,37 +823,37 @@ describe("Jelajah mood header", () => {
       expect(flat(screen.getByRole("button", { name: "Kategori Rumahan" })).backgroundColor).toBe(nativeThemes.light.forest);
       expect(flat(screen.getByRole("button", { name: "Kategori Hemat" })).backgroundColor).not.toBe(nativeThemes.light.forest);
       // The tag carries over to the other meal: the dinner package is tagged Rumahan too.
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
       expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
-      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
       expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(false);
     });
 
     it("moves to another tag directly and combines with the other filters", async () => {
-      mount(taggedRuntime());
+      await mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Hemat" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Kategori Hemat" }));
       expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
       expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
       expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
-      fireEvent.press(screen.getByRole("button", { name: "Di bawah Rp30.000" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Di bawah Rp30.000" }));
       expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
       expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
     });
 
     it("Hapus pilihan clears the tag and the chips but never the meal, which is the mood", async () => {
-      mount(taggedRuntime());
+      await mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
       // The dinner package has no one-day trial, so the list is empty and offers the way out.
-      fireEvent.press(screen.getByRole("button", { name: "Bisa coba 1 hari" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Bisa coba 1 hari" }));
       expect(screen.getByText("Belum ada paket yang cocok.")).toBeTruthy();
-      fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan" }));
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
       expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(false);
@@ -858,27 +867,27 @@ describe("Jelajah mood header", () => {
       const runtime = runtimeWith(customer, {
         catalog: jest.fn(async () => ({ items: [rumahan, sehat, malam, pedas], nextCursor: null })),
       });
-      mount(runtime);
+      await mount(runtime);
       await screen.findByText("Paket Pedas");
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Hemat" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Kategori Hemat" }));
       expect(screen.queryByText("Paket Pedas")).toBeNull();
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       // Nothing on Malam carries Sehat: no circle, and the list is not filtered by it.
       expect(screen.queryByRole("button", { name: "Kategori Hemat" })).toBeNull();
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
-      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
       expect(screen.getByRole("button", { name: "Kategori Hemat" }).props.accessibilityState.selected).toBe(true);
       expect(screen.queryByText("Paket Pedas")).toBeNull();
       expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     });
 
     it("only offers tags that the current meal has, so no circle leads to an empty list", async () => {
-      mount(taggedRuntime());
+      await mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
       expect(screen.getByRole("button", { name: "Kategori Hemat" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" })).toBeTruthy();
-      fireEvent.press(screen.getByRole("button", { name: "Kategori Hemat" }));
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Kategori Hemat" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       // Sehat has no dinner package: its circle goes, and with it the filter.
       expect(screen.queryByRole("button", { name: "Kategori Hemat" })).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" })).toBeTruthy();
@@ -886,13 +895,13 @@ describe("Jelajah mood header", () => {
     });
 
     it("does not render the row when the catalogue has no tags", async () => {
-      mount(runtimeWith());
+      await mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       expect(screen.queryByRole("button", { name: /^Kategori / })).toBeNull();
     });
 
     it("keeps every category chip a 44 point target", async () => {
-      mount(taggedRuntime());
+      await mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
       const chip = screen.getByRole("button", { name: "Kategori Hemat" });
       const slop = chip.props.hitSlop;
@@ -904,7 +913,7 @@ describe("Jelajah mood header", () => {
     const cellOf = (name: string) => within(screen.getByRole("button", { name: new RegExp("^" + name + ",") }));
 
     it("lays the packages out as a two column grid with a 12 column gap and a 20 row gap", async () => {
-      mount(runtimeWith());
+      await mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       expect(gridGaps()).toEqual({ columnGap: 12, rowGap: 20, numColumns: 2 });
       // The two lunch packages; the dinner one waits behind the Malam tab. Two columns: a 40 percent basis that grows.
@@ -914,14 +923,14 @@ describe("Jelajah mood header", () => {
     });
 
     it("keeps a lone last tile one column wide, with a spacer beside it", async () => {
-      mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [cheap, pricey, { ...cheap, id: "p-3", name: "Paket Tiga" }], nextCursor: null })) }));
+      await mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [cheap, pricey, { ...cheap, id: "p-3", name: "Paket Tiga" }], nextCursor: null })) }));
       await screen.findByText("Paket Tiga");
       expect(screen.getAllByTestId("package-cell")).toHaveLength(3);
       expect(screen.getAllByTestId("package-cell-spacer")).toHaveLength(1);
     });
 
     it("draws each tile with a 4:3 photo, radius 12, no border, and the heart a 44 point target", async () => {
-      mount(runtimeWith());
+      await mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       const photos = screen.getAllByTestId("package-photo");
       expect(photos).toHaveLength(2);
@@ -936,7 +945,7 @@ describe("Jelajah mood header", () => {
     });
 
     it("sets the name over two lines, the caterer on one, and the price with a short unit", async () => {
-      mount(runtimeWith());
+      await mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       expect(screen.getByText("Menu Sehat Premium").props.numberOfLines).toBe(2);
       // The tile names the caterer only: the delivery days and the meal are on the package page.
@@ -949,7 +958,7 @@ describe("Jelajah mood header", () => {
     });
 
     it("groups the name with the caterer, then the price with its meta, 8 apart and 2 inside each", async () => {
-      mount(runtimeWith());
+      await mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       const tile = within(screen.getAllByTestId("package-tile")[1]);
       expect(flat(tile.getByTestId("tile-body"))).toMatchObject({ gap: 8, paddingTop: 8 });
@@ -966,7 +975,7 @@ describe("Jelajah mood header", () => {
       const both = { ...kcal(cheap, 610), id: "p-a", name: "Paket A" };
       const kcalOnly = { ...kcal(pricey, 480), id: "p-b", name: "Paket B" };
       const neither = { ...pricey, id: "p-c", name: "Paket C" };
-      mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both, kcalOnly, neither], nextCursor: null })) }));
+      await mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both, kcalOnly, neither], nextCursor: null })) }));
       await screen.findByText("Paket C");
       const metaOf = (name: string) => {
         const tile = within(screen.getAllByTestId("package-tile").find((t) => within(t).queryByText(name))!);
@@ -985,7 +994,7 @@ describe("Jelajah mood header", () => {
       const DEVICE = { width: 412, height: 915, statusInset: 50, tabBar: androidTabBarHeight(1) + 24, demoStrip: DEMO_STRIP_HEIGHT };
       mockWindow = { width: DEVICE.width, height: DEVICE.height, scale: 2.625, fontScale: 1 };
       const offers = ["A", "B", "C", "D"].map((k) => ({ ...pricey, id: "p-" + k, name: "Paket " + k + " dengan nama yang sangat panjang sekali" }));
-      mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: offers, nextCursor: null })) }));
+      await mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: offers, nextCursor: null })) }));
       await screen.findByText("Paket A dengan nama yang sangat panjang sekali");
       // Every number below is read from the rendered styles; a missing one fails the test instead of defaulting.
       const need = (node: { props: { style?: unknown } }, key: string): number => {
@@ -1054,14 +1063,14 @@ describe("Jelajah mood header", () => {
 
     it("keeps two columns on a 360dp phone at the default text size", async () => {
       mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
-      mount(runtimeWith());
+      await mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       for (const cell of screen.getAllByTestId("package-cell")) expect(flat(cell).flexBasis).toBe("40%");
     });
 
     it("falls back to one column on a 360dp phone at font scale 1.3, so names wrap whole words", async () => {
       mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-      mount(runtimeWith());
+      await mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       for (const cell of screen.getAllByTestId("package-cell")) expect(flat(cell)).toMatchObject({ flexBasis: "100%", flexGrow: 1 });
       expect(screen.queryByTestId("package-cell-spacer")).toBeNull();
@@ -1069,7 +1078,7 @@ describe("Jelajah mood header", () => {
 
     it("keeps two columns at font scale 1.3 on a 411dp phone", async () => {
       mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
-      mount(runtimeWith());
+      await mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       for (const cell of screen.getAllByTestId("package-cell")) expect(flat(cell).flexBasis).toBe("40%");
     });
@@ -1078,7 +1087,7 @@ describe("Jelajah mood header", () => {
   describe("states on a Malam header", () => {
     it("says so when nothing matches, in the page colours", async () => {
       const runtime = runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [], nextCursor: null })) });
-      mount(runtime, { now: MALAM_NOW });
+      await mount(runtime, { now: MALAM_NOW });
       expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Lihat makan siang" })).toBeNull();
       expect(title()).toBe("Makan malam minggu depan?");
@@ -1088,7 +1097,7 @@ describe("Jelajah mood header", () => {
       const catalog = jest.fn(async () => {
         throw new Error("REQUEST_FAILED");
       });
-      mount(runtimeWith(customer, { catalog }), { now: MALAM_NOW });
+      await mount(runtimeWith(customer, { catalog }), { now: MALAM_NOW });
       expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
       expect(title()).toBe("Makan malam minggu depan?");
       expect(header().getByPlaceholderText("Cari menu atau katering…")).toBeTruthy();
@@ -1096,7 +1105,7 @@ describe("Jelajah mood header", () => {
 
     it("shows the header and the catalogue skeleton while the catalogue loads", async () => {
       const catalog = jest.fn(() => new Promise<never>(() => {}));
-      const view = mount(runtimeWith(customer, { catalog }), { now: MALAM_NOW });
+      const view = await mount(runtimeWith(customer, { catalog }), { now: MALAM_NOW });
       await waitFor(() => expect(catalog).toHaveBeenCalled());
       // One wait for the whole data area: chips and tiles as one progress bar, and no spinner.
       expect(screen.getByTestId("jelajah-skeleton")).toBeTruthy();
@@ -1104,11 +1113,11 @@ describe("Jelajah mood header", () => {
       expect(screen.getAllByTestId("jelajah-skeleton-tile")).toHaveLength(4);
       // The meal control is already there, and it works: it is the mood, which needs no catalogue.
       expect(screen.getByTestId("meal-segment")).toBeTruthy();
-      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+      await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
       expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
-      expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+      expect(hostsWhere({ type: "ActivityIndicator" })).toHaveLength(0);
       expect(title()).toBe("Makan malam minggu depan?");
     });
   });
@@ -1117,12 +1126,12 @@ describe("Jelajah mood header", () => {
 describe("Paket", () => {
   it("package detail shows trial only when offered", async () => {
     mockParams = { id: "p-murah" };
-    wrap(runtimeWith(), <PackageDetail />);
+    await wrap(runtimeWith(), <PackageDetail />);
     expect(await screen.findByRole("button", { name: "Coba 1 hari" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Coba 1 hari" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba 1 hari" }));
     expect(router.push).toHaveBeenCalledWith("/beli/p-murah?trial=1");
-    fireEvent.press(screen.getByRole("button", { name: "Pilih jadwal" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Pilih jadwal" }));
     expect(router.push).toHaveBeenCalledWith("/beli/p-murah");
   });
 
@@ -1142,7 +1151,7 @@ describe("Paket", () => {
     });
     const other = pay("ck-lain", "p-mahal");
     const mine = pay("ck-ini", "p-murah");
-    wrap(
+    await wrap(
       runtimeWith(customer, {
         customerActions: jest.fn(async () => ({ total: 2, items: [other.item, mine.item] })),
         checkout: jest.fn(async (id: string) => [other.checkout, mine.checkout].find((c) => c.id === id)),
@@ -1152,13 +1161,13 @@ describe("Paket", () => {
     const card = await screen.findByTestId("paket-pending");
     expect(within(card).getByText("Pembayaran paket ini belum selesai")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Pilih jadwal" }).props.accessibilityState).toMatchObject({ disabled: true });
-    fireEvent.press(within(card).getByRole("button", { name: "Lanjutkan bayar" }));
+    await fireEvent.press(within(card).getByRole("button", { name: "Lanjutkan bayar" }));
     expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-ini");
   });
 
   it("another package's unpaid checkout leaves this one free to buy", async () => {
     mockParams = { id: "p-murah" };
-    wrap(
+    await wrap(
       runtimeWith(customer, {
         customerActions: jest.fn(async () => ({
           total: 1,
@@ -1178,7 +1187,7 @@ describe("Paket", () => {
     // the emulator at font scale 1.3 on a 360dp screen): a wrapping row whose price and button group never shrink below
     // their own text and never outgrow the row, and a button group that fills its line from the trailing edge.
     mockParams = { id: "p-murah" };
-    wrap(runtimeWith(), <PackageDetail />);
+    await wrap(runtimeWith(), <PackageDetail />);
     await screen.findByRole("button", { name: "Coba 1 hari" });
     const style = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style);
     expect(style("paket-footer")).toMatchObject({ flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 10 });
@@ -1216,7 +1225,7 @@ describe("Paket", () => {
 
   it("hides the trial button when the package has no trial", async () => {
     mockParams = { id: "p-mahal" };
-    wrap(runtimeWith(), <PackageDetail />);
+    await wrap(runtimeWith(), <PackageDetail />);
     expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Coba 1 hari" })).toBeNull();
   });
@@ -1228,7 +1237,7 @@ describe("Paket", () => {
         offer: { ...pricey, rating: 4.8, reviewCount: 23, description: "Masakan rumahan sehari-hari." },
       })),
     });
-    wrap(runtime, <PackageDetail />);
+    await wrap(runtime, <PackageDetail />);
     expect(await screen.findByText("Dapur Sehat, Tebet. 4,8 dari 23 ulasan")).toBeTruthy();
     expect(screen.getByText("Masakan rumahan sehari-hari.")).toBeTruthy();
     // The facts are Termasuk rows (polish canvas, ruling 3), each a title over one meta sentence.
@@ -1243,7 +1252,7 @@ describe("Paket", () => {
 
   it("shows the package contents instead of inventing dated menus", async () => {
     mockParams = { id: "p-murah" };
-    wrap(runtimeWith(), <PackageDetail />);
+    await wrap(runtimeWith(), <PackageDetail />);
     expect(await screen.findByText("Isi paket")).toBeTruthy();
     expect(screen.getByText(/Ayam bakar madu, Sayur asem/)).toBeTruthy();
   });
@@ -1255,7 +1264,7 @@ describe("Paket", () => {
       name: "Ayam Panggang Harian",
       menus: [{ meal: "lunch", name: "", description: "", image: "", contentModel: "slots", items: [] } as unknown as Offer["menus"][number]],
     });
-    wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: slots })) }), <PackageDetail />);
+    await wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: slots })) }), <PackageDetail />);
     await screen.findByText("Isi paket");
     expect(screen.getAllByText(/Menu belum diisi/)).toHaveLength(1);
   });
@@ -1263,7 +1272,7 @@ describe("Paket", () => {
   it("package detail labels the price per meal and notes a combined day", async () => {
     mockParams = { id: "p-dua" };
     const both = offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", price: 60000 });
-    wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: both })) }), <PackageDetail />);
+    await wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: both })) }), <PackageDetail />);
     expect(await screen.findByText("Per sekali makan · 2 kali makan / hari")).toBeTruthy();
     expect(screen.getByText(/30\.000/)).toBeTruthy();
     expect(screen.queryByText("Per porsi")).toBeNull();
@@ -1271,7 +1280,7 @@ describe("Paket", () => {
 
   it("package detail shows earliest start and no Cara kerja", async () => {
     mockParams = { id: "p-murah" };
-    wrap(runtimeWith(), <PackageDetail />);
+    await wrap(runtimeWith(), <PackageDetail />);
     await screen.findByText("Isi paket");
     const first = startDates(cheap, new Date(), 1)[0];
     expect(screen.getByText(`Paling cepat ${shortDate(first, "id")}.`)).toBeTruthy();
@@ -1282,14 +1291,14 @@ describe("Paket", () => {
   it("package detail hides the earliest start when nothing is bookable", async () => {
     mockParams = { id: "p-tutup" };
     const closed = offer({ id: "p-tutup", name: "Paket Tutup", weekdays: [] });
-    wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: closed })) }), <PackageDetail />);
+    await wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: closed })) }), <PackageDetail />);
     await screen.findByText("Isi paket");
     expect(screen.queryByText(/Paling cepat/)).toBeNull();
   });
 
   it("says when the package is gone", async () => {
     mockParams = { id: "p-hilang" };
-    wrap(runtimeWith(), <PackageDetail />);
+    await wrap(runtimeWith(), <PackageDetail />);
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
   });
 
@@ -1297,21 +1306,21 @@ describe("Paket", () => {
     const nativeTitle = () => within(screen.getByTestId("screen-native-title")).getByRole("header").props.children;
     mockParams = { id: "p-hilang", title: "Promo Palsu" };
     // Loading: the carried name.
-    let view = wrap(runtimeWith(customer, { offer: jest.fn(() => new Promise(() => undefined)) }), <PackageDetail />);
+    let view = await wrap(runtimeWith(customer, { offer: jest.fn(() => new Promise(() => undefined)) }), <PackageDetail />);
     await act(async () => {});
     expect(nativeTitle()).toBe("Promo Palsu");
-    view.unmount();
+    await view.unmount();
     // Gone: the carried name was never checked against a package.
-    view = wrap(runtimeWith(), <PackageDetail />);
+    view = await wrap(runtimeWith(), <PackageDetail />);
     await screen.findByText("Paket tidak ditemukan.");
     expect(nativeTitle()).toBe("Paket");
     expect(screen.queryByText("Promo Palsu")).toBeNull();
-    view.unmount();
+    await view.unmount();
     // A failed read.
     const failing = jest.fn(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
-    wrap(runtimeWith(customer, { offer: failing }), <PackageDetail />);
+    await wrap(runtimeWith(customer, { offer: failing }), <PackageDetail />);
     await screen.findByRole("button", { name: "Coba lagi" });
     expect(nativeTitle()).toBe("Paket");
     expect(screen.queryByText("Promo Palsu")).toBeNull();
@@ -1345,7 +1354,7 @@ describe("Paket on the layout scale (v2)", () => {
     );
   const open = async (o: Offer = withNutrition, over: Record<string, unknown> = {}) => {
     mockParams = { id: o.id };
-    wrapV2(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: o })), ...over }), <PackageDetail />);
+    await wrapV2(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: o })), ...over }), <PackageDetail />);
     await screen.findByTestId("paket-name");
   };
 
@@ -1353,7 +1362,7 @@ describe("Paket on the layout scale (v2)", () => {
     await open();
     expect(flat(screen.getByTestId("paket-hero"))).toMatchObject({ aspectRatio: 4 / 3, marginHorizontal: -16 });
     expect(flat(screen.getByTestId("paket-hero")).marginTop).toBeUndefined();
-    const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
+    const swap = flat(screen.getByTestId("paket-hero").parent!);
     expect([swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, 16]);
   });
 
@@ -1424,7 +1433,7 @@ describe("Paket on the layout scale (v2)", () => {
     const rows = screen.getAllByTestId("paket-termasuk-row");
     expect(rows).toHaveLength(3);
     for (const r of rows) expect(flat(r).minHeight).toBe(72);
-    const texts = rows.map((r) => within(r).UNSAFE_getAllByType(ReactNative.Text).at(-1)!);
+    const texts = rows.map((r) => hostsWhere({ type: "Text" }, r).at(-1)!);
     for (const text of texts) expect(flat(text)).toMatchObject({ fontSize: 13, lineHeight: 18 });
     expect(texts[0].props.children).toBe("Sen–Jum, 11.00–13.00 · 17.00–19.00. Ongkir sudah termasuk.");
     expect(String(texts[1].props.children)).toMatch(/^Paling cepat /);
@@ -1483,7 +1492,7 @@ describe("Paket on the layout scale (v2)", () => {
     expect(screen.getByText("Ulasan")).toBeTruthy();
     expect(screen.getByTestId("paket-name")).toBeTruthy();
     fail = false;
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Dewi · 5/5")).toBeTruthy();
     expect(screen.queryByText(/^Belum bisa memuat ulasan/)).toBeNull();
   });
@@ -1492,7 +1501,7 @@ describe("Paket on the layout scale (v2)", () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {
       mockParams = { id: withNutrition.id };
-      render(
+      await render(
         <LayoutScaleProvider value="v2">
           <ThemeProvider storageKey="paket-dark">
             <MoodProvider now={MALAM_NOW}>
@@ -1522,7 +1531,7 @@ describe("Paket on the layout scale (v2)", () => {
       expect(screen.getByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Coba 1 hari" })).toBeTruthy();
       for (const r of screen.getAllByTestId("paket-termasuk-row"))
-        for (const text of within(r).UNSAFE_getAllByType(ReactNative.Text)) expect(text.props.numberOfLines).toBeUndefined();
+        for (const text of hostsWhere({ type: "Text" }, r)) expect(text.props.numberOfLines).toBeUndefined();
     } finally {
       mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
     }
@@ -1601,7 +1610,7 @@ describe("Paket on the layout scale (v2)", () => {
       const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
       try {
         mockParams = { id: "p-hidangan" };
-        render(
+        await render(
           <LayoutScaleProvider value="v2">
             <ThemeProvider storageKey="paket-dishes-dark">
               <MoodProvider now={MALAM_NOW}>
@@ -1625,10 +1634,10 @@ describe("Paket on the layout scale (v2)", () => {
 describe("Disimpan", () => {
   it("lists saved packages on the same card and a removed one is gone after the reload", async () => {
     const server = savedServer(["p-murah", "p-mahal"]);
-    wrap(runtimeWith(customer, server), <SavedList />);
+    await wrap(runtimeWith(customer, server), <SavedList />);
     expect(await screen.findByText("Nasi Ayam Bakar")).toBeTruthy();
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
     await waitFor(() =>
       expect(server.command).toHaveBeenCalledWith("savedPackage.set", { packageId: "p-murah", saved: false }, expect.any(String)),
     );
@@ -1639,7 +1648,7 @@ describe("Disimpan", () => {
   });
 
   it("lists the saved packages as the same two column tile grid", async () => {
-    wrap(runtimeWith(customer, savedServer(["p-murah", "p-mahal"])), <SavedList />);
+    await wrap(runtimeWith(customer, savedServer(["p-murah", "p-mahal"])), <SavedList />);
     await screen.findByText("Nasi Ayam Bakar");
     expect(flat(screen.getByTestId("package-grid"))).toMatchObject({ flexWrap: "wrap", columnGap: 12, rowGap: 20 });
     expect(screen.getAllByTestId("package-tile")).toHaveLength(2);
@@ -1648,14 +1657,14 @@ describe("Disimpan", () => {
   });
 
   it("while the saved list loads, its skeleton is the tile grid's shape: four 4:3 tiles in the same grid", async () => {
-    wrap(runtimeWith(customer, { savedPackages: jest.fn(() => new Promise(() => undefined)) }), <SavedList />);
+    await wrap(runtimeWith(customer, { savedPackages: jest.fn(() => new Promise(() => undefined)) }), <SavedList />);
     const skeleton = await screen.findByTestId("saved-skeleton");
     expect(skeleton).toBeTruthy();
     expect(flat(screen.getByTestId("saved-skeleton-grid"))).toMatchObject({ flexWrap: "wrap", columnGap: 12, rowGap: 20 });
     const tiles = screen.getAllByTestId("saved-skeleton-tile");
     expect(tiles).toHaveLength(4);
     for (const tile of tiles) expect(flat(tile)).toMatchObject({ flexBasis: "40%", flexGrow: 1 });
-    expect((tiles[0].children[0] as unknown as { props: Record<string, unknown> }).props).toMatchObject({ aspectRatio: 4 / 3, radius: 12 });
+    expect(flat(tiles[0].children[0] as TestInstance)).toMatchObject({ aspectRatio: 4 / 3, borderRadius: 12 });
     expect(screen.getByRole("progressbar", { name: "Memuat paket tersimpan" })).toBeTruthy();
   });
 
@@ -1669,7 +1678,7 @@ describe("Disimpan", () => {
         items: [...page.items.slice(0, 1), { packageId: "p-gone", savedAt: "2026-10-01T00:00:00Z", summary: { name: "Paket Lama" }, offer: null }],
       };
     });
-    wrap(runtimeWith(customer, server), <SavedList />);
+    await wrap(runtimeWith(customer, server), <SavedList />);
     await screen.findByText("Paket Lama");
     expect(flat(screen.getByTestId("saved-unavailable-photo"))).toMatchObject({ aspectRatio: 4 / 3, borderRadius: 12 });
     expect(screen.getByText("Paket Lama").props.numberOfLines).toBe(2);
@@ -1678,32 +1687,32 @@ describe("Disimpan", () => {
   });
 
   it("keeps the package listed and says so when removing fails", async () => {
-    wrap(runtimeWith(customer, savedServer(["p-murah"], true)), <SavedList />);
+    await wrap(runtimeWith(customer, savedServer(["p-murah"], true)), <SavedList />);
     await screen.findByText("Nasi Ayam Bakar");
-    fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
     expect(await screen.findByText("Belum tersimpan. Coba lagi.")).toBeTruthy();
     expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
   });
 
   it("asks a signed-out visitor to sign in", async () => {
-    wrap(runtimeWith(null), <SavedList />);
-    fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
+    await wrap(runtimeWith(null), <SavedList />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalled();
   });
 
   it("while the session loads, the skeleton sits in the scrolling Screen, below the iOS large title", async () => {
-    const view = wrap(runtimeWith(customer, { me: jest.fn(() => new Promise(() => undefined)) }), <SavedList />);
+    const view = await wrap(runtimeWith(customer, { me: jest.fn(() => new Promise(() => undefined)) }), <SavedList />);
     await act(async () => {});
     const scroll = screen.getByTestId("screen-scroll");
-    expect(scroll.findByProps({ testID: "saved-skeleton" })).toBeTruthy();
+    expect(within(scroll).getByTestId("saved-skeleton")).toBeTruthy();
     expect(screen.getByRole("progressbar", { name: "Memuat paket tersimpan" })).toBeTruthy();
-    expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsWhere({ type: "ActivityIndicator" })).toHaveLength(0);
     expect(scroll.props.contentInsetAdjustmentBehavior).toBe("automatic");
-    view.unmount();
+    await view.unmount();
   });
 
   it("explains an empty list", async () => {
-    wrap(runtimeWith(), <SavedList />);
+    await wrap(runtimeWith(), <SavedList />);
     expect(await screen.findByText("Belum ada paket tersimpan.")).toBeTruthy();
   });
 });

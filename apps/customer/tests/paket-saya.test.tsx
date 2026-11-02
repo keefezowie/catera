@@ -65,7 +65,7 @@ function runtimeWith(state: () => Promise<CustomerState>, actor: Record<string, 
   return runtime;
 }
 
-function mount(runtime: MobileRuntime) {
+async function mount(runtime: MobileRuntime) {
   return render(
     <LayoutScaleProvider value="v2">
       <ThemeProvider storageKey="paket-saya-test">
@@ -112,7 +112,7 @@ beforeEach(() => {
 
 describe("Paket saya", () => {
   it("is titled Paket saya and has an Aktif section with its count", async () => {
-    mount(runtimeWith(async () => eightPlans()));
+    await mount(runtimeWith(async () => eightPlans()));
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(within(screen.getByTestId("screen-native-title")).getByText("Paket saya")).toBeTruthy();
     const heading = screen.getAllByTestId("plan-section")[0];
@@ -122,7 +122,7 @@ describe("Paket saya", () => {
   });
 
   it("lists the running plans in a card of 72 rows with a 56 photo, soonest end first", async () => {
-    mount(runtimeWith(async () => eightPlans()));
+    await mount(runtimeWith(async () => eightPlans()));
     await screen.findByText("Makan Siang Rumahan");
     const active = within(screen.getByTestId("plan-row-list"));
     // Six plans end on the 15th (by name), then the 16th, then the 30th.
@@ -144,20 +144,20 @@ describe("Paket saya", () => {
   });
 
   it("opens a plan's detail from its row", async () => {
-    mount(runtimeWith(async () => eightPlans()));
-    fireEvent.press(await screen.findByText("Makan Siang Kantor · 19–30 Okt"));
+    await mount(runtimeWith(async () => eightPlans()));
+    await fireEvent.press(await screen.findByText("Makan Siang Kantor · 19–30 Okt"));
     expect(router.push).toHaveBeenCalledWith("/subscriptions/s-b?title=Makan%20Siang%20Kantor");
   });
 
   it("with one plan counts it and lists it", async () => {
-    mount(runtimeWith(async () => ({ ...eightPlans(), subscriptions: [plan("s-1", { name: "Makan Siang Rumahan", caterer: "Dapur Contoh", today: DEMO_TODAY })] })));
+    await mount(runtimeWith(async () => ({ ...eightPlans(), subscriptions: [plan("s-1", { name: "Makan Siang Rumahan", caterer: "Dapur Contoh", today: DEMO_TODAY })] })));
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.getByText("1 paket")).toBeTruthy();
     expect(screen.queryByText("Selesai")).toBeNull();
   });
 
   it("adds a Selesai section for completed plans, most recently ended first, and leaves out cancelled ones", async () => {
-    mount(runtimeWith(async () => withFinished(eightPlans())));
+    await mount(runtimeWith(async () => withFinished(eightPlans())));
     await screen.findByText("Rantang Nusantara");
     const heading = screen.getAllByTestId("plan-section")[1];
     expect(within(heading).getByText("Selesai")).toBeTruthy();
@@ -169,19 +169,19 @@ describe("Paket saya", () => {
     expect(screen.queryByText("Paket Batal")).toBeNull();
     // The active count still counts only the running ones.
     expect(screen.getByText("8 paket")).toBeTruthy();
-    fireEvent.press(done.getByText("Plant-based Everyday"));
+    await fireEvent.press(done.getByText("Plant-based Everyday"));
     expect(router.push).toHaveBeenCalledWith("/subscriptions/s-z2?title=Plant-based%20Everyday");
   });
 
   it("shows no Selesai section when no plan has finished", async () => {
-    mount(runtimeWith(async () => eightPlans()));
+    await mount(runtimeWith(async () => eightPlans()));
     await screen.findByText("Makan Siang Rumahan");
     expect(screen.queryByText("Selesai")).toBeNull();
     expect(screen.queryByTestId("plan-finished-list")).toBeNull();
   });
 
   it("with no running plan says so under Aktif and still lists the finished ones", async () => {
-    mount(runtimeWith(async () => withFinished({ ...eightPlans(), subscriptions: [] })));
+    await mount(runtimeWith(async () => withFinished({ ...eightPlans(), subscriptions: [] })));
     expect(await screen.findByText("Belum ada paket aktif.")).toBeTruthy();
     expect(screen.getByText("Rantang Nusantara")).toBeTruthy();
     expect(screen.queryByTestId("plan-row-list")).toBeNull();
@@ -189,28 +189,28 @@ describe("Paket saya", () => {
 
   it("an empty Aktif offers Cari paket, which opens the Jelajah tab", async () => {
     const { goToTab } = require("../src/nav") as { goToTab: jest.Mock };
-    mount(runtimeWith(async () => ({ ...eightPlans(), subscriptions: [], deliveries: [] })));
+    await mount(runtimeWith(async () => ({ ...eightPlans(), subscriptions: [], deliveries: [] })));
     await screen.findByText("Belum ada paket aktif.");
-    fireEvent.press(screen.getByRole("button", { name: "Cari paket" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Cari paket" }));
     expect(goToTab).toHaveBeenCalledWith("jelajah");
   });
 
   it("a list with running plans has no Cari paket button", async () => {
-    mount(runtimeWith(async () => withFinished(eightPlans())));
+    await mount(runtimeWith(async () => withFinished(eightPlans())));
     await screen.findByText("Rantang Nusantara");
     expect(screen.queryByRole("button", { name: "Cari paket" })).toBeNull();
   });
 
   it("draws the cards on the dark theme's surface", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
-    mount(runtimeWith(async () => withFinished(eightPlans())));
+    await mount(runtimeWith(async () => withFinished(eightPlans())));
     await screen.findByText("Rantang Nusantara");
     for (const card of screen.getAllByTestId("list-card")) expect(flat(card).backgroundColor).toBe(nativeThemes.dark.surface);
     scheme.mockRestore();
   });
 
   it("says so when there are no plans at all", async () => {
-    mount(runtimeWith(async () => ({ ...eightPlans(), subscriptions: [], deliveries: [] })));
+    await mount(runtimeWith(async () => ({ ...eightPlans(), subscriptions: [], deliveries: [] })));
     expect(await screen.findByText("Belum ada paket aktif.")).toBeTruthy();
     expect(screen.queryByText("Selesai")).toBeNull();
   });
@@ -224,7 +224,7 @@ describe("Paket saya", () => {
         plan("s-2", { name: "Paket Dua", caterer: "Dapur Contoh", remaining: 6, today: DEMO_TODAY }),
       ],
     });
-    mount(runtimeWith(async () => state));
+    await mount(runtimeWith(async () => state));
     expect(await screen.findByText("Dapur Contoh · 1 day to go")).toBeTruthy();
     expect(screen.getByText("Dapur Contoh · 6 days to go")).toBeTruthy();
     expect(screen.queryByText(/1 days/)).toBeNull();
@@ -237,7 +237,7 @@ describe("Paket saya", () => {
 
   it("lets a row's words wrap and the row grow at 360dp and font scale 1.3", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
-    mount(runtimeWith(async () => withFinished(eightPlans())));
+    await mount(runtimeWith(async () => withFinished(eightPlans())));
     await screen.findByText("Rantang Nusantara");
     for (const id of ["plan-row-list", "plan-finished-list"])
       for (const text of within(screen.getByTestId(id)).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
@@ -245,7 +245,7 @@ describe("Paket saya", () => {
 
   it("says so when the read fails, with the puzzled art, and reads again", async () => {
     let fail = true;
-    mount(
+    await mount(
       runtimeWith(async () => {
         if (fail) throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
         return eightPlans();
@@ -259,7 +259,7 @@ describe("Paket saya", () => {
   });
 
   it("signed out asks to sign in under the title Paket saya", async () => {
-    mount(runtimeWith(async () => eightPlans(), null));
+    await mount(runtimeWith(async () => eightPlans(), null));
     expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
     expect(within(screen.getByTestId("screen-native-title")).getByText("Paket saya")).toBeTruthy();
   });

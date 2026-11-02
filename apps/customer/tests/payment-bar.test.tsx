@@ -43,14 +43,14 @@ function Harness() {
   return bar ? <PaymentBarView bar={bar} now={now} /> : null;
 }
 
-const mount = (items: CustomerActionItem[]) =>
-  render(
+const mount = async (items: CustomerActionItem[]) =>
+  await render(
     <MobileProvider runtime={runtimeWith(items)} linkMapper={customerLink}>
       <Harness />
     </MobileProvider>,
   );
 
-const settle = () => act(async () => void (await new Promise((r) => setTimeout(r, 10))));
+const settle = async () => await act(async () => void (await new Promise((r) => setTimeout(r, 10))));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -71,26 +71,26 @@ describe("onTabRoot", () => {
 
 describe("the payment bar", () => {
   it("one payment to finish: the countdown, the package and Bayar, opening Bayar", async () => {
-    mount([pay("ck-1", "awaiting_payment", 12 * 60_000 + 48_000)]);
+    await mount([pay("ck-1", "awaiting_payment", 12 * 60_000 + 48_000)]);
     await settle();
     const button = screen.getByTestId("payment-bar-button");
     expect(button.props.accessibilityLabel).toBe("Selesaikan pembayaran, Makan Siang Rumahan, sisa 12:48, Bayar");
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-1");
   });
 
   it("the countdown runs, turns to Segera bayar under 3 minutes, and the bar leaves when the hold ends", async () => {
-    mount([pay("ck-1", "awaiting_payment", 3 * 60_000 + 2_000)]);
+    await mount([pay("ck-1", "awaiting_payment", 3 * 60_000 + 2_000)]);
     await settle();
     expect(screen.getByTestId("payment-bar-button").props.accessibilityLabel).toContain("sisa 03:02");
-    act(() => void jest.advanceTimersByTime(3_000));
+    await act(() => void jest.advanceTimersByTime(3_000));
     expect(screen.getByTestId("payment-bar-button").props.accessibilityLabel).toMatch(/^Segera bayar, .*sisa 02:59/);
-    act(() => void jest.advanceTimersByTime(3 * 60_000));
+    await act(() => void jest.advanceTimersByTime(3 * 60_000));
     expect(screen.queryByTestId("payment-bar")).toBeNull();
   });
 
   it("no method yet asks to continue", async () => {
-    mount([pay("ck-1", "choose_method", 600_000)]);
+    await mount([pay("ck-1", "choose_method", 600_000)]);
     await settle();
     expect(screen.getByTestId("payment-bar-button").props.accessibilityLabel).toBe(
       "Lanjutkan pembayaran, Makan Siang Rumahan · pilih cara bayar, sisa 10:00, Lanjut",
@@ -98,7 +98,7 @@ describe("the payment bar", () => {
   });
 
   it("a payment being checked says not to pay again, with no clock and no Bayar", async () => {
-    mount([pay("ck-1", "checking_payment", 600_000)]);
+    await mount([pay("ck-1", "checking_payment", 600_000)]);
     await settle();
     expect(screen.getByTestId("payment-bar-button").props.accessibilityLabel).toBe(
       "Pembayaran sedang dicek, Jangan bayar lagi · Makan Siang Rumahan",
@@ -107,16 +107,16 @@ describe("the payment bar", () => {
   });
 
   it("two to finish open Riwayat pembayaran", async () => {
-    mount([pay("a", "awaiting_payment", 900_000), pay("b", "awaiting_payment", 300_000)]);
+    await mount([pay("a", "awaiting_payment", 900_000), pay("b", "awaiting_payment", 300_000)]);
     await settle();
     const button = screen.getByTestId("payment-bar-button");
     expect(button.props.accessibilityLabel).toBe("2 pembayaran belum selesai, Yang terdekat habis 05:00, Lihat");
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(router.push).toHaveBeenLastCalledWith("/pembayaran");
   });
 
   it("nothing open, nothing drawn", async () => {
-    mount([]);
+    await mount([]);
     await settle();
     expect(screen.queryByTestId("payment-bar")).toBeNull();
   });

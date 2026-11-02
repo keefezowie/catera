@@ -77,8 +77,8 @@ function runtimeWith(): MobileRuntime {
 }
 
 const SIANG_NOW = () => new Date("2026-10-09T07:59:00Z");
-const wrap = (ui: React.ReactElement) =>
-  render(
+const wrap = async (ui: React.ReactElement) =>
+  await render(
     <LayoutScaleProvider value="v2">
       <MoodProvider now={SIANG_NOW}>
         <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
@@ -87,7 +87,7 @@ const wrap = (ui: React.ReactElement) =>
       </MoodProvider>
     </LayoutScaleProvider>,
   );
-const strip = (o: Offer) => wrap(<StatStrip offer={o} />);
+const strip = async (o: Offer) => await wrap(<StatStrip offer={o} />);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -102,7 +102,7 @@ describe("StatStrip", () => {
   const bar = () => screen.getByTestId("energy-bar", { includeHiddenElements: true }).children.map((n) => flat(n as never).flex);
 
   it("one card: calories with kkal and per porsi, the energy bar, the three macros as columns and the caveat inside", async () => {
-    strip(full);
+    await strip(full);
     expect(await screen.findByTestId("stat-strip")).toBeTruthy();
     expect(flat(screen.getByTestId("nutrition"))).toMatchObject({ borderRadius: 16, padding: 15, borderWidth: 1 });
     expect(screen.getByTestId("stat-kcal").props.accessibilityLabel).toBe("620 kkal per porsi");
@@ -118,14 +118,14 @@ describe("StatStrip", () => {
   });
 
   it("ranges read 610–640 and the shares come from the middle of each range", async () => {
-    strip(range);
+    await strip(range);
     await screen.findByTestId("stat-strip");
     expect(screen.getByTestId("stat-kcal").props.accessibilityLabel).toBe("610–640 kkal per porsi");
     expect(labels()).toEqual(["Protein 29–30 g, 19% energi", "Karbohidrat 76–82 g, 51% energi", "Lemak 19–21 g, 30% energi"]);
   });
 
   it("an empty metric is left out, and without all three macros there is no bar and no share", async () => {
-    strip(noCarbs);
+    await strip(noCarbs);
     await screen.findByTestId("stat-strip");
     expect(labels()).toEqual(["Protein 34 g", "Lemak 22 g"]);
     expect(screen.queryByTestId("energy-bar", { includeHiddenElements: true })).toBeNull();
@@ -134,32 +134,32 @@ describe("StatStrip", () => {
   });
 
   it("zero fat is a value", async () => {
-    strip(zeroFat);
+    await strip(zeroFat);
     await screen.findByTestId("stat-strip");
     expect(labels()).toContain("Lemak 0 g");
   });
 
   it("only calories gives the calorie line and the caveat, no columns", async () => {
-    strip(caloriesOnly);
+    await strip(caloriesOnly);
     expect(await screen.findByTestId("stat-kcal")).toBeTruthy();
     expect(screen.queryByTestId("stat-strip")).toBeNull();
     expect(screen.getByText(/Perkiraan dari katering/)).toBeTruthy();
   });
 
   it("only carbs and fat keep their columns without a calorie line", async () => {
-    strip(offer({ id: "p-karbo", name: "Karbo", nutrition: { carbsG: 50, fatG: 10 } }));
+    await strip(offer({ id: "p-karbo", name: "Karbo", nutrition: { carbsG: 50, fatG: 10 } }));
     await screen.findByTestId("stat-strip");
     expect(labels()).toEqual(["Karbohidrat 50 g", "Lemak 10 g"]);
     expect(screen.queryByTestId("stat-kcal")).toBeNull();
   });
 
   it("no metrics, no card and no caveat", async () => {
-    const view = strip(none);
+    const view = await strip(none);
     expect(screen.queryByTestId("nutrition")).toBeNull();
     expect(screen.queryByText(/Perkiraan dari katering/)).toBeNull();
-    view.unmount();
+    await view.unmount();
     mockParams = { id: "p-sambal" };
-    wrap(<PackageDetail />);
+    await wrap(<PackageDetail />);
     expect(await screen.findByText("Ayam Sambal Rumahan")).toBeTruthy();
     expect(screen.queryByTestId("nutrition")).toBeNull();
     expect(screen.queryByText(/per porsi/)).toBeNull();
@@ -168,15 +168,15 @@ describe("StatStrip", () => {
   it("at large text on a 360dp phone the columns become lines and nothing is cut", async () => {
     const dims = jest.spyOn(require("react-native"), "useWindowDimensions");
     dims.mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
-    const view = strip(range);
+    const view = await strip(range);
     await screen.findByTestId("stat-strip");
     expect(flat(screen.getByTestId("stat-strip")).flexDirection).toBeUndefined();
     expect(flat(cells()[0]).flexDirection).toBe("row-reverse");
-    for (const text of screen.getByTestId("nutrition").findAll((n) => n.type === require("react-native").Text))
+    for (const text of screen.getByTestId("nutrition").queryAll((n) => n.type === require("react-native").Text))
       expect(text.props.numberOfLines).toBeUndefined();
-    view.unmount();
+    await view.unmount();
     dims.mockReturnValue({ width: 412, height: 860, scale: 3, fontScale: 1 });
-    strip(range);
+    await strip(range);
     expect(flat(screen.getByTestId("stat-strip")).flexDirection).toBe("row");
     dims.mockRestore();
   });
@@ -185,7 +185,7 @@ describe("StatStrip", () => {
 describe("Paket", () => {
   it("shows the card, and no 'kkal · protein per porsi' line under the name", async () => {
     mockParams = { id: "p-ayam" };
-    wrap(<PackageDetail />);
+    await wrap(<PackageDetail />);
     expect(await screen.findByTestId("stat-strip")).toBeTruthy();
     expect(screen.getByTestId("energy-bar", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByText("620 kkal · 32 g protein per porsi")).toBeNull();
@@ -193,14 +193,14 @@ describe("Paket", () => {
 
   it("a calorie-only package still shows its card", async () => {
     mockParams = { id: "p-kalori" };
-    wrap(<PackageDetail />);
+    await wrap(<PackageDetail />);
     expect(await screen.findByTestId("stat-kcal")).toBeTruthy();
   });
 });
 
 describe("Jelajah", () => {
   it("the Jelajah row shows ± kalori only when present", async () => {
-    wrap(<Jelajah />);
+    await wrap(<Jelajah />);
     // The area read and the catalogue load one after the other, so the first paint can take longer than the default wait.
     expect(await screen.findByText("Ayam Sambal Rumahan", {}, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByText("± 620 kkal")).toBeTruthy();

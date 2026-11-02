@@ -1,11 +1,11 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { ActivityIndicator, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { nativeLayout, nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import * as SecureStore from "expo-secure-store";
-import { FadeSwap, LayoutScaleProvider, MoodProvider, SheetHeader, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
+import { FadeSwap, LayoutScaleProvider, MoodProvider, SheetHeader, Skeleton, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
 import { jakartaDay, monthOf, monthWeeks, type CustomerState } from "@catera/domain";
 import { spyFades } from "./fade";
 import { Beranda } from "../src/today/Beranda";
@@ -32,6 +32,8 @@ import { DayScreen } from "../src/schedule/DayScreen";
 import * as offline from "../src/today/offline";
 import { PlanSkeleton } from "../src/skeletons";
 import { customerState, offer } from "./fixtures";
+import { byComponent, drawnBy, hosts, hostsOfType, isWithin, type Composite } from "./host-tree";
+import type { TestInstance } from "test-renderer";
 
 /** Spec 2: each screen's data area waits as its own skeleton, or as the mascot when nothing can be shown yet. */
 
@@ -117,10 +119,10 @@ function deferred<T>() {
 
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
 /** Whether `node` sits somewhere inside `ancestor`. */
-function inside(node: { parent: unknown }, ancestor: unknown) {
-  for (let n = node.parent as { parent: unknown } | null; n; n = n.parent as { parent: unknown } | null)
-    if (n === ancestor) return true;
-  return false;
+function inside(node: TestInstance | Composite, ancestor: TestInstance | Composite) {
+  const host = "hosts" in node ? node.host : node;
+  if ("hosts" in ancestor) return drawnBy(ancestor, host);
+  return host !== ancestor && isWithin(host, ancestor);
 }
 
 beforeEach(() => {
@@ -135,7 +137,7 @@ afterEach(() => jest.restoreAllMocks());
 describe("Beranda", () => {
   it("Beranda loading shows its skeleton under the live mood header", async () => {
     const runtime = runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) });
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const skeleton = screen.getByTestId("beranda-skeleton");
     const header = screen.getByTestId("mood-header");
@@ -146,7 +148,7 @@ describe("Beranda", () => {
     expect(inside(skeleton, header)).toBe(false);
     expect(inside(skeleton, screen.getByTestId("screen-body"))).toBe(true);
     expect(screen.getByRole("progressbar", { name: "Memuat beranda" })).toBeTruthy();
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsOfType(screen.root, "ActivityIndicator")).toHaveLength(0);
     // The skeleton hero rides over the band exactly as the loaded hero does, so the swap does not jump. The band leaves
     // the same 104 for it, and the skeleton lifts by the same 120 (104 plus the body's 16).
     expect(flat(header).paddingBottom).toBe(16 + HERO_BAND_OVERLAP);
@@ -155,11 +157,11 @@ describe("Beranda", () => {
   });
 
   it("the loaded hero rides over the band by the same offset as its skeleton", async () => {
-    renderWith(runtimeWith({ customer: jest.fn(async () => customerState({ status: "scheduled" })) }), <Beranda />);
+    await renderWith(runtimeWith({ customer: jest.fn(async () => customerState({ status: "scheduled" })) }), <Beranda />);
     await screen.findByTestId("plate-hero");
     expect(flat(screen.getByTestId("mood-header")).paddingBottom).toBe(16 + HERO_BAND_OVERLAP);
     // The overlap belongs to the swapped data area, so the hero's own frame never sits outside its parent's bounds.
-    const swap = screen.UNSAFE_getByType(FadeSwap);
+    const swap = byComponent(FadeSwap)[0];
     expect(flat(swap).marginTop).toBe(HERO_BAND_RISE);
     expect(flat(screen.getByTestId("plate-hero")).marginTop ?? 0).toBe(0);
   });
@@ -168,10 +170,10 @@ describe("Beranda", () => {
     const read = deferred<CustomerState>();
     const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
     // Siang, so the mood fills' own easing (to 0) is never counted as a fade (to 1).
-    renderAt(runtime, <Beranda />, SIANG);
+    await renderAt(runtime, <Beranda />, SIANG);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const skeleton = screen.getByTestId("beranda-skeleton");
-    const before = screen.UNSAFE_getAllByType(FadeSwap);
+    const before = byComponent(FadeSwap);
     expect(before).toHaveLength(1);
     expect(before[0].props.swapKey).toBe("loading");
     expect(inside(skeleton, before[0])).toBe(true);
@@ -179,7 +181,7 @@ describe("Beranda", () => {
     const timing = spyFades();
     await act(async () => read.resolve(customerState({ status: "scheduled" })));
     const hero = await screen.findByTestId("plate-hero");
-    const after = screen.UNSAFE_getAllByType(FadeSwap);
+    const after = byComponent(FadeSwap);
     // Still one wrapper, now holding the hero and every row below it: the page enters as one block.
     expect(after).toHaveLength(1);
     expect(after[0].props.swapKey).toBe("fresh");
@@ -193,7 +195,7 @@ describe("Beranda", () => {
 
   it("pull to refresh on Beranda keeps content on screen while it reloads", async () => {
     const read = jest.fn(async () => customerState({ status: "scheduled" }));
-    renderWith(runtimeWith({ customer: read }), <Beranda />);
+    await renderWith(runtimeWith({ customer: read }), <Beranda />);
     await screen.findByTestId("plate-hero");
     const control = () => screen.getByTestId("screen-scroll").props.refreshControl;
     expect(control()).toBeTruthy();
@@ -219,7 +221,7 @@ describe("Beranda", () => {
 describe("Jadwal", () => {
   it("Jadwal loading draws skeleton circles inside the month's own week rows", async () => {
     const runtime = runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) });
-    renderWith(runtime, <Jadwal />);
+    await renderWith(runtime, <Jadwal />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const header = screen.getByTestId("jadwal-header");
     const frame = within(header).getByTestId("month-frame");
@@ -239,19 +241,19 @@ describe("Jadwal", () => {
     expect([days - 1, days, days + 1]).toContain(cells.length);
     for (const cell of cells) expect(flat(cell)).toMatchObject({ width: DAY_CIRCLE, height: DAY_CIRCLE, borderRadius: DAY_CIRCLE / 2 });
     expect(screen.queryByText("Memuat…")).toBeNull();
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsOfType(screen.root, "ActivityIndicator")).toHaveLength(0);
   });
 });
 
 describe("Bayar", () => {
   it("Payment while checking shows the mascot with Memeriksa pembayaran", async () => {
-    renderWith(
+    await renderWith(
       runtimeWith({ checkout: jest.fn(() => new Promise(() => undefined)), command: jest.fn(async () => ({})) }),
       <PaymentScreen checkoutId="ck-1" />,
     );
     const mascot = await screen.findByTestId("mascot-loading");
     expect(mascot.props.accessibilityLabel).toBe("Memeriksa pembayaran…");
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsOfType(screen.root, "ActivityIndicator")).toHaveLength(0);
   });
 });
 
@@ -279,22 +281,18 @@ describe("states", () => {
     ] as const)
       it(`on the ${mood} header in ${scheme}, the skeleton blocks there read the mood's track and the page's read the theme`, async () => {
         const runtime = pending();
-        renderThemed(runtime, <Jadwal />, scheme, now);
+        await renderThemed(runtime, <Jadwal />, scheme, now);
         await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
         for (const cell of screen.getAllByTestId("jadwal-skeleton-cell"))
           expect(flat(cell).backgroundColor).toBe(nativeMood[scheme][mood].arcTrack);
-        screen.unmount();
+        await screen.unmount();
 
         const home = pending();
-        renderThemed(home, <Beranda />, scheme, now);
+        await renderThemed(home, <Beranda />, scheme, now);
         await waitFor(() => expect(home.api.customer).toHaveBeenCalled());
-        const blocks = screen
-          .getByTestId("beranda-skeleton")
-          .findAll(
-            (n) =>
-              typeof n.type === "string" &&
-              (flat(n).height !== undefined || flat(n).aspectRatio !== undefined) &&
-              !!flat(n).backgroundColor,
+        const blocks = hosts(screen.getByTestId("beranda-skeleton"))
+          .filter(
+            (n) => (flat(n).height !== undefined || flat(n).aspectRatio !== undefined) && !!flat(n).backgroundColor,
           )
           .map((n) => flat(n));
         // The hero's blocks sit on the hero card's own fill, so they read the hero's track (light Malam paints the hero
@@ -313,7 +311,7 @@ describe("states", () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const repeat = jest.spyOn(Reanimated, "withRepeat");
     const runtime = pending();
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     expect(screen.getByRole("progressbar", { name: "Memuat beranda" })).toBeTruthy();
     expect(repeat).not.toHaveBeenCalled();
@@ -321,7 +319,7 @@ describe("states", () => {
 
   it("signed out shows the sign-in prompt, never a skeleton", async () => {
     const runtime = runtimeWith({ me: jest.fn(async () => ({ actor: null, demo: false })), customer: jest.fn() });
-    renderWith(runtime, <Jadwal />);
+    await renderWith(runtime, <Jadwal />);
     expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
     expect(screen.queryByRole("progressbar")).toBeNull();
     expect(screen.queryByTestId("jadwal-skeleton-cell")).toBeNull();
@@ -334,7 +332,7 @@ describe("states", () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
     });
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     expect(await screen.findByTestId("home-error")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy();
     expect(screen.queryByTestId("beranda-skeleton")).toBeNull();
@@ -343,7 +341,7 @@ describe("states", () => {
 
   it("a pull to refresh that fails keeps the page and says why under it", async () => {
     const read = jest.fn(async () => customerState({ status: "scheduled" }));
-    renderWith(runtimeWith({ customer: read }), <Beranda />);
+    await renderWith(runtimeWith({ customer: read }), <Beranda />);
     await screen.findByTestId("plate-hero");
     read.mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
     await act(async () => void screen.getByTestId("screen-scroll").props.refreshControl.props.onRefresh());
@@ -355,11 +353,10 @@ describe("states", () => {
   it("the skeleton's fixed heights match the loaded page at the default text size, so a larger text only grows the page", async () => {
     const read = deferred<CustomerState>();
     const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
-    const blocks = screen
-      .getByTestId("beranda-skeleton")
-      .findAll((n) => typeof n.type === "string" && typeof flat(n).height === "number")
+    const blocks = hosts(screen.getByTestId("beranda-skeleton"))
+      .filter((n) => typeof flat(n).height === "number")
       .map((n) => flat(n).height as number);
     // The 56 thumb of a 72 row, the 40 glyph circle of the live slot and the hero's 30 dish line, in dp; they do not
     // scale with text.
@@ -382,7 +379,7 @@ describe("states", () => {
 describe("Beranda skeleton, below the hero", () => {
   it("is the live slot and one Berikutnya card of 72 rows, on the loaded geometry", async () => {
     const runtime = runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) });
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const live = flat(screen.getByTestId("beranda-skeleton-live"));
     expect(live).toMatchObject({ minHeight: nativeLayout.row.media, borderRadius: nativeLayout.radius.card, marginTop: 16 });
@@ -397,7 +394,7 @@ describe("Beranda skeleton, below the hero", () => {
     const thumbs = within(days).getAllByTestId("beranda-skeleton-thumb");
     expect(flat(thumbs[0])).toMatchObject({ width: 56, height: 56, borderRadius: nativeLayout.radius.thumb });
     // Nothing of the old 60 rows or 10 gaps is left.
-    expect(screen.getByTestId("beranda-skeleton").findAll((n) => typeof n.type === "string" && flat(n).minHeight === 60)).toHaveLength(0);
+    expect(hosts(screen.getByTestId("beranda-skeleton")).filter((n) => flat(n).minHeight === 60)).toHaveLength(0);
   });
 });
 
@@ -405,25 +402,25 @@ describe("Masuk", () => {
   it("the email sign-in keeps the form on screen and busies Masuk", async () => {
     const runtime = runtimeWith({ me: jest.fn(async () => ({ actor: null, demo: false })) });
     runtime.signInPassword = jest.fn(() => new Promise<never>(() => undefined));
-    renderWith(runtime, <Masuk />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
-    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
-    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    await renderWith(runtime, <Masuk />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan email" }));
+    await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
     await act(async () => fireEvent.press(screen.getByRole("button", { name: "Masuk" })));
     // The page stays the form: no mascot screen, the typed email still on it, and the button is the busy one.
     expect(screen.queryByTestId("mascot-loading")).toBeNull();
     expect(screen.getByLabelText("Email").props.value).toBe("rani@example.test");
     expect(screen.getByRole("button", { name: "Masuk" }).props.accessibilityState.busy).toBe(true);
-    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(runtime.signInPassword).toHaveBeenCalledTimes(1);
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsOfType(screen.root, "ActivityIndicator")).toHaveLength(0);
   });
 });
 
 describe("pull to refresh", () => {
   async function pullKeeps(ui: React.ReactElement, shown: string) {
     const read = jest.fn(async () => customerState({ status: "scheduled" }));
-    renderWith(runtimeWith({ customer: read }), ui);
+    await renderWith(runtimeWith({ customer: read }), ui);
     await screen.findByTestId(shown);
     const control = () => screen.getByTestId("screen-scroll").props.refreshControl;
     const next = deferred<CustomerState>();
@@ -446,7 +443,7 @@ describe("pull to refresh", () => {
   });
 
   it("no pull to refresh before there is anything to refresh", async () => {
-    renderWith(runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) }), <PaketSaya />);
+    await renderWith(runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) }), <PaketSaya />);
     await screen.findByRole("progressbar", { name: "Memuat paket" });
     expect(screen.getByTestId("screen-scroll").props.refreshControl).toBeUndefined();
   });
@@ -510,7 +507,7 @@ describe("finding 1: Beranda's band keeps its height when the page lands", () =>
     it(`in ${mood}, the loading band is laid out as the loaded one: the meta row and one statement line`, async () => {
       const read = deferred<CustomerState>();
       const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
-      renderAt(runtime, <Beranda />, now);
+      await renderAt(runtime, <Beranda />, now);
       await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
       const before = headerHeight(screen.getByTestId("mood-header"));
       expect(screen.getByTestId("home-meta")).toBeTruthy();
@@ -532,7 +529,7 @@ describe("finding 1: Beranda's band keeps its height when the page lands", () =>
   it("the skeleton hero is the loaded hero's frame: the same radius, photo ratio and body padding and gap", async () => {
     const read = deferred<CustomerState>();
     const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
-    renderAt(runtime, <Beranda />, SIANG);
+    await renderAt(runtime, <Beranda />, SIANG);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const frame = flat(screen.getByTestId("beranda-skeleton-hero"));
     const body = flat(screen.getByTestId("beranda-skeleton-body"));
@@ -558,7 +555,7 @@ describe("finding 2 and 9: a kept copy refreshes in place", () => {
       data: customerState({ status: "scheduled" }),
     } as never);
     const fresh = deferred<CustomerState>();
-    renderAt(runtimeWith({ customer: jest.fn(() => fresh.promise) }), <Beranda />, SIANG);
+    await renderAt(runtimeWith({ customer: jest.fn(() => fresh.promise) }), <Beranda />, SIANG);
     const word = await screen.findByText("Memperbarui…");
     const row = screen.getByTestId("mood-header-row");
     expect(inside(word, row)).toBe(true);
@@ -566,14 +563,14 @@ describe("finding 2 and 9: a kept copy refreshes in place", () => {
     expect(flat(row).minHeight).toBe(36);
     expect(flat(within(row).getByText(/·$/)).lineHeight).toBe(18);
     const before = headerHeight(screen.getByTestId("mood-header"));
-    expect(screen.UNSAFE_getByType(FadeSwap).props.swapKey).toBe("kept");
+    expect(byComponent(FadeSwap)[0].props.swapKey).toBe("kept");
 
     const timing = spyFades();
     await act(async () => fresh.resolve(customerState({ status: "scheduled" })));
     await waitFor(() => expect(screen.queryByText("Memperbarui…")).toBeNull());
     expect(headerHeight(screen.getByTestId("mood-header"))).toEqual(before);
     // Finding 9: the kept copy and the fresh read are keyed apart, so the fresh page fades in once.
-    expect(screen.UNSAFE_getByType(FadeSwap).props.swapKey).toBe("fresh");
+    expect(byComponent(FadeSwap)[0].props.swapKey).toBe("fresh");
     expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).toHaveLength(1);
   });
 });
@@ -586,7 +583,7 @@ describe("finding 4: nothing running", () => {
     const packages = deferred<{ items: unknown[]; nextCursor: null }>();
     const runtime = runtimeWith({ customer: jest.fn(() => home.promise), catalog: jest.fn(() => packages.promise) });
     // Siang, so the mood fills' own easing (to 0) is never counted as a fade (to 1).
-    renderAt(runtime, <Beranda />, SIANG);
+    await renderAt(runtime, <Beranda />, SIANG);
     // Both reads start together.
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     expect(runtime.api.catalog).toHaveBeenCalledWith("?limit=3");
@@ -599,14 +596,14 @@ describe("finding 4: nothing running", () => {
     expect(screen.getByText("Mau makan apa minggu ini?")).toBeTruthy();
     expect(screen.getByTestId("offers-skeleton")).toBeTruthy();
     expect(screen.getAllByRole("progressbar")).toHaveLength(1);
-    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("empty");
+    expect(byComponent(FadeSwap)[0].props.swapKey).toBe("empty");
 
     await act(async () =>
       packages.resolve({ items: [offer({ id: "p-a", name: "Makan Siang Rumahan" })], nextCursor: null }),
     );
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.queryByRole("progressbar")).toBeNull();
-    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("empty");
+    expect(byComponent(FadeSwap)[0].props.swapKey).toBe("empty");
     expect(runtime.api.catalog).toHaveBeenCalledTimes(1);
   });
 
@@ -616,7 +613,7 @@ describe("finding 4: nothing running", () => {
       customer: jest.fn(async () => customerState({ status: "scheduled" })),
       catalog: jest.fn(() => packages.promise),
     });
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     expect(await screen.findByTestId("plate-hero")).toBeTruthy();
     expect(screen.queryByRole("progressbar")).toBeNull();
   });
@@ -642,7 +639,7 @@ describe("finding 3: Bayar while the payment is checked", () => {
         instructions: null,
       },
     };
-    renderWith(
+    await renderWith(
       runtimeWith({ checkout: jest.fn(async () => checkout), command: jest.fn(async () => ({})) }),
       <PaymentScreen checkoutId="ck-1" />,
     );
@@ -666,14 +663,14 @@ describe("finding 3: Bayar while the payment is checked", () => {
     expect(screen.getByRole("button", { name: "Bantuan pembayaran" })).toBeTruthy();
     // The mascot is the stage's title: the old heading is not drawn under it as well.
     expect(screen.queryByText("Memeriksa pembayaran")).toBeNull();
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsOfType(screen.root, "ActivityIndicator")).toHaveLength(0);
   });
 });
 
 describe("the day sheet's skeleton", () => {
   it("is the loaded sheet's own frame: a 16:10 photo, a 56 address well and 56 action circles, from the same constants", async () => {
     mockParams = { id: "d-today" };
-    renderWith(runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) }), <DayScreen />);
+    await renderWith(runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) }), <DayScreen />);
     // No title row: the sheet is the handle and the skeleton, whose meta line is a header for the screen reader
     // ("Hari" when the link carried no day).
     expect(await screen.findByTestId("day-skeleton")).toBeTruthy();
@@ -711,29 +708,29 @@ describe("finding 5: every screen's first read waits as its own skeleton", () =>
     it(`${name} loading names its wait (${label}) with no spinner`, async () => {
       mockParams = params;
       const runtime = runtimeWith({ customer: jest.fn(pending), ...api });
-      renderWith(runtime, ui());
+      await renderWith(runtime, ui());
       // Past the session check: the screen's own read is out.
       await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
       expect(await screen.findByRole("progressbar", { name: label })).toBeTruthy();
       expect(screen.getAllByRole("progressbar")).toHaveLength(1);
-      expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+      expect(hostsOfType(screen.root, "ActivityIndicator")).toHaveLength(0);
     });
 
   it("Akun before the session is known names its wait and holds the contact line (finding 10)", async () => {
-    renderWith(runtimeWith({ me: jest.fn(pending), customer: jest.fn(pending) }), <Akun />);
+    await renderWith(runtimeWith({ me: jest.fn(pending), customer: jest.fn(pending) }), <Akun />);
     expect(await screen.findByRole("progressbar", { name: "Memuat akun" })).toBeTruthy();
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsOfType(screen.root, "ActivityIndicator")).toHaveLength(0);
     // The line under the name is reserved at the meta line's 18, as the loaded header keeps it.
     const header = screen.getByTestId("mood-header");
     expect(flat(within(header).getByTestId("akun-contact")).minHeight).toBe(18);
   });
 
   it("Akun's wait is the loaded body's shape: three 96 tiles, the card of four 56 rows and Pengaturan's card", async () => {
-    renderWith(runtimeWith({ me: jest.fn(pending), customer: jest.fn(pending) }), <Akun />);
+    await renderWith(runtimeWith({ me: jest.fn(pending), customer: jest.fn(pending) }), <Akun />);
     await screen.findByRole("progressbar", { name: "Memuat akun" });
     const tiles = screen.getByTestId("akun-skeleton-tiles");
     expect(flat(tiles)).toMatchObject({ flexDirection: "row", gap: 8 });
-    expect(within(tiles).UNSAFE_getAllByProps({ height: 96 }).length).toBeGreaterThanOrEqual(3);
+    expect(byComponent(Skeleton, tiles).filter((s) => s.props.height === 96).length).toBeGreaterThanOrEqual(3);
     const rows = screen.getAllByTestId("akun-skeleton-row");
     expect(rows).toHaveLength(5);
     for (const row of rows) expect(flat(row)).toMatchObject({ minHeight: 56 });
@@ -743,7 +740,7 @@ describe("finding 5: every screen's first read waits as its own skeleton", () =>
   });
 
   it("Paket saya's wait is the Aktif heading over a card of two 72 rows with a 56 photo", async () => {
-    renderWith(runtimeWith({ customer: jest.fn(pending) }), <PaketSaya />);
+    await renderWith(runtimeWith({ customer: jest.fn(pending) }), <PaketSaya />);
     await screen.findByRole("progressbar", { name: "Memuat paket" });
     const rows = screen.getAllByTestId("plan-list-skeleton-row");
     expect(rows).toHaveLength(2);
@@ -751,7 +748,7 @@ describe("finding 5: every screen's first read waits as its own skeleton", () =>
   });
 
   it("Akun keeps the contact line's height once the account is known (finding 10)", async () => {
-    renderWith(runtimeWith({ customer: jest.fn(pending) }), <Akun />);
+    await renderWith(runtimeWith({ customer: jest.fn(pending) }), <Akun />);
     await screen.findByText("Rani Contoh");
     const header = screen.getByTestId("akun-header");
     expect(flat(within(header).getByTestId("akun-contact")).minHeight).toBe(18);
@@ -762,7 +759,7 @@ describe("finding 5: every screen's first read waits as its own skeleton", () =>
     const real = store.getMockImplementation()!;
     store.mockImplementation((k: string) => (k === "catera.area" ? pending() : real(k)));
     try {
-      renderWith(runtimeWith({}), <Jelajah />);
+      await renderWith(runtimeWith({}), <Jelajah />);
       await jelajahAreaWaits();
     } finally {
       store.mockImplementation(real);
@@ -770,7 +767,7 @@ describe("finding 5: every screen's first read waits as its own skeleton", () =>
   });
 
   it("Jelajah's catalogue wait is the loaded grid's shape: 34 point chips and four 4:3 tiles in the same grid", async () => {
-    renderWith(runtimeWith({ catalog: jest.fn(() => pending()) }), <Jelajah />);
+    await renderWith(runtimeWith({ catalog: jest.fn(() => pending()) }), <Jelajah />);
     const skeleton = await screen.findByTestId("jelajah-skeleton");
     // The chip row is the loaded row's 44 tall, with the live meal segment first and two 34 placeholder chips after it.
     const chips = within(skeleton).getByTestId("jelajah-skeleton-chips");
@@ -778,24 +775,24 @@ describe("finding 5: every screen's first read waits as its own skeleton", () =>
     expect(flat(within(skeleton).getByTestId("chip-row-frame"))).toMatchObject({ minHeight: 44 });
     expect(flat(within(skeleton).getByTestId("chip-row-frame")).marginRight).toBeLessThan(0);
     expect(within(chips).getByTestId("meal-segment")).toBeTruthy();
-    const placeholders = chips.findAll((n) => typeof n.type !== "string" && n.props.height === 34 && n.props.radius === 17, { deep: true });
+    const placeholders = byComponent(Skeleton, chips).filter((s) => s.props.height === 34 && s.props.radius === 17);
     expect(placeholders).toHaveLength(2);
     expect(flat(screen.getByTestId("jelajah-skeleton-grid"))).toMatchObject({ flexWrap: "wrap", columnGap: 12, rowGap: 20 });
     const tiles = screen.getAllByTestId("jelajah-skeleton-tile");
     expect(tiles).toHaveLength(4);
     for (const tile of tiles) expect(flat(tile)).toMatchObject({ flexBasis: "40%", flexGrow: 1 });
     // The photo block is 4:3 with the tile's 12 radius, and nothing draws a circle or a 112 point row.
-    expect((tiles[0].children[0] as unknown as { props: Record<string, unknown> }).props).toMatchObject({ aspectRatio: 4 / 3, radius: 12 });
+    expect(flat(tiles[0].children[0] as TestInstance)).toMatchObject({ aspectRatio: 4 / 3, borderRadius: 12 });
     expect(screen.queryByTestId("photo-ring")).toBeNull();
   });
 
   async function jelajahAreaWaits() {
     const area = await screen.findByTestId("jelajah-area-skeleton");
-    expect(screen.UNSAFE_getAllByType(SkeletonGroup).some((g) => inside(area, g))).toBe(true);
+    expect(byComponent(SkeletonGroup).some((g) => inside(area, g))).toBe(true);
     // One progress bar for the one wait: the list's.
     expect(screen.getAllByRole("progressbar")).toHaveLength(1);
     expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsOfType(screen.root, "ActivityIndicator")).toHaveLength(0);
   }
 });
 
@@ -808,14 +805,14 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     resolve: () => void,
     landed: () => Promise<unknown>,
   ) {
-    renderWith(runtimeWith(api), ui);
+    await renderWith(runtimeWith(api), ui);
     // Past the session check: the screen's own read is out.
     await waitFor(() => expect(api[read]).toHaveBeenCalled());
-    await waitFor(() => expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("loading"));
+    await waitFor(() => expect(byComponent(FadeSwap)[0].props.swapKey).toBe("loading"));
     const timing = spyFades();
     await act(async () => resolve());
     await landed();
-    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("ready");
+    expect(byComponent(FadeSwap)[0].props.swapKey).toBe("ready");
     expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).not.toHaveLength(0);
     expect(screen.queryByRole("progressbar")).toBeNull();
   }
@@ -831,27 +828,25 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
       () => screen.findByTestId("paket-name"),
     );
     // The block starts at the body's top (its -16 cancels the body's padding); the photo has no vertical margin of its own.
-    const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
+    const swap = flat(byComponent(FadeSwap)[0]);
     expect([swap.marginTop, swap.paddingTop]).toEqual([-16, undefined]);
   });
 
   it("Paket's photo sits inside the fading block, edge to edge, with its heart in the bar and not on the page (fix round 2, N1)", async () => {
     mockParams = { id: "p-rumahan" };
-    renderWith(
+    await renderWith(
       runtimeWith({ offer: jest.fn(async () => ({ offer: offer() })), request: jest.fn(async () => []) }),
       <PackageDetail />,
     );
     await screen.findByTestId("paket-name");
-    const node = screen.UNSAFE_getAllByType(FadeSwap)[0];
+    const node = byComponent(FadeSwap)[0];
     const swap = flat(node);
     // The block covers the body's whole box: its top (the body's 16) and both sides, the body's 20 carried as padding.
     expect([swap.marginTop, swap.paddingTop, swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, undefined, -20, 20]);
     // The photo is pulled out by exactly that padding, so its edges are the block's own edges. It has no vertical
     // margin: Yoga would add it to the stretched box's height and the width with it.
     // The photo: the 4:3 block with the -20 pull (the block's own view has no ratio).
-    const photo = node.findAll(
-      (n) => typeof n.type === "string" && flat(n)?.marginHorizontal === -20 && typeof flat(n)?.aspectRatio === "number",
-    )[0];
+    const photo = node.hosts.filter((n) => flat(n)?.marginHorizontal === -20 && typeof flat(n)?.aspectRatio === "number")[0];
     expect([flat(photo).marginHorizontal, flat(photo).marginTop]).toEqual([-(swap.paddingHorizontal as number), undefined]);
     // The heart is in the bar's trailing slot (package-detail-header.test.tsx), so nothing on the page reaches past the photo.
     expect(screen.queryByRole("button", { name: /Simpan/ })).toBeNull();
@@ -859,7 +854,7 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
 
   it("Paket on the layout scale pulls its photo out by the 16 margin, not the classic 20", async () => {
     mockParams = { id: "p-rumahan" };
-    render(
+    await render(
       <LayoutScaleProvider value="v2">
         <MobileProvider
           runtime={runtimeWith({ offer: jest.fn(async () => ({ offer: offer() })), request: jest.fn(async () => []) })}
@@ -870,14 +865,14 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
       </LayoutScaleProvider>,
     );
     await screen.findByTestId("paket-name");
-    const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
+    const swap = flat(byComponent(FadeSwap)[0]);
     expect([swap.marginTop, swap.paddingTop, swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, undefined, -16, 16]);
     expect([flat(screen.getByTestId("paket-hero")).marginHorizontal, flat(screen.getByTestId("paket-hero")).marginTop]).toEqual([-16, undefined]);
   });
 
   it("the Paket skeleton keeps the loaded page's geometry: 4:3 photo, 76 strip, one card of 72 rows", async () => {
     mockParams = { id: "p-rumahan" };
-    render(
+    await render(
       <LayoutScaleProvider value="v2">
         <MobileProvider runtime={runtimeWith({ offer: jest.fn(() => new Promise(() => undefined)), request: jest.fn(async () => []) })} linkMapper={customerLink}>
           <PackageDetail />
@@ -917,17 +912,17 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
 
   it("Jadwal's day panel fades in with the month instead of appearing at once", async () => {
     const read = deferred<CustomerState>();
-    renderWith(runtimeWith({ customer: jest.fn(() => read.promise) }), <Jadwal />);
+    await renderWith(runtimeWith({ customer: jest.fn(() => read.promise) }), <Jadwal />);
     await waitFor(() => expect(screen.getAllByTestId("jadwal-skeleton-cell").length).toBeGreaterThan(0));
-    const panel = () => screen.UNSAFE_getAllByType(FadeSwap).find((f) => inside(f, screen.getByTestId("screen-body")))!;
+    const panel = () => byComponent(FadeSwap).find((f) => inside(f, screen.getByTestId("screen-body")))!;
     expect(panel().props.swapKey).toBe("loading");
     await act(async () => read.resolve(customerState({ status: "scheduled" })));
     await screen.findByTestId("month-grid");
     expect(panel().props.swapKey).toBe("ready");
   });
 
-  it("the plan's skeleton is the loaded plan's hero card (16:10 photo, 16 body) and one card of 72 rows", () => {
-    renderWith(runtimeWith({}), <PlanSkeleton />);
+  it("the plan's skeleton is the loaded plan's hero card (16:10 photo, 16 body) and one card of 72 rows", async () => {
+    await renderWith(runtimeWith({}), <PlanSkeleton />);
     expect(screen.queryByTestId("plan-skeleton-caterer")).toBeNull();
     const hero = screen.getByTestId("plan-skeleton-hero");
     expect([flat(hero).padding, flat(hero).borderRadius]).toEqual([undefined, 16]);
@@ -947,7 +942,7 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
 
   it("the Beranda skeleton's hero is the loaded hero's card, fill and shadow (finding 8)", async () => {
     const runtime = runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) });
-    renderWith(runtime, <Beranda />);
+    await renderWith(runtime, <Beranda />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const hero = screen.getByTestId("beranda-skeleton-hero");
     expect([flat(hero).padding, flat(hero).borderRadius]).toEqual([undefined, 16]);
@@ -981,7 +976,7 @@ describe("fix round 2", () => {
       },
     };
     const read = deferred<unknown>();
-    renderWith(
+    await renderWith(
       runtimeWith({ checkout: jest.fn(() => read.promise), command: jest.fn(async () => ({})) }),
       <PaymentScreen checkoutId="ck-1" />,
     );
@@ -989,7 +984,7 @@ describe("fix round 2", () => {
     // The first read's mascot has drawn itself (after its 300ms entry delay).
     await waitFor(() => expect(flat(visual()).opacity).toBe(1), { timeout: 2000 });
     const before = screen.getByTestId("mascot-loading");
-    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("checking");
+    expect(byComponent(FadeSwap)[0].props.swapKey).toBe("checking");
 
     const timing = spyFades();
     await act(async () => read.resolve(checking));
@@ -998,7 +993,7 @@ describe("fix round 2", () => {
     expect(screen.getByTestId("mascot-loading")).toBe(before);
     expect(flat(visual()).opacity).toBe(1);
     expect(screen.getAllByTestId("mascot-loading")).toHaveLength(1);
-    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("checking");
+    expect(byComponent(FadeSwap)[0].props.swapKey).toBe("checking");
     expect(contentFades(timing)).toHaveLength(0);
   });
 
@@ -1011,7 +1006,7 @@ describe("fix round 2", () => {
     }
     const customer = jest.fn(async () => customerState({ status: "scheduled" }));
     const catalog = jest.fn(async () => ({ items: [offer({ id: "p-a", name: "Makan Siang Rumahan" })], nextCursor: null }));
-    renderAt(
+    await renderAt(
       runtimeWith({ customer, catalog, command: jest.fn(async () => ({})) }),
       <>
         <Beranda />
@@ -1032,7 +1027,7 @@ describe("fix round 2", () => {
     expect(screen.getByText("Mau makan apa minggu ini?")).toBeTruthy();
     expect(screen.queryByTestId("beranda-skeleton")).toBeNull();
     expect(screen.queryByRole("progressbar")).toBeNull();
-    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("empty");
+    expect(byComponent(FadeSwap)[0].props.swapKey).toBe("empty");
     // One fade, fresh page to invitation; through the skeleton it would be two (to loading, then to empty).
     expect(contentFades(timing)).toHaveLength(1);
     // The packages read with the first load were kept, so none was read again.
@@ -1059,7 +1054,7 @@ describe("Ada masalah sheet after the rebase", () => {
     mockParams = { id: "d-today" };
     const read = deferred<CustomerState>();
     const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
-    renderWith(runtime, <ReportProblem />);
+    await renderWith(runtime, <ReportProblem />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const loading = sheetHeader();
     expect(loading.context).toBe(20);
@@ -1083,7 +1078,7 @@ describe("Ada masalah sheet after the rebase", () => {
     mockParams = { id: "d-today" };
     const read = deferred<CustomerState>();
     const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
-    renderWith(runtime, <ChangeDayRoute />);
+    await renderWith(runtime, <ChangeDayRoute />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const held = screen.getByTestId("sheet-context");
     expect(flat(held).height).toBe(20);
@@ -1098,61 +1093,61 @@ describe("Ada masalah sheet after the rebase", () => {
     expect(flat(screen.getAllByRole("header")[0]).lineHeight).toBe(title);
   });
 
-  it("a held context stays one line on iOS too, read out in full", () => {
+  it("a held context stays one line on iOS too, read out in full", async () => {
     const long = "Besok, Sen 12 Okt · Makan Siang Rumahan Sehat Bergizi · Dapur Ibu Sari Jakarta Selatan";
-    renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} holdContextLine os="ios" />);
+    await renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} holdContextLine os="ios" />);
     const context = screen.getByTestId("sheet-context");
     expect(context.props.numberOfLines).toBe(1);
     expect(context.props.accessibilityLabel).toBe(long);
     expect(flat(context).lineHeight).toBe(20);
   });
 
-  it("a held context is not selectable (a selectable TextView on Android does not ellipsize), a plain one is", () => {
-    const view = renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context="Besok · Makan" holdContextLine os="android" />);
+  it("a held context is not selectable (a selectable TextView on Android does not ellipsize), a plain one is", async () => {
+    const view = await renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context="Besok · Makan" holdContextLine os="android" />);
     expect(screen.getByTestId("sheet-context").props.selectable).toBe(false);
-    view.unmount();
-    renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context="Besok · Makan" os="android" />);
+    await view.unmount();
+    await renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context="Besok · Makan" os="android" />);
     expect(screen.getByTestId("sheet-context").props.selectable).toBe(true);
   });
 
-  it("a held null context keeps the line's 20 with a skeleton, on both platforms", () => {
+  it("a held null context keeps the line's 20 with a skeleton, on both platforms", async () => {
     for (const os of ["ios", "android"]) {
-      const view = renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={null} holdContextLine os={os} />);
+      const view = await renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={null} holdContextLine os={os} />);
       expect(flat(screen.getByTestId("sheet-context")).height).toBe(20);
       // A skeleton line, unnamed: the sheet body's own group names the wait.
-      expect(screen.UNSAFE_getAllByType(SkeletonGroup)).toHaveLength(1);
+      expect(byComponent(SkeletonGroup)).toHaveLength(1);
       expect(screen.queryByRole("progressbar")).toBeNull();
-      view.unmount();
+      await view.unmount();
     }
   });
 
-  it("by default a long context wraps with a larger font, and a null context draws no line", () => {
+  it("by default a long context wraps with a larger font, and a null context draws no line", async () => {
     const long = "Besok, Sen 12 Okt · Makan Siang Rumahan Sehat Bergizi · Dapur Ibu Sari Jakarta Selatan";
     for (const os of ["ios", "android"]) {
-      const view = renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} os={os} />);
+      const view = await renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} os={os} />);
       const context = screen.getByTestId("sheet-context");
       expect(context.props.numberOfLines).toBeUndefined();
       expect(context.props.accessibilityLabel).toBeUndefined();
       expect(flat(context).height).toBeUndefined();
       expect(String(context.props.children)).toBe(long);
-      view.unmount();
+      await view.unmount();
     }
-    renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={null} os="android" />);
+    await renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={null} os="android" />);
     expect(screen.queryByTestId("sheet-context")).toBeNull();
-    expect(screen.UNSAFE_queryAllByType(SkeletonGroup)).toHaveLength(0);
+    expect(byComponent(SkeletonGroup)).toHaveLength(0);
   });
 
   it("signed out, the sign-in prompt fades in from the skeleton through the same FadeSwap (B)", async () => {
     mockParams = { id: "d-today" };
     const me = deferred<{ actor: null; demo: boolean }>();
     const runtime = runtimeWith({ me: jest.fn(() => me.promise), customer: jest.fn() });
-    renderAt(runtime, <ReportProblem />, SIANG);
-    await waitFor(() => expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("loading"));
+    await renderAt(runtime, <ReportProblem />, SIANG);
+    await waitFor(() => expect(byComponent(FadeSwap)[0].props.swapKey).toBe("loading"));
     expect(screen.getByRole("progressbar", { name: "Memuat pengantaran" })).toBeTruthy();
     const timing = spyFades();
     await act(async () => me.resolve({ actor: null, demo: false }));
     expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
-    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("signin");
+    expect(byComponent(FadeSwap)[0].props.swapKey).toBe("signin");
     // The same FadeSwap changed its key, so it faded once; a new sheet would have cut in with no fade.
     expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).toHaveLength(1);
     expect(screen.queryByRole("progressbar")).toBeNull();

@@ -41,7 +41,7 @@ it("Coba lagi on the plan's stale copy keeps the line and busies the button, as 
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
   } as unknown as MobileRuntime["api"];
-  render(
+  await render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
       <PlanDetailScreen />
     </MobileProvider>,
@@ -51,7 +51,7 @@ it("Coba lagi on the plan's stale copy keeps the line and busies the button, as 
   let settle = () => {};
   (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise((_, reject) => (settle = () => reject(new Error("REQUEST_TIMEOUT")))));
   const retry = () => within(screen.getByTestId("stale-copy")).getByRole("button", { name: "Coba lagi" });
-  fireEvent.press(retry());
+  await fireEvent.press(retry());
   await waitFor(() => expect(retry().props.accessibilityState.busy).toBe(true));
   expect(screen.getByText(line)).toBeTruthy();
   await act(async () => settle());

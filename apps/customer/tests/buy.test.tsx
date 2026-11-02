@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { ActivityIndicator, AppState, BackHandler, Linking, StyleSheet } from "react-native";
+import { AppState, BackHandler, Linking, StyleSheet } from "react-native";
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
@@ -12,7 +12,7 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import { spyFades } from "./fade";
 import * as Reanimated from "react-native-reanimated";
 import { nativeMotion, nativeThemes } from "@catera/design-tokens";
-import { FadeSwap, fonts, LayoutScaleProvider, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import { fonts, LayoutScaleProvider, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import { customerLink } from "../src/links";
 import { goToTab, leaveFor } from "../src/nav";
@@ -22,6 +22,7 @@ import { announceNotice, PaymentScreen } from "../src/buy/PaymentScreen";
 import { ChoiceRoute } from "../src/choice";
 import { PayMethodRoute } from "../src/buy/PayMethodSheet";
 import { offer, subscription } from "./fixtures";
+import { hostsWhere } from "./find-hosts";
 
 jest.mock("expo-router", () => ({
   router: {
@@ -36,30 +37,28 @@ jest.mock("expo-router", () => ({
 }));
 /**
  * The screen's own stack options (Bayar turns the iOS edge swipe and the header back off once paid) and its
- * `beforeRemove` listeners, which the stack calls before a back removes the screen. The real contexts stay (Screen reads
- * whether a stack header sits above it).
+ * `usePreventRemove`, which holds every removal while the flag is on. The real contexts stay (Screen reads whether a
+ * stack header sits above it).
  */
 const mockSetOptions = jest.fn();
-type RemoveEvent = { data: { action: { type: string; source?: string } }; preventDefault: () => void };
-const mockListeners: { event: string; listener: (e: RemoveEvent) => void }[] = [];
-const mockNavigation = {
-  setOptions: mockSetOptions,
-  addListener: (event: string, listener: (e: RemoveEvent) => void) => {
-    const entry = { event, listener };
-    mockListeners.push(entry);
-    return () => void mockListeners.splice(mockListeners.indexOf(entry), 1);
-  },
-};
+type RemoveEvent = { data: { action: { type: string; source?: string } }; repeat: () => void };
+const mockHolds: { prevent: boolean; callback: (e: RemoveEvent) => void }[] = [];
+const mockNavigation = { setOptions: mockSetOptions };
 jest.mock("expo-router/react-navigation", () => ({
   ...jest.requireActual("expo-router/react-navigation"),
   useNavigation: () => mockNavigation,
+  usePreventRemove: (prevent: boolean, callback: (e: RemoveEvent) => void) => void mockHolds.push({ prevent, callback }),
 }));
-/** What the stack does before a back removes Bayar: asks every listener; true when one of them kept the screen. */
+/**
+ * What the stack does before a back removes Bayar: when the latest render holds removals it asks the callback; true when
+ * the callback kept the screen, false when it replayed the removal (`repeat`) or nothing was held.
+ */
 function removeBy(action: { type: string; source?: string }) {
-  let prevented = false;
-  for (const { event, listener } of [...mockListeners])
-    if (event === "beforeRemove") listener({ data: { action }, preventDefault: () => (prevented = true) });
-  return prevented;
+  const hold = mockHolds.at(-1);
+  if (!hold?.prevent) return false;
+  let replayed = false;
+  hold.callback({ data: { action }, repeat: () => (replayed = true) });
+  return !replayed;
 }
 /** Close in the header is `router.back()` (GO_BACK); the native header's back and the iOS swipe pop with a source. */
 const CLOSE = { type: "GO_BACK" };
@@ -336,6 +335,7 @@ const bayarReady = () => waitFor(() => expect(screen.getByRole("button", { name:
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockHolds.length = 0;
   mockWindow = JEST_WINDOW;
   (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
 });
@@ -343,7 +343,7 @@ beforeEach(() => {
 describe("Beli / Perpanjang", () => {
   it("renew mode prefills the next operating day and one cycle", async () => {
     const runtime = server();
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await within(await screen.findByTestId("buy-summary")).findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(await screen.findByText("Mulai Senin 19 Okt, tepat setelah paket sekarang")).toBeTruthy();
     expect(screen.getByRole("radio", { name: "20 hari" }).props.accessibilityState.checked).toBe(true);
@@ -369,14 +369,14 @@ describe("Beli / Perpanjang", () => {
 
   it("prefers the start date the renewal context returns", async () => {
     const runtime = server({ context: { startDate: "2026-10-20" } });
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Mulai Selasa 20 Okt. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalledWith(expect.objectContaining({ startDate: "2026-10-20" })));
   });
 
   it("says right after the current package when the start is the first delivery day after it, weekend or not", async () => {
     const runtime = server({ context: { startDate: "2026-10-19" } });
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Mulai Senin 19 Okt, tepat setelah paket sekarang")).toBeTruthy();
     expect(screen.queryByText(/masih berjalan sampai/)).toBeNull();
   });
@@ -384,7 +384,7 @@ describe("Beli / Perpanjang", () => {
   it("names the plan that blocks a later start, not the plan being renewed", async () => {
     const later = subscription({ id: "s-9", package_id: "p-rumahan", ends_on: "2026-11-09" });
     const runtime = server({ context: { startDate: "2026-11-10" }, subscriptions: [current, later] });
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Mulai Selasa 10 Nov. Paket ini masih berjalan sampai Senin 9 Nov.")).toBeTruthy();
   });
 
@@ -396,7 +396,7 @@ describe("Beli / Perpanjang", () => {
       snapshot: { offer: offer({ id: "p-dua-pekan", name: "Rumah Rasa Dua Pekan" }), total: 150000 } as unknown as Quote,
     });
     const runtime = server({ context: { startDate: "2026-11-23" }, subscriptions: [current, dua] });
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Mulai Senin 23 Nov. Paketmu Rumah Rasa Dua Pekan masih berjalan sampai Jumat 20 Nov.")).toBeTruthy();
     expect(screen.queryByText(/Paket ini masih berjalan/)).toBeNull();
   });
@@ -409,7 +409,7 @@ describe("Beli / Perpanjang", () => {
       snapshot: { offer: offer({ id: "p-lain", catererId: "k-2", name: "Paket Lain" }), total: 150000 } as unknown as Quote,
     });
     const runtime = server({ context: { startDate: "2026-11-23" }, subscriptions: [current, other] });
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Mulai Senin 23 Nov. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
     expect(screen.queryByText(/Paket Lain/)).toBeNull();
   });
@@ -426,7 +426,7 @@ describe("Beli / Perpanjang", () => {
       context: { startDate: "2026-11-23" },
       subscriptions: [bare("s-1", "p-rumahan", "2026-10-16"), bare("s-6", "p-lain", "2026-11-20")],
     });
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Mulai Senin 23 Nov. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
     expect(screen.queryByText(/Nama p-lain/)).toBeNull();
   });
@@ -434,16 +434,16 @@ describe("Beli / Perpanjang", () => {
   it("renewing a plan that already ended never says it is still running", async () => {
     const ended = subscription({ id: "s-1", package_id: "p-rumahan", status: "completed", starts_on: "2026-09-14", ends_on: "2026-10-05", remaining: 0 });
     const runtime = server({ context: { startDate: "2026-10-08" }, subscriptions: [ended] });
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Mulai Kamis 8 Okt")).toBeTruthy();
     expect(screen.queryByText(/masih berjalan sampai/)).toBeNull();
   });
 
   it("changing length requotes with cycles 2", async () => {
     const runtime = server();
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     await bayarReady();
-    fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
+    await fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
     // Never pay against the old price: Bayar waits for the new quote.
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ cycles: 2, renewedFrom: "s-1" })));
@@ -455,10 +455,10 @@ describe("Beli / Perpanjang", () => {
 
   it("Bayar creates the checkout with accepted terms and starts QRIS", async () => {
     const runtime = server();
-    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeTruthy();
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: PAY }));
+    await fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
     const calls = commands(runtime);
     expect(calls.map((c) => c[0])).toEqual(["checkout.create", "checkout.payment.start"]);
@@ -478,26 +478,26 @@ describe("Beli / Perpanjang", () => {
 
   it("transfer bank starts the virtual account instead", async () => {
     const runtime = server();
-    wrap(runtime, withChoices(<BuyScreen packageId="p-rumahan" />));
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah cara bayar" }));
-    fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
+    await wrap(runtime, withChoices(<BuyScreen packageId="p-rumahan" />));
+    await fireEvent.press(await screen.findByRole("button", { name: "Ubah cara bayar" }));
+    await fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: PAY }));
+    await fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
     expect(commands(runtime)[1][1]).toEqual({ id: "ck-1", method: "VIRTUAL_ACCOUNT_BRI" });
   });
 
   it("hosted payment only creates the checkout and opens Bayar", async () => {
     const runtime = server({ mode: "hosted" });
-    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: PAY }));
+    await fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
     expect(commands(runtime).map((c) => c[0])).toEqual(["checkout.create"]);
   });
 
   it("payment card makes no security claim", async () => {
-    wrap(server({ mode: "hosted" }), <BuyScreen packageId="p-rumahan" />);
+    await wrap(server({ mode: "hosted" }), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     expect(screen.getByText("Pilih cara bayar di halaman berikutnya.")).toBeTruthy();
     expect(screen.queryByText(/\baman\b/i)).toBeNull();
@@ -506,10 +506,10 @@ describe("Beli / Perpanjang", () => {
 
   it("explicit link choices win over defaults and portions requote", async () => {
     const runtime = server();
-    wrap(runtime, <BuyScreen packageId="p-rumahan" initial={{ portions: "2", cycles: "2" }} />);
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" initial={{ portions: "2", cycles: "2" }} />);
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalledWith(expect.objectContaining({ portions: 2, cycles: 2 })));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: "Tambah porsi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tambah porsi" }));
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ portions: 3, cycles: 2 })));
     await bayarReady();
@@ -517,7 +517,7 @@ describe("Beli / Perpanjang", () => {
 
   it("a trial is one day at the trial price", async () => {
     const runtime = server();
-    wrap(runtime, <BuyScreen packageId="p-rumahan" trial />);
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" trial />);
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalledWith(expect.objectContaining({ trial: true, cycles: 1 })));
     expect(screen.queryByRole("radio", { name: "40 hari · Hemat 5%" })).toBeNull();
     expect(await screen.findByText(`1 hari × 1 porsi × ${currency(30000, "id")}`)).toBeTruthy();
@@ -526,8 +526,8 @@ describe("Beli / Perpanjang", () => {
   it("a failed quote keeps Bayar disabled and offers a retry", async () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CAPACITY"), { code: "CAPACITY" }));
-    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Hitung ulang" }));
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Hitung ulang" }));
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
     await bayarReady();
   });
@@ -536,10 +536,10 @@ describe("Beli / Perpanjang", () => {
     const running = subscription({ id: "s-1", package_id: "p-rumahan", ends_on: "2026-10-15" });
     const runtime = server({ subscriptions: [running] });
     (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("OVERLAP"), { code: "OVERLAP" }));
-    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByText("Paket ini masih berjalan sampai Kamis 15 Okt.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Hitung ulang" })).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: /Mulai Jumat 16 Okt/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /Mulai Jumat 16 Okt/ }));
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ startDate: "2026-10-16" })));
     await bayarReady();
     expect(screen.queryByText(/masih berjalan sampai/)).toBeNull();
@@ -548,26 +548,26 @@ describe("Beli / Perpanjang", () => {
   it("keeps the generic retry for other quote errors", async () => {
     const runtime = server({ subscriptions: [subscription({ package_id: "p-rumahan", ends_on: "2026-10-15" })] });
     (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CAPACITY"), { code: "CAPACITY" }));
-    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByRole("button", { name: "Hitung ulang" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Mulai/ })).toBeNull();
   });
 
   it("shows a single length as text", async () => {
-    wrap(server({ pkg: offer({ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, price: 28000 }) }), <BuyScreen packageId="p-rumahan" />);
+    await wrap(server({ pkg: offer({ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, price: 28000 }) }), <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByText("20 hari")).toBeTruthy();
     expect(screen.queryAllByRole("radio")).toHaveLength(0);
     await bayarReady();
   });
 
   it("Bayar is a forest primary button", async () => {
-    wrap(server(), <BuyScreen packageId="p-rumahan" />);
+    await wrap(server(), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     expect(StyleSheet.flatten(screen.getByRole("button", { name: PAY }).props.style).backgroundColor).toBe(nativeThemes.light.forest);
   });
 
   it("signed out goes to sign in and comes back to the same screen", async () => {
-    wrap(server({ actor: null }), <BuyScreen packageId="p-rumahan" trial />);
+    await wrap(server({ actor: null }), <BuyScreen packageId="p-rumahan" trial />);
     await waitFor(() =>
       expect(router.replace).toHaveBeenCalledWith(`/login?next=${encodeURIComponent("/beli/p-rumahan?trial=1")}`),
     );
@@ -576,8 +576,8 @@ describe("Beli / Perpanjang", () => {
   it("a renewal already waiting for payment continues it instead of buying twice", async () => {
     // The server reports a renewal with an open checkout as not available.
     const runtime = server({ context: { pendingCheckoutId: "ck-9", available: false } });
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjutkan pembayaran" }));
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjutkan pembayaran" }));
     expect(router.replace).toHaveBeenCalledWith("/bayar/ck-9");
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
     expect(screen.queryByText(/belum bisa diperpanjang/)).toBeNull();
@@ -586,15 +586,15 @@ describe("Beli / Perpanjang", () => {
   it("a renewal of a package that is no longer sold points to other packages instead of spinning", async () => {
     const lain = offer({ id: "p-lain", name: "Makan Siang Hemat" });
     const runtime = server({ context: { replacementRequired: true, available: false, offers: [lain] } });
-    const view = wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    const view = await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Paket sebelumnya sudah tidak tersedia. Pilih paket lain dari Dapur Contoh.")).toBeTruthy();
-    expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsWhere({ type: "ActivityIndicator" })).toHaveLength(0);
     expect(screen.queryByTestId("buy-skeleton")).toBeNull();
     expect(screen.queryByRole("button", { name: PAY })).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Makan Siang Hemat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Makan Siang Hemat" }));
     // A renewal that cannot go ahead is left for the other package, or for the Jelajah tab.
     expect(leaveFor).toHaveBeenCalledWith("/paket/p-lain?title=Makan%20Siang%20Hemat");
-    fireEvent.press(screen.getByRole("button", { name: "Lihat paket lain" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat paket lain" }));
     expect(goToTab).toHaveBeenCalledWith("jelajah");
   });
 
@@ -603,25 +603,25 @@ describe("Beli / Perpanjang", () => {
     const runtime = server({
       context: { replacementRequired: true, available: false, pendingCheckoutId: "ck-9", offers: [lain] },
     });
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjutkan pembayaran" }));
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjutkan pembayaran" }));
     expect(router.replace).toHaveBeenCalledWith("/bayar/ck-9");
   });
 
   it("sheet options are 48dp picks with a selection haptic", async () => {
-    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     const home = await screen.findByRole("radio", { name: /Rumah/ });
     expect(StyleSheet.flatten(home.props.style).minHeight).toBeGreaterThanOrEqual(48);
-    fireEvent.press(home);
+    await fireEvent.press(home);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 
   it("Beli's address picker returns to Beli with the chosen address", async () => {
-    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     // A native choice sheet over Beli, with the current address marked and Kelola alamat under the list.
     expect(router.push).toHaveBeenCalledWith({ pathname: "/pembelian/alamat-pilih", params: { id: expect.any(String) } });
     const sheet = within(await screen.findByTestId("choice-sheet"));
@@ -629,46 +629,46 @@ describe("Beli / Perpanjang", () => {
     const radios = sheet.getAllByRole("radio");
     expect(radios.filter((r) => r.props.accessibilityState.checked)).toHaveLength(1);
     expect(sheet.getByRole("button", { name: "Kelola alamat" })).toBeTruthy();
-    fireEvent.press(sheet.getByRole("radio", { name: /Rumah/ }));
+    await fireEvent.press(sheet.getByRole("radio", { name: /Rumah/ }));
     // The sheet closes and Beli shows the chosen address; the purchase never left.
     await waitFor(() => expect(screen.queryByTestId("choice-sheet")).toBeNull());
     await deliveredTo("Rumah");
     // Kelola alamat opens Alamat over the purchase in the picker's own place (a replace, not a push after it closes).
-    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
-    fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("button", { name: "Kelola alamat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    await fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("button", { name: "Kelola alamat" }));
     await waitFor(() => expect(router.replace).toHaveBeenLastCalledWith("/pembelian/alamat"));
     expect(router.push).not.toHaveBeenCalledWith("/pembelian/alamat");
   });
 
   it("the pick sheet offers Tambah alamat and Kelola alamat", async () => {
-    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     const sheet = within(await screen.findByTestId("choice-sheet"));
     expect(sheet.getByRole("button", { name: "Kelola alamat" })).toBeTruthy();
     // Tambah alamat opens the address form over the purchase in the picker's own place.
-    fireEvent.press(sheet.getByRole("button", { name: "Tambah alamat" }));
+    await fireEvent.press(sheet.getByRole("button", { name: "Tambah alamat" }));
     await waitFor(() => expect(router.replace).toHaveBeenLastCalledWith("/pembelian/alamat-form"));
     expect(router.push).not.toHaveBeenCalledWith("/pembelian/alamat-form");
   });
 
   it("the pick sheet's two buttons take a line each at font 1.3", async () => {
     const basis = async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
       const sheet = within(await screen.findByTestId("choice-sheet"));
       return ["Tambah alamat", "Kelola alamat"].map((name) => StyleSheet.flatten(sheet.getByRole("button", { name }).props.style).flexBasis);
     };
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
-    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
     expect(await basis()).toEqual(["100%", "100%"]);
   });
 
   it("the pick sheet's two buttons sit side by side at font 1", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1 };
-    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     const sheet = within(await screen.findByTestId("choice-sheet"));
     expect(["Tambah alamat", "Kelola alamat"].map((name) => StyleSheet.flatten(sheet.getByRole("button", { name }).props.style).flexBasis)).toEqual([140, 140]);
   });
@@ -684,14 +684,14 @@ describe("Beli / Perpanjang", () => {
         </ReactNative.Pressable>
       );
     }
-    wrap(rt, withChoices(<><BuyScreen packageId="p-rumahan" /><Remove /></>));
+    await wrap(rt, withChoices(<><BuyScreen packageId="p-rumahan" /><Remove /></>));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
-    fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    await fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
     await deliveredTo("Rumah");
     // Rumah is removed; the next read of the customer no longer lists it.
     (rt.api.customer as jest.Mock).mockImplementation(async () => ({ subscriptions: [current], deliveries: [], addresses: [kantor], notifications: [], cases: [] }));
-    fireEvent.press(screen.getByRole("button", { name: "hapus-rumah" }));
+    await fireEvent.press(screen.getByRole("button", { name: "hapus-rumah" }));
     await deliveredTo("Kantor");
     expect(screen.queryByText("Belum ada alamat pengantaran.")).toBeNull();
     await bayarReady();
@@ -708,32 +708,32 @@ describe("Beli / Perpanjang", () => {
         </ReactNative.Pressable>
       );
     }
-    wrap(rt, withChoices(<><BuyScreen packageId="p-rumahan" /><Remove /></>));
+    await wrap(rt, withChoices(<><BuyScreen packageId="p-rumahan" /><Remove /></>));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
-    fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    await fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
     await deliveredTo("Rumah");
     (rt.api.customer as jest.Mock).mockImplementation(async () => ({ subscriptions: [current], deliveries: [], addresses: [], notifications: [], cases: [] }));
-    fireEvent.press(screen.getByRole("button", { name: "hapus" }));
+    await fireEvent.press(screen.getByRole("button", { name: "hapus" }));
     await deliveredTo("Belum ada alamat pengantaran.");
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
   });
 
   it("cycle options give a selection haptic", async () => {
-    wrap(server(), <BuyScreen packageId="p-rumahan" />);
+    await wrap(server(), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     const long = screen.getByRole("radio", { name: "40 hari · Hemat 5%" });
     expect(StyleSheet.flatten(long.props.style).minHeight).toBeGreaterThanOrEqual(48);
-    fireEvent.press(long);
+    await fireEvent.press(long);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 
   it("an address outside the area hides the old price", async () => {
-    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
     expect(screen.getByText("Biaya layanan")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
-    fireEvent.press(await screen.findByRole("radio", { name: /Rumah/ }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    await fireEvent.press(await screen.findByRole("radio", { name: /Rumah/ }));
     // The line under the choices, and the same words as the footer's reason.
     expect(await screen.findAllByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toHaveLength(2);
     expect(screen.queryByText("Biaya layanan")).toBeNull();
@@ -748,10 +748,10 @@ describe("Beli / Perpanjang", () => {
     create.mockImplementationOnce(async () => {
       throw Object.assign(new Error("PRICE_CHANGED"), { code: "PRICE_CHANGED" });
     });
-    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     const quotes = (runtime.api.quote as jest.Mock).mock.calls.length;
-    fireEvent.press(screen.getByRole("button", { name: PAY }));
+    await fireEvent.press(screen.getByRole("button", { name: PAY }));
     expect(await screen.findByText("Harga atau ketentuannya berubah. Cek lagi sebelum bayar.")).toBeTruthy();
     await waitFor(() => expect((runtime.api.quote as jest.Mock).mock.calls.length).toBeGreaterThan(quotes));
     expect(router.replace).not.toHaveBeenCalled();
@@ -761,12 +761,12 @@ describe("Beli / Perpanjang", () => {
 
   it("a two-cycle renewal pays with cycles 2 and renewedFrom", async () => {
     const runtime = server();
-    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     await bayarReady();
-    fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
+    await fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ cycles: 2 })));
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: PAY }));
+    await fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
     const payload = { packageId: "p-rumahan", addressId: "a-1", portions: 1, startDate: "2026-10-19", cycles: 2, trial: false, renewedFrom: "s-1" };
     expect(commands(runtime)[0]).toEqual([
@@ -778,13 +778,13 @@ describe("Beli / Perpanjang", () => {
 
   it("a failed payment start still opens Bayar, which offers the method again", async () => {
     const runtime = server({ startFails: true });
-    const view = wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    const view = await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
-    fireEvent.press(screen.getByRole("button", { name: PAY }));
+    await fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
     expect(commands(runtime).map((c) => c[0])).toEqual(["checkout.create", "checkout.payment.start"]);
-    view.unmount();
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await view.unmount();
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByRole("button", { name: "Tampilkan QRIS" })).toBeTruthy();
   });
 });
@@ -811,7 +811,7 @@ describe("Beli and Bayar under the native header", () => {
     );
 
   it("the title is Beli, on the theme canvas with no mood header, even in Malam", async () => {
-    wrapMood(server(), <BuyScreen packageId="p-rumahan" />);
+    await wrapMood(server(), <BuyScreen packageId="p-rumahan" />);
     await screen.findByTestId("buy-summary");
     const title = (await nativeTitle()).getByText("Beli");
     expect(title.props.accessibilityRole).toBe("header");
@@ -827,12 +827,12 @@ describe("Beli and Bayar under the native header", () => {
   });
 
   it("the title is Beli / Perpanjang and the package name appears once", async () => {
-    const beli = wrapMood(server(), <BuyScreen packageId="p-rumahan" />);
+    const beli = await wrapMood(server(), <BuyScreen packageId="p-rumahan" />);
     await screen.findByTestId("buy-summary");
     expect((await nativeTitle()).getByText("Beli")).toBeTruthy();
     expect(screen.getAllByText("Makan Siang Rumahan")).toHaveLength(1);
-    beli.unmount();
-    wrapMood(server(), <BuyScreen renewFrom="s-1" />);
+    await beli.unmount();
+    await wrapMood(server(), <BuyScreen renewFrom="s-1" />);
     await screen.findByTestId("buy-summary");
     expect((await nativeTitle()).getByText("Perpanjang")).toBeTruthy();
     expect(screen.getAllByText(/Makan Siang Rumahan/)).toHaveLength(1);
@@ -840,27 +840,27 @@ describe("Beli and Bayar under the native header", () => {
   });
 
   it("keeps its title while the package loads, is missing, or cannot be read", async () => {
-    const missing = wrapMood(server(), <BuyScreen packageId="p-nope" />);
+    const missing = await wrapMood(server(), <BuyScreen packageId="p-nope" />);
     expect((await nativeTitle()).getByText("Beli")).toBeTruthy();
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
-    missing.unmount();
+    await missing.unmount();
 
     const broken = server();
     (broken.api.offer as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
-    wrapMood(broken, <BuyScreen packageId="p-rumahan" />);
+    await wrapMood(broken, <BuyScreen packageId="p-rumahan" />);
     expect((await nativeTitle()).getByText("Beli")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
   });
 
   it("a renewal of a package that is no longer sold keeps its title", async () => {
     const lain = offer({ id: "p-lain", name: "Makan Siang Hemat" });
-    wrapMood(server({ context: { replacementRequired: true, available: false, offers: [lain] } }), <BuyScreen renewFrom="s-1" />);
+    await wrapMood(server({ context: { replacementRequired: true, available: false, offers: [lain] } }), <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByRole("button", { name: "Makan Siang Hemat" })).toBeTruthy();
     expect((await nativeTitle()).getByText("Perpanjang")).toBeTruthy();
   });
 
   it("Bayar titles the QR step on the theme canvas, with the total and the steps on the page", async () => {
-    wrapMood(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    await wrapMood(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText("Kode QRIS pembayaran ini")).toBeTruthy();
     expect((await nativeTitle()).getByText("Bayar")).toBeTruthy();
     expect(screen.queryByTestId("mood-header")).toBeNull();
@@ -876,23 +876,23 @@ describe("Beli and Bayar under the native header", () => {
         instructions: { kind: "virtual_account", accountNumber: "8808123456789012", accountName: "CATERA SINTETIS", bank: "BRI" },
       },
     );
-    wrapMood(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
+    await wrapMood(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
     const label = await screen.findByText("Nomor virtual account BRI");
     expect(surfaceAround(label)).toBe(nativeThemes.light.surface);
   });
 
   it("Bayar keeps its title in the outcome and not-found states, and paid gives the title to Langganan aktif", async () => {
     const paid = pendingCheckout({ state: "paid", subscription_id: "s-2" }, { status: "paid" });
-    const done = wrapMood(server({ checkout: paid }), <PaymentScreen checkoutId="ck-1" />);
+    const done = await wrapMood(server({ checkout: paid }), <PaymentScreen checkoutId="ck-1" />);
     // Paid drops the bar title: "Langganan aktif" is the one heading (canvas Lunas).
     await screen.findByTestId("paid-outcome");
     expect(screen.queryByTestId("screen-native-title")).toBeNull();
     expect(screen.queryByText("Bayar")).toBeNull();
     expect(screen.getAllByText("Langganan aktif")).toHaveLength(1);
-    done.unmount();
+    await done.unmount();
 
     // The server has no such checkout: the page says so with a retry, under the same title.
-    wrapMood(server(), <PaymentScreen checkoutId="ck-1" />);
+    await wrapMood(server(), <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
     expect((await nativeTitle()).getByText("Bayar")).toBeTruthy();
   });
@@ -903,22 +903,22 @@ describe("Bayar", () => {
 
   it("payment screen survives reopening", async () => {
     const runtime = server({ checkout: pendingCheckout() });
-    const first = wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    const first = await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     expect(screen.getByText("Bayar dalam 15:00")).toBeTruthy();
     expect(screen.getAllByText(totalOf()).length).toBeGreaterThan(0);
     expect(
       screen.getByText("Jadwalmu kami tahan 15 menit. Lewat dari itu, kami cek ulang dulu."),
     ).toBeTruthy();
-    first.unmount();
+    await first.unmount();
 
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     expect(await screen.findByText("Langganan aktif")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
     expect(goToTab).toHaveBeenCalledWith("index");
   });
 
@@ -926,10 +926,10 @@ describe("Bayar", () => {
     const runtime = server({ checkout: pendingCheckout() });
     const refresh = runtime.api.command as jest.Mock;
     refresh.mockImplementation(async () => ({}));
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     expect(screen.queryByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     expect(await screen.findByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeTruthy();
     expect(refresh).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
     expect(screen.getByLabelText(QR_LABEL)).toBeTruthy();
@@ -938,11 +938,11 @@ describe("Bayar", () => {
   it("the nothing-came-in answer is a polite live region, and iOS speaks it when it appears", async () => {
     const runtime = server({ checkout: pendingCheckout() });
     (runtime.api.command as jest.Mock).mockImplementation(async () => ({}));
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     await screen.findByTestId("payment-notice");
-    const regions = screen.UNSAFE_getAllByProps({ accessibilityLiveRegion: "polite" });
+    const regions = hostsWhere({ props: { accessibilityLiveRegion: "polite" } });
     expect(regions.some((r) => within(r).queryByTestId("payment-notice"))).toBe(true);
     // `process.env.EXPO_OS` is compiled in as Android here, so the iOS announcement is checked through its helper.
     const announce = jest.spyOn(ReactNative.AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
@@ -955,9 +955,9 @@ describe("Bayar", () => {
 
   it("a failed QR save says the image failed, not that the status check did", async () => {
     const runtime = server({ checkout: pendingCheckout() });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Simpan gambar QR" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan gambar QR" }));
     expect(await screen.findByText("Belum bisa menyimpan gambar QR. Coba lagi.")).toBeTruthy();
     expect(screen.queryByText("Belum bisa mengecek pembayaran. Coba lagi.")).toBeNull();
   });
@@ -966,12 +966,12 @@ describe("Bayar", () => {
     const runtime = server({ checkout: pendingCheckout({}, { status: "choose_method", selectedMethod: null, instructions: null }) });
     let release: () => void = () => undefined;
     (runtime.api.command as jest.Mock).mockImplementation(() => new Promise<void>((resolve) => (release = resolve)));
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     const start = await screen.findByRole("button", { name: "Tampilkan QRIS" });
     // Two presses in the same tick, before the first has re-rendered the screen.
     await act(async () => {
-      fireEvent.press(start);
-      fireEvent.press(start);
+      await fireEvent.press(start);
+      await fireEvent.press(start);
     });
     expect(commands(runtime).filter((c) => c[0] === "checkout.payment.start")).toHaveLength(1);
     release();
@@ -986,10 +986,10 @@ describe("Bayar", () => {
       const runtime = server({ checkout: pendingCheckout() });
       const refresh = runtime.api.command as jest.Mock;
       refresh.mockImplementation(async () => found(pendingCheckout()));
-      wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+      await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
       expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
       (runtime.api.checkout as jest.Mock).mockRejectedValue(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
-      fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
       await waitFor(() => expect(refresh).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String)));
       await waitFor(() => expect(screen.getByRole("button", { name: "Sudah bayar? Cek status" })).toBeEnabled());
       await act(async () => {});
@@ -999,9 +999,9 @@ describe("Bayar", () => {
   it("cek status on a hosted payment that is still unpaid says so too", async () => {
     const hosted = { ...pendingCheckout(), payment: undefined };
     const runtime = server({ demo: true, checkout: hosted });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     await screen.findByRole("button", { name: "Bayar (demo)" });
-    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     expect(await screen.findByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeTruthy();
     // The first read, the one cek status judged by, and the screen's reload.
     expect(runtime.api.checkout).toHaveBeenCalledTimes(3);
@@ -1009,25 +1009,25 @@ describe("Bayar", () => {
 
   it("expired payment offers Bayar lagi", async () => {
     const runtime = server({ checkout: pendingCheckout({ state: "expired" }, { status: "expired" }) });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByText("Waktu bayar habis")).toBeTruthy();
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
     expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=1&cycles=1&addressId=a-1");
   });
 
   it("an expired renewal pays again from Perpanjang", async () => {
     const base = pendingCheckout({ state: "expired" }, { status: "expired" });
     const runtime = server({ checkout: { ...base, quote: { ...base.quote, renewedFrom: "s-1" } } });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bayar lagi" }));
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bayar lagi" }));
     expect(router.replace).toHaveBeenCalledWith("/renew/s-1?portions=1&cycles=1&addressId=a-1");
   });
 
   it("an elapsed deadline hides the QR and never offers a second purchase", async () => {
     const past = new Date(Date.now() - 1000).toISOString();
     const runtime = server({ checkout: pendingCheckout({}, { expiresAt: past }) });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await checkingShown()).toBeTruthy();
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     expect(screen.queryByRole("button", { name: "Bayar lagi" })).toBeNull();
@@ -1044,17 +1044,17 @@ describe("Bayar", () => {
       const runtime = server({
         checkout: pendingCheckout({ expires_at: past }, { status, expiresAt: past, instructions: null, ...extra }),
       });
-      wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+      await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
       expect(await screen.findByText("Waktu bayar habis")).toBeTruthy();
       expect(screen.queryByRole("progressbar", { name: "Memeriksa pembayaran…" })).toBeNull();
-      fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
       expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=1&cycles=1&addressId=a-1");
     });
 
   it("paid without a booking stays in checking and refreshes from the provider", async () => {
     const runtime = server({ checkout: pendingCheckout({ state: "paid" }) });
     (runtime.api.command as jest.Mock).mockResolvedValue({});
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await checkingShown()).toBeTruthy();
     expect(screen.queryByText("Pembayaran diterima")).toBeNull();
     // No paid beat before the booking exists (Review Focus 4): no hero, no reserved days, the header still says Bayar.
@@ -1062,7 +1062,7 @@ describe("Bayar", () => {
     expect(screen.queryByText("Jadwal antar sudah kami simpan.")).toBeNull();
     expect(within(screen.getByTestId("screen-native-title")).getByText("Bayar")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Lihat jadwal" })).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Cek status" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Cek status" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String)),
     );
@@ -1078,7 +1078,7 @@ describe("Bayar", () => {
     it(`${state} never offers payment or claims success`, async () => {
       const subscriptionId = ["refunded", "partially_refunded"].includes(state) ? "s-2" : null;
       const runtime = server({ demo: true, checkout: pendingCheckout({ state, subscription_id: subscriptionId }) });
-      wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+      await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
       expect(await screen.findByText(title)).toBeTruthy();
       expect(screen.queryByText("Pembayaran diterima")).toBeNull();
       expect(screen.queryByRole("button", { name: "Bayar (demo)" })).toBeNull();
@@ -1086,7 +1086,7 @@ describe("Bayar", () => {
     });
 
   it("direct payment never shows the demo shortcut", async () => {
-    wrap(server({ demo: true, checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ demo: true, checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Bayar (demo)" })).toBeNull();
   });
@@ -1094,8 +1094,8 @@ describe("Bayar", () => {
   it("demo mode pays a hosted checkout with Bayar (demo)", async () => {
     const hosted = { ...pendingCheckout(), payment: undefined };
     const runtime = server({ demo: true, checkout: hosted });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bayar (demo)" }));
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bayar (demo)" }));
     expect(await screen.findByText("Langganan aktif")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.demo_pay", { id: "ck-1" }, expect.any(String));
   });
@@ -1103,8 +1103,8 @@ describe("Bayar", () => {
   it("Bayar (demo) reads the checkout again right after paying, so the success beat does not wait for a later read", async () => {
     const hosted = { ...pendingCheckout(), payment: undefined };
     const runtime = server({ demo: true, checkout: hosted });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bayar (demo)" }));
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bayar (demo)" }));
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledWith("checkout.demo_pay", { id: "ck-1" }, expect.any(String)));
     const reads = (runtime.api.checkout as jest.Mock).mock.calls.length;
     expect(await screen.findByText("Langganan aktif")).toBeTruthy();
@@ -1117,8 +1117,8 @@ describe("Bayar", () => {
   it("hosted payment opens the provider page", async () => {
     const hosted = { ...pendingCheckout({ payment_url: "https://pay.example.test/ck-1" }), payment: undefined };
     const runtime = server({ checkout: hosted });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Buka halaman pembayaran" }));
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Buka halaman pembayaran" }));
     await waitFor(() => expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith("https://pay.example.test/ck-1"));
     await waitFor(() => expect(runtime.api.checkout).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole("button", { name: "Bayar (demo)" })).toBeNull();
@@ -1128,8 +1128,8 @@ describe("Bayar", () => {
     const runtime = server({
       checkout: pendingCheckout({}, { status: "choose_method", selectedMethod: null, instructions: null }),
     });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Tampilkan QRIS" }));
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Tampilkan QRIS" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith("checkout.payment.start", { id: "ck-1", method: "QRIS" }, expect.any(String)),
     );
@@ -1141,7 +1141,7 @@ describe("Bayar", () => {
     try {
       const runtime = server({ checkout: pendingCheckout() });
       const refreshes = () => commands(runtime).filter((c) => c[0] === "checkout.payment.refresh").length;
-      wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+      await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
       expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
       expect(refreshes()).toBe(0);
       await act(async () => {
@@ -1168,9 +1168,9 @@ describe("Bayar", () => {
         },
       ),
     });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByText("8808123456789012")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Salin nomor" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Salin nomor" }));
     await waitFor(() => expect(Clipboard.setStringAsync).toHaveBeenCalledWith("8808123456789012"));
     await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ message: "Nomor disalin", tone: "success", haptic: "select" }));
   });
@@ -1186,9 +1186,9 @@ describe("Bayar", () => {
         },
       ),
     });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByText("8808123456789012")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Salin nomor" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Salin nomor" }));
     await waitFor(() =>
       expect(mockToast).toHaveBeenCalledWith({ message: "Belum bisa menyalin nomor. Coba lagi.", tone: "error" }),
     );
@@ -1201,7 +1201,7 @@ describe("Bayar", () => {
       const runtime = server({ checkout: pendingCheckout({}, { status: "expired" }) });
       (runtime.api.command as jest.Mock).mockResolvedValue({});
       const refreshes = () => commands(runtime).filter((c) => c[0] === "checkout.payment.refresh").length;
-      wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+      await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
       expect(await checkingShown()).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Bayar lagi" })).toBeNull();
       expect(screen.getByRole("button", { name: "Cek status" })).toBeTruthy();
@@ -1217,16 +1217,16 @@ describe("Bayar", () => {
   it("Bayar lagi keeps the customer's choices", async () => {
     const base = pendingCheckout({ state: "expired" }, { status: "expired" });
     const quote = quoteFor({ packageId: "p-rumahan", addressId: "a-2", portions: 2, startDate: "2026-10-19", cycles: 2, trial: false });
-    wrap(server({ checkout: { ...base, quote } }), <PaymentScreen checkoutId="ck-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bayar lagi" }));
+    await wrap(server({ checkout: { ...base, quote } }), <PaymentScreen checkoutId="ck-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bayar lagi" }));
     expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=2&cycles=2&addressId=a-2");
   });
 
   it("a trial pays again as a trial", async () => {
     const base = pendingCheckout({ state: "failed" });
     const quote = quoteFor({ packageId: "p-rumahan", addressId: "a-1", portions: 1, startDate: "2026-10-19", cycles: 1, trial: true });
-    wrap(server({ checkout: { ...base, quote } }), <PaymentScreen checkoutId="ck-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Bayar lagi" }));
+    await wrap(server({ checkout: { ...base, quote } }), <PaymentScreen checkoutId="ck-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Bayar lagi" }));
     expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?trial=1&portions=1&addressId=a-1");
   });
 
@@ -1235,7 +1235,7 @@ describe("Bayar", () => {
     const listen = AppState.addEventListener as unknown as jest.Mock;
     expect(jest.isMockFunction(listen)).toBe(true);
     const runtime = server({ checkout: pendingCheckout() });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     expect(commands(runtime).filter((c) => c[0] === "checkout.payment.refresh")).toHaveLength(0);
     // Only listeners still subscribed (an effect re-run removes its old one).
@@ -1251,10 +1251,10 @@ describe("Bayar", () => {
     const runtime = server({
       checkout: pendingCheckout({}, { status: "choose_method", selectedMethod: null, instructions: null }),
     });
-    wrap(runtime, withChoices(<PaymentScreen checkoutId="ck-1" />));
-    fireEvent.press(await screen.findByRole("button", { name: "Ubah cara bayar" }));
-    fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
-    fireEvent.press(await screen.findByRole("button", { name: "Tampilkan nomor VA" }));
+    await wrap(runtime, withChoices(<PaymentScreen checkoutId="ck-1" />));
+    await fireEvent.press(await screen.findByRole("button", { name: "Ubah cara bayar" }));
+    await fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Tampilkan nomor VA" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "checkout.payment.start",
@@ -1273,7 +1273,7 @@ describe("Bayar", () => {
         instructions: { kind: "virtual_account", accountNumber: "1234567890123", accountName: "CATERA SINTETIS", bank: "BCA" },
       },
     );
-    wrap(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByText("Nomor virtual account BCA")).toBeTruthy();
     expect(screen.getByText("Buka aplikasi BCA atau ATM, lalu pilih Transfer / Virtual Account.")).toBeTruthy();
     expect(screen.getByText("Masukkan nomor virtual account di atas.")).toBeTruthy();
@@ -1287,7 +1287,7 @@ describe("Bayar", () => {
         instructions: { kind: "virtual_account", accountNumber: "1234567890123", accountName: "CATERA SINTETIS", bank: "MANDIRI" },
       },
     );
-    wrap(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByText("Nomor virtual account Mandiri")).toBeTruthy();
     expect(screen.getByText("Buka aplikasi Mandiri atau ATM, lalu pilih Transfer / Virtual Account.")).toBeTruthy();
   });
@@ -1296,7 +1296,7 @@ describe("Bayar", () => {
     const runtime = server({
       checkout: pendingCheckout({}, { status: "choose_method", selectedMethod: null, instructions: null, availableMethods: ["EMONEY_DANA"] }),
     });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByRole("button", { name: "Bayar dengan DANA" })).toBeTruthy();
   });
 
@@ -1305,8 +1305,8 @@ describe("Bayar", () => {
       {},
       { selectedMethod: "EMONEY_DANA", instructions: { kind: "redirect", url: "https://pay.example.test/dana", channel: "EMONEY_DANA" } },
     );
-    wrap(server({ checkout: opened }), <PaymentScreen checkoutId="ck-1" />);
-    fireEvent.press(await screen.findByRole("button", { name: "Lanjut ke DANA" }));
+    await wrap(server({ checkout: opened }), <PaymentScreen checkoutId="ck-1" />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut ke DANA" }));
     await waitFor(() => expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith("https://pay.example.test/dana"));
     expect(screen.getByText("Selesaikan pembayaran di DANA.")).toBeTruthy();
     expect(screen.getByText("Kembali ke Catera. Status berubah sendiri.")).toBeTruthy();
@@ -1315,7 +1315,7 @@ describe("Bayar", () => {
   it("keeps the QRIS quiet zone pure white under the dark theme", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {
-      render(
+      await render(
         <ThemeProvider storageKey="catera.theme">
           <QrisCode value={QR} label={QR_LABEL} qrRef={{ current: null }} />
         </ThemeProvider>,
@@ -1360,7 +1360,7 @@ describe("Pembayaran diterima", () => {
   }
 
   it("shows Langganan aktif, the plan card with the first delivery and how many follow", async () => {
-    wrap(server({ checkout: paidCheckout({}, { dates: SHORT }) }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ checkout: paidCheckout({}, { dates: SHORT }) }), <PaymentScreen checkoutId="ck-1" />);
     await screen.findByTestId("paid-outcome");
     // The outcome names the moment, once, as the screen's one heading; the bar carries no title.
     const title = within(screen.getByTestId("paid-outcome")).getByText("Langganan aktif");
@@ -1386,7 +1386,7 @@ describe("Pembayaran diterima", () => {
   it("the plan card reads the dark theme", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {
-      render(
+      await render(
         <ThemeProvider storageKey="catera.theme">
           <MobileProvider runtime={server({ checkout: paidCheckout({}, { dates: SHORT }) })} linkMapper={customerLink}>
             <PaymentScreen checkoutId="ck-1" />
@@ -1404,23 +1404,23 @@ describe("Pembayaran diterima", () => {
 
   it("turns the iOS edge swipe off once paid, so a swipe cannot pop back to checkout", async () => {
     const gesture = () => mockSetOptions.mock.calls.filter(([o]) => "gestureEnabled" in o).map(([o]) => o.gestureEnabled);
-    wrap(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     // While paying, the swipe keeps its normal meaning.
     expect(gesture().at(-1)).toBe(true);
-    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     await screen.findByTestId("paid-outcome");
     expect(gesture().at(-1)).toBe(false);
   });
 
   it("opened already paid has the iOS edge swipe and the header back off", async () => {
-    wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
     await screen.findByTestId("paid-outcome");
     expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false, headerBackVisible: false });
   });
 
   it("a long plan counts every delivery after the first", async () => {
-    wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
     await screen.findByTestId("paid-outcome");
     // Six dates shown by the summary plus 14 more: 20 deliveries, the first named and 19 counted.
     expect(screen.getByTestId("paid-first").props.children).toBe("Antar pertama Senin 19 Okt dan 19 hari lainnya");
@@ -1428,12 +1428,12 @@ describe("Pembayaran diterima", () => {
   });
 
   it("offers the schedule first and home last when the caterer picks the menus", async () => {
-    wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
     await screen.findByTestId("paid-outcome");
     expect(footerLabels()).toEqual(["Lihat jadwal", "Ke Beranda"]);
-    fireEvent.press(screen.getByRole("button", { name: "Lihat jadwal" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat jadwal" }));
     expect(goToTab).toHaveBeenLastCalledWith("jadwal");
-    fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
     expect(goToTab).toHaveBeenLastCalledWith("index");
     expect(router.replace).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();
@@ -1455,17 +1455,17 @@ describe("Pembayaran diterima", () => {
       ],
     });
     const base = paidCheckout();
-    wrap(server({ checkout: { ...base, quote: { ...base.quote, offer: choose } } }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ checkout: { ...base, quote: { ...base.quote, offer: choose } } }), <PaymentScreen checkoutId="ck-1" />);
     await screen.findByTestId("paid-outcome");
     expect(screen.queryByTestId("paid-dish")).toBeNull();
     expect(footerLabels()).toEqual(["Pilih menu", "Lihat jadwal", "Ke Beranda"]);
-    fireEvent.press(screen.getByRole("button", { name: "Pilih menu" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Pilih menu" }));
     // Bayar is left for Pilih menu, which opens in the tabs above the screen that started the purchase.
     expect(leaveFor).toHaveBeenLastCalledWith("/subscriptions/s-2/menu");
   });
 
   it("opened already paid gives no success haptic", async () => {
-    wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    await wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
     await screen.findByTestId("paid-outcome");
     await act(async () => {});
     expect(successes()).toHaveLength(0);
@@ -1473,10 +1473,10 @@ describe("Pembayaran diterima", () => {
 
   it("turning paid while the screen is open gives one success haptic", async () => {
     const runtime = server({ checkout: pendingCheckout() });
-    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     expect(successes()).toHaveLength(0);
-    fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
     expect(await screen.findByTestId("paid-outcome")).toBeTruthy();
     await waitFor(() => expect(screen.getByRole("button", { name: "Lihat jadwal" })).toBeEnabled());
     await act(async () => {});
@@ -1497,7 +1497,7 @@ describe("Pembayaran diterima", () => {
     it(`${exit} after paying selects the ${target === "index" ? "Beranda" : "Jadwal"} tab`, async () => {
       const back = hardwareBack();
       try {
-        wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+        await wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
         await screen.findByTestId("paid-outcome");
         leave(back);
         expect(goToTab).toHaveBeenCalledTimes(1);
@@ -1521,7 +1521,7 @@ describe("Pembayaran diterima", () => {
       const exit = goToTab as jest.Mock;
       const back = hardwareBack();
       try {
-        wrap(server({ checkout: paidCheckout({}, quote) }), <PaymentScreen checkoutId="ck-1" />);
+        await wrap(server({ checkout: paidCheckout({}, quote) }), <PaymentScreen checkoutId="ck-1" />);
         await screen.findByTestId("paid-outcome");
         // Close in the header is a back: the screen keeps itself and goes home.
         expect(removeBy(CLOSE)).toBe(true);
@@ -1540,14 +1540,14 @@ describe("Pembayaran diterima", () => {
   it("handles the hardware back only once paid", async () => {
     const back = hardwareBack();
     try {
-      wrap(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+      await wrap(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
       expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
       // While paying, back keeps its normal meaning: nothing holds the screen.
       expect(back.count()).toBe(0);
       expect(removeBy(CLOSE)).toBe(false);
       expect(removeBy(NATIVE_BACK)).toBe(false);
       expect(goToTab).not.toHaveBeenCalled();
-      fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Sudah bayar? Cek status" }));
       await screen.findByTestId("paid-outcome");
       expect(back.count()).toBe(1);
       expect(back.press()).toEqual([true]);
@@ -1562,21 +1562,21 @@ describe("Pembayaran diterima", () => {
 
   it("counts purchase_confirmed_viewed once per checkout id, however often it is opened", async () => {
     const runtime = server({ checkout: paidCheckout({ id: "ck-viewed-1" }) });
-    const first = wrap(runtime, <PaymentScreen checkoutId="ck-viewed-1" />);
+    const first = await wrap(runtime, <PaymentScreen checkoutId="ck-viewed-1" />);
     await screen.findByTestId("paid-outcome");
     await waitFor(() => expect(viewed(runtime)).toHaveLength(1));
     expect(viewed(runtime)[0]).toEqual(["purchase_confirmed_viewed", "customer"]);
-    first.unmount();
+    await first.unmount();
 
-    const second = wrap(runtime, <PaymentScreen checkoutId="ck-viewed-1" />);
+    const second = await wrap(runtime, <PaymentScreen checkoutId="ck-viewed-1" />);
     await screen.findByTestId("paid-outcome");
     await act(async () => {});
     expect(viewed(runtime)).toHaveLength(1);
-    second.unmount();
+    await second.unmount();
 
     // A second purchase counts again.
     const other = server({ checkout: paidCheckout({ id: "ck-viewed-2" }) });
-    wrap(other, <PaymentScreen checkoutId="ck-viewed-2" />);
+    await wrap(other, <PaymentScreen checkoutId="ck-viewed-2" />);
     await screen.findByTestId("paid-outcome");
     await waitFor(() => expect(viewed(other)).toHaveLength(1));
   });
@@ -1584,7 +1584,7 @@ describe("Pembayaran diterima", () => {
   it("does not count purchase_confirmed_viewed while the payment is still being checked", async () => {
     const runtime = server({ checkout: pendingCheckout({ id: "ck-viewed-3", state: "paid" }) });
     (runtime.api.command as jest.Mock).mockResolvedValue({});
-    wrap(runtime, <PaymentScreen checkoutId="ck-viewed-3" />);
+    await wrap(runtime, <PaymentScreen checkoutId="ck-viewed-3" />);
     expect(await checkingShown()).toBeTruthy();
     await act(async () => {});
     expect(viewed(runtime)).toHaveLength(0);
@@ -1595,10 +1595,10 @@ describe("Beli waits (Task 5 fix round 1)", () => {
   it("while the server prices the first choice, the breakdown names its wait (Menghitung harga) with no spinner", async () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockImplementation(() => new Promise(() => undefined));
-    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByRole("progressbar", { name: "Menghitung harga" })).toBeTruthy();
     expect(screen.getByTestId("breakdown-skeleton")).toBeTruthy();
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsWhere({ type: "ActivityIndicator" })).toHaveLength(0);
   });
 
   it("the choices fade in from the skeleton through the screen's one FadeSwap", async () => {
@@ -1611,13 +1611,14 @@ describe("Beli waits (Task 5 fix round 1)", () => {
       await gate;
       return real(id);
     });
-    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    await waitFor(() => expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("loading"));
-    expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    // The swap's key is not a prop a host keeps: the loading block is the skeleton alone, the ready block the page.
+    await waitFor(() => expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy());
+    expect(screen.queryByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeNull();
     const timing = spyFades();
     await act(async () => release());
     expect(await screen.findByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeTruthy();
-    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("ready");
+    expect(screen.queryByRole("progressbar", { name: "Memuat paket" })).toBeNull();
     expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).not.toHaveLength(0);
   });
 });
@@ -1636,7 +1637,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     );
   const open = async (runtime = server(), ui: React.ReactElement = <BuyScreen packageId="p-rumahan" />) => {
     mockWindow = PHONE;
-    wrapV2(runtime, ui);
+    await wrapV2(runtime, ui);
     await bayarReady();
     return runtime;
   };
@@ -1689,15 +1690,15 @@ describe("Beli layout (customer layout spec 3.7)", () => {
   it("Lama paket is a plain value for a single length and for a trial", async () => {
     const single = offer({ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, price: 28000 });
     mockWindow = PHONE;
-    const one = wrapV2(server({ pkg: single }), <BuyScreen packageId="p-rumahan" />);
+    const one = await wrapV2(server({ pkg: single }), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     let row = within(screen.getByTestId("buy-row-length"));
     expect(flat(row.getByText("20 hari"))).toMatchObject({ fontSize: 15, fontFamily: fonts.semibold });
     expect(row.queryAllByRole("radio")).toHaveLength(0);
     expect(flat(screen.getByTestId("buy-row-length")).minHeight).toBe(56);
-    one.unmount();
+    await one.unmount();
 
-    wrapV2(server(), <BuyScreen packageId="p-rumahan" trial />);
+    await wrapV2(server(), <BuyScreen packageId="p-rumahan" trial />);
     await bayarReady();
     row = within(screen.getByTestId("buy-row-length"));
     expect(row.getByText("1 hari, coba dulu")).toBeTruthy();
@@ -1712,7 +1713,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(row.getByText("Porsi per hari"))).toMatchObject({ fontSize: 15, fontFamily: fonts.semibold });
     for (const name of ["Kurangi porsi", "Tambah porsi"])
       expect(flat(row.getByRole("button", { name }))).toMatchObject({ width: 44, height: 44 });
-    fireEvent.press(row.getByRole("button", { name: "Tambah porsi" }));
+    await fireEvent.press(row.getByRole("button", { name: "Tambah porsi" }));
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ portions: 2 })));
   });
 
@@ -1729,9 +1730,9 @@ describe("Beli layout (customer layout spec 3.7)", () => {
   it("Ubah tanggal and Ganti alamat sit beside the text at 411dp, and under it at font scale 2.0 so the words keep their width", async () => {
     await open();
     for (const id of ["start", "address"]) expect(within(screen.getByTestId(`buy-row-${id}-text`)).queryAllByRole("button")).toHaveLength(0);
-    screen.unmount();
+    await screen.unmount();
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 2 };
-    wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     expect(within(screen.getByTestId("buy-row-start-text")).getByRole("button", { name: "Ubah tanggal mulai" })).toBeTruthy();
     expect(within(screen.getByTestId("buy-row-address-text")).getByRole("button", { name: "Ganti alamat" })).toBeTruthy();
@@ -1739,11 +1740,11 @@ describe("Beli layout (customer layout spec 3.7)", () => {
 
   it("without an address Diantar ke says so and offers Tambah alamat, with Bayar off and the reason shown", async () => {
     mockWindow = PHONE;
-    wrapV2(server({ addresses: [] }), <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(server({ addresses: [] }), <BuyScreen packageId="p-rumahan" />);
     const row = within(await screen.findByTestId("buy-row-address"));
     expect(await row.findByText("Belum ada alamat pengantaran.")).toBeTruthy();
     expect(flat(screen.getByTestId("buy-row-address")).minHeight).toBe(72);
-    fireEvent.press(row.getByRole("button", { name: "Tambah alamat" }));
+    await fireEvent.press(row.getByRole("button", { name: "Tambah alamat" }));
     expect(router.push).toHaveBeenCalledWith("/pembelian/alamat");
     expect(screen.getByText("Tambahkan alamat pengantaran dulu.")).toBeTruthy();
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
@@ -1753,7 +1754,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
 
   it("an address outside the caterer's area is a blocked line under the choices", async () => {
     mockWindow = PHONE;
-    wrapV2(server({ addresses: [rumah] }), <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(server({ addresses: [rumah] }), <BuyScreen packageId="p-rumahan" />);
     // The line under the choices, and the same words as the footer's reason.
     expect(await screen.findAllByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toHaveLength(2);
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
@@ -1787,7 +1788,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     const link = screen.getByTestId("buy-terms");
     expect(link.props.accessibilityRole).toBe("link");
     expect(flat(link).minHeight).toBe(44);
-    fireEvent.press(link);
+    await fireEvent.press(link);
     expect(opened).toHaveBeenCalledWith("https://api.example.test/syarat-dan-privasi#syarat");
     opened.mockRestore();
   });
@@ -1795,7 +1796,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
   it("under v2 the full-screen footer clears the system navigation bar; a classic footer is unchanged", async () => {
     const inset = { top: 0, left: 0, right: 0, bottom: 48 };
     mockWindow = PHONE;
-    const v2 = wrapV2(
+    const v2 = await wrapV2(
       server(),
       <SafeAreaInsetsContext.Provider value={inset}>
         <BuyScreen packageId="p-rumahan" />
@@ -1803,8 +1804,8 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     );
     await bayarReady();
     expect(flat(screen.getByTestId("screen-footer")).paddingBottom).toBe(16 + 48);
-    v2.unmount();
-    wrap(
+    await v2.unmount();
+    await wrap(
       server(),
       <SafeAreaInsetsContext.Provider value={inset}>
         <BuyScreen packageId="p-rumahan" />
@@ -1831,14 +1832,14 @@ describe("Beli layout (customer layout spec 3.7)", () => {
 
   it("the footer stacks at 411dp and font scale 1.3, now that Bayar names the amount", async () => {
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
-    wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
   });
 
   it("a seven-digit total stacks the footer at 360dp and font scale 1.0, so the amount never breaks after Rp", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1 };
-    wrapV2(server(), <BuyScreen packageId="p-rumahan" initial={{ portions: "4" }} />);
+    await wrapV2(server(), <BuyScreen packageId="p-rumahan" initial={{ portions: "4" }} />);
     const total = totalOf({ portions: 4 });
     expect(total.replace(/[^0-9]/g, "")).toHaveLength(7);
     await screen.findByRole("button", { name: `Bayar ${total}` });
@@ -1847,7 +1848,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
 
   it("a seven-digit total stacks the footer at 411dp and font scale 1.3", async () => {
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
-    wrapV2(server(), <BuyScreen packageId="p-rumahan" initial={{ portions: "4" }} />);
+    await wrapV2(server(), <BuyScreen packageId="p-rumahan" initial={{ portions: "4" }} />);
     await screen.findByRole("button", { name: `Bayar ${totalOf({ portions: 4 })}` });
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
   });
@@ -1859,7 +1860,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
 
   it("the footer's amount and Bayar stack at 360dp and font scale 1.3, and every row's words wrap", async () => {
     mockWindow = SMALL_LARGE_TEXT;
-    wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
     const pay = within(screen.getByTestId("screen-footer")).getByRole("button", { name: PAY });
@@ -1879,7 +1880,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     mockWindow = PHONE;
     const dark = nativeThemes.dark;
-    render(
+    await render(
       <ThemeProvider storageKey="buy-dark-test">
         <LayoutScaleProvider value="v2">
           <MobileProvider runtime={server()} linkMapper={customerLink}>
@@ -1899,7 +1900,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
 
   it("a renewal that still waits for payment keeps its attention card above the summary", async () => {
     mockWindow = PHONE;
-    wrapV2(server({ context: { pendingCheckoutId: "ck-9" } }), <BuyScreen renewFrom="s-1" />);
+    await wrapV2(server({ context: { pendingCheckoutId: "ck-9" } }), <BuyScreen renewFrom="s-1" />);
     const card = await screen.findByTestId("buy-pending");
     expect(flat(card)).toMatchObject({ borderWidth: 1, borderColor: nativeThemes.light.attentionBorder });
     expect(within(card).getByRole("button", { name: "Lanjutkan pembayaran" })).toBeTruthy();
@@ -1910,7 +1911,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     mockWindow = PHONE;
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByTestId("breakdown-skeleton")).toBeTruthy();
     expect(screen.getByRole("header", { name: "Rincian" })).toBeTruthy();
     const rows = screen.getAllByTestId("breakdown-skeleton-row");
@@ -1922,7 +1923,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     const runtime = server();
     (runtime.api.offer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     mockWindow = PHONE;
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByTestId("buy-skeleton")).toBeTruthy();
     expect(flat(screen.getByTestId("buy-skeleton-summary")).height).toBe(88);
     expect(flat(screen.getByTestId("buy-skeleton-fields")).height).toBe(72 + 56 + 56 + 72 + 3);
@@ -1933,7 +1934,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CAPACITY"), { code: "CAPACITY" }));
     mockWindow = PHONE;
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByRole("button", { name: "Hitung ulang" })).toBeTruthy();
     expect(screen.getByRole("header", { name: "Rincian" })).toBeTruthy();
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
@@ -1944,7 +1945,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     const runtime = server({ subscriptions: [running] });
     (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("OVERLAP"), { code: "OVERLAP" }));
     mockWindow = PHONE;
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByText("Paket ini masih berjalan sampai Kamis 15 Okt.")).toBeTruthy();
     const start = screen.getByRole("button", { name: /Mulai Jumat 16 Okt/ });
     expect(flat(start)).toMatchObject({ minHeight: 50 });
@@ -1957,7 +1958,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
 describe("Beli names the amount and why it waits (deep pages R1)", () => {
   const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
   const PHONE = { width: 411, height: 860, scale: 3, fontScale: 1 };
-  const wrapV2 = (runtime: MobileRuntime, ui: React.ReactElement) => {
+  const wrapV2 = async (runtime: MobileRuntime, ui: React.ReactElement) => {
     mockWindow = PHONE;
     return render(
       <LayoutScaleProvider value="v2">
@@ -1970,21 +1971,21 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   const reason = () => within(screen.getByTestId("screen-footer")).getByTestId("buy-pay-reason");
 
   it("the pay button names the amount", async () => {
-    wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
     const pay = await screen.findByRole("button", { name: `Bayar ${totalOf()}` });
     expect(pay).toBeEnabled();
     expect(screen.queryByTestId("buy-pay-reason")).toBeNull();
   });
 
   it("a renewal's pay button names the amount too", async () => {
-    wrapV2(server(), <BuyScreen renewFrom="s-1" />);
+    await wrapV2(server(), <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByRole("button", { name: `Bayar ${totalOf()}` })).toBeEnabled();
   });
 
   it("a disabled pay button says why: the quote is loading", async () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockImplementation(() => new Promise(() => undefined));
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalled());
     expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
     expect(reason().props.children).toBe("Menghitung total…");
@@ -1995,7 +1996,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   });
 
   it("a disabled pay button says why: no address", async () => {
-    wrapV2(server({ addresses: [] }), <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(server({ addresses: [] }), <BuyScreen packageId="p-rumahan" />);
     await deliveredTo("Belum ada alamat pengantaran.");
     await waitFor(() => expect(reason().props.children).toBe("Tambahkan alamat dulu."));
     const pay = screen.getByRole("button", { name: "Bayar" });
@@ -2009,7 +2010,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   it("a disabled pay button says why: no payment method is available", async () => {
     const runtime = server();
     (runtime.api.request as jest.Mock).mockImplementation(async () => ({ mode: "direct", availableMethods: [] }));
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     await waitFor(() => expect(reason().props.children).toBe("Pembayaran belum tersedia. Coba lagi nanti."));
     const pay = screen.getByRole("button", { name: PAY });
     expect(pay).toBeDisabled();
@@ -2023,11 +2024,11 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     (runtime.api.command as jest.Mock).mockImplementation((action: string, payload: Record<string, unknown>) =>
       action === "checkout.create" ? new Promise((resolve) => (release = resolve)) : base(action, payload),
     );
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     const pay = await screen.findByRole("button", { name: `Bayar ${totalOf()}` });
     await act(async () => {
-      fireEvent.press(pay);
-      fireEvent.press(pay);
+      await fireEvent.press(pay);
+      await fireEvent.press(pay);
     });
     expect(commands(runtime).filter((c) => c[0] === "checkout.create")).toHaveLength(1);
     release(pendingCheckout());
@@ -2037,7 +2038,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   it("says nothing about the address while the customer's addresses are still loading", async () => {
     const runtime = server();
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     await screen.findByTestId("buy-summary");
     await waitFor(() => expect(reason().props.children).toBe("Menghitung total…"));
     expect(screen.queryByText("Pilih alamat dulu.")).toBeNull();
@@ -2048,7 +2049,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     const runtime = server();
     const methods = jest.fn(() => new Promise(() => undefined));
     (runtime.api.request as jest.Mock).mockImplementation(methods);
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     await screen.findByRole("button", { name: `Bayar ${totalOf()}` });
     expect(reason().props.children).toBe("Menghitung total…");
   });
@@ -2060,22 +2061,22 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
       if (cycles === 2) throw new Error("REQUEST_TIMEOUT");
       return first(id, pkg, cycles);
     });
-    wrapV2(runtime, <BuyScreen renewFrom="s-1" />);
+    await wrapV2(runtime, <BuyScreen renewFrom="s-1" />);
     await bayarReady();
-    fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
+    await fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
     expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
     expect(screen.queryByText("Menghitung total…")).toBeNull();
   });
 
   it("a blocked choice is also the footer's reason, in case its line has scrolled away", async () => {
-    wrapV2(server({ addresses: [rumah] }), <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(server({ addresses: [rumah] }), <BuyScreen packageId="p-rumahan" />);
     const blocked = "Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.";
     await waitFor(() => expect(reason().props.children).toBe(blocked));
   });
 
   it("a disabled pay button says why: a pending checkout", async () => {
-    wrapV2(server({ context: { pendingCheckoutId: "ck-9" } }), <BuyScreen renewFrom="s-1" />);
+    await wrapV2(server({ context: { pendingCheckoutId: "ck-9" } }), <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByTestId("buy-pending")).toBeTruthy();
     await waitFor(() => expect(reason().props.children).toBe("Ada pembayaran yang belum selesai."));
     expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
@@ -2084,7 +2085,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   it("a disabled pay button says why: the quote failed", async () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockRejectedValue(Object.assign(new Error("CAPACITY"), { code: "CAPACITY" }));
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByRole("button", { name: "Hitung ulang" })).toBeTruthy();
     const said = reason().props.children as string;
     expect(said.length).toBeGreaterThan(0);
@@ -2093,7 +2094,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   });
 
   it("Bayar dengan is a row with Ubah, not an input", async () => {
-    wrapV2(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await wrapV2(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
     const row = screen.getByTestId("buy-pay-method");
     expect(flat(row).borderWidth ?? 0).toBe(0);
@@ -2103,8 +2104,8 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     expect(within(row).getByTestId("pay-mark")).toBeTruthy();
     expect(within(row).getByText("Ubah cara bayar")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Pakai transfer bank (VA)" })).toBeNull();
-    fireEvent.press(within(row).getByRole("button", { name: "Ubah cara bayar" }));
-    fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
+    await fireEvent.press(within(row).getByRole("button", { name: "Ubah cara bayar" }));
+    await fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
     await waitFor(() => expect(within(screen.getByTestId("buy-pay-method")).getByText("BRI Virtual Account")).toBeTruthy());
     expect(within(screen.getByTestId("buy-pay-method")).getByText("Transfer dari aplikasi atau ATM BRI.")).toBeTruthy();
   });
@@ -2112,7 +2113,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   it("Bayar dengan has no Ubah when only one method is offered", async () => {
     const runtime = server();
     (runtime.api.request as jest.Mock).mockImplementation(async () => ({ mode: "direct", availableMethods: ["QRIS"] }));
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     expect(within(screen.getByTestId("buy-pay-method")).getByText("QRIS")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Ubah cara bayar" })).toBeNull();
@@ -2120,7 +2121,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
 
   it("at 360dp and font scale 1.3 the reason and the method row wrap instead of clipping", async () => {
     const runtime = server({ addresses: [] });
-    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
     await deliveredTo("Belum ada alamat pengantaran.");
     await waitFor(() => expect(reason()).toBeTruthy());
@@ -2133,7 +2134,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   it("the method row reads the dark theme's tokens", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     mockWindow = PHONE;
-    render(
+    await render(
       <ThemeProvider storageKey="buy-paywith-dark">
         <LayoutScaleProvider value="v2">
           <MobileProvider runtime={server()} linkMapper={customerLink}>

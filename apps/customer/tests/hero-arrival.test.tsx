@@ -13,6 +13,7 @@ import { Beranda } from "../src/today/Beranda";
 import { Plate } from "../src/today/Plate";
 import { customerLink } from "../src/links";
 import { customerState, TODAY } from "./fixtures";
+import { byComponent } from "./host-tree";
 import { goOffline, keptLine } from "./offline";
 import * as offline from "../src/today/offline";
 
@@ -84,10 +85,10 @@ describe("Sudah sampai", () => {
   it("is busy while the answer is on its way, and a second press sends nothing more", async () => {
     const runtime = runtimeWith(async () => customerState({ status: "out_for_delivery" }));
     (runtime.api.command as jest.Mock).mockImplementation(() => new Promise(() => undefined));
-    renderHome(runtime);
+    await renderHome(runtime);
     const answer = await screen.findByRole("button", { name: "Sudah sampai" });
-    fireEvent.press(answer);
-    fireEvent.press(answer);
+    await fireEvent.press(answer);
+    await fireEvent.press(answer);
     const busy = screen.getByRole("button", { name: "Sudah sampai" });
     expect(busy.props.accessibilityState.busy).toBe(true);
     expect(runtime.api.command).toHaveBeenCalledTimes(1);
@@ -96,12 +97,12 @@ describe("Sudah sampai", () => {
   it("Sudah sampai failure shows an error toast with Coba lagi, and no loose text", async () => {
     const runtime = runtimeWith(async () => customerState({ status: "out_for_delivery" }));
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("NOT_ALLOWED"), { code: "NOT_ALLOWED" }));
-    renderHome(runtime);
-    fireEvent.press(await screen.findByRole("button", { name: "Sudah sampai" }));
+    await renderHome(runtime);
+    await fireEvent.press(await screen.findByRole("button", { name: "Sudah sampai" }));
     expect(await screen.findByText(/^Belum bisa sekarang\./)).toBeTruthy();
     expect(screen.queryByTestId("plate-error")).toBeNull();
     // The toast's own button sends the same answer again.
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(2));
     expect(runtime.api.command).toHaveBeenLastCalledWith(
       "delivery.confirm",
@@ -113,7 +114,7 @@ describe("Sudah sampai", () => {
 
 describe("the arrived-unconfirmed hero", () => {
   it("the arrived-unconfirmed hero shows the photo, Sudah sampai and Belum", async () => {
-    renderHome(runtimeWith(async () => arrived()));
+    await renderHome(runtimeWith(async () => arrived()));
     expect(await screen.findByRole("header", { name: "Dapur menandai makan siang sudah sampai." })).toBeTruthy();
     expect(screen.getByText("Sudah diterima?")).toBeTruthy();
     const actions = within(screen.getByTestId("plate-actions"));
@@ -122,8 +123,8 @@ describe("the arrived-unconfirmed hero", () => {
     // The kitchen's photo sits beside them, read behind the session.
     const proof = await screen.findByTestId("plate-proof");
     expect(proof.props.accessibilityLabel).toBe("Foto dari dapur saat pesanan sampai");
-    await waitFor(() => expect(within(proof).UNSAFE_queryAllByType(Image)).toHaveLength(1));
-    expect(within(proof).UNSAFE_getByType(Image).props.source).toEqual({
+    await waitFor(() => expect(byComponent(Image, proof)).toHaveLength(1));
+    expect(byComponent(Image, proof)[0].props.source).toEqual({
       uri: "https://api.example.test/api/proof?deliveryId=d-today&meal=lunch",
       headers: { Authorization: "Bearer demo-session" },
     });
@@ -132,8 +133,8 @@ describe("the arrived-unconfirmed hero", () => {
 
   it("answers Sudah sampai with a confirm", async () => {
     const runtime = runtimeWith(async () => arrived());
-    renderHome(runtime);
-    fireEvent.press(await screen.findByRole("button", { name: "Sudah sampai" }));
+    await renderHome(runtime);
+    await fireEvent.press(await screen.findByRole("button", { name: "Sudah sampai" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "delivery.confirm",
@@ -144,17 +145,17 @@ describe("the arrived-unconfirmed hero", () => {
   });
 
   it("Belum opens the Belum sampai report", async () => {
-    renderHome(runtimeWith(async () => arrived()));
-    fireEvent.press(await screen.findByRole("button", { name: "Belum" }));
+    await renderHome(runtimeWith(async () => arrived()));
+    await fireEvent.press(await screen.findByRole("button", { name: "Belum" }));
     expect(router.push).toHaveBeenCalledWith("/masalah/d-today?meal=lunch&jenis=belum");
   });
 
   it("says so in words when the photo cannot load, and keeps its place", async () => {
-    renderHome(runtimeWith(async () => arrived()));
+    await renderHome(runtimeWith(async () => arrived()));
     const proof = await screen.findByTestId("plate-proof");
-    await waitFor(() => expect(within(proof).UNSAFE_queryAllByType(Image)).toHaveLength(1));
+    await waitFor(() => expect(byComponent(Image, proof)).toHaveLength(1));
     expect(screen.queryByTestId("plate-proof-failed")).toBeNull();
-    act(() => within(proof).UNSAFE_getByType(Image).props.onError());
+    await act(() => byComponent(Image, proof)[0].props.onError());
     expect(await screen.findByText("Foto belum bisa dimuat")).toBeTruthy();
     expect(screen.getByTestId("plate-proof")).toBeTruthy();
     // The buttons are still there to answer with.
@@ -162,7 +163,7 @@ describe("the arrived-unconfirmed hero", () => {
   });
 
   it("has no photo box when the kitchen left none", async () => {
-    renderHome(runtimeWith(async () => arrived({ arrived_photo: null })));
+    await renderHome(runtimeWith(async () => arrived({ arrived_photo: null })));
     expect(await screen.findByRole("button", { name: "Sudah sampai" })).toBeTruthy();
     expect(screen.queryByTestId("plate-proof")).toBeNull();
   });
@@ -170,7 +171,7 @@ describe("the arrived-unconfirmed hero", () => {
   it("offers nothing to answer from a copy kept offline", async () => {
     goOffline();
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValue({ savedAt: `${TODAY}T05:00:00.000Z`, data: arrived() });
-    renderHome(
+    await renderHome(
       runtimeWith(async () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
@@ -182,10 +183,10 @@ describe("the arrived-unconfirmed hero", () => {
 
 describe("the hero with a failed photo", () => {
   it("the hero with a failed photo shows the photo ground and no pale band", async () => {
-    renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
+    await renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
     const photo = await screen.findByTestId("plate-photo");
-    const hero = within(photo).UNSAFE_getAllByType(Image)[0];
-    act(() => hero.props.onError());
+    const hero = byComponent(Image, photo)[0];
+    await act(() => hero.props.onError());
     const ground = await within(photo).findByTestId("photo-ground");
     // The dark photo ground of the theme: one even slab, never the page's pale neutral. The 16:10 frame keeps its size.
     expect(StyleSheet.flatten(ground.props.style).backgroundColor).toBe(nativeThemes.light.photoGround);
@@ -207,11 +208,11 @@ describe("Coba lagi on a stale copy", () => {
     const runtime = runtimeWith(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
-    renderHome(runtime);
+    await renderHome(runtime);
     const line = `Belum bisa memperbarui. Menampilkan data terakhir, ${bannerTime(new Date(`${TODAY}T03:12:00.000Z`))}.`;
     await screen.findByText(line);
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise((_, reject) => (settle = () => reject(new Error("REQUEST_TIMEOUT")))));
-    fireEvent.press(within(screen.getByTestId("stale-copy")).getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(within(screen.getByTestId("stale-copy")).getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(within(screen.getByTestId("stale-copy")).getByRole("button", { name: "Coba lagi" }).props.accessibilityState.busy).toBe(true));
     expect(screen.getByText(line)).toBeTruthy();
     await act(async () => settle());
@@ -223,7 +224,7 @@ describe("the card's reactions", () => {
   it("keeps unselected reaction labels charcoal; forest only fills the chosen one", async () => {
     const state = customerState({ status: "delivered", confirmed_at: `${TODAY}T05:00:00Z`, confirmed_by: "customer", reaction: "enak" });
     const plate = todayPlates(state, new Date(`${TODAY}T06:00:00Z`))[0];
-    render(
+    await render(
       <MobileProvider runtime={runtimeWith(async () => state)} linkMapper={customerLink}>
         <Plate plate={plate} apiBase="https://api.example.test" variant="card" />
       </MobileProvider>,
@@ -251,7 +252,7 @@ describe("Beranda offline and failed reads", () => {
       savedAt: `${TODAY}T03:12:00.000Z`,
       data: customerState({ status: "out_for_delivery" }),
     });
-    renderHome(
+    await renderHome(
       runtimeWith(async () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
@@ -267,7 +268,7 @@ describe("Beranda offline and failed reads", () => {
       savedAt: `${TODAY}T03:12:00.000Z`,
       data: customerState({ status: "out_for_delivery" }),
     });
-    renderHome(
+    await renderHome(
       runtimeWith(async () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
@@ -284,10 +285,10 @@ describe("Beranda offline and failed reads", () => {
     const runtime = runtimeWith(async () => {
       throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
     });
-    renderHome(runtime);
+    await renderHome(runtime);
     const page = within(await screen.findByTestId("home-error"));
     expect(page.getByText("Belum bisa memuat. Cek koneksi lalu coba lagi.")).toBeTruthy();
-    fireEvent.press(page.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(page.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledTimes(2));
   });
 });

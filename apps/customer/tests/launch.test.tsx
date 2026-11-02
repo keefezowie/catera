@@ -168,15 +168,15 @@ function Probe() {
   return null;
 }
 
-const renderHome = () =>
-  render(
+const renderHome = async () =>
+  await render(
     <AppProviders runtime={runtime}>
       <Probe />
       <Beranda />
     </AppProviders>,
   );
 
-const renderRoot = () => {
+const renderRoot = async () => {
   const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
   return render(<RootLayout />);
 };
@@ -212,34 +212,38 @@ describe("the launch cover", () => {
   // First in the file on purpose: the cover plays once per JS context, so this is the one cold start here.
   it("a cold start lays the cover over the app and a warm start does not", async () => {
     storedSession(rani);
-    const first = renderRoot();
+    // An awaited render flushes the whole launch, so hold the theme read open to look at the cover under the splash.
+    const theme = deferred<void>();
+    SecureStore.__gates.set("catera.theme", theme.promise);
+    const first = await renderRoot();
     expect(screen.getByTestId("launch-cover", hidden)).toBeTruthy();
     // Under the splash it holds still and keeps every touch; it never speaks to a screen reader.
     expect(screen.getByTestId("launch-cover", hidden).props.pointerEvents).toBe("auto");
     expect(screen.getByTestId("launch-cover", hidden).props.importantForAccessibility).toBe("no-hide-descendants");
     // The mark decodes under the splash (an image load is a native event, not a touch, so it is called directly).
     await act(async () => screen.getByTestId("launch-cover-mark", hidden).props.onLoad());
+    await act(async () => theme.resolve());
     await waitFor(() => expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1));
     // Released: touches pass through from the first frame of the beat, and the beat lasts `feature` 320ms.
     expect(screen.getByTestId("launch-cover", hidden).props.pointerEvents).toBe("none");
     await act(async () => new Promise((r) => setTimeout(r, 800)));
     expect(screen.queryByTestId("launch-cover", hidden)).toBeNull();
-    first.unmount();
-    renderRoot();
+    await first.unmount();
+    await renderRoot();
     await screen.findByTestId("app-stack");
     expect(screen.queryByTestId("launch-cover", hidden)).toBeNull();
   });
 
-  it("LaunchCover is skipped under reduced motion", () => {
+  it("LaunchCover is skipped under reduced motion", async () => {
     (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(true);
     const onDone = jest.fn();
-    render(<LaunchCover onDone={onDone} />);
+    await render(<LaunchCover onDone={onDone} />);
     expect(screen.queryByTestId("launch-cover", hidden)).toBeNull();
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("the cover draws the splash mark at the splash's size on the splash's forest, whatever the app theme", () => {
-    render(<LaunchCover onDone={() => undefined} hold />);
+  it("the cover draws the splash mark at the splash's size on the splash's forest, whatever the app theme", async () => {
+    await render(<LaunchCover onDone={() => undefined} hold />);
     expect(StyleSheet.flatten(screen.getByTestId("launch-cover-mark", hidden).props.style)).toMatchObject({ width: 200, height: 200 });
     expect(StyleSheet.flatten(screen.getByTestId("launch-cover-canvas", hidden).props.style).backgroundColor).toBe(
       SPLASH_CANVAS,
@@ -249,7 +253,7 @@ describe("the launch cover", () => {
 
   it("a mark that never decodes steps aside without playing", async () => {
     const onDone = jest.fn();
-    render(<LaunchCover onDone={onDone} />);
+    await render(<LaunchCover onDone={onDone} />);
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
   });
 });
@@ -262,7 +266,7 @@ describe("the splash", () => {
     SecureStore.__gates.set("catera.theme", theme.promise);
     SecureStore.__gates.set("catera.actor", session.promise);
     storedSession(rani);
-    renderRoot();
+    await renderRoot();
     expect(SplashScreen.preventAutoHideAsync).toBeDefined();
     await act(async () => {});
     expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
@@ -279,7 +283,7 @@ describe("the splash", () => {
 
   it("the splash hides after 1500ms even if a local read hangs", async () => {
     SecureStore.__gates.set("catera.theme", new Promise(() => undefined));
-    renderRoot();
+    await renderRoot();
     await act(async () => new Promise((r) => setTimeout(r, 1000)));
     expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
     await waitFor(() => expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1), { timeout: 1500 });
@@ -288,7 +292,7 @@ describe("the splash", () => {
   it("fonts slower than the ceiling: the splash lifts onto the startup mascot in the system face", async () => {
     mockFonts.loaded = false;
     storedSession(rani);
-    renderRoot();
+    await renderRoot();
     await act(async () => new Promise((r) => setTimeout(r, 1600)));
     expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("mascot-loading").props.accessibilityLabel).toBe("Menyiapkan Catera…");
@@ -302,12 +306,12 @@ describe("the splash", () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     SecureStore.__store.set("catera.theme", "dark");
     (runtime.api.me as jest.Mock).mockImplementation(() => new Promise(() => undefined));
-    renderRoot();
+    await renderRoot();
     await waitFor(() => expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1));
     // The frame the splash lifts onto (the gate, waiting on me()) is already on the dark canvas.
     await screen.findByTestId("mascot-loading");
-    const backgrounds = screen.UNSAFE_root.findAll(
-      (n) => typeof n.type === "string" && !!StyleSheet.flatten(n.props.style)?.backgroundColor,
+    const backgrounds = screen.container.queryAll(
+      (n) => !!StyleSheet.flatten(n.props.style)?.backgroundColor,
     ).map((n) => StyleSheet.flatten(n.props.style).backgroundColor);
     expect(backgrounds).toContain(nativeThemes.dark.canvas);
     expect(backgrounds).not.toContain(nativeThemes.light.canvas);
@@ -318,7 +322,7 @@ describe("the launch gate", () => {
   it("with no stored session the gate shows the mascot only after 300ms", async () => {
     const me = deferred<{ actor: null; demo: boolean }>();
     (runtime.api.me as jest.Mock).mockImplementation(() => me.promise);
-    renderRoot();
+    await renderRoot();
     const gate = await screen.findByTestId("mascot-loading");
     // Screen readers hear it at once; the drawing and its words wait.
     expect(gate.props.accessibilityLabel).toBe("Menyiapkan Catera…");
@@ -335,7 +339,7 @@ describe("the launch gate", () => {
   it("a stored session skips the gate: the app shows before me() answers", async () => {
     (runtime.api.me as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     storedSession(rani);
-    renderRoot();
+    await renderRoot();
     expect(await screen.findByTestId("app-stack")).toBeTruthy();
     expect(screen.queryByTestId("mascot-loading")).toBeNull();
   });
@@ -345,7 +349,7 @@ describe("the launch gate", () => {
     // 1500ms and what it lifts onto must say that Catera is getting ready.
     SecureStore.__gates.set("catera.actor", new Promise(() => undefined));
     (runtime.api.me as jest.Mock).mockImplementation(() => new Promise(() => undefined));
-    renderRoot();
+    await renderRoot();
     await act(async () => new Promise((r) => setTimeout(r, 1000)));
     expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
     expect(screen.queryByTestId("mascot-loading")).toBeNull();
@@ -363,7 +367,7 @@ describe("cache-first Beranda", () => {
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility");
     storedSession(rani);
     keptHome(rani);
-    renderHome();
+    await renderHome();
     const line = await screen.findByText("Memperbarui…");
     // Controller ruling (finding 2): it sits in the fixed 48 meta row after the date, never under the headline.
     const row = screen.getByTestId("mood-header-row");
@@ -393,7 +397,7 @@ describe("cache-first Beranda", () => {
     (runtime.api.customer as jest.Mock).mockImplementation(() => fresh.promise);
     storedSession(rani);
     keptHome(rani);
-    renderHome();
+    await renderHome();
     expect(await screen.findByText("Makan siang sedang diantar.")).toBeTruthy();
     await act(async () => {
       await mobile.logout();
@@ -410,7 +414,7 @@ describe("cache-first Beranda", () => {
     const fresh = deferred<unknown>();
     (runtime.api.customer as jest.Mock).mockImplementation(() => fresh.promise);
     storedSession(rani);
-    renderHome();
+    await renderHome();
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const check = deferred<void>();
     SecureStore.__gates.set("catera.actor", check.promise);
@@ -427,7 +431,7 @@ describe("cache-first Beranda", () => {
     const fresh = deferred<unknown>();
     (runtime.api.customer as jest.Mock).mockImplementation(() => fresh.promise);
     storedSession(rani);
-    renderHome();
+    await renderHome();
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const before = deferred<void>();
     const after = deferred<void>();
@@ -444,7 +448,7 @@ describe("cache-first Beranda", () => {
 
   it("a fresh read while signed in is kept for the next launch", async () => {
     storedSession(rani);
-    renderHome();
+    await renderHome();
     expect(await screen.findByRole("button", { name: "Sudah sampai" })).toBeTruthy();
     await waitFor(() => expect(files.has("file:///doc/catera-customer-u-rani.json")).toBe(true));
   });
@@ -454,7 +458,7 @@ describe("cache-first Beranda", () => {
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     storedSession(rani);
     keptHome(rani);
-    renderHome();
+    await renderHome();
     expect(await screen.findByText("Makan siang sedang diantar.")).toBeTruthy();
     expect(screen.getByText("Memperbarui…")).toBeTruthy();
     // The kept copy is labelled as refreshing, not as offline.
@@ -466,7 +470,7 @@ describe("cache-first Beranda", () => {
     (runtime.api.customer as jest.Mock).mockImplementation(() => fresh.promise);
     storedSession(rani);
     keptHome(rani);
-    renderHome();
+    await renderHome();
     expect(await screen.findByText("Makan siang sedang diantar.")).toBeTruthy();
     // Review Focus 1: the meal may have moved since the copy was kept, so nothing on it can be acted on.
     expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
@@ -485,7 +489,7 @@ describe("cache-first Beranda", () => {
     storedSession(rani);
     keptHome(rani, `${TODAY}T03:12:00.000Z`);
     goOffline();
-    renderHome();
+    await renderHome();
     expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
     expect(screen.getByText(keptLine(`${TODAY}T03:12:00.000Z`))).toBeTruthy();
     expect(screen.queryByText(/Terakhir diperbarui|tidak ada koneksi/)).toBeNull();
@@ -496,7 +500,7 @@ describe("cache-first Beranda", () => {
   it("with no copy kept a signed-in launch shows the Beranda skeleton under the live header", async () => {
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     storedSession(rani);
-    renderHome();
+    await renderHome();
     expect(await screen.findByTestId("beranda-skeleton")).toBeTruthy();
     expect(screen.getByRole("progressbar", { name: "Memuat beranda" })).toBeTruthy();
     expect(within(screen.getByTestId("mood-header")).getByText(/^(Siang ini|Malam ini),$/)).toBeTruthy();
@@ -505,7 +509,7 @@ describe("cache-first Beranda", () => {
   it("after logout the next launch paints no cached home", async () => {
     storedSession(rani);
     keptHome(rani);
-    const first = renderHome();
+    const first = await renderHome();
     expect(await screen.findByRole("button", { name: "Sudah sampai" })).toBeTruthy();
     expect(files.has("file:///doc/catera-customer-u-rani.json")).toBe(true);
     await act(async () => {
@@ -513,11 +517,11 @@ describe("cache-first Beranda", () => {
     });
     // Review Focus 2: the copy is gone with the session.
     expect([...files.keys()].filter((k) => k.includes("catera-customer-"))).toEqual([]);
-    first.unmount();
+    await first.unmount();
     // The same person signs in again later: the first frame is the skeleton, never the old copy.
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     storedSession(rani);
-    renderHome();
+    await renderHome();
     expect(await screen.findByTestId("beranda-skeleton")).toBeTruthy();
     expect(screen.queryByText("Makan siang sedang diantar.")).toBeNull();
   });
@@ -527,7 +531,7 @@ describe("cache-first Beranda", () => {
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     keptHome(rani);
     storedSession(budi);
-    renderHome();
+    await renderHome();
     expect(await screen.findByTestId("beranda-skeleton")).toBeTruthy();
     await act(async () => {});
     expect(screen.queryByText("Makan siang sedang diantar.")).toBeNull();
@@ -539,7 +543,7 @@ describe("cache-first Beranda", () => {
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     storedSession(rani);
     keptHome(rani);
-    renderHome();
+    await renderHome();
     expect(await screen.findByText("Makan siang sedang diantar.")).toBeTruthy();
     await act(async () => me.reject(Object.assign(new Error("UNAUTHORIZED"), { code: "UNAUTHORIZED" })));
     await waitFor(() => expect(screen.queryByText("Makan siang sedang diantar.")).toBeNull());
@@ -553,7 +557,7 @@ describe("one session read at launch", () => {
     SecureStore.__store.set("catera.locale", "en");
     storedSession(rani);
     keptHome(rani);
-    renderHome();
+    await renderHome();
     expect(await screen.findByRole("button", { name: "It's here" })).toBeTruthy();
     // The launch's own "active" arrives while the app is already in front.
     await act(async () => appStateListeners.forEach((l) => l("active")));
@@ -569,7 +573,7 @@ describe("one session read at launch", () => {
 
   it("a confirmed stored account does not read Beranda twice", async () => {
     storedSession(rani);
-    renderHome();
+    await renderHome();
     expect(await screen.findByRole("button", { name: "Sudah sampai" })).toBeTruthy();
     await act(async () => {});
     expect(runtime.api.me).toHaveBeenCalledTimes(1);
@@ -587,7 +591,7 @@ describe("theme read", () => {
       return <Text>{`${loaded ? "loaded" : "reading"}:${scheme}`}</Text>;
     }
     SecureStore.__store.set("t.theme", "dark");
-    render(
+    await render(
       <ThemeProvider storageKey="t.theme">
         <ThemeProbe />
       </ThemeProvider>,

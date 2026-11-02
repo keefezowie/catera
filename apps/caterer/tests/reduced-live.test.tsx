@@ -27,36 +27,36 @@ describe("useReduced", () => {
     resetReducedMotionStore();
   });
 
-  it("follows a reduced-motion change made while the app is running", () => {
+  it("follows a reduced-motion change made while the app is running", async () => {
     system({ atLaunch: false });
-    const { result } = renderHook(() => useReduced());
+    const { result } = await renderHook(() => useReduced());
     expect(result.current).toBe(false);
-    act(() => emit(true));
+    await act(() => emit(true));
     expect(result.current).toBe(true);
-    act(() => emit(false));
+    await act(() => emit(false));
     expect(result.current).toBe(false);
   });
 
-  it("a hook mounted after the setting changed starts with the new value, on one shared listener", () => {
+  it("a hook mounted after the setting changed starts with the new value, on one shared listener", async () => {
     system({ atLaunch: false });
-    const first = renderHook(() => useReduced());
-    act(() => emit(true));
+    const first = await renderHook(() => useReduced());
+    await act(() => emit(true));
     expect(first.result.current).toBe(true);
-    const second = renderHook(() => useReduced());
+    const second = await renderHook(() => useReduced());
     expect(second.result.current).toBe(true);
     expect(listeners).toBe(1);
   });
 
   it("reads the setting once at start, for a component that mounts before any change", async () => {
     system({ atLaunch: false, enabled: true });
-    const { result } = renderHook(() => useReduced());
+    const { result } = await renderHook(() => useReduced());
     await act(async () => {});
     expect(result.current).toBe(true);
   });
 
   it("stays reduced when the system said so at launch", async () => {
     system({ atLaunch: true, enabled: true });
-    const { result } = renderHook(() => useReduced());
+    const { result } = await renderHook(() => useReduced());
     await act(async () => {});
     expect(result.current).toBe(true);
   });

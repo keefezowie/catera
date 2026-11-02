@@ -5,8 +5,6 @@ import { use, type ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
 import * as Reanimated from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { KeyboardAvoidingView, ScrollView } from "react-native";
 import {
   Button,
   Card,
@@ -59,7 +57,7 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   default: () => mockWindow,
 }));
 
-// react-test-renderer gives host refs no measure methods, so the screen's SafeAreaView gets a stand-in that reports a
+// The test renderer gives host refs no measure methods, so the screen's SafeAreaView gets a stand-in that reports a
 // window position (the height of a header sitting above the screen).
 let mockWindowY = 0;
 jest.mock("react-native-safe-area-context", () => {
@@ -75,6 +73,18 @@ jest.mock("react-native-safe-area-context", () => {
   return { ...actual, SafeAreaView };
 });
 
+// Only host elements exist in the tree. The SafeAreaView stand-in above is a host View that keeps its props, so a
+// SafeAreaView is the host that carries `edges`; a ScrollView is its native RCTScrollView.
+const safeAreas = () => screen.container.queryAll((n) => "edges" in n.props);
+const scrollViews = () => screen.container.queryAll((n) => n.type === "RCTScrollView");
+// KeyboardAvoidingView draws a plain View and keeps none of its own props, so a stand-in host keeps them for the test.
+jest.mock("react-native/Libraries/Components/Keyboard/KeyboardAvoidingView", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  const KeyboardAvoidingView = (props: object) => React.createElement(View, { testID: "keyboard-avoiding", ...props });
+  return { __esModule: true, default: KeyboardAvoidingView };
+});
+
 test("fontFor maps weights to static families", () => {
   expect(fontFor(undefined)).toBe(fonts.regular);
   expect(fontFor("500")).toBe(fonts.medium);
@@ -84,15 +94,15 @@ test("fontFor maps weights to static families", () => {
   expect(fontFor("800")).toBe(fonts.extrabold);
 });
 
-test("Text turns a caller's fontWeight into a family", () => {
-  render(<Text style={{ fontWeight: "700" }}>Halo</Text>);
+test("Text turns a caller's fontWeight into a family", async () => {
+  await render(<Text style={{ fontWeight: "700" }}>Halo</Text>);
   const style = StyleSheet.flatten(screen.getByText("Halo").props.style);
   expect(style.fontFamily).toBe("Jakarta-Bold");
   expect(style.fontWeight).toBeUndefined();
 });
 
-test("an explicit fontFamily wins over the variant weight", () => {
-  render(
+test("an explicit fontFamily wins over the variant weight", async () => {
+  await render(
     <Text variant="heading" style={{ fontFamily: fonts.semibold }}>
       x
     </Text>,
@@ -108,15 +118,15 @@ test.each([
   ["body", 14, 23],
   ["label", 12, 23],
   ["caption", 11, 18],
-] as const)("%s uses the documented ramp", (variant, size, line) => {
+] as const)("%s uses the documented ramp", async (variant, size, line) => {
   mockWindow = DEFAULT_TEXT;
-  render(<Text variant={variant}>x</Text>);
+  await render(<Text variant={variant}>x</Text>);
   const s = StyleSheet.flatten(screen.getByText("x").props.style);
   expect([s.fontSize, s.lineHeight]).toEqual([size, line]);
 });
 
-test("title and heading use the bold family", () => {
-  render(<Text variant="title">Jadwal</Text>);
+test("title and heading use the bold family", async () => {
+  await render(<Text variant="title">Jadwal</Text>);
   expect(StyleSheet.flatten(screen.getByText("Jadwal").props.style).fontFamily).toBe("Jakarta-Bold");
 });
 
@@ -124,41 +134,41 @@ describe("press feedback and haptics", () => {
   beforeEach(() => jest.clearAllMocks());
   afterEach(() => jest.restoreAllMocks());
 
-  test("Button fires onPress and a light haptic", () => {
+  test("Button fires onPress and a light haptic", async () => {
     const onPress = jest.fn();
-    render(<Button label="Bayar" onPress={onPress} />);
-    fireEvent.press(screen.getByRole("button", { name: "Bayar" }));
+    await render(<Button label="Bayar" onPress={onPress} />);
+    await fireEvent.press(screen.getByRole("button", { name: "Bayar" }));
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
   });
 
-  test("disabled Button fires no haptic", () => {
+  test("disabled Button fires no haptic", async () => {
     const onPress = jest.fn();
-    render(<Button label="Bayar" onPress={onPress} disabled />);
-    fireEvent.press(screen.getByRole("button", { name: "Bayar" }));
+    await render(<Button label="Bayar" onPress={onPress} disabled />);
+    await fireEvent.press(screen.getByRole("button", { name: "Bayar" }));
     expect(onPress).not.toHaveBeenCalled();
     expect(Haptics.impactAsync).not.toHaveBeenCalled();
   });
 
-  test("Chip fires a selection haptic", () => {
+  test("Chip fires a selection haptic", async () => {
     const onPress = jest.fn();
-    render(<Chip label="Halal" selected={false} onPress={onPress} />);
-    fireEvent.press(screen.getByRole("button", { name: "Halal" }));
+    await render(<Chip label="Halal" selected={false} onPress={onPress} />);
+    await fireEvent.press(screen.getByRole("button", { name: "Halal" }));
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
     expect(Haptics.impactAsync).not.toHaveBeenCalled();
   });
 
-  test("a rejected haptic never throws", () => {
+  test("a rejected haptic never throws", async () => {
     (Haptics.impactAsync as jest.Mock).mockRejectedValueOnce(new Error("no motor"));
-    render(<Button label="Bayar" onPress={() => {}} />);
-    expect(() => fireEvent.press(screen.getByRole("button", { name: "Bayar" }))).not.toThrow();
+    await render(<Button label="Bayar" onPress={() => {}} />);
+    expect(async () => await fireEvent.press(screen.getByRole("button", { name: "Bayar" }))).not.toThrow();
   });
 
-  test("does not scale when reduced motion is on", () => {
+  test("does not scale when reduced motion is on", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    render(<PressableScale testID="p" haptic="none" />);
-    fireEvent(screen.getByTestId("p"), "pressIn");
+    await render(<PressableScale testID="p" haptic="none" />);
+    await fireEvent(screen.getByTestId("p"), "pressIn");
     const style = StyleSheet.flatten(screen.getByTestId("p").props.style);
     const scales = (style.transform ?? []).map((t: { scale?: number }) => t.scale).filter((v: unknown) => v !== undefined);
     expect(scales.every((v: number) => v === 1)).toBe(true);
@@ -167,11 +177,11 @@ describe("press feedback and haptics", () => {
   });
 });
 
-test("RoundButton presses with a haptic", () => {
+test("RoundButton presses with a haptic", async () => {
   jest.clearAllMocks();
   const onPress = jest.fn();
-  render(<RoundButton icon="heart-outline" label="Simpan" onPress={onPress} />);
-  fireEvent.press(screen.getByRole("button", { name: "Simpan" }));
+  await render(<RoundButton icon="heart-outline" label="Simpan" onPress={onPress} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Simpan" }));
   expect(onPress).toHaveBeenCalledTimes(1);
   expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
 });
@@ -181,13 +191,13 @@ describe("shared foundation (audit 001)", () => {
   beforeEach(() => (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(false));
   afterEach(() => (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(false));
 
-  it("renders the demo strip only in demo mode", () => {
+  it("renders the demo strip only in demo mode", async () => {
     const Harness = ({ demo }: { demo: boolean }) => (
       <>{demo ? <DemoStrip label="Demo (data contoh)" /> : null}</>
     );
-    const view = render(<Harness demo={false} />);
+    const view = await render(<Harness demo={false} />);
     expect(screen.queryByText("Demo (data contoh)")).toBeNull();
-    view.rerender(<Harness demo />);
+    await view.rerender(<Harness demo />);
     const label = screen.getByText("Demo (data contoh)");
     // Spec 2.3 (audit 9-07): the strip is a neutral band, canvas under muted text, never sage under forest.
     expect(StyleSheet.flatten(label.props.style).color).toBe(nativeThemes.light.muted);
@@ -198,8 +208,8 @@ describe("shared foundation (audit 001)", () => {
     expect(style.minHeight).toBeGreaterThanOrEqual(24);
   });
 
-  it("chips and segments are 48dp", () => {
-    render(
+  it("chips and segments are 48dp", async () => {
+    await render(
       <>
         <Chip label="Halal" selected={false} onPress={() => {}} />
         <Segmented options={[{ value: "a", label: "Satu" }, { value: "b", label: "Dua" }]} value="a" onChange={() => {}} />
@@ -212,8 +222,8 @@ describe("shared foundation (audit 001)", () => {
     expect(height(screen.getByRole("button", { name: "Lanjut" }))).toBe(48);
   });
 
-  it("title and heading are headers", () => {
-    render(
+  it("title and heading are headers", async () => {
+    await render(
       <>
         <Text variant="title">Jadwal</Text>
         <Text variant="heading">Berikutnya</Text>
@@ -229,8 +239,8 @@ describe("shared foundation (audit 001)", () => {
     expect(screen.queryByRole("header", { name: "Bukan judul" })).toBeNull();
   });
 
-  it("Text forwards accessibilityLabel and accessible", () => {
-    render(
+  it("Text forwards accessibilityLabel and accessible", async () => {
+    await render(
       <Text accessible accessibilityLabel="Tiga porsi">
         3
       </Text>,
@@ -238,32 +248,32 @@ describe("shared foundation (audit 001)", () => {
     expect(screen.getByLabelText("Tiga porsi").props.accessible).toBe(true);
   });
 
-  it("Stepper labels come from props and its buttons are 48dp", () => {
+  it("Stepper labels come from props and its buttons are 48dp", async () => {
     jest.clearAllMocks();
     const onChange = jest.fn();
-    render(
+    await render(
       <Stepper label="Porsi" value={2} onChange={onChange} decreaseLabel="Decrease Porsi" increaseLabel="Increase Porsi" />,
     );
     const less = screen.getByRole("button", { name: "Decrease Porsi" });
     const more = screen.getByRole("button", { name: "Increase Porsi" });
     expect(StyleSheet.flatten(less.props.style)).toMatchObject({ width: 48, height: 48 });
-    fireEvent.press(more);
+    await fireEvent.press(more);
     expect(onChange).toHaveBeenCalledWith(3);
     expect(Haptics.selectionAsync).toHaveBeenCalled();
-    fireEvent.press(less);
+    await fireEvent.press(less);
     expect(onChange).toHaveBeenCalledWith(1);
   });
 
-  it("PressableRow dims when pressed and does not scale", () => {
+  it("PressableRow dims when pressed and does not scale", async () => {
     jest.clearAllMocks();
     const onPress = jest.fn();
-    render(
+    await render(
       <PressableRow testID="row" accessibilityRole="button" accessibilityLabel="Baris" onPress={onPress}>
         <Text>Baris</Text>
       </PressableRow>,
     );
     expect(StyleSheet.flatten(screen.getByTestId("row").props.style)?.opacity ?? 1).toBe(1);
-    fireEvent(screen.getByTestId("row"), "responderGrant", {
+    await fireEvent(screen.getByTestId("row"), "responderGrant", {
       nativeEvent: { touches: [], changedTouches: [] },
       persist() {},
     });
@@ -271,14 +281,14 @@ describe("shared foundation (audit 001)", () => {
     expect(pressed.opacity).toBe(0.7);
     expect(pressed.transform).toBeUndefined();
     expect(screen.getByTestId("row").props.accessibilityLabel).toBe("Baris");
-    fireEvent.press(screen.getByTestId("row"));
+    await fireEvent.press(screen.getByTestId("row"));
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(Haptics.impactAsync).not.toHaveBeenCalled();
     expect(Haptics.selectionAsync).not.toHaveBeenCalled();
   });
 
-  it("caps the body at 760 and keeps taps alive over the keyboard", () => {
-    const view = render(
+  it("caps the body at 760 and keeps taps alive over the keyboard", async () => {
+    await render(
       <Screen footer={<Text>Kaki</Text>}>
         <Text>Isi</Text>
       </Screen>,
@@ -293,25 +303,25 @@ describe("shared foundation (audit 001)", () => {
       width: "100%",
       alignSelf: "center",
     });
-    expect(view.UNSAFE_getByType(ScrollView).props.keyboardShouldPersistTaps).toBe("handled");
-    expect(view.UNSAFE_getByType(KeyboardAvoidingView)).toBeTruthy();
+    expect(scrollViews()[0].props.keyboardShouldPersistTaps).toBe("handled");
+    expect(screen.getByTestId("keyboard-avoiding")).toBeTruthy();
   });
 
-  it("Screen leaves the top inset to the demo strip while it is shown", () => {
-    const safeEdges = (owned: boolean) => {
-      const view = render(
+  it("Screen leaves the top inset to the demo strip while it is shown", async () => {
+    const safeEdges = async (owned: boolean) => {
+      const view = await render(
         <TopInsetOwner owned={owned}>
           <Screen>
             <Text>Isi</Text>
           </Screen>
         </TopInsetOwner>,
       );
-      const edges = view.UNSAFE_getByType(SafeAreaView).props.edges;
-      view.unmount();
+      const edges = safeAreas()[0].props.edges;
+      await view.unmount();
       return edges;
     };
-    expect(safeEdges(false)).toEqual(["top", "left", "right"]);
-    expect(safeEdges(true)).toEqual(["left", "right"]);
+    expect(await safeEdges(false)).toEqual(["top", "left", "right"]);
+    expect(await safeEdges(true)).toEqual(["left", "right"]);
   });
 });
 
@@ -319,15 +329,15 @@ describe("disabled look survives reduced motion", () => {
   afterEach(() => jest.restoreAllMocks());
   const opacityOf = (name: string) => StyleSheet.flatten(screen.getByRole("button", { name }).props.style).opacity;
 
-  test.each([false, true])("disabled secondary Button stays at 0.45 (reduced motion %s)", (reduced) => {
+  test.each([false, true])("disabled secondary Button stays at 0.45 (reduced motion %s)", async (reduced) => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
-    render(<Button label="Salin" variant="secondary" disabled onPress={() => {}} />);
+    await render(<Button label="Salin" variant="secondary" disabled onPress={() => {}} />);
     expect(opacityOf("Salin")).toBe(0.45);
   });
 
-  test.each([false, true])("an enabled Button rests at full opacity (reduced motion %s)", (reduced) => {
+  test.each([false, true])("an enabled Button rests at full opacity (reduced motion %s)", async (reduced) => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
-    render(<Button label="Simpan" variant="secondary" onPress={() => {}} />);
+    await render(<Button label="Simpan" variant="secondary" onPress={() => {}} />);
     expect(opacityOf("Simpan") ?? 1).toBe(1);
   });
 });
@@ -337,21 +347,21 @@ describe("Button on a surface the theme does not own", () => {
   const labelColor = (name: string) =>
     StyleSheet.flatten(screen.getByText(name).props.style).color;
 
-  test("ink sets the label colour and edge the border of a secondary button", () => {
-    render(<Button label="Belum" variant="secondary" ink="#FFF7E9" edge="#8FB59F" onPress={() => {}} />);
+  test("ink sets the label colour and edge the border of a secondary button", async () => {
+    await render(<Button label="Belum" variant="secondary" ink="#FFF7E9" edge="#8FB59F" onPress={() => {}} />);
     expect(labelColor("Belum")).toBe("#FFF7E9");
     expect(style("Belum")).toMatchObject({ borderWidth: 1, borderColor: "#8FB59F", minHeight: 48 });
   });
 
-  test("ink colours a text button and a disabled one still fades", () => {
-    render(<Button label="Ada masalah" variant="text" ink="#FFF7E9" edge="#8FB59F" disabled onPress={() => {}} />);
+  test("ink colours a text button and a disabled one still fades", async () => {
+    await render(<Button label="Ada masalah" variant="text" ink="#FFF7E9" edge="#8FB59F" disabled onPress={() => {}} />);
     expect(labelColor("Ada masalah")).toBe("#FFF7E9");
     expect(style("Ada masalah").borderWidth).toBeUndefined();
     expect(style("Ada masalah").opacity).toBe(0.45);
   });
 
-  test("without ink and edge it reads the theme, as before", () => {
-    render(<Button label="Salin" variant="secondary" onPress={() => {}} />);
+  test("without ink and edge it reads the theme, as before", async () => {
+    await render(<Button label="Salin" variant="secondary" onPress={() => {}} />);
     expect(labelColor("Salin")).toBe(nativeThemes.light.forest);
     expect(style("Salin").borderColor).toBe(nativeThemes.light.secondaryBorder);
   });
@@ -363,41 +373,43 @@ describe("Screen details", () => {
     mockWindowY = 0;
   });
 
-  it("Screen's scroll view is the first one in the screen and lets the system inset it", () => {
+  it("Screen's scroll view is the first one in the screen and lets the system inset it", async () => {
     // iOS collapses the large title and minimizes the tab bar from the first scroll view, and insets it for the bars
     // and the keyboard itself (`automaticallyAdjustKeyboardInsets`). Jest runs the Android build, where
     // `process.env.EXPO_OS` is compiled in, so the iOS keyboard branch is checked by reading only; it is unverified on
     // a device.
-    const view = render(
+    const view = await render(
       <Screen footer={<Text>Kaki</Text>}>
         <Text>Isi</Text>
       </Screen>,
     );
-    const scrolls = view.UNSAFE_getAllByType(ScrollView);
+    const scrolls = scrollViews();
     expect(scrolls).toHaveLength(1);
     expect(scrolls[0].props).toMatchObject({ contentInsetAdjustmentBehavior: "automatic", automaticallyAdjustKeyboardInsets: false });
     // A page that starts under a transparent header (Paket's photo) is not pushed below the bar.
-    view.rerender(
+    await view.rerender(
       <Screen bleed>
         <Text>Isi</Text>
       </Screen>,
     );
-    expect(view.UNSAFE_getByType(ScrollView).props.contentInsetAdjustmentBehavior).toBe("never");
+    expect(scrollViews()).toHaveLength(1);
+    expect(scrollViews()[0].props.contentInsetAdjustmentBehavior).toBe("never");
     // A tab root's mood header already pays the top inset (and the screen drops its top edge), so iOS must not add a
     // second one under it.
-    view.rerender(
+    await view.rerender(
       <Screen header={<Text>Mood</Text>}>
         <Text>Isi</Text>
       </Screen>,
     );
-    expect(view.UNSAFE_getByType(ScrollView).props.contentInsetAdjustmentBehavior).toBe("never");
+    expect(scrollViews()).toHaveLength(1);
+    expect(scrollViews()[0].props.contentInsetAdjustmentBehavior).toBe("never");
   });
 
-  it("Screen tones the Android top bar once the page scrolls and back at the top, only on the crossing", () => {
+  it("Screen tones the Android top bar once the page scrolls and back at the top, only on the crossing", async () => {
     const setOptions = jest.fn();
     const navigation = { setOptions, isFocused: () => true, addListener: () => () => undefined };
     const onScroll = jest.fn();
-    render(
+    await render(
       <HeaderShownContext.Provider value>
         <NavigationContext.Provider value={navigation as never}>
           <Screen onScroll={onScroll}>
@@ -407,26 +419,26 @@ describe("Screen details", () => {
       </HeaderShownContext.Provider>,
     );
     const scroll = screen.getByTestId("screen-scroll");
-    const at = (y: number) => fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { x: 0, y } } });
+    const at = async (y: number) => await fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { x: 0, y } } });
     const tones = () =>
       setOptions.mock.calls.filter(([o]) => "headerStyle" in o).map(([o]) => o.headerStyle.backgroundColor);
     // At rest the stack's own canvas bar stands; nothing is set until the page moves.
     expect(tones()).toEqual([]);
     // Material's scrolled state is the navigation bar's surface-container tone, set once however far the page goes.
-    at(1);
-    at(40);
-    at(400);
+    await at(1);
+    await at(40);
+    await at(400);
     expect(tones()).toEqual([nativeThemes.light.tabBar]);
     expect(nativeThemes.light.tabBar).toBe("#FFFFFF");
     // Back at the top, the canvas again, once.
-    at(0);
-    at(0);
+    await at(0);
+    await at(0);
     expect(tones()).toEqual([nativeThemes.light.tabBar, nativeThemes.light.canvas]);
     // The screen's own handler still hears every event.
     expect(onScroll).toHaveBeenCalledTimes(5);
   });
 
-  it("iOS keeps the automatic inset under a mood header and the header pays no top inset there; Android as before", () => {
+  it("iOS keeps the automatic inset under a mood header and the header pays no top inset there; Android as before", async () => {
     // Jest compiles `process.env.EXPO_OS` in (the Android build), so the platform rules are pure helpers that take the
     // platform, and both are pinned here. iOS behaviour is unverified on an iPhone.
     const ios = "ios";
@@ -450,7 +462,7 @@ describe("Screen details", () => {
     function Probe() {
       return <Text>{use(ScreenHeaderContext) ? "in" : "out"}</Text>;
     }
-    const view = render(
+    const view = await render(
       <Screen header={<Probe />}>
         <Text>Isi</Text>
       </Screen>,
@@ -458,7 +470,7 @@ describe("Screen details", () => {
     expect(screen.getByText("in")).toBeTruthy();
     // The status band still paints the header colour under the status bar.
     expect(screen.getByTestId("status-band", { includeHiddenElements: true })).toBeTruthy();
-    view.rerender(
+    await view.rerender(
       <Screen scroll={false} header={<Probe />}>
         <Text>Isi</Text>
       </Screen>,
@@ -466,23 +478,23 @@ describe("Screen details", () => {
     expect(screen.getByText("out")).toBeTruthy();
   });
 
-  it("Screen leaves the bar alone on a tab root and under a photo header", () => {
+  it("Screen leaves the bar alone on a tab root and under a photo header", async () => {
     const setOptions = jest.fn();
     const navigation = { setOptions, isFocused: () => true, addListener: () => () => undefined };
-    const scrollTo = (y: number) =>
-      fireEvent.scroll(screen.getByTestId("screen-scroll"), { nativeEvent: { contentOffset: { x: 0, y } } });
+    const scrollTo = async (y: number) =>
+      await fireEvent.scroll(screen.getByTestId("screen-scroll"), { nativeEvent: { contentOffset: { x: 0, y } } });
     // A tab root: no stack header above it.
-    const view = render(
+    const view = await render(
       <NavigationContext.Provider value={navigation as never}>
         <Screen header={<Text>Mood</Text>}>
           <Text>Isi</Text>
         </Screen>
       </NavigationContext.Provider>,
     );
-    scrollTo(200);
-    view.unmount();
+    await scrollTo(200);
+    await view.unmount();
     // Paket's photo: the screen owns its bar while it scrolls.
-    render(
+    await render(
       <HeaderShownContext.Provider value>
         <NavigationContext.Provider value={navigation as never}>
           <Screen bleed>
@@ -491,26 +503,26 @@ describe("Screen details", () => {
         </NavigationContext.Provider>
       </HeaderShownContext.Provider>,
     );
-    scrollTo(200);
+    await scrollTo(200);
     expect(setOptions.mock.calls.filter(([o]) => "headerStyle" in o)).toEqual([]);
   });
 
-  it("Screen adds no keyboard offset on Android", () => {
-    const view = render(
+  it("Screen adds no keyboard offset on Android", async () => {
+    await render(
       <Screen footer={<Text>Kaki</Text>}>
         <Text>Isi</Text>
       </Screen>,
     );
-    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.behavior).toBeUndefined();
-    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.enabled).toBe(false);
-    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(0);
+    expect(screen.getByTestId("keyboard-avoiding").props.behavior).toBeUndefined();
+    expect(screen.getByTestId("keyboard-avoiding").props.enabled).toBe(false);
+    expect(screen.getByTestId("keyboard-avoiding").props.keyboardVerticalOffset).toBe(0);
   });
 
-  it("Screen drops its own top inset under a stack header, and on Android names itself in a content line", () => {
+  it("Screen drops its own top inset under a stack header, and on Android names itself in a content line", async () => {
     mockWindow = DEFAULT_TEXT;
     const setOptions = jest.fn();
     const navigation = { setOptions, isFocused: () => true, addListener: () => () => undefined };
-    const view = render(
+    const view = await render(
       <HeaderShownContext.Provider value>
         <NavigationContext.Provider value={navigation as never}>
           <Screen nativeTitle="Paket Makan Siang Rumahan Sehat Sekeluarga">
@@ -520,15 +532,15 @@ describe("Screen details", () => {
       </HeaderShownContext.Provider>,
     );
     // The native header pays the status-bar inset, so the screen adds none.
-    expect(view.UNSAFE_getByType(SafeAreaView).props.edges).toEqual(["left", "right"]);
+    expect(safeAreas()[0].props.edges).toEqual(["left", "right"]);
     // Headline small, 24/32, in Plus Jakarta Sans Bold, wrapping; the bar starts empty.
     const line = within(screen.getByTestId("screen-native-title")).getByText("Paket Makan Siang Rumahan Sehat Sekeluarga");
     expect(StyleSheet.flatten(line.props.style)).toMatchObject({ fontFamily: "Jakarta-Bold", fontSize: 24, lineHeight: 32 });
     expect(line.props.accessibilityRole).toBe("header");
     expect(setOptions).toHaveBeenLastCalledWith({ headerTitle: "" });
-    view.unmount();
+    await view.unmount();
     // A short bar title (Hari's day) sets the bar on both platforms and adds no content line.
-    render(
+    await render(
       <NavigationContext.Provider value={navigation as never}>
         <Screen title="Senin 12 Okt">
           <Text>Isi</Text>
@@ -539,33 +551,35 @@ describe("Screen details", () => {
     expect(screen.queryByTestId("screen-native-title")).toBeNull();
   });
 
-  it("the footer pays the bottom safe area on iOS, under the floating tab bar, and nothing more on Android", () => {
+  it("the footer pays the bottom safe area on iOS, under the floating tab bar, and nothing more on Android", async () => {
     // Jest compiles `process.env.EXPO_OS` in (the Android build), so the footer takes the platform; the iOS result is
     // unverified on an iPhone.
-    let view = render(<ScreenFooter os="ios">{<Text>Kaki</Text>}</ScreenFooter>);
-    const [ios] = view.UNSAFE_getAllByType(SafeAreaView);
+    let view = await render(<ScreenFooter os="ios">{<Text>Kaki</Text>}</ScreenFooter>);
+    const [ios] = safeAreas();
     expect(ios.props.testID).toBe("screen-footer");
     expect(ios.props.edges).toEqual(["bottom"]);
     // The inset adds to the footer's own padding, and its surface runs under the bar.
     expect(StyleSheet.flatten(ios.props.style)).toMatchObject({ paddingBottom: 20, backgroundColor: nativeThemes.light.surface });
     expect(within(screen.getByTestId("screen-footer")).getByText("Kaki")).toBeTruthy();
-    view.unmount();
+    await view.unmount();
     // Android: a plain view, as before. Inside the tabs NativeTabs already ends the screen above the navigation bar.
-    view = render(<ScreenFooter os="android">{<Text>Kaki</Text>}</ScreenFooter>);
+    view = await render(<ScreenFooter os="android">{<Text>Kaki</Text>}</ScreenFooter>);
     expect(screen.getByTestId("screen-footer")).toBeTruthy();
-    expect(view.UNSAFE_queryAllByType(SafeAreaView)).toHaveLength(0);
-    view.unmount();
+    expect(safeAreas()).toHaveLength(0);
+    await view.unmount();
     // Screen draws its footer through it: on this (Android) build, one SafeAreaView for the screen and none for the footer.
-    const page = render(
+    await render(
       <Screen footer={<Text>Kaki</Text>}>
         <Text>Isi</Text>
       </Screen>,
     );
-    expect(page.UNSAFE_getAllByType(SafeAreaView)).toHaveLength(1);
-    expect(page.UNSAFE_getByType(ScreenFooter).props.os).toBeUndefined();
+    expect(safeAreas()).toHaveLength(1);
+    // The footer's `os` defaults to the running platform: Android here, so the footer is the plain view.
+    expect(safeAreas()[0].props.testID).not.toBe("screen-footer");
+    expect(screen.getByTestId("screen-footer").props.edges).toBeUndefined();
   });
 
-  it("HeroPager follows the cards down when one goes: 3 cards at the third, then 2, reads 2 dari 2", () => {
+  it("HeroPager follows the cards down when one goes: 3 cards at the third, then 2, reads 2 dari 2", async () => {
     const pager = (count: number) => (
       <HeroPager count={count} counterLabel={(i) => `${i + 1} dari ${count}`} accessibilityLabelFor={() => "Makan siang"}>
         {Array.from({ length: count }, (_, i) => (
@@ -573,19 +587,19 @@ describe("Screen details", () => {
         ))}
       </HeroPager>
     );
-    const view = render(pager(3));
+    const view = await render(pager(3));
     // To the third card.
     const control = () => screen.getByRole("adjustable");
-    act(() => fireEvent(control(), "accessibilityAction", { nativeEvent: { actionName: "increment" } }));
-    act(() => fireEvent(control(), "accessibilityAction", { nativeEvent: { actionName: "increment" } }));
+    await fireEvent(control(), "accessibilityAction", { nativeEvent: { actionName: "increment" } });
+    await fireEvent(control(), "accessibilityAction", { nativeEvent: { actionName: "increment" } });
     expect(screen.getByText("3 dari 3")).toBeTruthy();
     // The third card goes away while it is the one in view.
-    view.rerender(pager(2));
+    await view.rerender(pager(2));
     expect(screen.getByText("2 dari 2")).toBeTruthy();
     expect(control().props.accessibilityValue).toEqual({ text: "2 dari 2" });
     expect(StyleSheet.flatten(screen.getByTestId("hero-dot-1", { includeHiddenElements: true }).props.style).width).toBe(20);
     // It moves back from there, not from a card that is no longer there.
-    act(() => fireEvent(control(), "accessibilityAction", { nativeEvent: { actionName: "decrement" } }));
+    await fireEvent(control(), "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
     expect(screen.getByText("1 dari 2")).toBeTruthy();
   });
 });
@@ -602,7 +616,7 @@ describe("dark theme", () => {
   // Mounts the tree under a provider whose stored preference is dark, and waits for that read to settle.
   async function renderDark(ui: ReactElement) {
     store.set("k", "dark");
-    const view = render(<ThemeProvider storageKey="k">{ui}</ThemeProvider>);
+    const view = await render(<ThemeProvider storageKey="k">{ui}</ThemeProvider>);
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
     await act(async () => {});
     return view;
@@ -649,8 +663,8 @@ describe("dark theme", () => {
     expect(StyleSheet.flatten(screen.getByText("Bayar").props.style).color).toBe(nativeThemes.dark.muted);
   });
 
-  it("a disabled primary Button keeps the same light grey in light", () => {
-    render(<Button label="Bayar" disabled onPress={() => {}} />);
+  it("a disabled primary Button keeps the same light grey in light", async () => {
+    await render(<Button label="Bayar" disabled onPress={() => {}} />);
     expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe("#CFD3C6");
   });
 
@@ -660,7 +674,7 @@ describe("dark theme", () => {
         <Text>Isi</Text>
       </Screen>,
     );
-    expect(StyleSheet.flatten(view.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor).toBe(DARK.canvas);
+    expect(StyleSheet.flatten(safeAreas()[0].props.style).backgroundColor).toBe(DARK.canvas);
     // No MoodProvider here, so the mood reads Siang: the dark Siang header and its headline ink.
     const fill = screen.getByTestId("mood-fill-siang", { includeHiddenElements: true });
     expect(StyleSheet.flatten(fill.props.style).backgroundColor).toBe(nativeMood.dark.siang.header);
@@ -698,13 +712,13 @@ describe("dark theme", () => {
     expect(flat.borderColor).toBe(nativeThemes.dark.danger);
   });
 
-  it("Field error text can be selected and copied", () => {
-    render(<Field label="Nama" error="Wajib diisi" />);
+  it("Field error text can be selected and copied", async () => {
+    await render(<Field label="Nama" error="Wajib diisi" />);
     expect(screen.getByText("Wajib diisi").props.selectable).toBe(true);
   });
 
-  it("Text forwards selectable", () => {
-    render(<Text selectable>Salin</Text>);
+  it("Text forwards selectable", async () => {
+    await render(<Text selectable>Salin</Text>);
     expect(screen.getByText("Salin").props.selectable).toBe(true);
   });
 });
@@ -720,8 +734,8 @@ describe("layout scale", () => {
     </>
   );
 
-  it("v2 geometry: button 50 and fully round, chip and segment 34, field 50", () => {
-    render(<LayoutScaleProvider value="v2">{sample}</LayoutScaleProvider>);
+  it("v2 geometry: button 50 and fully round, chip and segment 34, field 50", async () => {
+    await render(<LayoutScaleProvider value="v2">{sample}</LayoutScaleProvider>);
     expect(flat(screen.getByRole("button", { name: "Lanjut" }))).toMatchObject({ minHeight: 50, borderRadius: 25 });
     const chip = screen.getByRole("button", { name: "Halal" });
     expect(flat(chip)).toMatchObject({ minHeight: 34, borderRadius: 17 });
@@ -732,13 +746,13 @@ describe("layout scale", () => {
     expect(flat(screen.getByLabelText("Nama"))).toMatchObject({ minHeight: 50 });
   });
 
-  it("v2 without target keeps hitSlop 5", () => {
+  it("v2 without target keeps hitSlop 5", async () => {
     let target = 0;
     function Probe() {
       target = useTouchTarget();
       return null;
     }
-    render(
+    await render(
       <LayoutScaleProvider value="v2">
         <Probe />
         {sample}
@@ -752,8 +766,8 @@ describe("layout scale", () => {
     for (const name of ["Kurangi", "Tambah"]) expect(screen.getByRole("button", { name }).props.hitSlop).toBeUndefined();
   });
 
-  it("v2 geometry: a text button is 50 tall, a card is radius 16 with padding 16 and gap 8", () => {
-    render(
+  it("v2 geometry: a text button is 50 tall, a card is radius 16 with padding 16 and gap 8", async () => {
+    await render(
       <LayoutScaleProvider value="v2">
         <Button label="Nanti" variant="text" onPress={() => {}} />
         <Card testID="card">
@@ -766,8 +780,8 @@ describe("layout scale", () => {
     expect(flat(screen.getByTestId("card"))).toMatchObject({ borderRadius: 16, padding: 15, gap: 8, borderWidth: 1 });
   });
 
-  it("v2 geometry: a light card has a hairline and a faint shadow, the attention tone keeps its warm edge, all sit 16 in", () => {
-    render(
+  it("v2 geometry: a light card has a hairline and a faint shadow, the attention tone keeps its warm edge, all sit 16 in", async () => {
+    await render(
       <LayoutScaleProvider value="v2">
         <Card testID="surface">
           <Text>a</Text>
@@ -799,8 +813,8 @@ describe("layout scale", () => {
     expect(tabBarColors(nativeThemes.dark, "android").backgroundColor).toBe(nativeThemes.dark.tabBar);
   });
 
-  it("the classic card (Dapur) gets the same light hairline and shadow, with its padding unchanged", () => {
-    render(
+  it("the classic card (Dapur) gets the same light hairline and shadow, with its padding unchanged", async () => {
+    await render(
       <Card testID="classic">
         <Text>a</Text>
       </Card>,
@@ -810,8 +824,8 @@ describe("layout scale", () => {
     });
   });
 
-  it("v2 geometry: the screen body takes the 16 margin", () => {
-    render(
+  it("v2 geometry: the screen body takes the 16 margin", async () => {
+    await render(
       <LayoutScaleProvider value="v2">
         <Screen>
           <Text>Isi</Text>
@@ -821,9 +835,9 @@ describe("layout scale", () => {
     expect(flat(screen.getByTestId("screen-body")).paddingHorizontal).toBe(16);
   });
 
-  it("v2 geometry: the footer is filled with the canvas, with 16 under it and a line hairline on top in light", () => {
+  it("v2 geometry: the footer is filled with the canvas, with 16 under it and a line hairline on top in light", async () => {
     // A surface-coloured bar would swallow the edge of a card scrolling under it; the canvas fill keeps a visible tone step.
-    render(
+    await render(
       <LayoutScaleProvider value="v2">
         <ScreenFooter>
           <Text>Kaki</Text>
@@ -834,8 +848,8 @@ describe("layout scale", () => {
     expect(footer).toMatchObject({ backgroundColor: nativeThemes.light.canvas, paddingBottom: 16, borderTopWidth: 1, borderTopColor: nativeThemes.light.line });
   });
 
-  it("v2 geometry: the stepper's buttons are 44 circles on the glyph tone and a leading node sits before the label", () => {
-    render(
+  it("v2 geometry: the stepper's buttons are 44 circles on the glyph tone and a leading node sits before the label", async () => {
+    await render(
       <LayoutScaleProvider value="v2">
         <Stepper
           testID="stepper"
@@ -862,8 +876,8 @@ describe("layout scale", () => {
     expect(within(screen.getByTestId("stepper")).getByText("Ikon")).toBeTruthy();
   });
 
-  it("classic geometry: the footer keeps the surface fill and its hairline, and the stepper its 48 buttons", () => {
-    render(
+  it("classic geometry: the footer keeps the surface fill and its hairline, and the stepper its 48 buttons", async () => {
+    await render(
       <>
         <ScreenFooter>
           <Text>Kaki</Text>
@@ -882,9 +896,9 @@ describe("layout scale", () => {
     expect(flat(screen.getByText("−")).color).toBe(nativeThemes.light.forest);
   });
 
-  it("v2 geometry: the new type ladder", () => {
+  it("v2 geometry: the new type ladder", async () => {
     mockWindow = DEFAULT_TEXT;
-    render(
+    await render(
       <>
         <Text variant="largeTitle">a</Text>
         <Text variant="heroTitle">b</Text>
@@ -905,8 +919,8 @@ describe("layout scale", () => {
     expect(s("g")).toMatchObject({ fontSize: 13, lineHeight: 18, color: nativeThemes.light.muted });
   });
 
-  it("classic geometry unchanged without a provider", () => {
-    render(
+  it("classic geometry unchanged without a provider", async () => {
+    await render(
       <>
         {sample}
         <Card testID="card">
@@ -927,11 +941,11 @@ describe("layout scale", () => {
     expect(flat(screen.getByTestId("screen-body")).paddingHorizontal).toBe(20);
   });
 
-  it("the margin hook reads 16 under v2 and 20 otherwise", () => {
+  it("the margin hook reads 16 under v2 and 20 otherwise", async () => {
     const Probe = () => <Text testID="margin">{String(useScreenMargin())}</Text>;
-    render(<Probe />);
+    await render(<Probe />);
     expect(screen.getByTestId("margin").props.children).toBe("20");
-    render(
+    await render(
       <LayoutScaleProvider value="v2">
         <Probe />
       </LayoutScaleProvider>,
@@ -948,18 +962,18 @@ describe("layout scale", () => {
 
 describe("Screen bottom inset without a footer", () => {
   const insets = () => require("react-native-safe-area-context").useSafeAreaInsets as jest.Mock;
-  const withNavBar = (run: () => void) => {
+  const withNavBar = async (run: () => Promise<void>) => {
     const original = insets().getMockImplementation();
     insets().mockImplementation(() => ({ top: 0, bottom: 24, left: 0, right: 0 }));
     try {
-      run();
+      await run();
     } finally {
       insets().mockImplementation(original);
     }
   };
   const nav = (type: string) => ({ isFocused: () => true, getState: () => ({ type }), getParent: () => undefined, setOptions: jest.fn(), addListener: jest.fn(() => () => {}) });
-  const mount = (type: string, footer?: boolean) =>
-    render(
+  const mount = async (type: string, footer?: boolean) =>
+    await render(
       <LayoutScaleProvider value="v2">
         <NavigationContext.Provider value={nav(type) as never}>
           <Screen footer={footer ? <Text>Kaki</Text> : undefined}>
@@ -971,21 +985,21 @@ describe("Screen bottom inset without a footer", () => {
   const bottom = () =>
     (StyleSheet.flatten(screen.getByTestId("screen-scroll").props.contentContainerStyle) as { paddingBottom: number }).paddingBottom;
 
-  it("adds the navigation-bar inset outside the tabs", () => {
-    withNavBar(() => {
-      mount("stack");
+  it("adds the navigation-bar inset outside the tabs", async () => {
+    await withNavBar(async () => {
+      await mount("stack");
       expect(bottom()).toBe(32 + 24);
     });
   });
-  it("adds nothing inside the tabs", () => {
-    withNavBar(() => {
-      mount("tab");
+  it("adds nothing inside the tabs", async () => {
+    await withNavBar(async () => {
+      await mount("tab");
       expect(bottom()).toBe(32);
     });
   });
-  it("does not add it twice when a footer exists", () => {
-    withNavBar(() => {
-      mount("stack", true);
+  it("does not add it twice when a footer exists", async () => {
+    await withNavBar(async () => {
+      await mount("stack", true);
       expect(bottom()).toBe(32);
     });
   });
@@ -1001,9 +1015,9 @@ describe("Segmented at large text", () => {
   const at = (window: { width: number; fontScale: number }) => void (mockWindow = { height: 800, scale: 3, ...window });
   afterEach(() => void (mockWindow = DEFAULT_WINDOW));
 
-  it("Segmented with 3 options stacks into rows at font 1.3 in v2; classic unchanged", () => {
-    at({ width: 360, fontScale: 1.3 });
-    const view = render(
+  it("Segmented with 3 options stacks into rows at font 1.3 in v2; classic unchanged", async () => {
+    await at({ width: 360, fontScale: 1.3 });
+    const view = await render(
       <LayoutScaleProvider value="v2">
         <Segmented options={three} value="b" onChange={() => {}} />
       </LayoutScaleProvider>,
@@ -1020,26 +1034,26 @@ describe("Segmented at large text", () => {
       expect(text.props.adjustsFontSizeToFit).toBeFalsy();
       expect(text.props.numberOfLines).toBeUndefined();
     }
-    view.unmount();
+    await view.unmount();
 
     // Classic (Dapur) keeps its one row of flex segments at the same size.
-    render(<Segmented options={three} value="b" onChange={() => {}} />);
+    await render(<Segmented options={three} value="b" onChange={() => {}} />);
     expect(flat(screen.getByTestId("segmented")).flexDirection).toBe("row");
     expect(flat(screen.getByRole("tab", { name: "Pembatalan" }))).toMatchObject({ flex: 1, minHeight: 48 });
   });
 
-  it("two options stay a row at font 1.3, and three stay a row on a wide screen", () => {
-    at({ width: 360, fontScale: 1.3 });
-    const view = render(
+  it("two options stay a row at font 1.3, and three stay a row on a wide screen", async () => {
+    await at({ width: 360, fontScale: 1.3 });
+    const view = await render(
       <LayoutScaleProvider value="v2">
         <Segmented options={three.slice(0, 2)} value="a" onChange={() => {}} />
       </LayoutScaleProvider>,
     );
     expect(flat(screen.getByTestId("segmented")).flexDirection).toBe("row");
     expect(flat(screen.getByRole("tab", { name: "Pembatalan" }))).toMatchObject({ flex: 1, minHeight: 34 });
-    view.unmount();
-    at({ width: 412, fontScale: 1 });
-    render(
+    await view.unmount();
+    await at({ width: 412, fontScale: 1 });
+    await render(
       <LayoutScaleProvider value="v2">
         <Segmented options={three} value="a" onChange={() => {}} />
       </LayoutScaleProvider>,
@@ -1048,9 +1062,9 @@ describe("Segmented at large text", () => {
   });
 
   it("stacked rows keep the track and the chosen segment's colours in the dark palette", async () => {
-    at({ width: 360, fontScale: 1.3 });
+    await at({ width: 360, fontScale: 1.3 });
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("seg", "dark");
-    render(
+    await render(
       <ThemeProvider storageKey="seg">
         <LayoutScaleProvider value="v2">
           <Segmented options={three} value="b" onChange={() => {}} />

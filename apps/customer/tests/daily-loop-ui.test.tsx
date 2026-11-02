@@ -41,7 +41,7 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
 
 const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
 
-function mount(ui: ReactElement, scheme: "light" | "dark" = "light") {
+async function mount(ui: ReactElement, scheme: "light" | "dark" = "light") {
   jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
   return render(
     <ThemeProvider storageKey="daily-loop-test">
@@ -65,12 +65,12 @@ beforeEach(() => {
 });
 
 describe("Rantang", () => {
-  it("is a decorative drawing: an outline by default, tinted when filled, hidden from screen readers", () => {
-    const view = mount(<Rantang size={24} color={nativeThemes.light.forest} />);
+  it("is a decorative drawing: an outline by default, tinted when filled, hidden from screen readers", async () => {
+    const view = await mount(<Rantang size={24} color={nativeThemes.light.forest} />);
     expect(byId("rantang").props.accessibilityElementsHidden).toBe(true);
     expect(byId("rantang").props.importantForAccessibility).toBe("no-hide-descendants");
     expect(bodyFilled("rantang-body")).toBe(false);
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>
           <Rantang size={24} color={nativeThemes.light.forest} filled />
@@ -85,12 +85,8 @@ describe("Rantang", () => {
 // RantangTrack is covered by rantang-track.test.tsx.
 
 describe("FadeSwap", () => {
-  // The wrapper is the nearest Animated.View above the child: the fade layer, keyed on the swap key.
-  const wrapperNode = (id: string) => {
-    let node = byId(id).parent;
-    while (node && node.type !== Reanimated.default.View) node = node.parent;
-    return node!;
-  };
+  // The wrapper is the host element directly above the child: the Animated.View fade layer, keyed on the swap key.
+  const wrapperNode = (id: string) => byId(id).parent!;
   const wrapperStyle = (id: string) => StyleSheet.flatten(wrapperNode(id).props.style) ?? {};
   const swap = (key: string, child = "Isi") => (
     <FadeSwap swapKey={key}>
@@ -106,8 +102,8 @@ describe("FadeSwap", () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  it("forwards a style to its wrapper", () => {
-    mount(
+  it("forwards a style to its wrapper", async () => {
+    await mount(
       <FadeSwap swapKey="a" style={{ flex: 1 }}>
         <RNText testID="swap-child">Isi</RNText>
       </FadeSwap>,
@@ -115,8 +111,8 @@ describe("FadeSwap", () => {
     expect(wrapperStyle("swap-child")).toMatchObject({ flex: 1 });
   });
 
-  it("does not make the wrapper fill by default", () => {
-    mount(
+  it("does not make the wrapper fill by default", async () => {
+    await mount(
       <FadeSwap swapKey="a">
         <RNText testID="swap-child">Isi</RNText>
       </FadeSwap>,
@@ -124,30 +120,30 @@ describe("FadeSwap", () => {
     expect(wrapperStyle("swap-child").flex).toBeUndefined();
   });
 
-  it("fades fresh content in with a layout animation: none on the first key, one per key change, none when reduced", () => {
+  it("fades fresh content in with a layout animation: none on the first key, one per key change, none when reduced", async () => {
     const fades = spyFades();
-    const view = mount(swap("loading"));
+    const view = await mount(swap("loading"));
     // The first key does not fade, and the fade is not a shared value written after the commit.
     expect(fades.mock.calls).toHaveLength(0);
     const first = wrapperNode("swap-child");
-    view.rerender(tree("ready"));
+    await view.rerender(tree("ready"));
     // The wrapper is keyed on the swap key: the fresh content mounts inside a new wrapper that is born hidden.
     expect(wrapperNode("swap-child")).not.toBe(first);
     expect(fades.mock.calls).toHaveLength(1);
     // A re-render with the same key keeps the same wrapper and builds no new animation.
     const second = wrapperNode("swap-child");
-    view.rerender(tree("ready", "Isi lagi"));
+    await view.rerender(tree("ready", "Isi lagi"));
     expect(wrapperNode("swap-child")).toBe(second);
     expect(fades.mock.calls).toHaveLength(1);
     // Reduced motion swaps at once.
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    view.rerender(tree("other"));
+    await view.rerender(tree("other"));
     expect(wrapperNode("swap-child")).not.toBe(second);
     expect(fades.mock.calls).toHaveLength(1);
   });
 
-  it("lets the story viewer's part fill the content region", () => {
-    mount(
+  it("lets the story viewer's part fill the content region", async () => {
+    await mount(
       <StoryViewer count={2} index={0} onIndexChange={() => {}} onClose={() => {}} header="Menu" closeLabel="Tutup">
         <RNText testID="swap-child">Isi</RNText>
       </StoryViewer>,
@@ -170,15 +166,15 @@ describe("StoryViewer", () => {
     </StoryViewer>
   );
 
-  it("shows the header and the part, over a black ground", () => {
-    mount(viewer(1));
+  it("shows the header and the part, over a black ground", async () => {
+    await mount(viewer(1));
     expect(screen.getByText("Menu hari ini")).toBeTruthy();
     expect(screen.getByText("Isi cerita")).toBeTruthy();
     expect(flat("story-viewer").backgroundColor).toBe("black");
   });
 
-  it("draws one bar per part and fills the first index + 1", () => {
-    mount(viewer(2));
+  it("draws one bar per part and fills the first index + 1", async () => {
+    await mount(viewer(2));
     for (let i = 0; i < 4; i += 1) {
       expect(flat(`story-viewer-bar-${i}`).opacity).toBe(i <= 2 ? 1 : 0.4);
     }
@@ -188,113 +184,113 @@ describe("StoryViewer", () => {
 
   // The press lands on the child text, as a thumb on the story's own content does: it has to reach the content's handler.
   // A press is the finger going down (pressIn) and coming up (press); the two points may differ when the finger moved.
-  const drag = (from: { x: number; y: number }, to: { x: number; y: number }) => {
+  const drag = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
     const content = screen.getByText("Isi cerita");
-    fireEvent(content, "pressIn", { nativeEvent: { pageX: from.x, pageY: from.y } });
-    fireEvent.press(content, { nativeEvent: { pageX: to.x, pageY: to.y } });
+    await fireEvent(content, "pressIn", { nativeEvent: { pageX: from.x, pageY: from.y } });
+    await fireEvent.press(content, { nativeEvent: { pageX: to.x, pageY: to.y } });
   };
-  const tap = (pageX: number) => drag({ x: pageX, y: 400 }, { x: pageX, y: 400 });
+  const tap = async (pageX: number) => await drag({ x: pageX, y: 400 }, { x: pageX, y: 400 });
 
-  it("goes forward from a tap on the right half of the content and does nothing on the last part", () => {
+  it("goes forward from a tap on the right half of the content and does nothing on the last part", async () => {
     const onIndexChange = jest.fn();
-    const view = mount(viewer(1, { onIndexChange }));
-    tap(300);
+    const view = await mount(viewer(1, { onIndexChange }));
+    await tap(300);
     expect(onIndexChange).toHaveBeenCalledWith(2);
     onIndexChange.mockClear();
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{viewer(3, { onIndexChange })}</MoodProvider>
       </ThemeProvider>,
     );
-    tap(300);
+    await tap(300);
     expect(onIndexChange).not.toHaveBeenCalled();
   });
 
-  it("goes back from a tap on the left half of the content and does nothing on the first part", () => {
+  it("goes back from a tap on the left half of the content and does nothing on the first part", async () => {
     const onIndexChange = jest.fn();
-    const view = mount(viewer(2, { onIndexChange }));
-    tap(100);
+    const view = await mount(viewer(2, { onIndexChange }));
+    await tap(100);
     expect(onIndexChange).toHaveBeenCalledWith(1);
     onIndexChange.mockClear();
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{viewer(0, { onIndexChange })}</MoodProvider>
       </ThemeProvider>,
     );
-    tap(100);
+    await tap(100);
     expect(onIndexChange).not.toHaveBeenCalled();
   });
 
-  it("splits at half the window width: a tap at the middle goes forward", () => {
+  it("splits at half the window width: a tap at the middle goes forward", async () => {
     const onIndexChange = jest.fn();
-    mount(viewer(1, { onIndexChange }));
-    tap(199);
+    await mount(viewer(1, { onIndexChange }));
+    await tap(199);
     expect(onIndexChange).toHaveBeenLastCalledWith(0);
-    tap(200);
+    await tap(200);
     expect(onIndexChange).toHaveBeenLastCalledWith(2);
   });
 
-  it("does not turn the page when the finger moved more than 10dp between press-in and release", () => {
+  it("does not turn the page when the finger moved more than 10dp between press-in and release", async () => {
     const onIndexChange = jest.fn();
-    mount(viewer(1, { onIndexChange }));
+    await mount(viewer(1, { onIndexChange }));
     // The gate's swipe up on the right half, which used to go forward.
-    drag({ x: 300, y: 600 }, { x: 300, y: 200 });
+    await drag({ x: 300, y: 600 }, { x: 300, y: 200 });
     // A small sideways slide and a small vertical one, each just past the 10dp slop.
-    drag({ x: 300, y: 400 }, { x: 311, y: 400 });
-    drag({ x: 100, y: 400 }, { x: 100, y: 389 });
+    await drag({ x: 300, y: 400 }, { x: 311, y: 400 });
+    await drag({ x: 100, y: 400 }, { x: 100, y: 389 });
     // A diagonal that is neither a tap nor mostly sideways.
-    drag({ x: 300, y: 400 }, { x: 240, y: 350 });
+    await drag({ x: 300, y: 400 }, { x: 240, y: 350 });
     expect(onIndexChange).not.toHaveBeenCalled();
   });
 
-  it("still turns the page on a tap that jitters by no more than 10dp, decided at the release point", () => {
+  it("still turns the page on a tap that jitters by no more than 10dp, decided at the release point", async () => {
     const onIndexChange = jest.fn();
-    mount(viewer(1, { onIndexChange }));
-    drag({ x: 205, y: 400 }, { x: 195, y: 410 });
+    await mount(viewer(1, { onIndexChange }));
+    await drag({ x: 205, y: 400 }, { x: 195, y: 410 });
     expect(onIndexChange).toHaveBeenLastCalledWith(0);
-    drag({ x: 195, y: 400 }, { x: 205, y: 390 });
+    await drag({ x: 195, y: 400 }, { x: 205, y: 390 });
     expect(onIndexChange).toHaveBeenLastCalledWith(2);
   });
 
-  it("turns the page on a sideways swipe: right to left goes forward, left to right goes back, wherever it lifts", () => {
+  it("turns the page on a sideways swipe: right to left goes forward, left to right goes back, wherever it lifts", async () => {
     const onIndexChange = jest.fn();
-    const view = mount(viewer(1, { onIndexChange }));
+    const view = await mount(viewer(1, { onIndexChange }));
     // The gate's right-to-left swipe lifted on the left half and went back; it is the story's "next" gesture.
-    drag({ x: 380, y: 400 }, { x: 60, y: 400 });
+    await drag({ x: 380, y: 400 }, { x: 60, y: 400 });
     expect(onIndexChange).toHaveBeenLastCalledWith(2);
-    drag({ x: 60, y: 400 }, { x: 380, y: 420 });
+    await drag({ x: 60, y: 400 }, { x: 380, y: 420 });
     expect(onIndexChange).toHaveBeenLastCalledWith(0);
     // Just past 40dp and mostly sideways.
-    drag({ x: 100, y: 400 }, { x: 141, y: 420 });
+    await drag({ x: 100, y: 400 }, { x: 141, y: 420 });
     expect(onIndexChange).toHaveBeenLastCalledWith(0);
     expect(onIndexChange).toHaveBeenCalledTimes(3);
     // No loop: nothing before the first part and nothing after the last.
     onIndexChange.mockClear();
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{viewer(0, { onIndexChange })}</MoodProvider>
       </ThemeProvider>,
     );
-    drag({ x: 60, y: 400 }, { x: 380, y: 400 });
-    view.rerender(
+    await drag({ x: 60, y: 400 }, { x: 380, y: 400 });
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{viewer(3, { onIndexChange })}</MoodProvider>
       </ThemeProvider>,
     );
-    drag({ x: 380, y: 400 }, { x: 60, y: 400 });
+    await drag({ x: 380, y: 400 }, { x: 60, y: 400 });
     expect(onIndexChange).not.toHaveBeenCalled();
   });
 
-  it("starts the bars 8dp below the status-bar inset, or below the topInset a caller passes", () => {
+  it("starts the bars 8dp below the status-bar inset, or below the topInset a caller passes", async () => {
     // The safe-area mock is a plain jest.fn that restoreAllMocks does not reset, so the default is put back by hand.
     const insets = require("react-native-safe-area-context").useSafeAreaInsets as jest.Mock;
     const original = insets.getMockImplementation();
     insets.mockImplementation(() => ({ top: 24, bottom: 0, left: 0, right: 0 }));
     try {
-      const view = mount(viewer(0));
+      const view = await mount(viewer(0));
       expect(flat("story-viewer-stage").paddingTop).toBe(24 + 8);
-      view.unmount();
-      mount(
+      await view.unmount();
+      await mount(
         <StoryViewer count={2} index={0} onIndexChange={() => {}} onClose={() => {}} header="Menu" closeLabel="Tutup" topInset={0}>
           <RNText>Isi cerita</RNText>
         </StoryViewer>,
@@ -305,23 +301,23 @@ describe("StoryViewer", () => {
     }
   });
 
-  it("leaves a button inside the content its own press", () => {
+  it("leaves a button inside the content its own press", async () => {
     const onIndexChange = jest.fn();
     const onInner = jest.fn();
-    mount(
+    await mount(
       <StoryViewer count={4} index={1} onIndexChange={onIndexChange} onClose={() => {}} header="Menu" closeLabel="Tutup">
         <Pressable accessibilityRole="button" accessibilityLabel="Ubah hari" onPress={onInner}>
           <RNText>Ubah hari</RNText>
         </Pressable>
       </StoryViewer>,
     );
-    fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }), { nativeEvent: { pageX: 300 } });
+    await fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }), { nativeEvent: { pageX: 300 } });
     expect(onInner).toHaveBeenCalledTimes(1);
     expect(onIndexChange).not.toHaveBeenCalled();
   });
 
-  it("keeps the content region out of the accessibility tree as a target but not its buttons", () => {
-    mount(viewer(0));
+  it("keeps the content region out of the accessibility tree as a target but not its buttons", async () => {
+    await mount(viewer(0));
     const region = byId("story-viewer-content");
     expect(region.props.accessible).toBe(false);
     expect(region.props.importantForAccessibility).toBe("no");
@@ -330,21 +326,21 @@ describe("StoryViewer", () => {
     expect(gone("story-viewer-next")).toBe(true);
   });
 
-  it("closes from a 48dp button named by closeLabel", () => {
+  it("closes from a 48dp button named by closeLabel", async () => {
     const onClose = jest.fn();
-    mount(viewer(0, { onClose }));
+    await mount(viewer(0, { onClose }));
     const close = screen.getByRole("button", { name: "Tutup" });
     expect(StyleSheet.flatten(close.props.style)).toMatchObject({ width: 48, height: 48 });
-    fireEvent.press(close);
+    await fireEvent.press(close);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("never advances on a timer", () => {
+  it("never advances on a timer", async () => {
     jest.useFakeTimers();
     try {
       const onIndexChange = jest.fn();
-      mount(viewer(1, { onIndexChange }));
-      act(() => {
+      await mount(viewer(1, { onIndexChange }));
+      await act(() => {
         jest.advanceTimersByTime(30_000);
       });
       expect(onIndexChange).not.toHaveBeenCalled();
@@ -353,34 +349,34 @@ describe("StoryViewer", () => {
     }
   });
 
-  it("fades in and scales up from 0.92 on the calm spring on mount, instantly under reduced motion", () => {
+  it("fades in and scales up from 0.92 on the calm spring on mount, instantly under reduced motion", async () => {
     const spring = jest.spyOn(Reanimated, "withSpring");
-    const view = mount(viewer(0));
+    const view = await mount(viewer(0));
     expect(spring).toHaveBeenCalledWith(1, nativeMotion.spring);
-    view.unmount();
+    await view.unmount();
     spring.mockClear();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    mount(viewer(0));
+    await mount(viewer(0));
     expect(spring).not.toHaveBeenCalledWith(1, nativeMotion.spring);
     expect(flat("story-viewer-stage").opacity).toBe(1);
     expect((flat("story-viewer-stage").transform as { scale?: number }[]).find((t) => "scale" in t)?.scale).toBeCloseTo(1, 6);
   });
 
-  it("starts the opening at opacity 0 and scale 0.92", () => {
-    mount(viewer(0));
+  it("starts the opening at opacity 0 and scale 0.92", async () => {
+    await mount(viewer(0));
     expect(flat("story-viewer-stage").opacity).toBe(0);
     expect((flat("story-viewer-stage").transform as { scale?: number }[]).find((t) => "scale" in t)?.scale).toBeCloseTo(0.92, 6);
   });
 
-  it("steps through the parts for a screen reader with the header's increment and decrement actions", () => {
+  it("steps through the parts for a screen reader with the header's increment and decrement actions", async () => {
     const onIndexChange = jest.fn();
-    mount(viewer(1, { onIndexChange }));
+    await mount(viewer(1, { onIndexChange }));
     const header = byId("story-viewer-header");
     expect(header.props.accessibilityRole).toBe("adjustable");
     expect(header.props.accessibilityValue).toEqual({ min: 1, max: 4, now: 2, text: "2/4" });
     expect(header.props.pointerEvents).toBeUndefined();
-    fireEvent(header, "accessibilityAction", { nativeEvent: { actionName: "increment" } });
-    fireEvent(header, "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
+    await fireEvent(header, "accessibilityAction", { nativeEvent: { actionName: "increment" } });
+    await fireEvent(header, "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
     expect(onIndexChange).toHaveBeenNthCalledWith(1, 2);
     expect(onIndexChange).toHaveBeenNthCalledWith(2, 0);
   });
@@ -414,32 +410,32 @@ describe("StoryViewer", () => {
     // PanResponder's handlers are called directly: the test renderer skips responder events on a view that does not
     // claim the touch at start, and the story only claims a downward move.
     const handler = (name: string) => byId("story-viewer").props[name] as (event: unknown) => unknown;
-    const swipe = (dy: number, ms: number) => {
+    const swipe = async (dy: number, ms: number) => {
       const { start, end } = gesture(dy, ms);
-      act(() => {
+      await act(() => {
         handler("onResponderGrant")(start);
         handler("onResponderMove")(end);
         handler("onResponderRelease")(end);
       });
     };
 
-    it("closes on a slow drag past 80dp", () => {
+    it("closes on a slow drag past 80dp", async () => {
       const onClose = jest.fn();
-      mount(viewer(1, { onClose }));
-      swipe(120, 600);
+      await mount(viewer(1, { onClose }));
+      await swipe(120, 600);
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it("closes on a fast fling that is shorter than 80dp", () => {
+    it("closes on a fast fling that is shorter than 80dp", async () => {
       const onClose = jest.fn();
-      mount(viewer(1, { onClose }));
-      swipe(40, 50);
+      await mount(viewer(1, { onClose }));
+      await swipe(40, 50);
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it("stays open when the finger is let go while moving back up, though it is past 80dp", () => {
+    it("stays open when the finger is let go while moving back up, though it is past 80dp", async () => {
       const onClose = jest.fn();
-      mount(viewer(1, { onClose }));
+      await mount(viewer(1, { onClose }));
       // Down to 220 over 600ms, then back up to 200 in 50ms: 100dp down, but going up at 0.4dp/ms when let go.
       const at = (y: number, t: number, prevY: number, prevT: number) => ({
         nativeEvent: { touches: [], changedTouches: [], identifier: 1, timestamp: t },
@@ -463,7 +459,7 @@ describe("StoryViewer", () => {
           ],
         },
       });
-      act(() => {
+      await act(() => {
         handler("onResponderGrant")(at(100, 0, 100, 0));
         handler("onResponderMove")(at(220, 600, 100, 0));
         handler("onResponderMove")(at(200, 650, 220, 600));
@@ -472,16 +468,16 @@ describe("StoryViewer", () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    it("does not close on a short, slow drag or an upward drag", () => {
+    it("does not close on a short, slow drag or an upward drag", async () => {
       const onClose = jest.fn();
-      mount(viewer(1, { onClose }));
-      swipe(40, 600);
-      swipe(-200, 100);
+      await mount(viewer(1, { onClose }));
+      await swipe(40, 600);
+      await swipe(-200, 100);
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    it("claims the gesture once the finger has moved down past a small slop, and not before", () => {
-      mount(viewer(1));
+    it("claims the gesture once the finger has moved down past a small slop, and not before", async () => {
+      await mount(viewer(1));
       const { start, end } = gesture(30, 100);
       // React Native asks the capture handler first (which refreshes the gesture state), then the bubble handler.
       const claims = (event: unknown) => {
@@ -490,15 +486,15 @@ describe("StoryViewer", () => {
       };
       handler("onResponderGrant")(start);
       expect(claims(end)).toBe(true);
-      screen.unmount();
-      mount(viewer(1));
+      await screen.unmount();
+      await mount(viewer(1));
       const small = gesture(6, 100);
       handler("onResponderGrant")(small.start);
       expect(claims(small.end)).toBe(false);
     });
 
-    it("never claims at capture, so a child that scrolls gets the move first", () => {
-      mount(viewer(1));
+    it("never claims at capture, so a child that scrolls gets the move first", async () => {
+      await mount(viewer(1));
       const { start, end } = gesture(120, 100);
       handler("onResponderGrant")(start);
       expect(handler("onMoveShouldSetResponderCapture")(end)).toBe(false);
@@ -511,11 +507,11 @@ describe("CheckRow", () => {
     <CheckRow quantity={8} name="Ayam bakar" icon="sunny-outline" checked={false} onToggle={() => {}} testID="row" {...extra} />
   );
 
-  it("is a checkbox with its state, labelled with the quantity and the dish", () => {
-    const view = mount(row());
+  it("is a checkbox with its state, labelled with the quantity and the dish", async () => {
+    const view = await mount(row());
     const box = screen.getByRole("checkbox", { name: "8× Ayam bakar" });
     expect(box.props.accessibilityState).toMatchObject({ checked: false });
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{row({ checked: true })}</MoodProvider>
       </ThemeProvider>,
@@ -523,32 +519,32 @@ describe("CheckRow", () => {
     expect(screen.getByRole("checkbox", { name: "8× Ayam bakar" }).props.accessibilityState).toMatchObject({ checked: true });
   });
 
-  it("presses through to onToggle with a tap haptic", () => {
+  it("presses through to onToggle with a tap haptic", async () => {
     const onToggle = jest.fn();
-    mount(row({ onToggle }));
-    fireEvent.press(screen.getByRole("checkbox"));
+    await mount(row({ onToggle }));
+    await fireEvent.press(screen.getByRole("checkbox"));
     expect(onToggle).toHaveBeenCalledTimes(1);
     expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
   });
 
-  it("is at least 56dp high and sets the quantity in tabular numerals", () => {
-    mount(row());
+  it("is at least 56dp high and sets the quantity in tabular numerals", async () => {
+    await mount(row());
     expect(StyleSheet.flatten(screen.getByRole("checkbox").props.style).minHeight).toBeGreaterThanOrEqual(56);
     expect(StyleSheet.flatten(screen.getByText("8").props.style).fontVariant).toEqual(["tabular-nums"]);
   });
 
-  it("draws a 48dp ring that fills forest with a cream check once ticked", () => {
+  it("draws a 48dp ring that fills forest with a cream check once ticked", async () => {
     const c = nativeThemes.light;
-    const view = mount(row());
+    const view = await mount(row());
     expect(flat("row-box")).toMatchObject({ width: 48, height: 48, borderColor: c.controlRing });
     expect(flat("row-tick")).toMatchObject({ backgroundColor: c.forest, opacity: 0 });
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{row({ checked: true })}</MoodProvider>
       </ThemeProvider>,
     );
     // The mocked shared value is written in an effect, so the next render reads it.
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{row({ checked: true })}</MoodProvider>
       </ThemeProvider>,
@@ -558,16 +554,16 @@ describe("CheckRow", () => {
     expect(byId("row-check-mark")).toBeTruthy();
   });
 
-  it("turns the name muted and struck through, mutes the quantity and dims only the photo over the content duration", () => {
+  it("turns the name muted and struck through, mutes the quantity and dims only the photo over the content duration", async () => {
     const c = nativeThemes.light;
     const timing = jest.spyOn(Reanimated, "withTiming");
-    const view = mount(row());
+    const view = await mount(row());
     const style = (text: string) => StyleSheet.flatten(screen.getByText(text).props.style);
     expect(style("Ayam bakar").textDecorationLine).not.toBe("line-through");
     expect(style("Ayam bakar").color).toBe(c.charcoal);
     expect(style("8").color).toBe(c.charcoal);
     expect(flat("row-media").opacity).toBe(1);
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{row({ checked: true })}</MoodProvider>
       </ThemeProvider>,
@@ -581,8 +577,8 @@ describe("CheckRow", () => {
   });
 
   // R-25: a ticked name must keep 4.5:1, so no text of the row may sit under a dimmed ancestor.
-  it.each(["light", "dark"] as const)("keeps a ticked row's text at full opacity in %s, the name in muted ink", (scheme) => {
-    mount(row({ checked: true }), scheme);
+  it.each(["light", "dark"] as const)("keeps a ticked row's text at full opacity in %s, the name in muted ink", async (scheme) => {
+    await mount(row({ checked: true }), scheme);
     const name = screen.getByText("Ayam bakar");
     expect(StyleSheet.flatten(name.props.style).color).toBe(nativeThemes[scheme].muted);
     for (const text of [name, screen.getByText("8")]) {
@@ -593,29 +589,29 @@ describe("CheckRow", () => {
     expect(flat("row-media").opacity).toBe(0.55);
   });
 
-  it("ticks instantly under reduced motion", () => {
+  it("ticks instantly under reduced motion", async () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     const timing = jest.spyOn(Reanimated, "withTiming");
-    const view = mount(row());
-    const rerender = () =>
-      view.rerender(
+    const view = await mount(row());
+    const rerender = async () =>
+      await view.rerender(
         <ThemeProvider storageKey="daily-loop-test">
           <MoodProvider now={SIANG_NOW}>{row({ checked: true })}</MoodProvider>
         </ThemeProvider>,
       );
-    rerender();
-    rerender();
+    await rerender();
+    await rerender();
     expect(timing).not.toHaveBeenCalled();
     expect(flat("row-tick").opacity).toBe(1);
     expect(flat("row-media").opacity).toBe(0.55);
     expect(StyleSheet.flatten(screen.getByText("Ayam bakar").props.style).color).toBe(nativeThemes.light.muted);
   });
 
-  it("shows the meal icon when there is no photo, and the photo when there is", () => {
-    const view = mount(row({ icon: "moon-outline" }));
+  it("shows the meal icon when there is no photo, and the photo when there is", async () => {
+    const view = await mount(row({ icon: "moon-outline" }));
     expect(byId("row-icon")).toBeTruthy();
     expect(gone("row-image")).toBe(true);
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{row({ image: "https://example.test/a.jpg" })}</MoodProvider>
       </ThemeProvider>,
@@ -624,8 +620,8 @@ describe("CheckRow", () => {
     expect(gone("row-icon")).toBe(true);
   });
 
-  it("lets a long dish name wrap and never truncates it", () => {
-    mount(row({ name: "Nasi kuning dengan ayam bakar madu dan sambal terasi" }));
+  it("lets a long dish name wrap and never truncates it", async () => {
+    await mount(row({ name: "Nasi kuning dengan ayam bakar madu dan sambal terasi" }));
     expect(screen.getByText("Nasi kuning dengan ayam bakar madu dan sambal terasi").props.numberOfLines).toBeUndefined();
   });
 });
@@ -644,8 +640,8 @@ describe("StopRow", () => {
     />
   );
 
-  it("numbers the stop in a 28dp sage circle", () => {
-    mount(row());
+  it("numbers the stop in a 28dp sage circle", async () => {
+    await mount(row());
     expect(screen.getByText("3")).toBeTruthy();
     expect(flat("stop-row-badge")).toMatchObject({
       width: 28,
@@ -655,8 +651,8 @@ describe("StopRow", () => {
     });
   });
 
-  it("keeps the address on one line and puts the whole address in the accessibility label", () => {
-    mount(row());
+  it("keeps the address on one line and puts the whole address in the accessibility label", async () => {
+    await mount(row());
     const address = screen.getByText(ADDRESS);
     expect(address.props.numberOfLines).toBe(1);
     expect(StyleSheet.flatten(address.props.style).color).toBe(nativeThemes.light.muted);
@@ -665,31 +661,31 @@ describe("StopRow", () => {
     expect(byId("stop-row-info").props.accessibilityLabel).toContain("8 porsi siang");
   });
 
-  it("sets the name and the detail together so they wrap as one line of text", () => {
-    mount(row());
+  it("sets the name and the detail together so they wrap as one line of text", async () => {
+    await mount(row());
     const line = byId("stop-row-title");
     expect(line.props.numberOfLines).toBeUndefined();
     expect(screen.getByText("Bu Rina", { exact: false })).toBeTruthy();
     expect(screen.getByText("8 porsi siang", { exact: false })).toBeTruthy();
   });
 
-  it("has a 48dp map button that calls onMap", () => {
+  it("has a 48dp map button that calls onMap", async () => {
     const onMap = jest.fn();
-    mount(row({ onMap }));
+    await mount(row({ onMap }));
     const map = screen.getByRole("button", { name: "Buka di Peta" });
     expect(StyleSheet.flatten(map.props.style)).toMatchObject({ width: 48, height: 48 });
-    fireEvent.press(map);
+    await fireEvent.press(map);
     expect(onMap).toHaveBeenCalledTimes(1);
   });
 
-  it("has a 48dp more button only when onMore is given", () => {
+  it("has a 48dp more button only when onMore is given", async () => {
     const onMore = jest.fn();
-    const view = mount(row({ onMore, moreLabel: "Laporkan masalah" }));
+    const view = await mount(row({ onMore, moreLabel: "Laporkan masalah" }));
     const more = screen.getByRole("button", { name: "Laporkan masalah" });
     expect(StyleSheet.flatten(more.props.style)).toMatchObject({ width: 48, height: 48 });
-    fireEvent.press(more);
+    await fireEvent.press(more);
     expect(onMore).toHaveBeenCalledTimes(1);
-    view.rerender(
+    await view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{row()}</MoodProvider>
       </ThemeProvider>,
@@ -700,58 +696,58 @@ describe("StopRow", () => {
 });
 
 describe("StickyAction", () => {
-  it("shows the label and the caption above it", () => {
-    mount(<StickyAction label="Mulai masak" caption="12 porsi hari ini" onPress={() => {}} />);
+  it("shows the label and the caption above it", async () => {
+    await mount(<StickyAction label="Mulai masak" caption="12 porsi hari ini" onPress={() => {}} />);
     expect(screen.getByRole("button", { name: "Mulai masak" })).toBeTruthy();
     expect(screen.getByText("12 porsi hari ini")).toBeTruthy();
     expect(StyleSheet.flatten(screen.getByText("12 porsi hari ini").props.style).color).toBe(nativeThemes.light.muted);
   });
 
-  it("adds no chrome of its own: the Screen footer slot gives the one border, the one padding and the 760 cap", () => {
-    mount(<Screen footer={<StickyAction label="Mulai masak" caption="12 porsi hari ini" onPress={() => {}} testID="act" />}>{null}</Screen>);
+  it("adds no chrome of its own: the Screen footer slot gives the one border, the one padding and the 760 cap", async () => {
+    await mount(<Screen footer={<StickyAction label="Mulai masak" caption="12 porsi hari ini" onPress={() => {}} testID="act" />}>{null}</Screen>);
     expect(flat("act")).toEqual({ gap: 8 });
     expect(flat("screen-footer")).toMatchObject({ padding: 16, borderTopWidth: 1, maxWidth: 760, gap: 8 });
     const styled = (pick: (style: ReturnType<typeof StyleSheet.flatten>) => unknown) =>
-      byId("screen-footer").findAll(
-        (node) => typeof node.type === "string" && pick(StyleSheet.flatten(node.props.style) ?? {}) !== undefined,
-      );
+      byId("screen-footer").queryAll((node) => pick(StyleSheet.flatten(node.props.style) ?? {}) !== undefined, {
+        includeSelf: true,
+      });
     expect(styled((s) => s.borderTopWidth)).toHaveLength(1);
     expect(styled((s) => s.padding)).toHaveLength(1);
     expect(styled((s) => s.maxWidth)).toHaveLength(1);
     expect(screen.queryByText("12 porsi hari ini")).toBeTruthy();
   });
 
-  it("shows no caption when there is none", () => {
-    mount(<StickyAction label="Mulai masak" onPress={() => {}} />);
+  it("shows no caption when there is none", async () => {
+    await mount(<StickyAction label="Mulai masak" onPress={() => {}} />);
     expect(screen.queryByText("12 porsi hari ini")).toBeNull();
   });
 
-  it("presses through when idle", () => {
+  it("presses through when idle", async () => {
     const onPress = jest.fn();
-    mount(<StickyAction label="Mulai masak" onPress={onPress} />);
-    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    await mount(<StickyAction label="Mulai masak" onPress={onPress} />);
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a spinner and blocks presses while busy", () => {
+  it("shows a spinner and blocks presses while busy", async () => {
     const onPress = jest.fn();
     jest.useFakeTimers();
     try {
-      mount(<StickyAction label="Mulai masak" onPress={onPress} busy testID="act" />);
-      act(() => void jest.advanceTimersByTime(150));
+      await mount(<StickyAction label="Mulai masak" onPress={onPress} busy testID="act" />);
+      await act(() => void jest.advanceTimersByTime(150));
       expect(byId("act-spinner")).toBeTruthy();
     } finally {
       jest.useRealTimers();
     }
-    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
     expect(onPress).not.toHaveBeenCalled();
   });
 
-  it("blocks presses while disabled and shows no spinner", () => {
+  it("blocks presses while disabled and shows no spinner", async () => {
     const onPress = jest.fn();
-    mount(<StickyAction label="Mulai masak" onPress={onPress} disabled testID="act" />);
+    await mount(<StickyAction label="Mulai masak" onPress={onPress} disabled testID="act" />);
     expect(gone("act-spinner")).toBe(true);
-    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
     expect(onPress).not.toHaveBeenCalled();
   });
 });

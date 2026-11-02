@@ -33,17 +33,17 @@ const DOKU_CODES = [
 ];
 
 describe("payment method catalogue", () => {
-  it("has an entry for every DOKU code, and nothing else", () => {
+  it("has an entry for every DOKU code, and nothing else", async () => {
     for (const code of DOKU_CODES) expect(paymentMethodInfo(code)).toBeDefined();
     expect(PAYMENT_METHODS).toHaveLength(DOKU_CODES.length);
   });
 
-  it("skips codes it does not know", () => {
+  it("skips codes it does not know", async () => {
     expect(paymentMethodInfo("EMONEY_NOPE")).toBeUndefined();
     expect(groupPaymentMethods(["QRIS", "EMONEY_NOPE"]).flatMap((g) => g.methods.map((m) => m.code))).toEqual(["QRIS"]);
   });
 
-  it("groups in picker order and catalogue order, leaving empty groups out", () => {
+  it("groups in picker order and catalogue order, leaving empty groups out", async () => {
     const groups = groupPaymentMethods([
       "PEER_TO_PEER_KREDIVO",
       "VIRTUAL_ACCOUNT_BRI",
@@ -58,7 +58,7 @@ describe("payment method catalogue", () => {
     expect(groups.map((g) => g.title?.id ?? null)).toEqual([null, "E-wallet", "Transfer bank", "Kartu", "Bayar di gerai", "Paylater"]);
   });
 
-  it("names and describes each kind in Indonesian and English", () => {
+  it("names and describes each kind in Indonesian and English", async () => {
     expect(paymentMethodInfo("VIRTUAL_ACCOUNT_BRI")).toMatchObject({
       name: { id: "BRI Virtual Account", en: "BRI Virtual Account" },
       detail: { id: "Transfer dari aplikasi atau ATM BRI.", en: "Transfer from the BRI app or ATM." },
@@ -109,13 +109,13 @@ function Asker({ codes, selected }: { codes: string[]; selected: string | null }
 }
 
 async function openPicker(codes: string[], selected: string | null = null) {
-  render(
+  await render(
     <MobileProvider runtime={createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "catera", app: "customer" })} linkMapper={customerLink}>
       <Asker codes={codes} selected={selected} />
       <Host />
     </MobileProvider>,
   );
-  await act(async () => fireEvent.press(screen.getByRole("button", { name: "buka" })));
+  await act(async () => await fireEvent.press(screen.getByRole("button", { name: "buka" })));
 }
 const titles = () => ["E-wallet", "Transfer bank", "Kartu", "Bayar di gerai", "Paylater"].filter((t) => screen.queryByText(t));
 
@@ -151,7 +151,7 @@ describe("Bayar dengan picker", () => {
     expect(va.props.accessibilityState.expanded).toBe(false);
     expect(within(va).getByText("BCA, Mandiri, BRI, BNI dan 1 lainnya")).toBeTruthy();
     expect(screen.queryByRole("radio", { name: /^BCA Virtual Account/ })).toBeNull();
-    fireEvent.press(va);
+    await fireEvent.press(va);
     expect(screen.getByRole("button", { name: /^Transfer bank \(Virtual Account\)/ }).props.accessibilityState.expanded).toBe(true);
     expect(screen.getAllByRole("radio", { name: /Virtual Account/ })).toHaveLength(5);
   });
@@ -164,14 +164,14 @@ describe("Bayar dengan picker", () => {
 
   it("choosing answers the code once the sheet has closed", async () => {
     await openPicker(["QRIS", "VIRTUAL_ACCOUNT_BRI"], "QRIS");
-    await act(async () => fireEvent.press(screen.getByRole("radio", { name: /^BRI Virtual Account/ })));
+    await act(async () => await fireEvent.press(screen.getByRole("radio", { name: /^BRI Virtual Account/ })));
     await waitFor(() => expect(screen.getByTestId("answer").props.children).toBe("VIRTUAL_ACCOUNT_BRI"));
     expect(screen.queryByText("Bayar dengan")).toBeNull();
   });
 
   it("closing answers null", async () => {
     await openPicker(["QRIS", "VIRTUAL_ACCOUNT_BRI"], "QRIS");
-    await act(async () => fireEvent.press(screen.getByRole("button", { name: "Tutup" })));
+    await act(async () => await fireEvent.press(screen.getByRole("button", { name: "Tutup" })));
     await waitFor(() => expect(screen.getByTestId("answer").props.children).toBe("null"));
   });
 
@@ -185,13 +185,13 @@ describe("payment method marks", () => {
   const { MethodMark } = require("../src/buy/MethodMark") as typeof import("../src/buy/MethodMark");
   const { paymentLogo } = require("../src/buy/paymentLogos") as typeof import("../src/buy/paymentLogos");
 
-  it("has a mark for every catalogue logo key", () => {
+  it("has a mark for every catalogue logo key", async () => {
     for (const m of PAYMENT_METHODS) expect(paymentLogo(m.logo)).toBeDefined();
   });
 
-  it("draws a mark on a 56×40 tile that stays white in every theme", () => {
+  it("draws a mark on a 56×40 tile that stays white in every theme", async () => {
     const flat = (s: unknown) => Object.assign({}, ...[s].flat(Infinity).filter(Boolean));
-    render(<MethodMark info={paymentMethodInfo("VIRTUAL_ACCOUNT_BCA")} />);
+    await render(<MethodMark info={paymentMethodInfo("VIRTUAL_ACCOUNT_BCA")} />);
     const tile = flat(screen.getByTestId("pay-mark").props.style);
     expect(tile).toMatchObject({ width: 56, height: 40, backgroundColor: "#FFFFFF" });
   });

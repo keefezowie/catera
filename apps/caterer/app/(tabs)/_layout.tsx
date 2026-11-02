@@ -29,11 +29,12 @@ export default function TabsLayout() {
   // goToTab selects a tab by targeting these navigators by key, so it needs the container once the tabs exist; a push
   // tap that arrived while the session loaded opens then. Unmounting or changing account forgets it again.
   const account = actor?.id;
+  const role = actor?.role;
   useEffect(() => {
     if (!account) return;
-    registerNavigation(navigation);
+    registerNavigation(navigation, tabsForRole(role));
     return releaseNavigation;
-  }, [navigation, account]);
+  }, [navigation, account, role]);
   const bar = tabBarColors(useColors());
   // While a sheet is on top the bar leaves the accessibility tree where the platform allows it (`tabBarNativeProps`).
   const nativeProps = useTabBarNativeProps();

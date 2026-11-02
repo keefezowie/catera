@@ -1,11 +1,14 @@
 import * as ReactNative from "react-native";
 import { StatusBar, Text } from "react-native";
 import { act, fireEvent, renderRouter, screen, waitFor, within } from "expo-router/testing-library";
-import { appRoutes, navigationContainer, resetRouterStore } from "./real-router";
+import { appRoutes, navigationContainer } from "./real-router";
 import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
 import { contentTitled, fonts, LINK_TITLE_MAX, linkTitle, MoodHeader, Screen } from "@catera/mobile-ui";
 import { customerHref, packageHref, reportHref } from "../src/hrefs";
+
+/** A push the way the app makes one from a tab (`pushScreen`): a shared-folder screen opens in the tab in front. */
+const pushScreen = (href: string) => (require("../src/nav") as typeof import("../src/nav")).pushScreen(href);
 
 /** The account the session read returns, and whether the server reports demo. */
 const mockMe: { demo: boolean; actor: { id: string; role: string; name: string; catererId: string } | null } = {
@@ -68,16 +71,21 @@ const routes = appRoutes((file) => {
 });
 
 /** The host components react-native-screens renders: each screen and the native header it configures. */
-type Host = { type: unknown; props: Record<string, any>; parent: Host | null; findAll: (f: (n: Host) => boolean) => Host[] };
-const hosts = (type: string) => screen.UNSAFE_root.findAll((n) => n.type === type) as unknown as Host[];
+type Host = {
+  type: unknown;
+  props: Record<string, any>;
+  parent: Host | null;
+  queryAll: (f: (n: Host) => boolean) => Host[];
+};
+const hosts = (type: string) => screen.container.queryAll((n) => n.type === type) as unknown as Host[];
 const screenOf = (route: string) => {
-  const found = hosts("RNSScreen").filter((s) => String(s.props.screenId).startsWith(`${route}-`)).at(-1);
+  const found = hosts("RNSScreen").filter((s) => String(s.props.screenId).startsWith(`${route}:`)).at(-1);
   if (!found) throw new Error(`no screen for ${route}`);
   return found;
 };
-const headerOf = (route: string) => screenOf(route).findAll((n) => n.type === "RNSScreenStackHeaderConfig")[0];
+const headerOf = (route: string) => screenOf(route).queryAll((n) => n.type === "RNSScreenStackHeaderConfig")[0];
 const leadingOf = (route: string) =>
-  headerOf(route).findAll((n) => n.type === "RNSScreenStackHeaderSubview" && n.props.type === "left")[0];
+  headerOf(route).queryAll((n) => n.type === "RNSScreenStackHeaderSubview" && n.props.type === "left")[0];
 
 /**
  * The status bar style in effect: React Native merges every mounted StatusBar and the newest one wins. That merge is
@@ -91,13 +99,13 @@ const statusGlyphs = () => {
 };
 
 async function open(initialUrl = "/") {
-  const r = renderRouter(routes, { initialUrl });
+  const r = await renderRouter(routes, { initialUrl });
   await waitFor(() => expect(screen.getAllByText(/^root:/).length).toBeGreaterThan(0));
   await act(async () => {});
   return r;
 }
-const go = async (work: () => void) => {
-  act(work);
+const go = async (work: () => unknown) => {
+  await act(async () => void (await work()));
   await act(async () => {});
 };
 
@@ -115,7 +123,6 @@ beforeEach(() => {
   mockMe.actor = owner;
   mockMe.demo = false;
   mockSettlement.value = { unavailable: true };
-  resetRouterStore();
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -126,7 +133,7 @@ describe("native headers", () => {
     await open("/");
     const light = nativeThemes.light;
     for (const [href, route, title] of OWNER_PUSHES) {
-      await go(() => router.push(href as never));
+      await go(() => pushScreen(href));
       const header = headerOf(route);
       // Material's small top app bar on the canvas: the platform back arrow, Plus Jakarta Sans Bold 22, no shadow.
       // A screen titled by its record (customer, package, report) keeps its bar empty until its name scrolls under it.
@@ -154,7 +161,7 @@ describe("native headers", () => {
   it("a helper's pushed screens use the same native header", async () => {
     mockMe.actor = staff;
     await open("/");
-    await go(() => router.push("/menu/2030-01-03?pkg=p-1&meal=lunch"));
+    await go(() => pushScreen("/menu/2030-01-03?pkg=p-1&meal=lunch"));
     expect(headerOf("menu/[date]").props).toMatchObject({ title: "Menu Kamis 3 Jan", hidden: false, hideBackButton: false });
     expect(screen.queryByTestId("app-header")).toBeNull();
   });
@@ -165,7 +172,7 @@ describe("native headers", () => {
       ["/aktifkan", "aktifkan", "Aktifkan pembayaran"],
       ["/impor", "impor", "Impor pelanggan"],
     ] as const) {
-      await go(() => router.push(href));
+      await go(() => pushScreen(href));
       expect(screenOf(route).props.stackPresentation).toBe("modal");
       const header = headerOf(route);
       expect(header.props).toMatchObject({ title, hideBackButton: true });
@@ -184,7 +191,7 @@ describe("native headers", () => {
 
   it("Close on a modal opened cold goes to Hari ini with the tabs", async () => {
     // A link straight to Aktifkan: nothing sits under it in the root stack, so Close has no back to take.
-    const r = renderRouter(routes, { initialUrl: "/aktifkan" });
+    const r = await renderRouter(routes, { initialUrl: "/aktifkan" });
     await waitFor(() => expect(headerOf("aktifkan").props).toMatchObject({ title: "Aktifkan pembayaran", hideBackButton: true }));
     await act(async () => {});
     expect(screen.queryAllByText(/^root:/)).toHaveLength(0);
@@ -192,13 +199,13 @@ describe("native headers", () => {
     expect(r.getPathname()).toBe("/");
     // The tabs are mounted with Hari ini in front, and the modal is gone.
     await waitFor(() => expect(screen.getByText("root:index")).toBeTruthy());
-    expect(hosts("RNSScreen").some((s) => String(s.props.screenId).startsWith("aktifkan-"))).toBe(false);
+    expect(hosts("RNSScreen").some((s) => String(s.props.screenId).startsWith("aktifkan:"))).toBe(false);
   });
 
   it("dark: the bar sits on the dark canvas with the dark ink", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     await open("/");
-    await go(() => router.push("/paket/baru"));
+    await go(() => pushScreen("/paket/baru"));
     const dark = nativeThemes.dark;
     expect(headerOf("paket/baru").props).toMatchObject({ backgroundColor: dark.canvas, color: dark.charcoal, titleColor: dark.charcoal });
   });
@@ -207,13 +214,13 @@ describe("native headers", () => {
     mockMe.demo = true;
     await open("/");
     expect(screen.getByText("Demo (data contoh)")).toBeTruthy();
-    await go(() => router.push("/paket/baru"));
+    await go(() => pushScreen("/paket/baru"));
     expect(headerOf("paket/baru").props).toMatchObject({ hidden: false, consumeTopInset: false });
   });
 
   it("Tim opens as a native sheet sized to its content, with no bar of its own", async () => {
     await open("/");
-    await go(() => router.push("/tim"));
+    await go(() => pushScreen("/tim"));
     expect(screenOf("tim").props).toMatchObject({ stackPresentation: "formSheet", sheetAllowedDetents: [-1], sheetGrabberVisible: true });
     expect(headerOf("tim").props.hidden).toBe(true);
   });
@@ -232,7 +239,7 @@ describe("native headers", () => {
     try {
       await open("/");
       expect(statusGlyphs()).toBe("dark-content");
-      await go(() => router.push("/paket/baru"));
+      await go(() => pushScreen("/paket/baru"));
       expect(statusGlyphs()).toBe("dark-content");
       await go(() => router.back());
       expect(statusGlyphs()).toBe("dark-content");
@@ -249,14 +256,19 @@ describe("record titles", () => {
     [packageHref("p-1", "Ayam Sambal Rumahan"), "paket/[id]", "Ayam Sambal Rumahan", "Paket"],
     [reportHref(ISSUE, "Nadia Putri"), "laporan/[id]", "Nadia Putri", "Laporan masalah"],
   ];
+  /** The text element a title box holds (itself when the box is the text). */
+  const textIn = (node: unknown) => {
+    const box = node as Host;
+    return box.type === "Text" ? box : box.queryAll((n) => n.type === "Text")[0];
+  };
   const contentTitleOf = (route: string) =>
-    within(screenOf(route) as never).getByTestId("screen-native-title").findByType(Text).props.children;
+    textIn(within(screenOf(route) as never).getByTestId("screen-native-title")).props.children;
 
   it("a link that carries the record's name titles the screen on the first frame", async () => {
     await open("/");
     for (const [href, route, name, generic] of TITLED) {
       // One render after the push, with the record's read still out: the name is already there, the generic never.
-      act(() => router.push(href as never));
+      await act(() => pushScreen(href));
       expect({ route, title: contentTitleOf(route) }).toEqual({ route, title: name });
       expect(within(screenOf(route) as never).queryByText(generic)).toBeNull();
       // Android: the bar starts empty and takes the name on scroll; the content line is the title.
@@ -271,29 +283,27 @@ describe("record titles", () => {
 
   it("a cold link or a notification keeps the generic name until the record arrives", async () => {
     for (const [href, route, , generic] of TITLED) {
-      resetRouterStore();
       const path = href.split("?")[0];
-      const r = renderRouter(routes, { initialUrl: path });
+      const r = await renderRouter(routes, { initialUrl: path });
       await waitFor(() => expect(contentTitleOf(route)).toBe(generic));
       expect(r.getPathname()).toBe(path);
       expect(navigationContainer().getCurrentOptions()?.title).toBe(generic);
-      r.unmount();
+      await r.unmount();
     }
   });
 
   it("an OS link that carries a title opens with the generic name: only the app's own links name a screen", async () => {
     for (const [href, route, name, generic] of TITLED) {
-      resetRouterStore();
       // The same href the app builds, arriving from outside (+native-intent) instead of from a tap inside the app.
-      const r = renderRouter(routes, { initialUrl: href });
+      const r = await renderRouter(routes, { initialUrl: href });
       await waitFor(() => expect(contentTitleOf(route)).toBe(generic));
       expect(within(screenOf(route) as never).queryByText(name)).toBeNull();
       expect(navigationContainer().getCurrentOptions()?.title).toBe(generic);
-      r.unmount();
+      await r.unmount();
     }
   });
 
-  it("the links carry the name, and an unknown name carries nothing", () => {
+  it("the links carry the name, and an unknown name carries nothing", async () => {
     expect(customerHref("c-1", "Nadia Putri")).toBe("/pelanggan/c-1?title=Nadia%20Putri");
     expect(packageHref("p-1", "Nasi & Ayam")).toBe(`/paket/p-1?title=${encodeURIComponent("Nasi & Ayam")}`);
     expect(reportHref(ISSUE, "Nadia Putri")).toBe(`/laporan/${ISSUE}?title=Nadia%20Putri`);
@@ -305,7 +315,7 @@ describe("record titles", () => {
     expect(linkTitle(undefined)).toBeUndefined();
   });
 
-  it("linkTitle caps a long name at 60 characters, at a word where it can, with …", () => {
+  it("linkTitle caps a long name at 60 characters, at a word where it can, with …", async () => {
     const sixty = "Nasi Ayam Bakar Madu Sambal Matah Lalapan Komplit Rumahan AB";
     expect(sixty).toHaveLength(LINK_TITLE_MAX);
     expect(linkTitle({ title: sixty })).toBe(sixty);
@@ -333,14 +343,14 @@ describe("record titles", () => {
     });
     await open("/");
     for (const [href, route, name, generic] of TITLED) {
-      await go(() => router.push(href as never));
+      await go(() => pushScreen(href));
       await waitFor(() => expect({ route, title: contentTitleOf(route) }).toEqual({ route, title: generic }));
       expect(within(screenOf(route) as never).queryByText(name)).toBeNull();
       await go(() => router.back());
     }
   });
 
-  it("contentTitled: iOS keeps the title for the large title, Android empties the bar", () => {
+  it("contentTitled: iOS keeps the title for the large title, Android empties the bar", async () => {
     expect(contentTitled("Paket", "ios")).toEqual({ title: "Paket" });
     expect(contentTitled("Paket", "android")).toEqual({ title: "Paket", headerTitle: "" });
   });
@@ -356,11 +366,11 @@ describe("ScreenGuard under the native bar", () => {
       },
     };
     await open("/");
-    await go(() => router.push("/uang"));
+    await go(() => pushScreen("/uang"));
     const message = await screen.findByText("Rincian uang belum bisa ditampilkan.");
     const uang = screenOf("uang");
     // One header for the screen, the native bar, titled Uang with the platform back.
-    const bars = uang.findAll((n) => n.type === "RNSScreenStackHeaderConfig");
+    const bars = uang.queryAll((n) => n.type === "RNSScreenStackHeaderConfig");
     expect(bars).toHaveLength(1);
     expect(bars[0].props).toMatchObject({ title: "Uang", hidden: false, hideBackButton: false });
     // The failure sits in the screen's body: no mood band and no header of its own, and it pays no top inset because
@@ -369,8 +379,11 @@ describe("ScreenGuard under the native bar", () => {
     expect(within(uang as never).queryByTestId("mood-header", { includeHiddenElements: true })).toBeNull();
     expect(within(uang as never).queryAllByRole("header")).toHaveLength(0);
     let frame = (message as unknown as Host).parent;
-    while (frame && !Array.isArray(frame.props.edges)) frame = frame.parent;
-    expect(frame?.props.edges).toEqual(["left", "right"]);
+    // The safe-area view's native view, which takes the edges as { top: "off", left: "additive", ... }.
+    while (frame && !frame.props.edges) frame = frame.parent;
+    const edges = frame?.props.edges as string[] | Record<string, string> | undefined;
+    const inset = Array.isArray(edges) ? edges : Object.keys(edges ?? {}).filter((edge) => edges![edge] !== "off");
+    expect([...inset].sort()).toEqual(["left", "right"]);
     expect(within(uang as never).getByRole("button", { name: "Coba lagi" })).toBeTruthy();
     errorLog.mockRestore();
   });

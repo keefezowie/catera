@@ -3,9 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 // The rings and the story draw their photos with expo-image (through Photo).
-import { Image as RingImage } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { statusBarStyle, ThemeProvider, TopInsetOwner } from "@catera/mobile-ui";
@@ -22,6 +20,10 @@ import { storyStripUnder, TomorrowStoryScreen } from "../src/tomorrow/TomorrowSt
 import { customerLink } from "../src/links";
 import { leaveFor } from "../src/nav";
 import { delivery, offer, subscription, TODAY } from "./fixtures";
+import { hostsWhere, statusBarStyles } from "./find-hosts";
+
+// expo-image is a host View that keeps its props (tests/setup.cjs); `contentFit` is what Photo always gives it.
+const images = () => hostsWhere({}).filter((node) => "contentFit" in node.props);
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
@@ -176,19 +178,19 @@ afterEach(() => {
 describe("Menu besok on Beranda", () => {
   it("is no longer a row on Beranda: tomorrow is a Berikutnya block that opens the story", async () => {
     pinClock(BEFORE_CUTOFF);
-    const view = wrap(runtimeWith(async () => bothState()), <Beranda />);
+    const view = await wrap(runtimeWith(async () => bothState()), <Beranda />);
     const days = within(await screen.findByTestId("upcoming-days"));
     expect(screen.queryByText("Menu besok")).toBeNull();
     expect(screen.queryByTestId("tomorrow-row")).toBeNull();
     expect(screen.queryAllByTestId("photo-ring")).toHaveLength(0);
     // Two deliveries tomorrow, so its block: a tile each, the dinner opening the story at its own part.
     expect(days.getByText(/^Besok, /)).toBeTruthy();
-    fireEvent.press(days.getByRole("button", { name: /^Sate ayam madura, Malam/ }));
+    await fireEvent.press(days.getByRole("button", { name: /^Sate ayam madura, Malam/ }));
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=1");
-    fireEvent.press(days.getByRole("button", { name: /^Ayam bakar madu, Siang/ }));
+    await fireEvent.press(days.getByRole("button", { name: /^Ayam bakar madu, Siang/ }));
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
-    view.unmount();
-    wrap(runtimeWith(async () => noTomorrowState()), <Beranda />);
+    await view.unmount();
+    await wrap(runtimeWith(async () => noTomorrowState()), <Beranda />);
     await screen.findByTestId("plans");
     expect(screen.queryByText(/^Besok, /)).toBeNull();
   });
@@ -198,7 +200,7 @@ describe("Menu besok story", () => {
   const open = async (state: () => CustomerState, now: Date, usage?: UsageMock) => {
     pinClock(now);
     const runtime = runtimeWith(async () => state(), usage);
-    wrap(runtime, <TomorrowStoryScreen />);
+    await wrap(runtime, <TomorrowStoryScreen />);
     await screen.findByTestId("story-viewer");
     await settle();
     return runtime;
@@ -211,18 +213,18 @@ describe("Menu besok story", () => {
     expect(screen.getByText("Makan siang · 11.00–13.00")).toBeTruthy();
     expect(screen.getByText("Ayam bakar madu")).toBeTruthy();
     expect(screen.getByText("Dapur Senja · Nasi putih, Sayur asem")).toBeTruthy();
-    expect(screen.UNSAFE_getAllByType(RingImage).some((i) => i.props.source?.uri === AYAM_PHOTO)).toBe(true);
+    expect(images().some((i) => i.props.source?.uri === AYAM_PHOTO)).toBe(true);
   });
 
   it("moves to dinner with Lihat menu malam, then ends with Selesai, which closes", async () => {
     await open(bothState, BEFORE_CUTOFF);
-    fireEvent.press(screen.getByRole("button", { name: "Lihat menu malam" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat menu malam" }));
     await settle();
     expect(header()).toBe(`Menu besok · ${shortDate(TOMORROW, "id")} · 2 dari 2`);
     expect(screen.getByText("Makan malam · 17.00–19.00")).toBeTruthy();
     expect(screen.getByText("Sate ayam madura")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Lihat menu malam" })).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
     expect(router.back).toHaveBeenCalledTimes(1);
   });
 
@@ -243,7 +245,7 @@ describe("Menu besok story", () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ part: "1" });
     await open(unsetDinnerState, BEFORE_CUTOFF);
     expect(screen.getByText("Dapur Senja belum mengisi menunya")).toBeTruthy();
-    expect(screen.UNSAFE_getAllByType(RingImage).some((i) => i.props.source?.uri === PACKAGE_PHOTO)).toBe(true);
+    expect(images().some((i) => i.props.source?.uri === PACKAGE_PHOTO)).toBe(true);
   });
 
   it("writes the seen mark of each part as it is shown", async () => {
@@ -252,7 +254,7 @@ describe("Menu besok story", () => {
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith(seenKey(runtime, "d-both", "lunch"), "seen"),
     );
     expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(seenKey(runtime, "d-both", "dinner"), "seen");
-    fireEvent.press(screen.getByRole("button", { name: "Lihat menu malam" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat menu malam" }));
     await waitFor(() =>
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith(seenKey(runtime, "d-both", "dinner"), "seen"),
     );
@@ -265,7 +267,7 @@ describe("Menu besok story", () => {
     const counts = () => usage.mock.calls.filter(([name]) => name === "tomorrow_story_viewed");
     await waitFor(() => expect(counts()).toHaveLength(1));
     expect(counts()[0]).toEqual(["tomorrow_story_viewed", "customer"]);
-    fireEvent.press(screen.getByRole("button", { name: "Lihat menu malam" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat menu malam" }));
     await screen.findByText("Sate ayam madura");
     await settle();
     expect(counts()).toHaveLength(1);
@@ -274,7 +276,7 @@ describe("Menu besok story", () => {
   it("offers Ubah hari before the cutoff and opens the day", async () => {
     await open(bothState, BEFORE_CUTOFF);
     expect(screen.getByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
     // The story closes and the day opens in the tabs, titled with the day ("Sabtu 10 Okt"), never "Hari".
     expect(leaveFor).toHaveBeenCalledWith(`/hari/d-both?title=${encodeURIComponent(shortDate(TOMORROW, "id"))}`);
   });
@@ -306,7 +308,7 @@ describe("Menu besok story", () => {
     await open(twoLunchesState, BEFORE_CUTOFF);
     expect(header()).toBe(`Menu besok · ${shortDate(TOMORROW, "id")} · 1 dari 2`);
     expect(screen.queryByRole("button", { name: "Lihat menu malam" })).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Lihat menu siang" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat menu siang" }));
     await settle();
     expect(header()).toBe(`Menu besok · ${shortDate(TOMORROW, "id")} · 2 dari 2`);
     expect(screen.getByRole("button", { name: "Selesai" })).toBeTruthy();
@@ -318,22 +320,22 @@ describe("Menu besok story", () => {
     expect(screen.getByTestId("story-viewer-bar-0", { hidden: true })).toBeTruthy();
     expect(screen.queryByTestId("story-viewer-bar-1", { hidden: true })).toBeNull();
     expect(header()).toBe(`Menu besok · ${shortDate(TOMORROW, "id")} · 1 dari 1`);
-    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
     expect(router.back).toHaveBeenCalledTimes(1);
   });
 
   it("closes with the close button", async () => {
     await open(bothState, BEFORE_CUTOFF);
-    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(router.back).toHaveBeenCalledTimes(1);
   });
 
   it("reads Memuat menu besok while the read is out, with a way out", async () => {
     pinClock(BEFORE_CUTOFF);
-    wrap(runtimeWith(() => new Promise(() => undefined)), <TomorrowStoryScreen />);
+    await wrap(runtimeWith(() => new Promise(() => undefined)), <TomorrowStoryScreen />);
     expect(await screen.findByText("Memuat menu besok…")).toBeTruthy();
     await settle();
-    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(router.back).toHaveBeenCalledTimes(1);
   });
 
@@ -343,9 +345,9 @@ describe("Menu besok story", () => {
       .fn<Promise<unknown>, []>()
       .mockRejectedValueOnce(new Error("NETWORK"))
       .mockResolvedValue(bothState());
-    wrap(runtimeWith(read), <TomorrowStoryScreen />);
+    await wrap(runtimeWith(read), <TomorrowStoryScreen />);
     expect(await screen.findByText("Belum bisa memuat")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Ayam bakar madu")).toBeTruthy();
     await settle();
     expect(read).toHaveBeenCalledTimes(2);
@@ -353,11 +355,11 @@ describe("Menu besok story", () => {
 
   it("reads Belum ada pengantaran besok with a close button when tomorrow has no delivery", async () => {
     pinClock(BEFORE_CUTOFF);
-    wrap(runtimeWith(async () => noTomorrowState()), <TomorrowStoryScreen />);
+    await wrap(runtimeWith(async () => noTomorrowState()), <TomorrowStoryScreen />);
     expect(await screen.findByText("Belum ada pengantaran besok.")).toBeTruthy();
     await settle();
     expect(screen.queryByTestId("story-viewer")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(router.back).toHaveBeenCalledTimes(1);
   });
 });
@@ -376,13 +378,18 @@ describe("storyStripUnder", () => {
 });
 
 describe("Menu besok story status bar and top inset", () => {
-  const glyphs = () => screen.UNSAFE_getByType(StatusBar).props.style as string;
+  const glyphs = () => {
+    // expo-status-bar draws through React Native's StatusBar: "light" is the "light-content" bar style.
+    const bars = statusBarStyles();
+    expect(bars).toHaveLength(1);
+    return bars[0]!.replace("-content", "");
+  };
   const paddingTop = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style).paddingTop as number;
   // The root layout's shape in demo mode: the strip owns the top inset over everything below it.
-  const mountUnder = (owned: boolean, read: () => Promise<unknown>, scheme: "light" | "dark" = "light") => {
+  const mountUnder = async (owned: boolean, read: () => Promise<unknown>, scheme: "light" | "dark" = "light") => {
     pinClock(BEFORE_CUTOFF);
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
-    wrap(
+    await wrap(
       runtimeWith(read),
       <ThemeProvider storageKey="tomorrow-status-test">
         <TopInsetOwner owned={owned}>
@@ -392,7 +399,7 @@ describe("Menu besok story status bar and top inset", () => {
     );
   };
   const openUnder = async (owned: boolean, scheme: "light" | "dark" = "light") => {
-    mountUnder(owned, async () => bothState(), scheme);
+    await mountUnder(owned, async () => bothState(), scheme);
     await screen.findByTestId("story-viewer");
     await settle();
   };
@@ -413,7 +420,7 @@ describe("Menu besok story status bar and top inset", () => {
     await withStatusBarInset(async () => {
       await openUnder(false);
       expect(paddingTop("story-viewer-stage")).toBe(24 + 8);
-      screen.unmount();
+      await screen.unmount();
       await openUnder(true);
       expect(paddingTop("story-viewer-stage")).toBe(8);
     });
@@ -421,17 +428,17 @@ describe("Menu besok story status bar and top inset", () => {
 
   it("gives the loading, error and empty message the same top as the viewer", async () => {
     await withStatusBarInset(async () => {
-      mountUnder(false, () => new Promise(() => undefined));
+      await mountUnder(false, () => new Promise(() => undefined));
       await screen.findByText("Memuat menu besok…");
       await settle();
       expect(paddingTop("tomorrow-message")).toBe(24 + 8);
-      screen.unmount();
-      mountUnder(true, () => new Promise(() => undefined));
+      await screen.unmount();
+      await mountUnder(true, () => new Promise(() => undefined));
       await screen.findByText("Memuat menu besok…");
       await settle();
       expect(paddingTop("tomorrow-message")).toBe(8);
-      screen.unmount();
-      mountUnder(true, async () => noTomorrowState());
+      await screen.unmount();
+      await mountUnder(true, async () => noTomorrowState());
       await screen.findByText("Belum ada pengantaran besok.");
       await settle();
       expect(paddingTop("tomorrow-message")).toBe(8);
@@ -447,13 +454,13 @@ describe("Menu besok story status bar and top inset", () => {
     await openUnder(true, "light");
     expect(glyphs()).toBe(statusBarStyle({ scheme: "light", mood: "siang", demo: true }));
     expect(glyphs()).toBe("dark");
-    screen.unmount();
+    await screen.unmount();
     await openUnder(true, "dark");
     expect(glyphs()).toBe("light");
   });
 
   it("follows the strip in the loading state too", async () => {
-    mountUnder(true, () => new Promise(() => undefined));
+    await mountUnder(true, () => new Promise(() => undefined));
     await screen.findByText("Memuat menu besok…");
     await settle();
     expect(glyphs()).toBe("dark");
@@ -463,7 +470,7 @@ describe("Menu besok story status bar and top inset", () => {
 describe("Menu besok story look", () => {
   it("sets the sticker on a cream fill with a forest border, tilted two degrees", async () => {
     pinClock(BEFORE_CUTOFF);
-    wrap(runtimeWith(async () => bothState()), <TomorrowStoryScreen />);
+    await wrap(runtimeWith(async () => bothState()), <TomorrowStoryScreen />);
     const sticker = await screen.findByTestId("tomorrow-sticker");
     await settle();
     const style = StyleSheet.flatten(sticker.props.style);
@@ -476,7 +483,7 @@ describe("Menu besok story look", () => {
 
   it("keeps the bottom text on a scrim that is at least 0.85 opaque where the text starts", async () => {
     pinClock(BEFORE_CUTOFF);
-    wrap(runtimeWith(async () => bothState()), <TomorrowStoryScreen />);
+    await wrap(runtimeWith(async () => bothState()), <TomorrowStoryScreen />);
     const scrim = await screen.findByTestId("tomorrow-scrim");
     await settle();
     const image = String(StyleSheet.flatten(scrim.props.style).experimental_backgroundImage);
@@ -488,7 +495,7 @@ describe("Menu besok story look", () => {
   // FB7 / direction K: under a photo, or where none loads, the page is the neutral failed-photo ground, never forest.
   it("stands each page on the failed-photo ground, not a forest block", async () => {
     pinClock(BEFORE_CUTOFF);
-    wrap(runtimeWith(async () => bothState()), <TomorrowStoryScreen />);
+    await wrap(runtimeWith(async () => bothState()), <TomorrowStoryScreen />);
     const part = (await screen.findAllByTestId("tomorrow-part"))[0];
     await settle();
     expect(StyleSheet.flatten(part.props.style).backgroundColor).toBe(nativeThemes.light.photoGround);

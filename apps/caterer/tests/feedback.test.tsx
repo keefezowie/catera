@@ -1,6 +1,5 @@
 import { withMobile } from "./with-mobile";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { RefreshControl } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
 import { router } from "expo-router";
@@ -13,6 +12,7 @@ import { ImportAssistant } from "../src/import/ImportAssistant";
 import { CustomerList } from "../src/customers/CustomerList";
 import { commitImport } from "../src/import/commits";
 import { goToTab } from "../src/nav";
+import { ancestorProps, hostsOf, only } from "./host-queries";
 
 let mockParams: Record<string, string> = {};
 jest.mock("expo-router", () => ({
@@ -59,8 +59,8 @@ function Grab() {
   return null;
 }
 
-const wrap = (runtime: MobileRuntime, node: React.ReactNode) =>
-  render(
+const wrap = async (runtime: MobileRuntime, node: React.ReactNode) =>
+  await render(
     <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
       <ToastProvider os="android">
         {node}
@@ -101,36 +101,40 @@ beforeEach(() => {
   reduced(false);
 });
 
+// The Reanimated stand-in for LayoutAnimationConfig renders a fragment, so each customer row reads the props of the block it sits in.
+const blocksOf = () =>
+  screen.getAllByTestId("customer-row").map((row) => ({ props: ancestorProps<Record<string, unknown>>(row, Reanimated.LayoutAnimationConfig) }));
+
 describe("Paket diterbitkan", () => {
   it("the first publish plays the beat, later publishes toast", async () => {
     // First: the caterer's only package is a draft, copied into the editor and published.
     mockParams = { from: "p-draf" };
     const first = runtimeWith({ sellerOperations: ops([pkg("p-draf", "draft")]) });
-    const view = wrap(first, <NewPackageRoute />);
-    fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
+    const view = await wrap(first, <NewPackageRoute />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(first.api.command).toHaveBeenCalledWith("package.save", expect.anything(), expect.any(String)));
     const beat = within(await screen.findByTestId("success-beat"));
     expect(beat.getByText("Paket diterbitkan")).toBeTruthy();
     expect(beat.getByText("Makan Siang Rumahan")).toBeTruthy();
-    expect(screen.UNSAFE_getByType(SuccessRig).props.play).toBe(true);
-    expect(screen.UNSAFE_getByType(Confetti).props.play).toBe(true);
+    expect(ancestorProps<{ play: boolean }>(screen.getByTestId("success-rig", { includeHiddenElements: true }), SuccessRig).play).toBe(true);
+    expect(ancestorProps<{ play: boolean }>(screen.getByTestId("confetti", { includeHiddenElements: true }), Confetti).play).toBe(true);
     expect(successes()).toHaveLength(1);
     expect(router.back).not.toHaveBeenCalled();
     expect(screen.queryByText("Paket diterbitkan", { exact: true })).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
     expect(router.back).toHaveBeenCalledTimes(1);
-    view.unmount();
+    await view.unmount();
     jest.clearAllMocks();
 
     // Later: a package was published before, so saving a new one goes back with the toast.
     mockParams = { from: "p-live" };
     const later = runtimeWith({ sellerOperations: ops([pkg("p-live", "published")]) });
-    wrap(later, <NewPackageRoute />);
-    fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
+    await wrap(later, <NewPackageRoute />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Paket diterbitkan")).toBeTruthy();
     expect(screen.queryByTestId("success-beat")).toBeNull();
-    expect(screen.UNSAFE_queryByType(Confetti)).toBeNull();
+    expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).toBeNull();
     // No beat; the success toast plays the one success haptic.
     expect(successes()).toHaveLength(1);
   });
@@ -148,8 +152,8 @@ describe("Paket diterbitkan", () => {
   it("under reduced motion the first publish shows merayakan, no confetti, and keeps the haptic", async () => {
     reduced(true);
     mockParams = { from: "p-draf" };
-    wrap(runtimeWith({ sellerOperations: ops([pkg("p-draf", "draft")]) }), <NewPackageRoute />);
-    fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
+    await wrap(runtimeWith({ sellerOperations: ops([pkg("p-draf", "draft")]) }), <NewPackageRoute />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
     const beat = within(await screen.findByTestId("success-beat"));
     expect(beat.getByTestId("mascot-art", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).toBeNull();
@@ -194,15 +198,15 @@ describe("menu", () => {
         categories: [],
       })),
     });
-    wrap(runtime, <MenuDayScreen date="2026-10-06" packageId="p-1" meal="lunch" />);
+    await wrap(runtime, <MenuDayScreen date="2026-10-06" packageId="p-1" meal="lunch" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Simpan menu" }).props.accessibilityState.disabled).toBeFalsy());
-    fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
     await waitFor(() => expect(router.back).toHaveBeenCalled());
     // 6 Oct 2026 is a Tuesday.
     expect(await screen.findByText("Menu Selasa tersimpan")).toBeTruthy();
   });
 
-  it("a dish slot added or removed by the caterer moves as a row; the day's first draw does not", () => {
+  it("a dish slot added or removed by the caterer moves as a row; the day's first draw does not", async () => {
     const library = [{ ...dish("d-ikan", "", "main", "Ikan bakar"), archived: false }] as never;
     let items = [dish("g-nasi-1", "g-nasi", "rice", "Nasi putih")];
     const ui = () => (
@@ -216,22 +220,22 @@ describe("menu", () => {
         canEdit
       />)
     );
-    const view = render(ui());
+    const view = await render(ui());
     const rows = () => screen.getAllByTestId("menu-slot-row");
     expect(rows()).toHaveLength(1);
     expect(rows()[0].props.entering).toBeUndefined();
     expect(rows()[0].props.exiting).toBeDefined();
     expect(rows()[0].props.layout).toBeDefined();
     // Add the lauk.
-    fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
-    fireEvent.press(screen.getByText("Ikan bakar"));
-    view.rerender(ui());
+    await fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
+    await fireEvent.press(screen.getByText("Ikan bakar"));
+    await view.rerender(ui());
     expect(rows()).toHaveLength(2);
     const added = rows().find((r) => within(r).queryByText("Ikan bakar"))!;
     expect(added.props.entering).toBeDefined();
     // Remove the rice.
-    fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi putih" }));
-    view.rerender(ui());
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi putih" }));
+    await view.rerender(ui());
     expect(rows()).toHaveLength(1);
     expect(screen.queryByText("Nasi putih")).toBeNull();
   });
@@ -262,25 +266,25 @@ describe("import", () => {
     });
     const rows = [row(1), row(2), row(3), row(4, { addressLine: "", needsReview: true, reason: "Alamat belum lengkap" })];
     global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ data: { rows, needsReview: 1 } }) })) as unknown as typeof fetch;
-    wrap(runtime, <ImportAssistant />);
-    fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
-    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await wrap(runtime, <ImportAssistant />);
+    await fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
     expect(await screen.findByText("Pelanggan 1")).toBeTruthy();
     // The rows the assistant read arrive as one list, not one by one.
     for (const r of screen.getAllByTestId("import-row")) expect(r.props.entering).toBeUndefined();
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan 3 pelanggan" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan 3 pelanggan" }));
     const beat = within(await screen.findByTestId("success-beat"));
     expect(beat.getByText("3 pelanggan tersimpan")).toBeTruthy();
-    expect(screen.UNSAFE_getByType(SuccessRig).props.play).toBe(true);
+    expect(ancestorProps<{ play: boolean }>(screen.getByTestId("success-rig", { includeHiddenElements: true }), SuccessRig).play).toBe(true);
     expect(successes()).toHaveLength(1);
     // No confetti: importing is not a first package or a first paid plan.
-    expect(screen.UNSAFE_queryByType(Confetti)?.props.play ?? false).toBe(false);
+    expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).toBeNull();
     // The saved rows leave; the one to check stays with its own exit ready.
     await waitFor(() => expect(screen.queryByText("Pelanggan 1")).toBeNull());
     const left = screen.getAllByTestId("import-row");
     expect(left).toHaveLength(1);
     expect(left[0].props.exiting).toBeDefined();
-    fireEvent.press(beat.getByRole("button", { name: "Lihat pelanggan" }));
+    await fireEvent.press(beat.getByRole("button", { name: "Lihat pelanggan" }));
     expect(goToTab).toHaveBeenCalledWith("pelanggan");
   });
 });
@@ -326,7 +330,7 @@ describe("Pelanggan", () => {
     const runtime = runtimeWith({
       sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })),
     });
-    wrap(runtime, <CustomerList />);
+    await wrap(runtime, <CustomerList />);
     await screen.findByText("Andre Kusuma");
     await act(async () => {});
     const rows = () => screen.getAllByTestId("customer-row");
@@ -341,8 +345,8 @@ describe("Pelanggan", () => {
     expect(byName("Pak Budi").props.entering).toBeDefined();
     // Once their entrance has run (220ms), switching to Selesai and back shows the same customers again: no entrance.
     await act(async () => void (await new Promise((r) => setTimeout(r, 500))));
-    fireEvent.press(screen.getByRole("button", { name: /^Selesai/ }));
-    fireEvent.press(screen.getByRole("button", { name: /^Aktif/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /^Selesai/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /^Aktif/ }));
     for (const r of rows()) expect(r.props.entering).toBeUndefined();
   });
 
@@ -351,7 +355,7 @@ describe("Pelanggan", () => {
     const runtime = runtimeWith({
       sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })),
     });
-    wrap(runtime, <CustomerList />);
+    await wrap(runtime, <CustomerList />);
     await screen.findByText("Andre Kusuma");
     await act(async () => {});
     // Any revision bump that is not this phone's import (a marketplace purchase pushed in, a save on the web) reads the
@@ -364,17 +368,17 @@ describe("Pelanggan", () => {
 
   it("a filter change swaps the rows: no exit, no move and no entrance", async () => {
     const list = [customer("c-01", "Andre Kusuma"), customer("c-02", "Bu Ani", 2)];
-    wrap(runtimeWith({ sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })) }), <CustomerList />);
+    await wrap(runtimeWith({ sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })) }), <CustomerList />);
     await screen.findByText("Andre Kusuma");
     await act(async () => {});
-    const blocks = () => screen.UNSAFE_getAllByType(Reanimated.LayoutAnimationConfig);
+    const blocks = () => blocksOf();
     const ani = () => screen.getAllByTestId("customer-row").find((r) => within(r).queryByText("Bu Ani"))!;
     // Each row sits in a block that skips its children's entrances and exits when it is swapped.
     for (const b of blocks()) expect(b.props).toMatchObject({ skipEntering: true, skipExiting: true });
     const before = ani();
     // Bu Ani is about to end, so she is under Aktif and under Segera berakhir: the filter remounts her row in a new
     // block instead of moving it, and Andre's row leaves with the old block, without its own exit.
-    fireEvent.press(screen.getByRole("button", { name: /^Segera berakhir/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /^Segera berakhir/ }));
     expect(screen.queryByText("Andre Kusuma")).toBeNull();
     expect(ani()).not.toBe(before);
     for (const b of blocks()) expect(b.props).toMatchObject({ skipEntering: true, skipExiting: true });
@@ -382,20 +386,20 @@ describe("Pelanggan", () => {
 
   it("a pull to refresh swaps the rows too, and what it brings never enters as an insertion", async () => {
     let list = [customer("c-01", "Andre Kusuma"), customer("c-02", "Bu Ani")];
-    wrap(runtimeWith({ sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })) }), <CustomerList />);
+    await wrap(runtimeWith({ sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })) }), <CustomerList />);
     await screen.findByText("Andre Kusuma");
     await act(async () => {});
     const row = (name: string) => screen.getAllByTestId("customer-row").find((r) => within(r).queryByText(name));
     const andre = row("Andre Kusuma");
     // The pull drops Bu Ani and brings Pak Budi.
     list = [customer("c-01", "Andre Kusuma"), customer("c-03", "Pak Budi")];
-    await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
+    await act(async () => void (await only(hostsOf("RCTScrollView").filter((n) => n.props.refreshControl != null)).props.refreshControl.props.onRefresh()));
     expect(await screen.findByText("Pak Budi")).toBeTruthy();
     expect(screen.queryByText("Bu Ani")).toBeNull();
     // The block was swapped: Andre's row is a new mount (no move), Bu Ani left with the old block (no exit), and Pak
     // Budi has no entrance.
     expect(row("Andre Kusuma")).not.toBe(andre);
     expect(row("Pak Budi")!.props.entering).toBeUndefined();
-    for (const b of screen.UNSAFE_getAllByType(Reanimated.LayoutAnimationConfig)) expect(b.props).toMatchObject({ skipEntering: true, skipExiting: true });
+    for (const b of blocksOf()) expect(b.props).toMatchObject({ skipEntering: true, skipExiting: true });
   });
 });

@@ -103,13 +103,13 @@ describe("the hand-off from a tab sheet to a root-stack sheet", () => {
     expect(router.push).toHaveBeenCalledWith("/pindah-tanggal/d-3");
   });
 
-  it("the sheet unmounting alone pushes nothing: React leaves the tree before the native dismissal ends", () => {
+  it("the sheet unmounting alone pushes nothing: React leaves the tree before the native dismissal ends", async () => {
     function Sheet() {
       useEffect(() => pushAfterClose(HREF), []);
       return <Text>sheet</Text>;
     }
-    const view = render(<Sheet />);
-    view.unmount();
+    const view = await render(<Sheet />);
+    await view.unmount();
     expect(router.push).not.toHaveBeenCalled();
     stackSettled();
     expect(router.push).toHaveBeenCalledWith(HREF);
@@ -117,15 +117,15 @@ describe("the hand-off from a tab sheet to a root-stack sheet", () => {
 });
 
 describe("the tab stack that hosts the hand-off", () => {
-  it("hands its finished transitions to the waiting hand-off", () => {
-    const { result } = renderHook(() => useHandoffStack("k-1:owner"));
+  it("hands its finished transitions to the waiting hand-off", async () => {
+    const { result } = await renderHook(() => useHandoffStack("k-1:owner"));
     pushAfterClose(HREF);
     result.current.onFinishTransitioning();
     expect(router.push).toHaveBeenCalledWith(HREF);
   });
 
-  it("cancels the waiting hand-off when the tab loses focus: neither the stack's report nor the timer opens it", () => {
-    renderHook(() => useHandoffStack("k-1:owner"));
+  it("cancels the waiting hand-off when the tab loses focus: neither the stack's report nor the timer opens it", async () => {
+    await renderHook(() => useHandoffStack("k-1:owner"));
     pushAfterClose(HREF);
     mockTab.listeners.blur.forEach((fn) => fn());
     stackSettled();
@@ -133,21 +133,21 @@ describe("the tab stack that hosts the hand-off", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("cancels it on sign-out", () => {
-    const { rerender } = renderHook(({ session }: { session: string | undefined }) => useHandoffStack(session), {
+  it("cancels it on sign-out", async () => {
+    const { rerender } = await renderHook(({ session }: { session: string | undefined }) => useHandoffStack(session), {
       initialProps: { session: "k-1:owner" as string | undefined },
     });
     pushAfterClose(HREF);
-    rerender({ session: undefined });
+    await rerender({ session: undefined });
     stackSettled();
     jest.advanceTimersByTime(HANDOFF_WAIT_MS * 2);
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("cancels it when the stack goes", () => {
-    const { unmount } = renderHook(() => useHandoffStack("k-1:owner"));
+  it("cancels it when the stack goes", async () => {
+    const { unmount } = await renderHook(() => useHandoffStack("k-1:owner"));
     pushAfterClose(HREF);
-    unmount();
+    await unmount();
     jest.advanceTimersByTime(HANDOFF_WAIT_MS * 2);
     expect(router.push).not.toHaveBeenCalled();
   });

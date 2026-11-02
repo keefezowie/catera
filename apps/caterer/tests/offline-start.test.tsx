@@ -33,15 +33,15 @@ beforeEach(() => {
 });
 
 it("remembers the signed-in kitchen and reopens it without signal", async () => {
-  const first = render(
+  const first = await render(
     <MobileProvider runtime={runtimeWith(async () => ({ actor: owner, demo: true }))} linkMapper={(h) => h}>
       <Probe />
     </MobileProvider>,
   );
   expect(await screen.findByText("actor:u-owner")).toBeTruthy();
-  first.unmount();
+  await first.unmount();
   store.set("off.demo.token", "demo-token");
-  render(
+  await render(
     <MobileProvider runtime={runtimeWith(offline)} linkMapper={(h) => h}>
       <Probe />
     </MobileProvider>,
@@ -51,7 +51,7 @@ it("remembers the signed-in kitchen and reopens it without signal", async () => 
 
 it("does not reopen a kitchen after the session is gone", async () => {
   store.set("off.actor", JSON.stringify(owner));
-  render(
+  await render(
     <MobileProvider runtime={runtimeWith(offline)} linkMapper={(h) => h}>
       <Probe />
     </MobileProvider>,
@@ -60,7 +60,7 @@ it("does not reopen a kitchen after the session is gone", async () => {
 });
 
 it("leaves the sign-in screen once the kitchen is known", async () => {
-  render(
+  await render(
     <MobileProvider runtime={runtimeWith(async () => ({ actor: owner, demo: false }))} linkMapper={(h) => h}>
       <Masuk />
     </MobileProvider>,
