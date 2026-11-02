@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSegments } from "expo-router";
-import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { NativeTabs } from "expo-router/native-tabs";
 import { useMobile } from "@catera/mobile-core";
 import { tabBarColors, TabOverlayContext, useColors, useTabLabelStyle, useTabBarNativeProps } from "@catera/mobile-ui";
 import { onTabRoot, PAYMENT_BAR_ROOM, PaymentBarView, usePaymentBar } from "../../src/buy/PaymentBar";
@@ -19,6 +19,10 @@ const icons: Record<CustomerTab, { filled: Glyph; outline: Glyph }> = {
 };
 
 const order = Object.keys(icons) as CustomerTab[];
+
+/** Beranda opens first. A launch with no path (Expo Go's plain open) never reaches `+native-intent`, and without an
+ * anchor the tabs start on their first route by name, `(akun)`. */
+export const unstable_settings = { anchor: "(index)" };
 
 /**
  * The platform's own tab bar: Material 3 navigation bar on Android (label always shown, filled icon on the indicator

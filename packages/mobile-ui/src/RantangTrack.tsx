@@ -229,10 +229,9 @@ export function RantangTrack({
   }, [target, issue, reduced, position, warn]);
 
   // The marker and the line stop at the end of the rail even when the last stop is passed.
-  const marker = useAnimatedStyle(
-    () => ({ transform: [{ translateX: (Math.min(position.value, LAST) / LAST) * width - dims.marker / 2 }] }),
-    [width, dims.marker],
-  );
+  const marker = useAnimatedStyle(() => ({
+    transform: [{ translateX: (Math.min(position.value, LAST) / LAST) * width - dims.marker / 2 }],
+  }));
   // A full-width bar grown from its left edge, so the progress is a transform and not a width.
   const progress = useAnimatedStyle(() => ({ transform: [{ scaleX: Math.max(Math.min(position.value, LAST) / LAST, 0.0001) }] }));
   const dash = useAnimatedStyle(() => ({ opacity: warn.value }));
@@ -557,19 +556,16 @@ function TrackStop({
     if (keepRing) return arrived(p);
     return arrived(p) * (1 - clamp01(p - index));
   };
-  const done = useAnimatedStyle(() => ({ opacity: passed(position.value) }), [issue]);
-  const now = useAnimatedStyle(() => ({ opacity: arrived(position.value) }), [issue]);
-  const ring = useAnimatedStyle(() => ({ opacity: current(position.value) }), [issue]);
-  const disc = useAnimatedStyle(
-    () => ({ transform: [{ scale: 1 + (CURRENT_SCALE - 1) * current(position.value) }] }),
-    [issue],
-  );
+  const done = useAnimatedStyle(() => ({ opacity: passed(position.value) }));
+  const now = useAnimatedStyle(() => ({ opacity: arrived(position.value) }));
+  const ring = useAnimatedStyle(() => ({ opacity: current(position.value) }));
+  const disc = useAnimatedStyle(() => ({ transform: [{ scale: 1 + (CURRENT_SCALE - 1) * current(position.value) }] }));
   const warning = useAnimatedStyle(() => ({ opacity: warn.value }));
   // Sampai half fills as the fill reaches it, over the same timing (instant under reduced motion, like the fill).
-  const halfway = useAnimatedStyle(() => ({ opacity: arrived(position.value) }), [issue]);
+  const halfway = useAnimatedStyle(() => ({ opacity: arrived(position.value) }));
 
   // A stop ahead shows its picture faded; once the fill reaches it, in full.
-  const reached = useAnimatedStyle(() => ({ opacity: ART_AHEAD + (1 - ART_AHEAD) * arrived(position.value) }), [issue]);
+  const reached = useAnimatedStyle(() => ({ opacity: ART_AHEAD + (1 - ART_AHEAD) * arrived(position.value) }));
 
   return (
     <View

@@ -163,7 +163,7 @@ describe("Plan detail states", () => {
     await renderPlan(runtimeWith(async () => planState(), usage));
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
     await fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
-    expect(router.replace).toHaveBeenCalledWith("/");
+    expect(router.replace).toHaveBeenCalledWith("/(tabs)/(index)");
     expect(usageNames(usage)).not.toContain("plan_sheet_opened");
   });
 
@@ -460,7 +460,7 @@ describe("Plan detail states", () => {
     expect(screen.queryByTestId("plan-hero")).toBeNull();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
-    expect(router.replace).toHaveBeenCalledWith("/");
+    expect(router.replace).toHaveBeenCalledWith("/(tabs)/(index)");
     expect(usageNames(usage)).not.toContain("plan_sheet_opened");
   });
 

@@ -9,12 +9,12 @@ export type Tab = "index" | "jadwal" | "jelajah" | "akun";
 const TABS: readonly Tab[] = ["index", "jadwal", "jelajah", "akun"];
 
 /**
- * Where a tab's root lives when the tabs are not mounted (a cold Bayar, claim or story). "/" lands on Beranda, the first
- * tab; the other roots name their group, because a bare "/jadwal" opened from Beranda resolves inside Beranda's own
- * stack (the router prefers the current group).
+ * Where a tab's root lives when the tabs are not mounted (a cold Bayar, claim or story). Every root names its group: a
+ * bare "/jadwal" opened from Beranda resolves inside Beranda's own stack (the router prefers the current group), and
+ * with no current group router 58 resolves a bare "/" to whichever group copy it ranks first, which on a device is Akun.
  */
 const ROOT_HREF: Record<Tab, string> = {
-  index: "/",
+  index: "/(tabs)/(index)",
   jadwal: "/(tabs)/(jadwal)/jadwal",
   jelajah: "/(tabs)/(jelajah)/jelajah",
   akun: "/(tabs)/(akun)/akun",
@@ -101,11 +101,38 @@ export function tabOfSegment(segment: string): Tab {
   return (TABS as readonly string[]).includes(name) ? (name as Tab) : "index";
 }
 
+/** First path segments of the pages in the tabs' shared folder (`app/(tabs)/(index,jadwal,jelajah,akun)`). */
+const TAB_PAGES = new Set([
+  "subscriptions",
+  "pilih-menu",
+  "paket",
+  "package",
+  "bantuan",
+  "area",
+  "alamat",
+  "addresses",
+  "pembayaran",
+  "disimpan",
+  "paket-saya",
+  "perlu-diurus",
+  "saved",
+  "notifications",
+  "pengaturan",
+  "data-akun",
+]);
+
+/**
+ * A tab page opened with no tabs mounted, inside Beranda's group: every tab's stack holds a copy, and with no current
+ * group the router opens whichever copy it ranks first (Akun on a device). Any other path as is.
+ */
+const inBeranda = (path: string) =>
+  TAB_PAGES.has(pathname(path).split("/")[1] ?? "") ? `${ROOT_HREF.index}${path}` : path;
+
 /** Where a sheet's parent opens from outside the tabs: a tab root by its group (`ROOT_HREF`), any other page as is. */
 const parentHref = (parent: string) => {
   const tab = tabOfPath(parent);
   // A day sheet has no tab of its own to open as a parent: Beranda is opened and the sheets open over it.
-  return tab ? ROOT_HREF[tab] : isDaySheet(parent) ? ROOT_HREF.index : parent;
+  return tab ? ROOT_HREF[tab] : isDaySheet(parent) ? ROOT_HREF.index : inBeranda(parent);
 };
 
 /** A path without its query and hash. */
@@ -387,14 +414,14 @@ export function systemPath(link: string, initial = false): string {
   const path = (hosted.test(url) ? url.replace(hosted, "").replace(/^\/--(?=[/?#]|$)/, "") : url.replace(/^[a-z][\w+.-]*:\/\//i, "/"))
     .replace(/^\/*/, "/");
   const tab = tabOfPath(path) ?? LEGACY_ROOTS[pathname(path).slice(1).replace(/\/+$/, "")] ?? null;
-  // "/" already opens Beranda: it is the first tab.
-  if (tab) return tab !== "index" ? ROOT_HREF[tab] : url;
+  if (tab) return ROOT_HREF[tab];
   const parent = initial ? coldParent(path) : null;
   if (parent) {
     pending = path;
     return parentHref(parent);
   }
-  return url;
+  // A warm link to a tab page opens in the tab in front; a cold one in Beranda.
+  return initial ? inBeranda(path) : url;
 }
 
 /**
@@ -438,7 +465,7 @@ export function leaveFor(path: string) {
   // With no tabs under it, a sheet route opens its parent page in Beranda and then itself, once the tabs are up.
   const parent = coldParent(path);
   if (parent) pending = path;
-  router.replace((parent ? parentHref(parent) : path) as never, { withAnchor: true });
+  router.replace((parent ? parentHref(parent) : inBeranda(path)) as never, { withAnchor: true });
 }
 
 /**

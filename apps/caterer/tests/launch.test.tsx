@@ -78,7 +78,7 @@ jest.mock("expo-file-system", () => {
 
 /** What the native tab bar was handed: each trigger's route and whether it is hidden. */
 const mockTriggers: { name: string; hidden?: boolean }[] = [];
-jest.mock("expo-router/unstable-native-tabs", () => {
+jest.mock("expo-router/native-tabs", () => {
   const React = require("react");
   const Trigger = Object.assign(() => null, { Icon: () => null, Label: () => null, Badge: () => null, VectorIcon: () => null });
   const NativeTabs = Object.assign(

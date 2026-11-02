@@ -167,7 +167,8 @@ function answerQuestion<I, R>(registry: QuestionRegistry<I, R>, id: string | und
  */
 export function leaveStray(navigation: { canGoBack(): boolean; goBack(): void }) {
   if (navigation.canGoBack()) navigation.goBack();
-  else router.replace("/" as never);
+  // Named by group: with no tabs mounted, router 58 resolves a bare "/" to whichever group copy it ranks first.
+  else router.replace("/(tabs)/(index)" as never);
 }
 
 /**
@@ -326,7 +327,10 @@ export function canHoldRemoval(
  * which the native stack holds while `dirty` (`preventNativeDismiss`). Nothing typed: the screen closes at once.
  * Android's bottom sheet cannot be held: a swipe has already closed it natively when the stack hears of it, and holding
  * the route then would leave it on no screen, so that close goes through. A screen that must not lose text keeps a
- * draft for that case (Ada masalah does). Outside a navigator (component tests) it does nothing.
+ * draft for that case (Ada masalah does). Router 58 reports that let-through swipe in development ("removed natively but
+ * didn't get removed from JS state"): the native pop is synchronous, `repeat` replays it on the next navigation update,
+ * and Android's bottom sheet cannot hold the swipe (react-native-screens keeps it draggable and hideable). Outside a
+ * navigator (component tests) it does nothing.
  */
 export function useUnsavedGuard(dirty: boolean, noun: string, options: UnsavedGuardOptions = {}): void {
   const navigation = use(NavigationContext);

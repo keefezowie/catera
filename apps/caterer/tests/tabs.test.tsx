@@ -23,7 +23,7 @@ jest.mock("expo-router", () => ({
   },
 }));
 // The native bar cannot render under Jest, so a stand-in records its props and its triggers instead.
-jest.mock("expo-router/unstable-native-tabs", () => {
+jest.mock("expo-router/native-tabs", () => {
   const React = require("react");
   const Trigger = Object.assign(() => null, {
     Icon: () => null,
@@ -56,7 +56,7 @@ import TabsLayout from "../app/(tabs)/_layout";
 
 /** A trigger as the native bar reads it: its label text, and the vector glyph it draws unselected and selected. */
 function readTrigger({ name, hidden, children }: MockTrigger) {
-  const { NativeTabs } = require("expo-router/unstable-native-tabs");
+  const { NativeTabs } = require("expo-router/native-tabs");
   const parts = require("react").Children.toArray(children) as import("react").ReactElement<any>[];
   const icon = parts.find((p) => p.type === NativeTabs.Trigger.Icon);
   const label = parts.find((p) => p.type === NativeTabs.Trigger.Label);

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Redirect, useNavigationContainerRef } from "expo-router";
-import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { NativeTabs } from "expo-router/native-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
 import { tabBarColors, useColors, useTabLabelStyle, useTabBarNativeProps } from "@catera/mobile-ui";

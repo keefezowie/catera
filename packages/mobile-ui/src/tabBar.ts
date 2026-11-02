@@ -1,5 +1,5 @@
 import { useWindowDimensions, type ColorValue } from "react-native";
-import type { NativeTabsHostNativeProps, NativeTabsLabelStyle } from "expo-router/unstable-native-tabs";
+import type { NativeTabsHostNativeProps, NativeTabsLabelStyle } from "expo-router/native-tabs";
 import type { NativePalette } from "@catera/design-tokens";
 import { barTone } from "./theme";
 import { useSheetOnTop } from "./sheets";

@@ -27,7 +27,7 @@ const mockScreenOptions: Record<string, any> = {};
 /** The screen options a stack hands every pushed screen. */
 const mockStackOptions: { value?: any } = {};
 // The native bar cannot render under Jest, so a stand-in records its props instead.
-jest.mock("expo-router/unstable-native-tabs", () => {
+jest.mock("expo-router/native-tabs", () => {
   const Trigger = Object.assign(() => null, { Icon: () => null, Label: () => null, Badge: () => null, VectorIcon: () => null });
   const NativeTabs = Object.assign(
     ({ children: _children, ...props }: { children?: unknown }) => {

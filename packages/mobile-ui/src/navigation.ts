@@ -26,10 +26,14 @@ export function useStackHeaderHeight(): number | undefined {
   return use(HeaderHeightContext);
 }
 
-/** Whether this component's screen is the focused one; outside a navigator it counts as focused. */
+/**
+ * Whether this component's screen is the focused one; outside a navigator it counts as focused. Inside one it starts
+ * unfocused and the effect reads the real value once mounted: router 58 can report a stale one during render, and a
+ * screen mounted behind another must not start a loop for that first frame.
+ */
 export function useScreenFocused(): boolean {
   const navigation = useScreenNavigation();
-  const [focused, setFocused] = useState(() => navigation?.isFocused() ?? true);
+  const [focused, setFocused] = useState(!navigation);
   useEffect(() => {
     if (!navigation) return;
     setFocused(navigation.isFocused());

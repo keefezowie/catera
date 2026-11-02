@@ -64,7 +64,6 @@ function Collapsible({
       const down = state === KeyboardState.CLOSING || state === KeyboardState.CLOSED;
       if (up || down) shown.value = withTiming(up ? 0 : 1, { duration: COLLAPSE_MS, easing: ease });
     },
-    [keyboard, reduced],
   );
   const style = useAnimatedStyle(() => (full === null ? {} : { height: full * shown.value, opacity: shown.value, overflow: "hidden" }));
   // Reduced motion draws the end state from the props themselves: no timing, nothing to ease.

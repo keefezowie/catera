@@ -356,7 +356,7 @@ describe("each tab keeps its own stack", () => {
   it("a warm OS link to masalah passes through: it opens over the screen in front", async () => {
     expect(systemPath("exp://127.0.0.1:8084/--/masalah/d1?meal=lunch")).toBe("exp://127.0.0.1:8084/--/masalah/d1?meal=lunch");
     // A day opened cold has no tab under it: Beranda opens, and the day opens over it once the tabs are up.
-    expect(systemPath("catera://hari/d1", true)).toBe("/");
+    expect(systemPath("catera://hari/d1", true)).toBe("/(tabs)/(index)");
     expect(systemPath("catera://hari/d1")).toBe("catera://hari/d1");
   });
 
@@ -889,8 +889,24 @@ describe("paths", () => {
     for (const url of ["/discover?x=1", "/discover#top", "catera://discover?utm=push", "exp://127.0.0.1:8084/--/discover#packages"])
       expect(systemPath(url)).toBe("/(tabs)/(jelajah)/jelajah");
     expect(systemPath("/jadwal?d=1")).toBe("/(tabs)/(jadwal)/jadwal");
-    for (const url of ["exp://127.0.0.1:8084", "exp://127.0.0.1:8084/--/subscriptions/s1", "catera://hari/d1", "/", "/?x=1", "/discover/x"])
+    // Beranda by its group: with no tabs mounted, router 58 resolves a bare "/" to whichever group copy it ranks first.
+    for (const url of ["exp://127.0.0.1:8084", "exp://127.0.0.1:8084/--/", "catera://", "/", "/?x=1"])
+      expect(systemPath(url)).toBe("/(tabs)/(index)");
+    for (const url of ["exp://127.0.0.1:8084/--/subscriptions/s1", "catera://hari/d1", "/discover/x"])
       expect(systemPath(url)).toBe(url);
+  });
+
+  it("opens a cold link to a tab page inside Beranda's group, and a warm one where it is", async () => {
+    expect(systemPath("exp://127.0.0.1:8084/--/subscriptions/s1", true)).toBe("/(tabs)/(index)/subscriptions/s1");
+    expect(systemPath("catera://paket/p1?utm=wa", true)).toBe("/(tabs)/(index)/paket/p1?utm=wa");
+    expect(systemPath("/login", true)).toBe("/login");
+    expect(systemPath("/paket/p1")).toBe("/paket/p1");
+    const app = await mount(systemPath("/paket/p1", true));
+    expect(tab()).toBe("(index)");
+    expect(stack("(index)")).toEqual(["index", "paket/[id]"]);
+    await app.unmount();
+    // A sheet's parent page too (the sheet itself waits for the tabs: the Pengaturan test above opens it).
+    expect(systemPath("/pengaturan/bahasa", true)).toBe("/(tabs)/(index)/pengaturan");
   });
 
   it("drops the title from every OS link and keeps the rest of it", async () => {

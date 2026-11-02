@@ -326,7 +326,7 @@ describe("a Google code that arrives as a deep link", () => {
     googleCode();
     actorRpc({ id: "g-user", role: "customer", name: "Sari Wulandari", phone: "+6281234567890" });
     await renderCallback();
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/(tabs)/(index)"));
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith("google-code");
     expect(supabase.rpc).toHaveBeenCalledWith("catera_v1_command", expect.objectContaining({ action: "profile.ensure", payload: { name: "Sari Wulandari" } }));
     expect(screen.queryByText("Tautannya sudah tidak berlaku")).toBeNull();
@@ -350,7 +350,7 @@ describe("a Google code that arrives as a deep link", () => {
     }) as never);
     await renderCallback();
     await fireEvent.press(await screen.findByText("Coba lagi"));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/(tabs)/(index)"));
     expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(1);
   });
 });

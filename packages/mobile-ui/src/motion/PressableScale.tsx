@@ -38,9 +38,8 @@ export function PressableScale({
   const resting = StyleSheet.flatten(style)?.opacity;
   const base = typeof resting === "number" ? resting : 1;
 
-  const animated = useAnimatedStyle(
-    () => (reduced ? { opacity: base * opacity.value } : { transform: [{ scale: scale.value }] }),
-    [reduced, base],
+  const animated = useAnimatedStyle(() =>
+    reduced ? { opacity: base * opacity.value } : { transform: [{ scale: scale.value }] },
   );
 
   const pressIn = (e: GestureResponderEvent) => {

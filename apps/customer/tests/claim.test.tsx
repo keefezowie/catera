@@ -135,7 +135,7 @@ describe("signed in", () => {
     expect(screen.getByText("Masuk sebagai Andre Contoh")).toBeTruthy();
     await fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3450 0001");
     await fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/(tabs)/(index)"));
     expect(command).toHaveBeenCalledWith("customer.claim", { token: TOKEN, phone: "+6281234500001" }, expect.any(String));
   });
 
@@ -215,7 +215,7 @@ describe("signed in", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Sambungkan" }));
     expect(await screen.findByText("Dapur Contoh perlu mengecek langganan ini dulu. Pengantaranmu tetap jalan.")).toBeTruthy();
     await fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
-    expect(router.replace).toHaveBeenCalledWith("/");
+    expect(router.replace).toHaveBeenCalledWith("/(tabs)/(index)");
   });
 });
 
@@ -242,7 +242,7 @@ it("an unusable link offers a way to Beranda without going there by itself", asy
   const home = await screen.findByRole("button", { name: "Ke Beranda" });
   expect(router.replace).not.toHaveBeenCalled();
   await fireEvent.press(home);
-  expect(router.replace).toHaveBeenCalledWith("/");
+  expect(router.replace).toHaveBeenCalledWith("/(tabs)/(index)");
 });
 
 it("a preview that cannot load offers Coba lagi and Ke Beranda", async () => {
@@ -263,7 +263,7 @@ it("a preview that cannot load offers Coba lagi and Ke Beranda", async () => {
   const message = await screen.findByText("Belum bisa memuat. Periksa koneksi lalu coba lagi.");
   expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
   await fireEvent.press(await screen.findByRole("button", { name: "Ke Beranda" }));
-  expect(router.replace).toHaveBeenCalledWith("/");
+  expect(router.replace).toHaveBeenCalledWith("/(tabs)/(index)");
   await fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
   expect(await screen.findByText("Langgananmu sudah menunggu")).toBeTruthy();
 });

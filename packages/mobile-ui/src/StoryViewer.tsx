@@ -101,7 +101,7 @@ export function StoryViewer({
         { scale: (START_SCALE + (1 - START_SCALE) * enter.value) * (1 - DRAG_SHRINK * pulled) },
       ],
     };
-  }, [height]);
+  });
 
   const forward = () => {
     if (index < count - 1) onIndexChange(index + 1);

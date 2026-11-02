@@ -508,7 +508,7 @@ describe("Masuk", () => {
     await fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     await fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
     await fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/(tabs)/(index)"));
     expect(runtime.signInPassword).toHaveBeenCalledWith(
       "rani@example.test",
       "synthetic-password",
