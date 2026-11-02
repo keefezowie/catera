@@ -55,5 +55,5 @@ export function appRoutes(screen: (file: string) => () => unknown) {
 
 /** The mounted navigation container, for dispatching what the native tab bar would (a tab tap is a `JUMP_TO`). */
 export function navigationContainer() {
-  return routerStore().store.navigationRef.current;
+  return require("expo-router/build/global-state/navigationRef").navigationRef.current;
 }

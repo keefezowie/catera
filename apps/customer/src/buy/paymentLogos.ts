@@ -1,11 +1,10 @@
-import type { ImageSourcePropType } from "react-native";
 
 /**
  * Official marks by catalogue logo key (`PaymentMethodInfo.logo`), fetched 2026-10-27; sources, licence notes and
  * alpha are in `packages/brand/assets/payment/manifest.json`. Metro needs each `require` spelled out. A key with no
  * mark shows its group glyph.
  */
-const LOGOS: Record<string, ImageSourcePropType> = {
+const LOGOS: Record<string, number> = {
   akulaku: require("../../../../packages/brand/assets/payment/akulaku.png"),
   alfamart: require("../../../../packages/brand/assets/payment/alfamart.png"),
   bca: require("../../../../packages/brand/assets/payment/bca.png"),
@@ -33,6 +32,6 @@ const LOGOS: Record<string, ImageSourcePropType> = {
   visa: require("../../../../packages/brand/assets/payment/visa.png"),
 };
 
-export function paymentLogo(key: string): ImageSourcePropType | undefined {
+export function paymentLogo(key: string): number | undefined {
   return LOGOS[key];
 }

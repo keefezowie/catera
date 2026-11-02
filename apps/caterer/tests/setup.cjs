@@ -1,4 +1,7 @@
 jest.mock("react-native-worklets", () => require("react-native-worklets/src/mock"));
+// Jest runs Reanimated's JS module, whose CSS event hook throws when 4.7's native initializer registers one: load the
+// web initializer the JS module belongs with.
+jest.mock("react-native-reanimated/src/initializers", () => jest.requireActual("react-native-reanimated/src/initializers.ts"));
 // Reanimated's jest mock omits useReducedMotion; tests flip it with jest.spyOn. It also leaves out
 // LayoutAnimationConfig: the stand-in renders its children and keeps its props, so a test reads `skipEntering` and
 // `skipExiting`.

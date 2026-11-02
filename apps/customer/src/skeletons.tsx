@@ -1,5 +1,5 @@
 import type { ReactNode, Ref } from "react";
-import { useWindowDimensions, View, type DimensionValue, type ViewStyle } from "react-native";
+import { useWindowDimensions, View, type DimensionValue, type ViewStyle, type ViewInstance } from "react-native";
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
@@ -477,7 +477,7 @@ function Rows({ count }: { count: number }) {
  * `header` (the day the link carried, or "Hari") it is a header that takes `focus`, as the loaded day's line does
  * once the day lands. The progress bar names the wait for the photo's block; the blocks after it only pulse with it.
  */
-export function DaySkeleton({ header, focus }: { header?: string; focus?: Ref<View> } = {}) {
+export function DaySkeleton({ header, focus }: { header?: string; focus?: Ref<ViewInstance> } = {}) {
   const { t } = useMobile();
   const { width } = useWindowDimensions();
   const photo = Math.round((width - 2 * sheetSidePadding()) / DAY_PHOTO_RATIO);

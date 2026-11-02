@@ -1,9 +1,9 @@
-import { use, useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { use, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { router } from "expo-router";
 import {
   NavigationContext,
   NavigationRouteContext,
-  PreventRemoveContext,
+  usePreventRemove,
 } from "expo-router/react-navigation";
 
 /**
@@ -204,7 +204,7 @@ export function useQuestionRoute<I, R>(
   const stray = !input;
   const result = useRef(fallback);
   const closing = useRef(false);
-  const removing = useRef(false);
+  const routeKey = route?.key;
 
   useEffect(() => {
     if (!navigation) return;
@@ -212,18 +212,13 @@ export function useQuestionRoute<I, R>(
       leaveStray(navigation);
       return;
     }
-    const onRemove = navigation.addListener("beforeRemove", () => {
-      removing.current = true;
+    // The route's own close has ended (UIKit's swipe, reported while the route is still mounted): answer now. A closing
+    // transition also ends when another screen covers this one, so it counts only once the route has left the stack.
+    return navigation.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
+      const removed = !navigation.getState()?.routes.some((r) => r.key === routeKey);
+      if (e.data?.closing && (removed || closing.current)) answerQuestion(registry, id, result.current);
     });
-    // The route's own close has ended (UIKit's swipe, reported while the route is still mounted): answer now.
-    const onClosed = navigation.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
-      if (e.data?.closing && (removing.current || closing.current)) answerQuestion(registry, id, result.current);
-    });
-    return () => {
-      onRemove();
-      onClosed();
-    };
-  }, [navigation, registry, id, stray]);
+  }, [navigation, registry, id, stray, routeKey]);
 
   // The route has left the tree (its own close from JS, a back, or its navigator unmounting): answer what is left,
   // once the iOS sheet has slid away. A no-op once answered.
@@ -331,50 +326,43 @@ export function canHoldRemoval(
 export function useUnsavedGuard(dirty: boolean, noun: string, options: UnsavedGuardOptions = {}): void {
   const navigation = use(NavigationContext);
   const route = use(NavigationRouteContext);
-  const prevent = use(PreventRemoveContext);
   const confirm = useConfirm();
-  const id = useId();
-  const latest = useRef({ dirty, noun, options });
-  latest.current = { dirty, noun, options };
+  const latest = useRef({ noun, options });
+  latest.current = { noun, options };
   const asking = useRef(false);
-  const leaving = useRef(false);
+  // True while a held removal is replayed: `repeat` drops the hold, and the hook's flag has to follow it.
+  const [released, setReleased] = useState(false);
   const routeKey = route?.key;
-  const setPreventRemove = prevent?.setPreventRemove;
 
-  // Tells the native stack to hold the iOS swipe while there is text to lose.
-  useEffect(() => {
-    if (!setPreventRemove || !routeKey) return;
-    setPreventRemove(id, routeKey, dirty);
-    return () => setPreventRemove(id, routeKey, false);
-  }, [setPreventRemove, id, routeKey, dirty]);
-
-  useEffect(() => {
-    if (!navigation || !routeKey) return;
-    return navigation.addListener("beforeRemove", (e) => {
-      const { dirty: unsaved, noun: what, options: opts } = latest.current;
-      if (!unsaved || leaving.current) return;
-      if (!canHoldRemoval(e.data.action, routeKey, opts.os)) return;
-      // One question at a time, and never a trap: a removal that lands while the question is still open goes through
-      // instead of waiting behind an answer that may never come.
-      if (asking.current) return;
-      e.preventDefault();
-      asking.current = true;
-      void confirm(unsavedCopy(what, opts)).then((discard) => {
-        asking.current = false;
-        if (!discard) return;
-        opts.onDiscard?.();
-        // The screen may already be gone (removed while the question was open): then there is nothing left to close.
-        if (!navigation.getState()?.routes.some((r) => r.key === routeKey)) return;
-        leaving.current = true;
-        try {
-          navigation.dispatch(e.data.action);
-        } catch {
-          // The navigator refused the removal: nothing to report, the screen stays and the next close asks again.
-        } finally {
-          // Removed, or held by something else: either way the next close asks again.
-          leaving.current = false;
-        }
-      });
+  // `usePreventRemove` throws outside a navigator; a screen is inside one for its whole life, or never.
+  const preventRemove = navigation && routeKey ? usePreventRemove : noPrevention;
+  // Also tells the native stack to hold the iOS swipe while there is text to lose.
+  preventRemove(dirty && !released, ({ data, repeat }) => {
+    const { noun: what, options: opts } = latest.current;
+    const letGo = () => {
+      setReleased(true);
+      try {
+        repeat();
+      } catch {
+        // The navigator refused the removal: nothing to report, the screen stays.
+      }
+      // Removed, or held by something else: either way the next close asks again.
+      setTimeout(() => setReleased(false), 0);
+    };
+    if (!routeKey || !canHoldRemoval(data.action as { type: string; source?: string }, routeKey, opts.os)) return letGo();
+    // One question at a time, and never a trap: a removal that lands while the question is still open goes through
+    // instead of waiting behind an answer that may never come.
+    if (asking.current) return letGo();
+    asking.current = true;
+    void confirm(unsavedCopy(what, opts)).then((discard) => {
+      asking.current = false;
+      if (!discard) return;
+      opts.onDiscard?.();
+      // The screen may already be gone (removed while the question was open): then there is nothing left to close.
+      if (!navigation?.getState()?.routes.some((r) => r.key === routeKey)) return;
+      letGo();
     });
-  }, [navigation, routeKey, confirm]);
+  });
 }
+
+const noPrevention: typeof usePreventRemove = () => () => {};

@@ -339,7 +339,7 @@ function Browse({
             </>
           }
           ListEmptyComponent={
-            waiting ? null : (
+            waiting ? undefined : (
               <View testID="jelajah-empty" style={frame}>
                 <Animated.View entering={entering} style={{ gap: BODY_GAP }}>
                   {catalog.error && !catalog.data ? (

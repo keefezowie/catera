@@ -14,7 +14,7 @@ export function PressableRow({
   return (
     <Pressable
       {...rest}
-      android_ripple={null}
+      android_ripple={undefined}
       style={({ pressed }) => [style, pressed && { opacity: PRESSED_OPACITY }]}
     >
       {children}

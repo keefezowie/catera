@@ -13,7 +13,7 @@ export async function saveCachedCustomer(actorId: string, value: CachedCustomer)
   try {
     const file = fileFor(actorId);
     if (!file.exists) file.create();
-    file.write(JSON.stringify(value));
+    await file.write(JSON.stringify(value));
   } catch {
     // A full disk must never break the live screen.
   }

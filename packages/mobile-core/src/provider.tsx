@@ -281,7 +281,7 @@ export function MobileProvider({
     });
     // The one launch read of the session.
     void refresh();
-    let previous: AppStateStatus | null = AppState.currentState;
+    let previous: AppStateStatus | null = (AppState.currentState as AppStateStatus | undefined) ?? null;
     const appState = AppState.addEventListener("change", (state) => {
       const was = previous;
       previous = state;

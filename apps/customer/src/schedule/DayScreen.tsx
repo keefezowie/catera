@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, type ReactNode, type RefObject } from "react";
-import { AccessibilityInfo, type Text as RNText, View } from "react-native";
+import { AccessibilityInfo, type Text as RNText, View, type TextInstance, type ViewInstance } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { closeSheetFor, pushSheet } from "../nav";
 import {
@@ -80,8 +80,8 @@ export function DayScreen() {
  * so the day swaps in as fresh content of the same sheet and the focus follows it (`Sheet` re-sends it on a swap).
  */
 const loadingBody = (carried: string | undefined, t: (id: string, en: string) => string) =>
-  function Loading(focus: RefObject<RNText | null>) {
-    return <DaySkeleton header={carried ?? t("Hari", "Day")} focus={focus as unknown as RefObject<View>} />;
+  function Loading(focus: RefObject<TextInstance | null>) {
+    return <DaySkeleton header={carried ?? t("Hari", "Day")} focus={focus as unknown as RefObject<ViewInstance>} />;
   };
 
 /**
@@ -97,7 +97,7 @@ function Sheet({
   children,
 }: {
   swapKey: string;
-  children: ReactNode | ((focus: RefObject<RNText | null>) => ReactNode);
+  children: ReactNode | ((focus: RefObject<TextInstance | null>) => ReactNode);
 }) {
   const focus = useSheetTitleFocus();
   useToastAnchor({});
@@ -213,7 +213,7 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
                 <View style={{ gap: DAY_MEAL_GAP }}>
                   {/* The first block's line names the sheet to a screen reader: the full day, then the meal. */}
                   <View
-                    ref={first ? (focus as unknown as RefObject<View>) : undefined}
+                    ref={first ? (focus as unknown as RefObject<ViewInstance>) : undefined}
                     accessible={first}
                     accessibilityRole={first ? "header" : undefined}
                     accessibilityLabel={first ? [spoken, mealName, d.offer.caterer].filter(Boolean).join(", ") : undefined}

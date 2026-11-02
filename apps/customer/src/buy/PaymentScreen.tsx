@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, Text as RNText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { useNavigation } from "expo-router/react-navigation";
+import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { VA_CHANNELS, currency, directChannelKind, errorLabel, paidSummary, paymentMethodInfo, type Checkout, type CustomerState, type DirectPaymentMethod, type VaBank } from "@catera/domain";
@@ -117,14 +117,11 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   useEffect(() => {
     navigation.setOptions(paid ? { gestureEnabled: false, headerBackVisible: false } : { gestureEnabled: true });
   }, [navigation, paid]);
-  useEffect(() => {
-    if (!paid) return;
-    return navigation.addListener("beforeRemove", (e) => {
-      if (!isUserBack(e.data.action as { type: string; source?: string })) return;
-      e.preventDefault();
-      home();
-    });
-  }, [navigation, paid]);
+  // Every removal is held while paid; the app's own exits are let through by replaying them.
+  usePreventRemove(paid, ({ data, repeat }) => {
+    if (isUserBack(data.action as { type: string; source?: string })) home();
+    else repeat();
+  });
 
   // While paid, the hardware back goes home too; before that it keeps its normal meaning.
   useFocusEffect(

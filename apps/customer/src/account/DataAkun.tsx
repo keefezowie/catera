@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, View, type TextInput } from "react-native";
+import { AccessibilityInfo, View, type TextInput, type TextInputInstance } from "react-native";
 import { router } from "expo-router";
 import {
   changePassword,
@@ -23,7 +23,7 @@ import { useAction } from "./useAction";
  * TalkBack and VoiceOver would stay on the row that was pressed.
  */
 function useFirstField() {
-  const ref = useRef<TextInput>(null);
+  const ref = useRef<TextInputInstance>(null);
   useEffect(() => {
     const id = setTimeout(() => {
       if (ref.current) AccessibilityInfo.sendAccessibilityEvent(ref.current, "focus");

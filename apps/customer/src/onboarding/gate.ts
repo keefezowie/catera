@@ -46,7 +46,7 @@ export function isLinkLaunch(url: string | null): boolean {
 }
 
 export async function openedFromLink(): Promise<boolean> {
-  return isLinkLaunch(await Linking.getInitialURL().catch(() => null));
+  return isLinkLaunch((await Linking.getInitialURL().catch(() => null)) ?? null);
 }
 
 /**

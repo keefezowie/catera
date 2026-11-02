@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
-import { AccessibilityInfo, type TextInput } from "react-native";
+import { AccessibilityInfo, type TextInput, type TextInputInstance } from "react-native";
 import { useHaptic } from "../motion/useHaptic";
 import { useT } from "../useT";
 
@@ -13,7 +13,7 @@ export function useFieldCheck<K extends string>(fields: Fields<K>) {
   const t = useT();
   const haptic = useHaptic();
   const [touched, setTouched] = useState<Partial<Record<K, boolean>>>({});
-  const refs = useRef<Partial<Record<K, RefObject<TextInput | null>>>>({});
+  const refs = useRef<Partial<Record<K, RefObject<TextInputInstance | null>>>>({});
   const keys = Object.keys(fields) as K[];
   const messageOf = (k: K) => fields[k].check(fields[k].value);
   const touch = (ks: K[]) => setTouched((prev) => ({ ...prev, ...Object.fromEntries(ks.map((k) => [k, true])) }));
@@ -28,7 +28,7 @@ export function useFieldCheck<K extends string>(fields: Fields<K>) {
       onBlur: () => {
         if (fields[k].value) touch([k]);
       },
-      inputRef: refs.current[k] as RefObject<TextInput>,
+      inputRef: refs.current[k] as RefObject<TextInputInstance>,
     };
   };
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
-import { ScrollView, View, type StyleProp, type ViewStyle } from "react-native";
+import { ScrollView, View, type StyleProp, type ViewStyle, type ScrollViewInstance } from "react-native";
 import { Button, Field, Screen, Text } from "./components";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Animated, {
@@ -166,7 +166,7 @@ export function AuthScreen({ children, revealKey, footer }: { children: ReactNod
   const insets = useSafeAreaInsets();
   const scaled = useLayoutScale() === "v2";
   const reduced = useReduced();
-  const ref = useRef<ScrollView>(null);
+  const ref = useRef<ScrollViewInstance>(null);
   const android = process.env.EXPO_OS !== "ios";
   useEffect(() => {
     if (!android || !revealKey) return;

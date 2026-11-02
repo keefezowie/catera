@@ -1,5 +1,5 @@
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Appearance, StyleSheet, useColorScheme } from "react-native";
+import { Appearance, StyleSheet, useColorScheme, type ImageStyle, type TextStyle, type ViewStyle } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { nativeThemes, type NativePalette, type ThemeName } from "@catera/design-tokens";
 
@@ -126,7 +126,7 @@ export function useThemePreference(): {
  * The result is a hook: bind it to a `use*` name at module level (`const useStyles = themedStyles(...)`) and call it
  * only while rendering, never in a callback, a loop or after an early return.
  */
-export function themedStyles<T extends StyleSheet.NamedStyles<T>>(factory: (c: NativePalette) => T): () => T {
+export function themedStyles<T extends { [K in keyof T]: ViewStyle | TextStyle | ImageStyle }>(factory: (c: NativePalette) => T): () => T {
   const cache: { light?: T; dark?: T } = {};
   return () => {
     const { scheme } = use(ThemeContext);

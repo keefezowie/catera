@@ -1,5 +1,5 @@
 import { Children, createContext, isValidElement, use, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { AccessibilityInfo, AppState, Keyboard, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, AppState, Keyboard, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View, type TextInstance, type ViewInstance, type ScrollViewInstance } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
@@ -26,7 +26,7 @@ const CONTEXT_LINE = 20;
  * accessibility tree and cannot catch the focus. Returns the ref for the title text.
  */
 export function useSheetTitleFocus() {
-  const ref = useRef<RNText>(null);
+  const ref = useRef<TextInstance>(null);
   const navigation = useScreenNavigation();
   useSheetPresence();
   useEffect(() => {
@@ -190,7 +190,7 @@ function useSheetHiddenBelow(
     let stuck: ReturnType<typeof setTimeout> | undefined;
     const measure = (fromDetent: boolean) => {
       const view = ref.current;
-      const host = view as unknown as Partial<Pick<View, "measureInWindow">> | null;
+      const host = view as unknown as Partial<Pick<ViewInstance, "measureInWindow">> | null;
       if (!host?.measureInWindow) return;
       host.measureInWindow((_x: number, top: number, _w: number, height: number) => {
         if (!Number.isFinite(top) || !Number.isFinite(height)) return;
@@ -362,7 +362,7 @@ export function SheetBody({
   const ios = os === "ios";
   const { up, height: keyboard } = useKeyboard();
   const tabBar = useTabBarOverSheet(os);
-  const frame = useRef<View>(null);
+  const frame = useRef<ViewInstance>(null);
   const [slot, setSlot] = useState<ReactNode>(null);
   const pinned = footer ?? slot;
   const hasFooter = pinned != null && pinned !== false;
@@ -381,7 +381,7 @@ export function SheetBody({
   const keyboardLift = os === "android" && keyboard > 0 ? Math.max(0, keyboard + insets.bottom - tabBar) : 0;
   // The frame holds the scroll view and the footer, so both are lifted by what is measured.
   const [footerHeight, setFooterHeight] = useState(SHEET_FOOTER_GUESS);
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ScrollViewInstance>(null);
   // The footer's content changed (an error came or went) and no keyboard change has come since: only then is an inline
   // footer worth a scroll. A keyboard that flips the footer inline lays it out too, and the focused field must stay.
   const contentChanged = useRef(false);

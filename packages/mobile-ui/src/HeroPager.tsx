@@ -7,6 +7,7 @@ import {
   type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
+  type ScrollViewInstance,
 } from "react-native";
 import { Text } from "./components";
 import { useScreenMargin } from "./layoutScale";
@@ -68,7 +69,7 @@ export function HeroPager({
   const { width: windowWidth } = useWindowDimensions();
   const [frame, setFrame] = useState(0);
   const [index, setIndex] = useState(0);
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ScrollViewInstance>(null);
   const shown = useRef(0);
   const pages = Children.toArray(children);
   const last = Math.max(0, Math.min(count, pages.length) - 1);

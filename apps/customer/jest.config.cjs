@@ -15,7 +15,7 @@ module.exports = {
     "^react-native-reanimated/(.*)$": `${pinned("react-native-reanimated")}/$1`,
     "^react-native-worklets$": pinned("react-native-worklets"),
     "^react-native-worklets/(.*)$": `${pinned("react-native-worklets")}/$1`,
-    "^react-test-renderer$": require.resolve("react-test-renderer"),
+    "^test-renderer$": require.resolve("test-renderer"),
     "^@catera/domain$": "<rootDir>/../../packages/domain/src/index.ts",
     "^@catera/api-client$": "<rootDir>/../../packages/api-client/src/index.ts",
     "^@catera/design-tokens$": "<rootDir>/../../packages/design-tokens/src/index.ts",

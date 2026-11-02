@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, BackHandler, View } from "react-native";
+import { AccessibilityInfo, BackHandler, View, type ViewInstance } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
@@ -47,7 +47,7 @@ export function Daftar() {
   const [sent, setSent] = useState(false);
   const [resent, setResent] = useState(false);
   const slugSuffix = useRef(Crypto.randomUUID().replace(/-/g, "").slice(0, 4));
-  const firstChip = useRef<View>(null);
+  const firstChip = useRef<ViewInstance>(null);
   const run = useAuthRun();
 
   const one = useFieldCheck({ name: { value: name, check: nameCheck(t) } });

@@ -15,7 +15,7 @@ export function useQris() {
     if (!(await Sharing.isAvailableAsync()) || !ref.current) throw new Error("SHARE_UNAVAILABLE");
     const data = await new Promise<string>((resolve) => ref.current!.toDataURL(resolve));
     const file = new File(Paths.cache, `catera-qris-${checkoutId}.png`);
-    file.write(data, { encoding: "base64" });
+    await file.write(data, { encoding: "base64" });
     try {
       await Sharing.shareAsync(file.uri, { mimeType: "image/png", dialogTitle: "QRIS Catera" });
     } finally {

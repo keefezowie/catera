@@ -19,6 +19,9 @@ import {
   type TextInputProps,
   type TextStyle,
   type ViewStyle,
+  type TextInputInstance,
+  type ScrollViewInstance,
+  type ViewInstance,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PaletteKey } from "@catera/design-tokens";
@@ -380,7 +383,7 @@ export function Field({
   label: string;
   hint?: string;
   error?: string;
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<TextInputInstance>;
   /** A small action inside the field's end edge (a show/hide toggle); the text keeps clear of it. */
   trailing?: ReactNode;
   /** The danger outline without a line of text, for a field whose failure a FormError below the form already words. */
@@ -544,7 +547,7 @@ export function Screen({
   /** Room under the pinned `footer`, for the same keyboard: the footer rises by this much (AuthScreen with a footer). Android only. */
   footerLift?: number;
   /** The screen's own ScrollView, for a wrapper that scrolls it. */
-  scrollRef?: Ref<ScrollView>;
+  scrollRef?: Ref<ScrollViewInstance>;
 }) {
   const styles = useStyles();
   const margin = useScreenMargin();
@@ -609,7 +612,7 @@ export function Screen({
   // lifts a footer, which sits outside the scroll view. It measures its frame relative to its parent while the
   // keyboard is positioned in the window, so the screen asks the OS where its own top edge really is.
   // iOS keyboard behaviour is not covered by jest or the Android emulator; it is unverified on a device.
-  const frame = useRef<View>(null);
+  const frame = useRef<ViewInstance>(null);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const measureFrame = () => {
     if (!ios || !footer) return;
