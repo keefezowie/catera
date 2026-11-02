@@ -10,6 +10,10 @@ import { RoleGate } from "../../src/RoleGate";
 
 type Glyph = keyof typeof Ionicons.glyphMap;
 
+/** Hari ini opens first, for every role. A launch with no path (Expo Go's plain open) never reaches `+native-intent`,
+ * and without an anchor router 58 starts the tabs on another group (Menu on a device). */
+export const unstable_settings = { anchor: "(index)" };
+
 /** Outline until selected, filled when selected. Elsewhere, state glyphs (saved heart, selected star, coverage sun and moon) are filled because the fill carries the state; other icons are outline. */
 const icons: Record<CatererTab, { filled: Glyph; outline: Glyph }> = {
   index: { filled: "home", outline: "home-outline" },

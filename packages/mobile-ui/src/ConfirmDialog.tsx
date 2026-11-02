@@ -129,6 +129,9 @@ export function ConfirmDialog({
           borderRadius: ios ? 20 : 28,
           borderCurve: "continuous",
           boxShadow: "0 12px 32px rgba(0, 0, 0, 0.2)",
+          // In dark the card is the same tone as a dimmed sheet under it and the shadow does not show: the edge does.
+          borderWidth: 1,
+          borderColor: palette.line,
           overflow: "hidden",
         }}
       >
