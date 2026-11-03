@@ -12,7 +12,8 @@ export default function NewPackageRoute() {
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   // Whether this is the first package the caterer publishes, from the packages this route already reads.
   const firstPublish = isFirstPublish(ops.data?.offers);
-  if (!from) return <PackageEditor firstPublish={firstPublish} />;
+  const kitchenStatus = ops.data?.caterer.status;
+  if (!from) return <PackageEditor firstPublish={firstPublish} kitchenStatus={kitchenStatus} />;
   const source = ops.data?.offers.find((o) => o.id === from);
   // A copy waits for the package it copies; a read that answered without it says so instead of waiting forever.
   if (!source)
@@ -29,5 +30,5 @@ export default function NewPackageRoute() {
         </FadeSwap>
       </Screen>
     );
-  return <PackageEditor key={source.id} from={source} firstPublish={firstPublish} />;
+  return <PackageEditor key={source.id} from={source} firstPublish={firstPublish} kitchenStatus={kitchenStatus} />;
 }

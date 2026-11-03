@@ -7,15 +7,23 @@ import { Button, Card, FadeSwap, Field, fontFor, FormError, Screen, Segmented, T
 import { ReadError } from "../ReadError";
 import { ListSkeleton } from "../skeletons";
 import { useFormRun } from "../useFormRun";
+import { ReviewNote } from "./kitchen";
 
-type StepState = "done" | "waiting" | "todo" | "later";
+type StepState = "done" | "waiting" | "todo" | "fix" | "blocked" | "later";
 
 function Step({ n, title, state, children }: { n: number; title: string; state: StepState; children?: ReactNode }) {
   const { t } = useMobile();
   const c = useColors();
-  const badge = { done: t("Selesai", "Done"), waiting: t("Sedang ditinjau", "In review"), todo: "", later: t("Nanti", "Later") }[state];
+  const badge = {
+    done: t("Selesai", "Done"),
+    waiting: t("Sedang ditinjau", "In review"),
+    todo: "",
+    fix: t("Perlu diperbaiki", "Needs fixing"),
+    blocked: t("Dinonaktifkan", "Suspended"),
+    later: t("Nanti", "Later"),
+  }[state];
   return (
-    <Card tone={state === "todo" ? "attention" : "surface"}>
+    <Card tone={state === "todo" || state === "fix" || state === "blocked" ? "attention" : "surface"}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: nativeLayout.space.md }}>
         <Text variant="section" style={{ flex: 1 }}>{`${n}. ${title}`}</Text>
         {badge ? <Text variant="meta" style={{ color: state === "done" ? c.charcoal : c.muted, fontFamily: fontFor("700") }}>{badge}</Text> : null}
@@ -39,7 +47,7 @@ export function AktifkanScreen() {
       // A failed read is not "no bank account yet": step 2 says so and offers a retry instead of the empty form.
       runtime.api.request<PayoutSetup>("payout-setup/" + catererId).catch(() => "failed" as const),
     ]);
-    return { status: ops.caterer.status ?? "draft", packages: ops.offers.length, setup };
+    return { status: ops.caterer.status ?? "draft", note: ops.caterer.review_note?.trim() ?? "", packages: ops.offers.length, setup };
   });
   const [bank, setBank] = useState({ bank: "", holder: "", accountNumber: "", recipientType: "INDIVIDUAL" as "INDIVIDUAL" | "BUSINESS" });
   // Which of the two buttons is waiting; the hook drops a second press while one runs.
@@ -70,7 +78,9 @@ export function AktifkanScreen() {
     return guarded(() => command(action, payload));
   };
 
-  const review: StepState = s.status === "approved" ? "done" : s.status === "submitted" ? "waiting" : "todo";
+  const review: StepState = (
+    { approved: "done", submitted: "waiting", corrections: "fix", suspended: "blocked" } as Record<string, StepState>
+  )[s.status] ?? "todo";
   const setup = s.setup === "failed" ? null : s.setup;
   const latest = setup?.latest;
   const payout: StepState = setup?.active ? "done" : latest?.status === "submitted" ? "waiting" : "todo";
@@ -101,6 +111,26 @@ export function AktifkanScreen() {
               )
             ) : review === "waiting" ? (
               <Text variant="meta">{t("Tim Catera memeriksa data ini dulu sebelum dapurmu tayang.", "The Catera team checks this first before your kitchen goes live.")}</Text>
+            ) : review === "fix" ? (
+              <>
+                {s.note ? <ReviewNote note={s.note} /> : null}
+                <Button
+                  label={t("Kirim lagi untuk diperiksa", "Send for review again")}
+                  busy={busy && which === "submit"}
+                  disabled={busy && which !== "submit"}
+                  onPress={() => void run("submit", "seller.submit", { catererId })}
+                />
+              </>
+            ) : review === "blocked" ? (
+              <>
+                {s.note ? <ReviewNote note={s.note} /> : null}
+                <Text variant="meta">
+                  {t(
+                    "Pelanggan tidak bisa melihat atau memesan paketmu untuk sementara. Hubungi tim Catera untuk mengaktifkannya lagi.",
+                    "For now customers can't see or order your packages. Contact the Catera team to turn it back on.",
+                  )}
+                </Text>
+              </>
             ) : null}
           </Step>
           <Step n={2} title={t("Rekening pencairan", "Payout bank account")} state={payout}>

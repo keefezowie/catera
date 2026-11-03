@@ -51,6 +51,7 @@ import { ReadError } from "../ReadError";
 import { MenuControlsSkeleton, MenuStripSkeleton, MenuWeekSkeleton } from "../skeletons";
 import { SettingsGear } from "../settings/Pengaturan";
 import { pushScreen } from "../nav";
+import { usePullToRefresh } from "../refresh";
 
 export { mealOf } from "./logic";
 
@@ -231,6 +232,7 @@ export function MenuWeek() {
   const previous = useData(`menu-week:${offer?.id}:${meal}:${lastWeekDates[0]}`, () =>
     offer ? loadMenus(runtime, offer, meal, lastWeekDates) : Promise.resolve([]),
   );
+  const pull = usePullToRefresh(() => Promise.all([ops.reload(), days.reload(), previous.reload()]));
   // A message and a number that rises with every failure, so an identical failure is announced again.
   const [errorState, setErrorState] = useState({ message: "", key: 0 });
   const error = errorState.message;
@@ -387,7 +389,7 @@ export function MenuWeek() {
   // No packages yet: the page's first block (the skeleton's controls until now) fades the empty state in.
   if (ops.data && !offers.length)
     return (
-      <Screen header={<MenuTitle />}>
+      <Screen header={<MenuTitle />} refreshControl={pull}>
         <FadeSwap swapKey="empty" style={{ gap: 16 }}>
           {canEdit ? (
             <>
@@ -438,6 +440,7 @@ export function MenuWeek() {
 
   return (
     <Screen
+      refreshControl={waiting ? undefined : pull}
       header={
         <MoodHeader
           meta={weekLabel}

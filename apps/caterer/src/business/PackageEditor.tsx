@@ -28,6 +28,7 @@ import {
 } from "@catera/mobile-ui";
 import { emptyPackage, formFromOffer, nutritionIssues, packageIssues, quickOffer, type PackageForm } from "./package";
 import { NutritionFields } from "./NutritionFields";
+import { canAskReview, useAskReview } from "./kitchen";
 import { PackagePhoto } from "./PackagePhoto";
 import { photoUri } from "../photo";
 import { uploadPhoto } from "./upload";
@@ -50,7 +51,16 @@ function Section({ title, children, testID }: { title: string; children: ReactNo
  * success beat with confetti, "Paket diterbitkan", and Selesai goes back; every later one goes back at once with the
  * toast "Paket diterbitkan". Null (the read has not answered) is a later one.
  */
-export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffer; firstPublish?: boolean | null }) {
+export function PackageEditor({
+  from,
+  firstPublish = null,
+  kitchenStatus,
+}: {
+  from?: SellerOffer;
+  firstPublish?: boolean | null;
+  /** The kitchen's review state; a first package in a kitchen not yet reviewed ends on the way to ask for the review. */
+  kitchenStatus?: string;
+}) {
   const { runtime, actor, demo, t, locale, command } = useMobile();
   // Named palette because the dish-category rows below use `c` for a category.
   const palette = useColors();
@@ -136,6 +146,10 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
     nounEn: "package",
     voice: "kamu",
   });
+  const review = useAskReview(() => {
+    router.back();
+    toast.show({ message: t("Terkirim. Tim Catera akan memeriksanya.", "Sent. The Catera team will review it."), tone: "success" });
+  });
   const closed = useRef(false);
   useEffect(() => {
     if (!saved || closed.current) return;
@@ -147,8 +161,19 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   if (published) {
     const dayNames = days.filter(([d]) => form.weekdays.includes(d)).map(([, label]) => label);
     const price = form.price ? Number(form.price) : null;
+    // A kitchen Catera has not reviewed yet: the package is published but nobody sees it, so the next step is the review.
+    const askReview = canAskReview(kitchenStatus);
+    const footer = askReview ? (
+      <View style={{ gap: nativeLayout.space.sm }}>
+        {review.failure ? <FormError message={review.failure.message} failureKey={review.failure.key} /> : null}
+        <Button label={t("Minta diperiksa", "Ask for a review")} busy={review.busy} onPress={() => void review.ask()} />
+        <Button variant="secondary" label={t("Nanti saja", "Later")} disabled={review.busy} onPress={() => router.back()} />
+      </View>
+    ) : (
+      <Button label={t("Selesai", "Done")} onPress={() => router.back()} />
+    );
     return (
-      <Screen footer={<Button label={t("Selesai", "Done")} onPress={() => router.back()} />}>
+      <Screen footer={footer}>
         <SuccessBeat title={t("Paket diterbitkan", "Package published")} play confetti>
           <View style={{ alignItems: "center", gap: 4 }}>
             <Text variant="heading" style={{ textAlign: "center" }}>
@@ -159,6 +184,14 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
                 .filter(Boolean)
                 .join(" · ")}
             </Text>
+            {askReview ? (
+              <Text style={{ textAlign: "center", marginTop: nativeLayout.space.sm }}>
+                {t(
+                  "Satu langkah lagi supaya pelanggan bisa melihatnya: minta tim Catera memeriksa dapurmu.",
+                  "One more step so customers can see it: ask the Catera team to review your kitchen.",
+                )}
+              </Text>
+            ) : null}
           </View>
         </SuccessBeat>
       </Screen>

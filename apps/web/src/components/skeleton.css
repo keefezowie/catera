@@ -1,0 +1,50 @@
+/* Skeletons stand in the real screen's own containers, so every size comes from that screen's CSS. A bar sits inside
+   the real text element (its font sets the height); a photo is a transparent <img> the real img rules size. */
+.skeleton-screen {
+  animation: skeleton-in 200ms var(--ease) 300ms both;
+}
+@keyframes skeleton-in {
+  from { opacity: 0; }
+}
+.sk {
+  /* Translucent forest, so a bar reads on the page, a card and a tinted panel alike. */
+  background-color: rgb(22 61 46 / 8%);
+  background-image: linear-gradient(100deg, transparent 30%, #ffffff8c 50%, transparent 70%);
+  background-size: 220% 100%;
+  animation: skeleton-sweep 1.6s var(--ease) infinite;
+}
+@keyframes skeleton-sweep {
+  from { background-position: 120% 0; }
+  to { background-position: -20% 0; }
+}
+.sk-line {
+  display: inline-block;
+  height: 0.8em;
+  max-width: 100%;
+  vertical-align: middle;
+  border-radius: 0.4em;
+}
+/* A real control (button, input) kept at its size and shape, its label hidden. */
+.sk-ghost,
+.sk-ghost:hover {
+  color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+.sk-ghost svg { visibility: hidden; }
+.sk-dot {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex: none;
+}
+/* A screen's own "X span { display: flex }" rule must not turn a bar into a block. */
+.sk.sk-line { display: inline-block; }
+/* A control paints its own fill (a secondary button is white); every held control shows the placeholder's. */
+.sk.sk-ghost {
+  background-color: rgb(22 61 46 / 8%) !important;
+  background-image: linear-gradient(100deg, transparent 30%, #ffffff8c 50%, transparent 70%) !important;
+  background-size: 220% 100% !important;
+}

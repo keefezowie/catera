@@ -75,6 +75,12 @@ import {
   Field,
   Facts,
 } from "./ui";
+import {
+  DeliverySkeleton,
+  HomeSkeleton,
+  MessagesSkeleton,
+  SubscriptionsSkeleton,
+} from "./skeletons";
 const dateLabel = (d: string, locale: Locale = "id") =>
   new Date(d + "T12:00:00").toLocaleDateString(
     locale === "id" ? "id-ID" : "en-GB",
@@ -126,7 +132,14 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
         <ErrorNotice message={state.error} retry={state.reload} />
       </div>
     );
-  if (!state.data) return <Loading />;
+  if (!state.data)
+    return view === "home" ? (
+      <HomeSkeleton />
+    ) : view === "subscriptions" && !id ? (
+      <SubscriptionsSkeleton />
+    ) : (
+      <Loading />
+    );
   const c = state.data;
   const nextMeal = agendaEntries(c.deliveries, date).find(
     ({ meal }) => meal.status !== "delivered",
@@ -845,7 +858,7 @@ export function DeliveryPage({ id }: { id: string }) {
   }, [scheduleOpen, replacement, earliestReplacement]);
   if (state.error && !state.hasData)
     return <ErrorNotice message={state.error} retry={state.reload} />;
-  if (!state.data) return <Loading />;
+  if (!state.data) return <DeliverySkeleton />;
   if (!d)
     return (
       <Empty title={t("Pengantaran tidak ditemukan", "Delivery not found")} />
@@ -1355,7 +1368,7 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
   const [sending, setSending] = useState(false);
   if (state.error && !state.data)
     return <ErrorNotice message={state.error} retry={state.reload} />;
-  if (!state.data) return <Loading />;
+  if (!state.data) return embedded ? <Loading /> : <MessagesSkeleton />;
   const requestedCaterer = selected.startsWith("caterer:")
     ? selected.slice(8)
     : null;

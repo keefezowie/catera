@@ -5,6 +5,7 @@ import { Bell } from "lucide-react";
 import { type CustomerState } from "@catera/domain";
 import { api, useApp, useResource, useWorkspaceDraft } from "./context";
 import { Heading, ErrorNotice, RefreshNotice, Loading, Empty } from "./ui";
+import { NotificationsSkeleton } from "./skeletons";
 import { Button } from "./form-controls";
 import { useJourneyQuery } from "./journey-state";
 
@@ -39,8 +40,10 @@ export function Notifications({ seller = false }: { seller?: boolean }) {
   if (!state.data)
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
-    ) : (
+    ) : seller ? (
       <Loading />
+    ) : (
+      <NotificationsSkeleton />
     );
   return (
     <div className={seller ? "notifications-page" : "content narrow-wide"}>

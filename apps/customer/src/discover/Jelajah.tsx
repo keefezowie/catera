@@ -43,6 +43,7 @@ import { chooseArea, useStoredArea } from "./area";
 import { useSaved } from "./saved";
 import { packageHref } from "../hrefs";
 import { JelajahSkeleton } from "../skeletons";
+import { usePullToRefresh } from "../refresh";
 
 const BUDGET = 30000;
 /** An empty or error state's lines sit centred under its mascot. */
@@ -132,6 +133,7 @@ function Browse({
     () =>
       area === null ? Promise.resolve(null) : runtime.api.catalog("?" + query),
   );
+  const pull = usePullToRefresh(() => Promise.all([catalog.reload(), saved.reload()]));
   // One wait from the first frame to the first list: the area read, then the catalog read, under one skeleton.
   const waiting = area === null || (catalog.loading && !catalog.data);
 
@@ -210,6 +212,7 @@ function Browse({
   return (
     <Screen
       plainHeader
+      refreshControl={catalog.data ? pull : undefined}
       list={({ scrollProps, header }) => (
         <FlatList
           {...scrollProps}

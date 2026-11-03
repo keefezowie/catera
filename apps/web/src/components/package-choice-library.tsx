@@ -1,5 +1,6 @@
 "use client";
 import { Plus, RefreshCw, Archive, RotateCcw, Utensils } from "lucide-react";
+import { foodImgProps } from "./food-image";
 import { useState } from "react";
 import {
   customerMenuPresentation,
@@ -44,7 +45,7 @@ function PublicChoiceGallery({ options }: { options: LibraryDish[] }) {
       <div className="public-choice-grid">
         {visible.map((dish) => (
           <article key={dish.id} className="public-choice-card">
-            {dish.image ? <img src={dish.image} alt="" /> : null}
+            {dish.image ? <img {...foodImgProps(dish.image)} alt="" /> : null}
             <div>
               <strong>{dish.name}</strong>
               {dish.serving && <small>{dish.serving}</small>}
@@ -105,7 +106,7 @@ export function ChoiceDishChecklist({
                 )
               }
             />
-            {d.image && <img src={d.image} width={40} height={40} alt="" />}
+            {d.image && <img {...foodImgProps(d.image)} width={40} height={40} alt="" />}
             <span>
               {d.name} · {d.serving}
             </span>
@@ -271,7 +272,7 @@ export function PackageChoiceLibrary({
                         key={d.id}
                       >
                         {d.image ? (
-                          <img src={d.image} alt="" />
+                          <img {...foodImgProps(d.image)} alt="" />
                         ) : (
                           <div className="choice-option-placeholder">
                             <Utensils size={26} />

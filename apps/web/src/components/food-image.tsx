@@ -22,6 +22,20 @@ export function foodPhoto(src: string): { uri: string; placeholder?: string } {
   return { uri, placeholder };
 }
 
+/** Plain-img props for a food photo: its address, standing on its blurred placeholder until it loads. */
+export function foodImgProps(src: string) {
+  const { uri, placeholder } = foodPhoto(src);
+  return {
+    src: uri,
+    style: placeholder
+      ? { background: `center / cover url("${placeholder}")` }
+      : undefined,
+    onLoad: (e: { currentTarget: HTMLImageElement }) => {
+      e.currentTarget.style.background = "";
+    },
+  };
+}
+
 /** Responsive derivatives for approved local art; uploaded/signed URLs keep their existing delivery path. Each stands
  * on its blurred placeholder until it arrives. */
 export function FoodImage({

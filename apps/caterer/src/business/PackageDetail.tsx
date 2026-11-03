@@ -5,6 +5,7 @@ import { plural, useMobile } from "@catera/mobile-core";
 import { Button, KeyValueRow, ListCard, Screen, Text } from "@catera/mobile-ui";
 import { photoUri } from "../photo";
 import { PackagePhoto } from "./PackagePhoto";
+import { kitchenLive } from "./kitchen";
 import { pushScreen } from "../nav";
 
 /** Whole day names, Monday first (the index is `(weekday + 6) % 7`, with Sunday as 0). */
@@ -40,8 +41,10 @@ export function weekdayLabel(weekdays: number[], locale: Locale): string {
  * 40 key-value rows in one card, then what is in a portion and its nutrition as lines under the card (sentences that can
  * run long, so they never share a row with a label), and the copy action.
  */
-export function PackageDetail({ offer }: { offer: SellerOffer }) {
+export function PackageDetail({ offer, kitchenStatus }: { offer: SellerOffer; kitchenStatus?: string }) {
   const { runtime, t, locale } = useMobile();
+  // A published package in a kitchen Catera has not approved is not on sale yet: say so rather than let it pass as live.
+  const hidden = kitchenStatus !== undefined && offer.status === "published" && !kitchenLive(kitchenStatus);
   const groups = offer.menus[0]?.composition ?? [];
   const capacity = offer.weekdays.length ? offer.capacity[String(offer.weekdays[0])] : undefined;
   // The caterer's own estimates as customers see them; nothing when none were entered (a zero is shown).
@@ -56,6 +59,7 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
         </View>
         <View style={{ gap: nativeLayout.groupGap }}>
           <ListCard inset={0}>
+            {hidden ? <KeyValueRow testID="paket-fact-status" label={t("Status", "Status")} value={t("Belum tampil", "Not shown yet")} /> : null}
             <KeyValueRow
               testID="paket-fact-harga"
               label={t("Harga", "Price")}
@@ -71,6 +75,14 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
               />
             ) : null}
           </ListCard>
+          {hidden ? (
+            <Text variant="meta">
+              {t(
+                "Paket ini sudah diterbitkan. Pelanggan bisa melihatnya setelah tim Catera menyetujui dapurmu. Langkahnya ada di Usaha.",
+                "This package is published. Customers can see it once the Catera team approves your kitchen. The steps are in Business.",
+              )}
+            </Text>
+          ) : null}
           {portion ? <Text variant="meta">{portion}</Text> : null}
           {gizi ? (
             <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
@@ -81,8 +93,8 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
         <View style={{ gap: nativeLayout.space.md }}>
           <Text variant="meta">
             {t(
-              "Paket yang sudah tayang tidak bisa diubah, supaya pelanggan dapat persis yang mereka beli. Untuk ubah harga, isi, atau kapasitas, salin jadi paket baru.",
-              "Live packages are locked so customers get exactly what they bought. To change the price, contents or capacity, copy it into a new package.",
+              "Paket yang sudah diterbitkan tidak bisa diubah, supaya pelanggan dapat persis yang mereka beli. Untuk ubah harga, isi, atau kapasitas, salin jadi paket baru.",
+              "Published packages are locked so customers get exactly what they bought. To change the price, contents or capacity, copy it into a new package.",
             )}
           </Text>
           <Button variant="secondary" label={t("Salin jadi paket baru", "Copy into a new package")} onPress={() => pushScreen(`/paket/baru?from=${offer.id}`)} />

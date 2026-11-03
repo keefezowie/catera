@@ -4,7 +4,8 @@ import { useApp, CatalogProvider } from "./context";
 import { errorLabel } from "@catera/domain";
 import { useSaved, SaveButton } from "./saved-context";
 import { PackageCard } from "./marketplace";
-import { Heading, Empty, ErrorNotice, Loading } from "./ui";
+import { Heading, Empty, ErrorNotice } from "./ui";
+import { SavedPackagesSkeleton } from "./skeletons";
 import { Button } from "./form-controls";
 import { FoodImage } from "./food-image";
 export function SavedPackagesPage() {
@@ -36,7 +37,7 @@ export function SavedPackagesPage() {
           retry={() => void refresh()}
         />
       )}
-      {!ready && !error && <Loading />}
+      {!ready && !error && <SavedPackagesSkeleton />}
       {ready && !items.length && (
         <Empty
           title={t("Belum ada paket tersimpan", "No saved packages yet")}
