@@ -24,7 +24,7 @@ export function ReviewNote({ note }: { note: string }) {
   const { t } = useMobile();
   const c = useColors();
   return (
-    <View testID="review-note" style={{ backgroundColor: c.surface, borderRadius: nativeLayout.radius.thumb, padding: nativeLayout.space.md, gap: 4 }}>
+    <View testID="review-note" style={{ backgroundColor: c.surface, borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", padding: nativeLayout.space.md, gap: 4 }}>
       <Text variant="meta" style={{ fontFamily: fontFor("700") }}>
         {t("Catatan tim Catera", "Note from the Catera team")}
       </Text>
