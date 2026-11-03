@@ -2472,7 +2472,7 @@ export function TransactionRows({
   );
 }
 function SellerProfile({ state: s }: { state: SellerState }) {
-  const { actor, perform, t, drafts, setDraft } = useApp();
+  const { actor, perform, t, drafts, setDraft, notify } = useApp();
   const draftKey = "seller-profile:" + s.caterer.id;
   const [profile, setProfile] = useWorkspaceDraft(draftKey, {
     name: s.caterer.name,
@@ -2614,12 +2614,13 @@ function SellerProfile({ state: s }: { state: SellerState }) {
               type="button"
               variant="secondary"
               onClick={() => {
-                if (
-                  window.confirm(
-                    t("Buang perubahan profil?", "Discard profile changes?"),
-                  )
-                )
-                  setDraft(draftKey, undefined);
+                // Discard at once; Urungkan puts the draft back as it was.
+                const kept = drafts[draftKey];
+                setDraft(draftKey, undefined);
+                notify(t("Perubahan profil dibuang.", "Profile changes discarded."), {
+                  label: t("Urungkan", "Undo"),
+                  run: () => setDraft(draftKey, kept),
+                });
               }}
             >
               {t("Buang perubahan", "Discard changes")}

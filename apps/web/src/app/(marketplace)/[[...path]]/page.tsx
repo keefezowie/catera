@@ -1,6 +1,6 @@
 import { redirect, permanentRedirect, notFound } from "next/navigation";
 import { cookies } from "next/headers";
-import { rpc } from "@catera/backend";
+import { catalog } from "@/lib/catalog-cache";
 import type { Offer } from "@catera/domain";
 import { session } from "@/lib/auth";
 import { resolveWorkspace, workspaceCookieName } from "@/lib/workspace";
@@ -153,12 +153,7 @@ export default async function Page({
   let offers: Offer[] = [];
   let issue: string | null = null;
   try {
-    offers = (
-      await rpc<{ items: Offer[] }>(null, null, "catera_v1_read", {
-        resource: "catalog",
-        params: { limit: 100 },
-      })
-    ).items;
+    offers = await catalog();
   } catch {
     issue = "NOT_CONFIGURED";
   }

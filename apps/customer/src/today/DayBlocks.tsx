@@ -1,9 +1,9 @@
 import { Platform, View } from "react-native";
 import { Image } from "expo-image";
 import type { UpcomingDay, UpcomingMeal } from "@catera/domain";
-import { nativeLayout } from "@catera/design-tokens";
+import { nativeLayout, nativeMotion } from "@catera/design-tokens";
 import { plural, useMobile } from "@catera/mobile-core";
-import { photoSource, PolishArt, PressableRow, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
+import { photoSource, PolishArt, PressableRow, Text, themedStyles, useColors, useReduced, useStackedLayout } from "@catera/mobile-ui";
 import { photoUri } from "./photoUri";
 import { rowLabel } from "../layout";
 
@@ -158,6 +158,7 @@ function Tile({
   onPress: () => void;
 }) {
   const { t } = useMobile();
+  const reduced = useReduced();
   const c = useColors();
   const styles = useStyles();
   const id = `upcoming-tile-${meal.deliveryId}-${meal.meal}`;
@@ -174,7 +175,7 @@ function Tile({
     >
       <View testID={`${id}-photo`} style={[styles.photo, { backgroundColor: c.sage }]}>
         {meal.image ? (
-          <Image {...photoSource(photoUri(meal.image, apiBase))} contentFit="cover" style={styles.fill} accessible={false} />
+          <Image {...photoSource(photoUri(meal.image, apiBase))} transition={reduced ? 0 : nativeMotion.selection} contentFit="cover" style={styles.fill} accessible={false} />
         ) : null}
       </View>
       <View style={styles.tileText}>

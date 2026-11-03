@@ -12,6 +12,8 @@ import {
 } from "@/lib/attention-cursor";
 import { cookies } from "next/headers";
 import { after } from "next/server";
+import { revalidateTag } from "next/cache";
+import { catalogTag } from "@/lib/catalog-cache";
 import { z } from "zod";
 import {
   enrichDirectCheckout,
@@ -737,6 +739,11 @@ export async function POST(request: Request, context: Context) {
           }
         });
       }
+      // A committed command may change what the public catalog shows; its next read is fresh, never stale. The
+      // command has committed, so a cache that can't be cleared (it expires within 30 s) never fails it.
+      try {
+        revalidateTag(catalogTag, { expire: 0 });
+      } catch {}
       return ok(result);
     }
     throw new Error("NOT_FOUND");

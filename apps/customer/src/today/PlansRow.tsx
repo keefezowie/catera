@@ -2,9 +2,9 @@ import { ScrollView, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { addDays, planLabel, type Subscription } from "@catera/domain";
-import { nativeLayout } from "@catera/design-tokens";
+import { nativeLayout, nativeMotion } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { photoSource, PressableRow, Text, themedStyles, useScreenMargin } from "@catera/mobile-ui";
+import { photoSource, PressableRow, Text, themedStyles, useReduced, useScreenMargin } from "@catera/mobile-ui";
 import { planHref } from "../hrefs";
 import { ListCard, MediaRow, SectionHeader } from "../layout";
 import { photoUri } from "./photoUri";
@@ -47,6 +47,7 @@ export function PlansRow({
 }) {
   const { t, locale } = useMobile();
   const styles = useStyles();
+  const reduced = useReduced();
   const margin = useScreenMargin();
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = planCardWidth(screenWidth, margin);
@@ -114,7 +115,7 @@ export function PlansRow({
               >
                 <View testID={`${id}-photo`} style={styles.photo}>
                   {image ? (
-                    <Image {...photoSource(photoUri(image, apiBase))} contentFit="cover" style={styles.fill} accessible={false} />
+                    <Image {...photoSource(photoUri(image, apiBase))} transition={reduced ? 0 : nativeMotion.selection} contentFit="cover" style={styles.fill} accessible={false} />
                   ) : null}
                 </View>
                 <View style={styles.text}>
