@@ -10,6 +10,7 @@ import { AkunTiles } from "./AkunTiles";
 import { SignInFirst } from "./SignInFirst";
 import { BARE_GLYPH_INSET, DecorativeIcon, GlyphRow, ListCard } from "../layout";
 import { AkunSkeleton } from "../skeletons";
+import { usePullToRefresh } from "../refresh";
 
 export { localPhone };
 
@@ -137,12 +138,14 @@ function Account() {
   const styles = useStyles();
   const customer = useData("akun:customer", () => runtime.api.customer());
   const contact = useContact();
+  const pull = usePullToRefresh(customer.reload);
   const name = actor?.name ?? "";
   const plans = customer.data ? customer.data.subscriptions.filter((s) => s.status === "active").length : null;
   const addresses = customer.data ? customer.data.addresses.length : null;
 
   return (
     <Screen
+      refreshControl={customer.data ? pull : undefined}
       header={
         // The tab bar already names this tab, so the header's top row holds the avatar and the name instead. The
         // settings gear is gone: Pengaturan is the card row below.
