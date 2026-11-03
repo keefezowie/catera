@@ -11,6 +11,7 @@ export * from "./calendar";
 export * from "./delivery-availability";
 export * from "./package-presentation";
 export * from "./offer-editor";
+export * from "./photo";
 export * from "./pilot";
 export * from "./purchase-pricing";
 export * from "./purchase-commitment";

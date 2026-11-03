@@ -1,15 +1,42 @@
 import Image, { type ImageProps } from "next/image";
+import { photoParts } from "@catera/domain";
+import { thumbHashToDataURL } from "thumbhash";
 
-/** Responsive derivatives for approved local art; uploaded/signed URLs keep their existing delivery path. */
+const placeholders = new Map<string, string>();
+
+/** A food photo's address without its `#th=` fragment, and its blurred ThumbHash as a small PNG data URL. */
+export function foodPhoto(src: string): { uri: string; placeholder?: string } {
+  const { uri, thumbhash } = photoParts(src);
+  if (!thumbhash) return { uri };
+  let placeholder = placeholders.get(thumbhash);
+  if (!placeholder) {
+    try {
+      placeholder = thumbHashToDataURL(
+        Uint8Array.from(atob(thumbhash), (c) => c.charCodeAt(0)),
+      );
+      placeholders.set(thumbhash, placeholder);
+    } catch {
+      return { uri };
+    }
+  }
+  return { uri, placeholder };
+}
+
+/** Responsive derivatives for approved local art; uploaded/signed URLs keep their existing delivery path. Each stands
+ * on its blurred placeholder until it arrives. */
 export function FoodImage({
   src,
   ...props
 }: Omit<ImageProps, "src"> & { src: string }) {
+  const { uri, placeholder } = foodPhoto(src);
   return (
     <Image
+      {...(placeholder
+        ? { placeholder: "blur" as const, blurDataURL: placeholder }
+        : {})}
       {...props}
-      src={src}
-      unoptimized={!src.startsWith("/assets/food/")}
+      src={uri}
+      unoptimized={!uri.startsWith("/assets/food/")}
     />
   );
 }

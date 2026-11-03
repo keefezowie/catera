@@ -5,6 +5,7 @@ import {
   uploadOwner,
   uploadStorage,
   validateFoodImage,
+  withPlaceholder,
 } from "../../../../lib/food-upload";
 export async function POST(request: Request) {
   try {
@@ -61,8 +62,10 @@ export async function POST(request: Request) {
     return Response.json(
       {
         data: {
-          url: client.storage.from(foodBucket).getPublicUrl(target).data
-            .publicUrl,
+          url: await withPlaceholder(
+            client.storage.from(foodBucket).getPublicUrl(target).data.publicUrl,
+            bytes,
+          ),
         },
       },
       { headers: { "Cache-Control": "no-store" } },

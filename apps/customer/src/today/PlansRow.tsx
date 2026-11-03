@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { addDays, planLabel, type Subscription } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { PressableRow, Text, themedStyles, useScreenMargin } from "@catera/mobile-ui";
+import { photoSource, PressableRow, Text, themedStyles, useScreenMargin } from "@catera/mobile-ui";
 import { planHref } from "../hrefs";
 import { ListCard, MediaRow, SectionHeader } from "../layout";
 import { photoUri } from "./photoUri";
@@ -114,7 +114,7 @@ export function PlansRow({
               >
                 <View testID={`${id}-photo`} style={styles.photo}>
                   {image ? (
-                    <Image source={{ uri: photoUri(image, apiBase) }} contentFit="cover" style={styles.fill} accessible={false} />
+                    <Image {...photoSource(photoUri(image, apiBase))} contentFit="cover" style={styles.fill} accessible={false} />
                   ) : null}
                 </View>
                 <View style={styles.text}>

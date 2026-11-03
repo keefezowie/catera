@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import { nativeMotion } from "@catera/design-tokens";
 import { useHaptic, useReduced } from "./motion";
+import { photoSource } from "./photoSource";
 import { SheetFitBody, SheetHeader } from "./SheetHeader";
 import { useActionRoute, type ActionItem, type ActionSheetInput } from "./sheets";
 import { useColors } from "./theme";
@@ -45,7 +46,7 @@ export function ActionSheet({
             <View testID="action-context-frame" style={{ width: 56, height: 56, borderRadius: 12, borderCurve: "continuous", overflow: "hidden", backgroundColor: palette.sage }}>
               <Image
                 testID="action-context-image"
-                source={{ uri: context.image }}
+                {...photoSource(context.image)}
                 contentFit="cover"
                 accessible={false}
                 transition={reduced ? 0 : nativeMotion.selection}

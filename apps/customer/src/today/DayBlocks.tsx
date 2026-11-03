@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import type { UpcomingDay, UpcomingMeal } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { plural, useMobile } from "@catera/mobile-core";
-import { PolishArt, PressableRow, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
+import { photoSource, PolishArt, PressableRow, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
 import { photoUri } from "./photoUri";
 import { rowLabel } from "../layout";
 
@@ -174,7 +174,7 @@ function Tile({
     >
       <View testID={`${id}-photo`} style={[styles.photo, { backgroundColor: c.sage }]}>
         {meal.image ? (
-          <Image source={{ uri: photoUri(meal.image, apiBase) }} contentFit="cover" style={styles.fill} accessible={false} />
+          <Image {...photoSource(photoUri(meal.image, apiBase))} contentFit="cover" style={styles.fill} accessible={false} />
         ) : null}
       </View>
       <View style={styles.tileText}>

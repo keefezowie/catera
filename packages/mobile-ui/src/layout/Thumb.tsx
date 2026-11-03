@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { nativeLayout } from "@catera/design-tokens";
 import { themedStyles, useColors } from "../theme";
 import { DecorativeIcon } from "./DecorativeIcon";
+import { photoSource } from "../photoSource";
 
 /**
  * A square dish photo: 56 (rows), 64 (rich rows) or 48 (a compact row, Dapur Menu's dishes), radius 8. `notSet` is a menu the person has not chosen yet: a
@@ -36,7 +37,7 @@ export function Thumb({
   }
   return (
     <View testID={testID} style={[styles.tile, styles.photo, box]}>
-      {uri ? <Image source={{ uri }} contentFit="cover" style={styles.fill} accessible={false} /> : null}
+      {uri ? <Image {...photoSource(uri)} contentFit="cover" style={styles.fill} accessible={false} /> : null}
     </View>
   );
 }

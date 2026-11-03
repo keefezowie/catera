@@ -17,6 +17,7 @@ export * from "./MoodFill";
 export * from "./brand/useMoodProgress";
 export * from "./brand/MoodArc";
 export * from "./PhotoRing";
+export * from "./photoSource";
 export * from "./CalendarPhotoCell";
 export * from "./StoryCover";
 export * from "./brand/Rantang";

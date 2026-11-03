@@ -5,10 +5,12 @@ import { nativeMotion } from "@catera/design-tokens";
 import { Rantang } from "./brand/Rantang";
 import { PressableScale, useReduced } from "./motion";
 import { Text } from "./components";
+import { photoSource } from "./photoSource";
 import { useColors } from "./theme";
 
 /**
- * A remote food photo. It stands on a neutral ground while it loads and fades in over `selection` once it arrives, so
+ * A remote food photo. It stands on its blurred ThumbHash (or, without one, a neutral ground) while it loads and fades
+ * in over `selection` once it arrives, so
  * a photo never pops in; under reduced motion it appears at once. A photo that fails to load leaves only that ground, the
  * same size, with no broken-image mark. The fade is expo-image's own cross-dissolve, which animates opacity only.
  *
@@ -47,7 +49,7 @@ export function Photo({
       testID={testID}
       accessibilityLabel={accessibilityLabel}
       accessibilityIgnoresInvertColors
-      source={headers ? { uri, headers } : { uri }}
+      {...photoSource(uri, headers)}
       contentFit="cover"
       transition={reduced ? 0 : nativeMotion.selection}
       onError={() => {

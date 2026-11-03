@@ -2,6 +2,7 @@ import {
   validateFoodImage,
   uploadError,
   uploadStorage,
+  withPlaceholder,
 } from "@/lib/food-upload";
 import { assertSameOrigin } from "@/lib/request-origin";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     }
 
     return Response.json(
-      { data: { url } },
+      { data: { url: await withPlaceholder(url, bytes) } },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

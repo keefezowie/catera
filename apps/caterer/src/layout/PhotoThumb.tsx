@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { Image } from "expo-image";
 import { nativeLayout, nativeMotion } from "@catera/design-tokens";
-import { useColors, useReduced } from "@catera/mobile-ui";
+import { photoSource, useColors, useReduced } from "@catera/mobile-ui";
 
 /** expo-image's style type predates `borderCurve`; the native view takes it. */
 const imageCurve = { borderCurve: "continuous" } as const;
@@ -40,7 +40,7 @@ export function PhotoThumb({
       {uri ? (
         <Image
           testID={imageTestID ?? `${testID}-image`}
-          source={{ uri }}
+          {...photoSource(uri)}
           contentFit="cover"
           transition={reduced ? 0 : nativeMotion.selection}
           accessible={accessibilityLabel !== undefined}

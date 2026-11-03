@@ -14,6 +14,21 @@ import { useApp } from "./context";
 import { Button } from "./form-controls";
 import { Dialog } from "./ui";
 import { NutritionStrip } from "./package-preview";
+import { foodPhoto } from "./food-image";
+
+/** Plain-img props for a food photo: its address, standing on its blurred placeholder until it loads. */
+function photoProps(src: string) {
+  const { uri, placeholder } = foodPhoto(src);
+  return {
+    src: uri,
+    style: placeholder
+      ? { background: `center / cover url("${placeholder}")` }
+      : undefined,
+    onLoad: (e: { currentTarget: HTMLImageElement }) => {
+      e.currentTarget.style.background = "";
+    },
+  };
+}
 
 function DishTile({
   dish,
@@ -38,7 +53,7 @@ function DishTile({
           onClick={(e) => onOpen(dish, e.currentTarget)}
         >
           <img
-            src={dish.image}
+            {...photoProps(dish.image)}
             alt={dish.name}
             loading="lazy"
             width={400}
@@ -163,7 +178,7 @@ export function DishGallery({
             </p>
           ) : (
             <img
-              src={selected.image}
+              {...photoProps(selected.image)}
               alt={selected.name}
               onError={() => setFailed(true)}
             />

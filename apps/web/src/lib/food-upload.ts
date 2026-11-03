@@ -3,6 +3,8 @@ import { session } from "./auth";
 import { assertSameOrigin } from "./request-origin";
 import { demoEnabled } from "@catera/backend";
 import sharp from "sharp";
+import { rgbaToThumbHash } from "thumbhash";
+import { withThumbhash } from "@catera/domain";
 export const uploadLimit = 8 * 1024 * 1024;
 export const stagingBucket = "catera-v1-food-staging";
 export const foodBucket = "catera-v1-food";
@@ -43,6 +45,20 @@ export async function validateFoodImage(bytes: Buffer) {
     return ext;
   } catch {
     throw Error("INVALID_TYPE");
+  }
+}
+/** The public address with the photo's blurred placeholder after it; a photo that cannot be hashed goes without. */
+export async function withPlaceholder(url: string, bytes: Buffer) {
+  try {
+    const { data, info } = await sharp(bytes, { limitInputPixels: 40000000 })
+      .resize(100, 100, { fit: "inside" })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const hash = rgbaToThumbHash(info.width, info.height, data);
+    return withThumbhash(url, Buffer.from(hash).toString("base64"));
+  } catch {
+    return url;
   }
 }
 export function uploadError(error: unknown) {
