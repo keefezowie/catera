@@ -9,6 +9,7 @@ import {
   SheetFitBody,
   SheetHeader,
   useQuestionRoute,
+  type GlyphName,
   type QuestionRegistry,
 } from "@catera/mobile-ui";
 
@@ -20,7 +21,8 @@ import {
  * hardware back or Close wins, and the answer comes once the sheet has gone.
  */
 
-export type ChoiceItem = { id: string; label: string; detail?: string };
+/** A choice; an `icon` (an Ionicons glyph) leads its row in a tile, as an address's kind does. */
+export type ChoiceItem = { id: string; label: string; detail?: string; icon?: GlyphName };
 
 /**
  * A text button under the list ("Tambah alamat", "Kelola alamat"); choosing it answers `key`. With `href`, the sheet
@@ -62,7 +64,7 @@ export function ChoiceRoute({ os }: { os?: string } = {}) {
     <SheetFitBody header={<SheetHeader title={input.title} closeLabel={t("Tutup", "Close")} />}>
       <ChoiceList
         label={input.title}
-        options={input.items.map((item) => ({ value: item.id, label: item.label, detail: item.detail }))}
+        options={input.items.map((item) => ({ value: item.id, label: item.label, detail: item.detail, icon: item.icon }))}
         value={input.selected ?? null}
         onChange={choose}
       />
