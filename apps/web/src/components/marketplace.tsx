@@ -65,6 +65,7 @@ import {
 import { useApp, api, useResource } from "./context";
 import { Button, Checkbox, TextInput } from "./form-controls";
 import { Heading, Empty, ErrorNotice, Facts, Loading, Dialog } from "./ui";
+import { PackageSkeleton } from "./skeletons";
 import { NumericInput } from "./numeric-input";
 
 function servedAreas(areas: string[]) {
@@ -850,7 +851,7 @@ export function PackagePage({
       document.body.style.removeProperty("--mobile-purchase-clearance");
     };
   }, [bookingVisible, preview, p?.id]);
-  if (!p && publicOffer.loading) return <Loading />;
+  if (!p && publicOffer.loading) return <PackageSkeleton />;
   if (!p && publicOffer.error)
     return (
       <ErrorNotice message={publicOffer.error} retry={publicOffer.reload} />

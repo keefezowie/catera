@@ -50,6 +50,7 @@ import {
   Facts,
   Empty,
 } from "./ui";
+import { CheckoutSkeleton } from "./skeletons";
 export function CheckoutPage({ id }: { id: string }) {
   const { offers, actor, perform, t, locale } = useApp();
   const formatPeriodDate = (value: string) =>
@@ -220,7 +221,8 @@ export function CheckoutPage({ id }: { id: string }) {
         <ErrorNotice message={state.error} retry={state.reload} />
       </div>
     );
-  if (actor && (!restored || !state.data)) return <Loading />;
+  if (actor && (!restored || !state.data))
+    return <CheckoutSkeleton trial={trial} />;
   if (!p)
     return (
       <Empty

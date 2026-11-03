@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { foodImgProps } from "./food-image";
 import { Plus, GripVertical, ImageIcon, ChevronDown } from "lucide-react";
 import type { DishCategory, LibraryDish } from "@catera/domain";
 import { useApp } from "./context";
@@ -153,7 +154,7 @@ export function MenuLibrary({
                     </span>
                     {d.image ? (
                       <img
-                        src={d.image}
+                        {...foodImgProps(d.image)}
                         alt=""
                         width={48}
                         height={48}

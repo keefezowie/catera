@@ -1,5 +1,6 @@
 "use client";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { foodImgProps } from "./food-image";
 import { Check, ImageIcon, Plus, X } from "lucide-react";
 import type { LibraryDish, MealMenu } from "@catera/domain";
 import { defaultDishCategories } from "@catera/domain";
@@ -139,7 +140,7 @@ export function MenuSlots({
                 >
                   <span className="menu-slot-photo">
                     {item.image ? (
-                      <img src={item.image} alt="" draggable={false} />
+                      <img {...foodImgProps(item.image)} alt="" draggable={false} />
                     ) : item.name ? (
                       <ImageIcon aria-hidden="true" />
                     ) : (

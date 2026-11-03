@@ -1,5 +1,6 @@
 "use client";
 import { useContentMotion } from "./motion";
+import { foodImgProps } from "./food-image";
 import {
   PackageDurationEditor,
   DurationOptionsFields,
@@ -290,7 +291,7 @@ function Packages({ state: s }: { state: SellerState }) {
         {s.offers.map((o) => (
           <article className="panel" key={o.id}>
             {o.image ? (
-              <img src={o.image} alt={o.name} />
+              <img {...foodImgProps(o.image)} alt={o.name} />
             ) : (
               <div className="package-image-placeholder">
                 {t("Foto belum ditambahkan", "No photo added")}

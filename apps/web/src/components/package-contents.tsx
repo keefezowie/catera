@@ -11,6 +11,7 @@ import {
   packageTypeLabel,
   type Offer,
 } from "@catera/domain";
+import { foodImgProps } from "./food-image";
 import { useApp } from "./context";
 import { DishGallery } from "./dish-gallery";
 
@@ -66,7 +67,7 @@ export function PackageContents({
                 <li key={i.id}>
                   {i.image && (
                     <img
-                      src={i.image}
+                      {...foodImgProps(i.image)}
                       alt=""
                       loading="lazy"
                       width={64}

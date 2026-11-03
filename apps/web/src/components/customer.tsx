@@ -75,6 +75,7 @@ import {
   Field,
   Facts,
 } from "./ui";
+import { HomeSkeleton } from "./skeletons";
 const dateLabel = (d: string, locale: Locale = "id") =>
   new Date(d + "T12:00:00").toLocaleDateString(
     locale === "id" ? "id-ID" : "en-GB",
@@ -126,7 +127,7 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
         <ErrorNotice message={state.error} retry={state.reload} />
       </div>
     );
-  if (!state.data) return <Loading />;
+  if (!state.data) return view === "home" ? <HomeSkeleton /> : <Loading />;
   const c = state.data;
   const nextMeal = agendaEntries(c.deliveries, date).find(
     ({ meal }) => meal.status !== "delivered",

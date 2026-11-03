@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { foodImgProps } from "./food-image";
 import {
   menuSummary,
   type Delivery,
@@ -68,7 +69,7 @@ function ProductionRows({
             <tr key={key}>
               <td>
                 <div className="table-product">
-                  <img src={g.offer.image} alt="" />
+                  <img {...foodImgProps(g.offer.image)} alt="" />
                   <div>
                     <strong>{g.offer.name}</strong>
                     <small>{g.menu}</small>
