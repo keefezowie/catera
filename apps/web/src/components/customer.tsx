@@ -65,7 +65,6 @@ import "./customer-account.css";
 import { CatererEntry } from "./profile-menu";
 import {
   Heading,
-  Loading,
   ErrorNotice,
   RefreshNotice,
   Empty,
@@ -81,6 +80,13 @@ import {
   MessagesSkeleton,
   SubscriptionsSkeleton,
 } from "./skeletons";
+import {
+  AccountSkeleton,
+  ConversationSkeleton,
+  SubscriptionDetailSkeleton,
+  SupportSkeleton,
+} from "./skeletons-customer";
+import { EmbeddedMessagesSkeleton } from "./skeletons-dapur";
 const dateLabel = (d: string, locale: Locale = "id") =>
   new Date(d + "T12:00:00").toLocaleDateString(
     locale === "id" ? "id-ID" : "en-GB",
@@ -138,7 +144,7 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
     ) : view === "subscriptions" && !id ? (
       <SubscriptionsSkeleton />
     ) : (
-      <Loading />
+      <SubscriptionDetailSkeleton />
     );
   const c = state.data;
   const nextMeal = agendaEntries(c.deliveries, date).find(
@@ -1368,7 +1374,8 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
   const [sending, setSending] = useState(false);
   if (state.error && !state.data)
     return <ErrorNotice message={state.error} retry={state.reload} />;
-  if (!state.data) return embedded ? <Loading /> : <MessagesSkeleton />;
+  if (!state.data)
+    return embedded ? <EmbeddedMessagesSkeleton /> : <MessagesSkeleton />;
   const requestedCaterer = selected.startsWith("caterer:")
     ? selected.slice(8)
     : null;
@@ -1438,7 +1445,10 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
             </Button>
           ))}
         </aside>
-        <section className="conversation">
+        <section
+          className="conversation"
+          aria-busy={(!c && !newCaterer && state.loading) || undefined}
+        >
           {c || newCaterer ? (
             <>
               <header>
@@ -1543,7 +1553,7 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
               </ActionForm>
             </>
           ) : state.loading ? (
-            <Loading />
+            <ConversationSkeleton />
           ) : (
             <Empty
               title={t("Belum ada percakapan", "No conversations yet")}
@@ -1603,7 +1613,7 @@ export function Account({ view }: { view: string }) {
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
     ) : (
-      <Loading />
+      <AccountSkeleton view={view} />
     );
   const c = state.data;
   return (
@@ -1869,7 +1879,7 @@ export function Support() {
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
     ) : (
-      <Loading />
+      <SupportSkeleton />
     );
   return (
     <div className="content narrow-wide">

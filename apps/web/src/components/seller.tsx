@@ -79,13 +79,13 @@ import { Button, Checkbox, TextArea, TextInput } from "./form-controls";
 import {
   Heading,
   Status,
-  Loading,
   ErrorNotice,
   RefreshNotice,
   ActionForm,
   Field,
   Dialog,
 } from "./ui";
+import { SellerWorkspaceSkeleton } from "./skeletons-dapur";
 import { Messages } from "./customer";
 import { NumericInput } from "./numeric-input";
 import { TimeInput } from "./time-input";
@@ -125,7 +125,7 @@ function SellerWorkspace({ view }: { view: string }) {
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
     ) : (
-      <Loading />
+      <SellerWorkspaceSkeleton view={view} />
     );
   const s = state.data;
   return (

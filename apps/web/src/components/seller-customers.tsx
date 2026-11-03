@@ -20,7 +20,9 @@ import {
   type Address,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { ActionForm, Dialog, Empty, ErrorNotice, Field, Loading } from "./ui";
+import { ActionForm, Dialog, Empty, ErrorNotice, Field } from "./ui";
+import { CustomerListSkeleton } from "./skeletons-dapur";
+import { Sk } from "./skeletons";
 import { Button, TextInput, TextArea } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
@@ -155,11 +157,17 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
     >
       <div className="customer-filter-bar">
         {customerNavigation}
-        {state.data && (
+        {state.data ? (
           <p className="customer-result-count" aria-live="polite">
             <strong>{state.data.total}</strong>{" "}
             {t("pelanggan", state.data.total === 1 ? "customer" : "customers")}
           </p>
+        ) : (
+          !state.error && (
+            <p className="customer-result-count">
+              <Sk w="6em" />
+            </p>
+          )
         )}
       </div>
       <form
@@ -205,7 +213,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
         {state.error ? (
           <ErrorNotice message={state.error} retry={state.reload} />
         ) : (
-          <Loading />
+          <CustomerListSkeleton />
         )}
       </div>
     );

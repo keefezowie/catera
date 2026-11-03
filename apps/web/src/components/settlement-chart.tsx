@@ -3,7 +3,8 @@ import { Disclosure } from "./disclosure";
 import { useEffect, useId, useRef, useState } from "react";
 import { settlementCurrency, type SettlementReport } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { ErrorNotice, Loading } from "./ui";
+import { ErrorNotice } from "./ui";
+import { ChartSkeleton } from "./skeletons-dapur";
 import { useJourneyQuery } from "./journey-state";
 
 export function SettlementChart({ catererId }: { catererId: string }) {
@@ -48,7 +49,7 @@ function ChartData({ catererId, days }: { catererId: string; days: 7 | 30 }) {
   const state = useResource(`settlement-report:${catererId}:${days}`, () =>
     api.settlementReport(catererId, days),
   );
-  if (state.loading) return <Loading />;
+  if (state.loading) return <ChartSkeleton />;
   if (state.error)
     return <ErrorNotice message={state.error} retry={state.reload} />;
   if (!state.data) return null;

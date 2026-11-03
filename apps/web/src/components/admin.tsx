@@ -16,7 +16,6 @@ import { api, useApp, useResource } from "./context";
 import { Button, Checkbox, TextArea, TextInput } from "./form-controls";
 import {
   Heading,
-  Loading,
   ErrorNotice,
   RefreshNotice,
   Status,
@@ -24,6 +23,7 @@ import {
   Field,
   Facts,
 } from "./ui";
+import { AdminSkeleton } from "./skeletons-dapur";
 import { SupportQueue, TransactionRows } from "./seller";
 import { NumericInput } from "./numeric-input";
 export function Admin({ view }: { view: string }) {
@@ -38,7 +38,7 @@ export function Admin({ view }: { view: string }) {
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
     ) : (
-      <Loading />
+      <AdminSkeleton view={view} />
     );
   const a = state.data;
   const seller = a.caterers.find((c) => c.id === selected);

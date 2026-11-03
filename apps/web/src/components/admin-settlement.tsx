@@ -5,7 +5,12 @@ import { NumericInput } from "./numeric-input";
 import { useState } from "react";
 import { api, useApp, useResource } from "./context";
 import { SellerSettlement } from "./seller-settlement";
-import { Heading, Field, ActionForm, Loading, ErrorNotice } from "./ui";
+import { Heading, Field, ActionForm, ErrorNotice } from "./ui";
+import {
+  AdminSettlementSkeleton,
+  PolicyEditorSkeleton,
+  RolloutControlsSkeleton,
+} from "./skeletons-dapur";
 import { Select, SelectOption } from "./select";
 import { Checkbox, TextInput } from "./form-controls";
 function PolicyEditor({ seller }: { seller: string }) {
@@ -17,7 +22,7 @@ function PolicyEditor({ seller }: { seller: string }) {
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
     ) : (
-      <Loading />
+      <PolicyEditorSkeleton />
     );
   if ("unavailable" in state.data) return null;
   const policy = state.data.policy;
@@ -139,7 +144,7 @@ export function AdminSettlement() {
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
     ) : (
-      <Loading />
+      <AdminSettlementSkeleton />
     );
   return (
     <>
@@ -177,7 +182,7 @@ export function AdminSettlement() {
             )}
           </p>
         ) : !controls.data ? (
-          <Loading />
+          <RolloutControlsSkeleton />
         ) : (
           <ActionForm
             key={JSON.stringify(controls.data)}

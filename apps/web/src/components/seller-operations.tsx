@@ -42,13 +42,17 @@ import { DatePicker } from "./date-picker";
 import { Disclosure } from "./disclosure";
 import {
   Heading,
-  Loading,
   ErrorNotice,
   Empty,
   Status,
   Facts,
   Dialog,
 } from "./ui";
+import {
+  OperationsSkeleton,
+  OrderRowsSkeleton,
+  ProductionSkeleton,
+} from "./skeletons-dapur";
 import { Production } from "./seller-production";
 import { SellerReadiness } from "./seller-readiness";
 import { NeedsAttention } from "./seller-attention";
@@ -121,7 +125,7 @@ function OperationsLoader({
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
     ) : (
-      <Loading />
+      <OperationsSkeleton schedule={schedule} />
     );
   return (
     <>
@@ -830,7 +834,7 @@ function OperationsPage({
           title={t("Daftar dapur & pengantaran", "Kitchen & delivery lists")}
         >
           {s.operationalDate !== date ? (
-            <Loading />
+            <ProductionSkeleton />
           ) : (
             <Production
               key={date}
@@ -1550,7 +1554,7 @@ function OrderTable({
           </div>
         )}
         {loading && !rows.length ? (
-          <Loading />
+          <OrderRowsSkeleton schedule={schedule} />
         ) : rows.length ? (
           <div className="table-wrap">
             <table

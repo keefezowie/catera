@@ -314,6 +314,10 @@ for (const locale of ["id", "en"])
         await expect(page.locator("main .mascot-loading:visible")).toHaveCount(
           0,
         );
+        // Each workspace page holds a skeleton with its real heading while it loads.
+        await expect(page.locator('main [aria-busy="true"].skeleton-screen')).toHaveCount(
+          0,
+        );
         await page.screenshot({
           path: `output/playwright/journeys/${locale}-${width}-${path.slice(1) || "today"}.png`,
           fullPage: true,

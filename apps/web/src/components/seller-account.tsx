@@ -19,7 +19,8 @@ import {
   type SellerState,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { ActionForm, Dialog, ErrorNotice, Field, Loading, Status } from "./ui";
+import { ActionForm, Dialog, ErrorNotice, Field, Status } from "./ui";
+import { PayoutSetupSkeleton } from "./skeletons-dapur";
 import { Button, TextInput, TextArea, Checkbox } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { Disclosure } from "./disclosure";
@@ -44,7 +45,7 @@ export function PayoutSetupCard({
     return resource.error ? (
       <ErrorNotice message={resource.error} retry={resource.reload} />
     ) : (
-      <Loading />
+      <PayoutSetupSkeleton variant={variant} editable={editable} />
     );
   const s = resource.data,
     destination = s.active || s.legacyDestination;
