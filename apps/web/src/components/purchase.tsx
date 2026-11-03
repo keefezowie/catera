@@ -41,16 +41,8 @@ import {
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { Button, Checkbox } from "./form-controls";
-import {
-  Heading,
-  ActionForm,
-  Field,
-  ErrorNotice,
-  Loading,
-  Facts,
-  Empty,
-} from "./ui";
-import { CheckoutSkeleton } from "./skeletons";
+import { Heading, ActionForm, Field, ErrorNotice, Facts, Empty } from "./ui";
+import { CheckoutSkeleton, PaymentSkeleton } from "./skeletons";
 export function CheckoutPage({ id }: { id: string }) {
   const { offers, actor, perform, t, locale } = useApp();
   const formatPeriodDate = (value: string) =>
@@ -845,7 +837,7 @@ export function PaymentPage({ id }: { id: string }) {
         <ErrorNotice message={state.error} retry={state.reload} />
       </div>
     );
-  if (!state.data) return <Loading />;
+  if (!state.data) return <PaymentSkeleton />;
   const c = state.data,
     seconds = Math.max(
       0,

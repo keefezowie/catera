@@ -1,30 +1,43 @@
 "use client";
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
   Bookmark,
+  CalendarDays,
+  Check,
   ChevronDown,
+  Clock,
   GitCompareArrows,
+  LoaderCircle,
+  MapPin,
+  MessageCircle,
   Minus,
   Plus,
 } from "lucide-react";
 import { useApp } from "./context";
-import { Heading } from "./ui";
+import { Heading, Status } from "./ui";
 import "./skeleton.css";
 
 const blank =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 /** A text bar inside a real text element, so that element's font sets its height. */
-const Sk = ({ w }: { w: string }) => (
+export const Sk = ({ w }: { w: string }) => (
   <span className="sk sk-line" style={{ width: w }} />
 );
 
+/** A bar standing for a flex item's text: the <bdi> keeps that text's line box, so the line height sets the height. */
+const SkText = ({ w }: { w: string }) => (
+  <bdi>
+    <Sk w={w} />
+  </bdi>
+);
+
 /** A photo placeholder: a transparent <img> the screen's own img rules size and round. */
-const SkImg = ({
+export const SkImg = ({
   className,
   width,
   height,
@@ -44,7 +57,7 @@ const SkImg = ({
 );
 
 /** A real control kept at its size and shape, its label hidden. */
-const Ghost = ({
+export const Ghost = ({
   className,
   children,
   style,
@@ -59,7 +72,7 @@ const Ghost = ({
 );
 
 /** The portion stepper at its size: both buttons held, the count shown as its starting 1. */
-const Stepper = () => (
+export const Stepper = () => (
   <div>
     <Ghost className="icon-button">
       <Minus size={16} />
@@ -72,7 +85,7 @@ const Stepper = () => (
 );
 
 /** The screen while it loads: the same containers, out of the reading order but for one "Memuat…". */
-function Screen({
+export function Screen({
   className,
   children,
 }: {
@@ -481,6 +494,451 @@ export function CheckoutSkeleton({ trial }: { trial: boolean }) {
             </div>
             <Ghost className="button form-submit">
               {t("Cek jadwal & harga", "Review schedule & price")}
+            </Ghost>
+          </div>
+        </section>
+      </div>
+    </Screen>
+  );
+}
+
+/** Notifications: the heading and three unread rows, each with its mark-as-read button. */
+export function NotificationsSkeleton() {
+  const { t } = useApp();
+  return (
+    <Screen className="content narrow-wide">
+      <Heading title={t("Notifikasi", "Notifications")} />
+      {["24em", "32em", "20em"].map((w) => (
+        <div className="notification unread" key={w}>
+          <span className="sk sk-dot" style={{ width: 19, height: 19 }} />
+          <div>
+            <span>
+              <strong>
+                <Sk w={w} />
+              </strong>
+              <small>
+                <Sk w="9em" />
+              </small>
+            </span>
+            <Ghost className="button secondary">
+              {t("Tandai dibaca", "Mark as read")}
+            </Ghost>
+          </div>
+        </div>
+      ))}
+    </Screen>
+  );
+}
+
+function PackageCardSkeleton() {
+  const { t } = useApp();
+  return (
+    <article className="package-card package-card-v2">
+      <div className="package-image">
+        <Ghost className="button secondary save-package card-save">
+          <Bookmark size={17} />
+          <span>{t("Tersimpan", "Saved")}</span>
+        </Ghost>
+        <SkImg width={724} height={543} />
+      </div>
+      <div className="package-body">
+        <div className="package-identity">
+          <div className="caterer-line">
+            <strong>
+              <Sk w="7em" />
+            </strong>
+            <span>
+              <Sk w="2.5em" />
+            </span>
+          </div>
+          <h3>
+            <Sk w="70%" />
+          </h3>
+        </div>
+        <p className="package-meta">
+          {["4em", "6em"].map((w) => (
+            <span key={w}>
+              <span className="sk sk-dot" style={{ width: 15, height: 15 }} />
+              <SkText w={w} />
+            </span>
+          ))}
+          <span>
+            <SkText w="7em" />
+          </span>
+        </p>
+        <div className="package-pricing">
+          <div className="card-price">
+            <small className="package-total-label">
+              <Sk w="16em" />
+            </small>
+            <strong>
+              <Sk w="6em" />
+            </strong>
+            <small className="package-unit-price">
+              <Sk w="10em" />
+            </small>
+          </div>
+          <p className="delivery-coverage unknown">
+            <span className="sk sk-dot" style={{ width: 15, height: 15 }} />
+            <span>
+              <Sk w="12em" />
+            </span>
+          </p>
+        </div>
+        <div className="package-footer">
+          <div className="package-actions">
+            <button
+              type="button"
+              className="sk sk-ghost"
+              aria-hidden="true"
+              tabIndex={-1}
+              disabled
+            >
+              {t("Bandingkan", "Compare")}
+            </button>
+            <a className="sk sk-ghost" aria-hidden="true" tabIndex={-1}>
+              {t("Lihat paket", "View package")}
+              <ArrowRight size={16} />
+            </a>
+          </div>
+        </div>
+        <div className="package-preview">
+          <div className="preview-heading">
+            <span className="preview-source">
+              <Sk w="7em" />
+            </span>
+          </div>
+          <p className="composition-preview">
+            <Sk w="14em" />
+          </p>
+          <Ghost className="contents-link">
+            {t("Lihat isi paket", "See included dishes")}
+            <ArrowRight size={14} />
+          </Ghost>
+          <div className="nutrition-strip">
+            <dl>
+              {[
+                t("Energi", "Energy"),
+                "Protein",
+                t("Karbo", "Carbs"),
+                t("Lemak", "Fat"),
+              ].map((label) => (
+                <div key={label}>
+                  <dt>
+                    <span
+                      className="sk sk-dot"
+                      style={{ width: 16, height: 16 }}
+                    />
+                    {label}
+                  </dt>
+                  <dd>
+                    <Sk w="3em" />
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p>
+              {t(
+                "Estimasi katering · per porsi makan",
+                "Caterer estimate · per meal portion",
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/** Saved packages below their real heading: the package grid with three cards. */
+export function SavedPackagesSkeleton() {
+  return (
+    <Screen className="package-grid">
+      <PackageCardSkeleton />
+      <PackageCardSkeleton />
+      <PackageCardSkeleton />
+    </Screen>
+  );
+}
+
+/** The subscriptions list: heading and three full subscription cards. */
+export function SubscriptionsSkeleton() {
+  const { t } = useApp();
+  return (
+    <Screen className="content narrow-wide">
+      <Heading
+        title={t("Langganan saya", "My subscriptions")}
+        description={t(
+          "Setiap paket punya porsi, jadwal, dan ketentuannya sendiri.",
+          "Each package keeps its own portions, schedule, and terms.",
+        )}
+      />
+      <div className="subscription-list">
+        {["9em", "7em", "11em"].map((w) => (
+          <div className="subscription-card" key={w}>
+            <SkImg width={100} height={100} />
+            <div>
+              <small>
+                <Sk w="6em" />
+              </small>
+              <h2 className="subscription-title">
+                <Sk w={w} />
+              </h2>
+              <p>
+                <Sk w="8em" />
+              </p>
+              <span className="remaining">
+                <Sk w="5em" />
+              </span>
+            </div>
+            <ArrowUpRight size={18} style={{ visibility: "hidden" }} />
+          </div>
+        ))}
+      </div>
+    </Screen>
+  );
+}
+
+/** A collapsed optional section, held shut. */
+function ClosedSection({ title }: { title: string }) {
+  return (
+    <details className="optional-section" inert>
+      <summary>
+        <span>{title}</span>
+        <ChevronDown size={18} aria-hidden="true" />
+      </summary>
+    </details>
+  );
+}
+
+/** One delivery: its summary card, the management facts and actions, the timeline and the closed sections. */
+export function DeliverySkeleton() {
+  const { t } = useApp();
+  return (
+    <Screen className="content narrow-wide delivery-detail-page">
+      <Link className="back-link" href="/calendar">
+        <ArrowLeft size={17} />
+        {t("Jadwal makan", "Meal calendar")}
+      </Link>
+      <section className="next-meal-card delivery-summary">
+        <div className="next-meal-photo">
+          <SkImg width={800} height={600} />
+          <span className="image-label">
+            <Clock size={14} />
+            {t("Pengantaran", "Delivery")}
+          </span>
+        </div>
+        <div className="next-meal-content">
+          <div className="caterer-line">
+            <span>
+              <Sk w="8em" />
+            </span>
+            <span className="status">
+              <span />
+              <SkText w="4em" />
+            </span>
+          </div>
+          <h1>
+            <Sk w="70%" />
+          </h1>
+          <p>
+            <Sk w="11em" />
+          </p>
+          <div className="next-meal-info">
+            <span>
+              <span className="sk sk-dot" style={{ width: 16, height: 16 }} />
+              <SkText w="12em" />
+            </span>
+            <span>
+              <span className="sk sk-dot" style={{ width: 16, height: 16 }} />
+              <bdi>
+                <Sk w="16em" /> <Sk w="11em" />
+              </bdi>
+            </span>
+          </div>
+        </div>
+      </section>
+      <section className="delivery-management-summary">
+        <h2>{t("Kelola pengantaran", "Manage delivery")}</h2>
+        <dl className="facts">
+          <div>
+            <dt>
+              <Sk w="6em" />
+            </dt>
+            <dd>
+              <span className="status">
+                <span />
+                <SkText w="5em" />
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>{t("Batas perubahan", "Change cutoff")}</dt>
+            <dd>
+              <Sk w="9em" /> <Sk w="12em" />
+            </dd>
+          </div>
+        </dl>
+      </section>
+      <div className="action-row delivery-actions">
+        <Ghost className="button secondary">
+          <MapPin size={17} />
+          {t("Ubah alamat", "Change address")}
+        </Ghost>
+        <Ghost className="button">
+          <CalendarDays size={17} />
+          {t("Ubah jadwal", "Change schedule")}
+        </Ghost>
+        <Ghost className="button secondary">
+          <MessageCircle size={17} />
+          {t("Hubungi katering", "Contact caterer")}
+        </Ghost>
+        <Ghost className="text-button">
+          {t("Laporkan masalah", "Report an issue")}
+        </Ghost>
+      </div>
+      <div className="delivery-timeline">
+        {["scheduled", "preparing", "out_for_delivery", "delivered"].map(
+          (s) => (
+            <div key={s}>
+              <span>
+                <Check size={15} />
+              </span>
+              <Status status={s} />
+            </div>
+          ),
+        )}
+      </div>
+      <ClosedSection title={t("Alamat & ketentuan", "Address & rules")} />
+      <ClosedSection title={t("Isi paket", "Package contents")} />
+    </Screen>
+  );
+}
+
+/** A pending payment: the status heading, the order facts and the payment action. */
+export function PaymentSkeleton() {
+  const { t } = useApp();
+  // Bars split by a space wrap where the real text would (the long order reference on a phone).
+  const rows: [string, string][] = [
+    [t("Referensi pesanan", "Order reference"), "9em 9em"],
+    [t("Paket", "Package"), "9em"],
+    [t("Hari pengantaran", "Delivery days"), "3em"],
+    [t("Porsi per waktu makan", "Portions per meal"), "2em"],
+    [t("Total dibayar di awal", "Total paid upfront"), "6em"],
+    [t("Batas pembayaran", "Time remaining"), "3em"],
+  ];
+  return (
+    <Screen className="narrow payment-pending">
+      <div className="page-heading">
+        <div>
+          <h1>
+            <Sk w="9em" />
+          </h1>
+        </div>
+      </div>
+      <dl className="facts">
+        {rows.map(([label, w]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>
+              {w.split(" ").map((bar, i) => (
+                <Fragment key={i}>
+                  {i ? " " : null}
+                  <Sk w={bar} />
+                </Fragment>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <Ghost className="button full">
+        {t("Buka halaman pembayaran", "Open payment page")}
+      </Ghost>
+    </Screen>
+  );
+}
+
+/** Messages: the heading, the conversation list and one open conversation with its composer. */
+export function MessagesSkeleton() {
+  const { t } = useApp();
+  return (
+    <Screen className="content messages-page">
+      <Heading
+        title={t("Pesan", "Messages")}
+        description={t(
+          "Tanya menu, atur pengantaran, atau sampaikan sesuatu ke kateringmu.",
+          "Ask about meals, coordinate a delivery, or talk to your caterer.",
+        )}
+      />
+      <div className="messages-layout">
+        <aside>
+          <h2>{t("Percakapan", "Conversations")}</h2>
+          {["7em", "6em"].map((w, i) => (
+            <div
+              className={"conversation-preview" + (i ? "" : " active")}
+              key={w}
+            >
+              <span className="mini-avatar sk" />
+              <div>
+                <strong>
+                  <Sk w={w} />
+                </strong>
+                <small>
+                  <Sk w="11em" />
+                </small>
+              </div>
+            </div>
+          ))}
+        </aside>
+        <section className="conversation">
+          <header>
+            <span className="mini-avatar sk" />
+            <div>
+              <h2>
+                <Sk w="7em" />
+              </h2>
+              <p>
+                {t(
+                  "Koordinasi langsung dengan katering",
+                  "Coordinate directly with your caterer",
+                )}
+              </p>
+            </div>
+          </header>
+          <div className="chat-notice">
+            <Check size={16} />
+            {t(
+              "Lakukan pembayaran melalui Catera agar transaksi dan bantuan tercatat.",
+              "Keep payments on Catera so your purchase and support stay connected.",
+            )}
+          </div>
+          <div className="message-stream">
+            <div className="message">
+              <p>
+                <Sk w="28em" />
+              </p>
+              <small>
+                <Sk w="2.5em" />
+              </small>
+            </div>
+          </div>
+          <div className="form composer">
+            <textarea
+              className="catera-textarea sk sk-ghost"
+              style={{ resize: "none" }}
+              aria-hidden="true"
+              tabIndex={-1}
+              disabled
+            />
+            <Ghost className="button form-submit">
+              <span className="form-submit-label">
+                <Check size={17} />
+                {t("Kirim", "Send")}
+              </span>
+              <span className="form-submit-pending">
+                <LoaderCircle size={18} />
+                {t("Memproses…", "Processing…")}
+              </span>
             </Ghost>
           </div>
         </section>

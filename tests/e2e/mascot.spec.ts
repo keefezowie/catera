@@ -133,19 +133,17 @@ for (const width of [390, 1440])
     const pending = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route(
-      width === 390 ? "**/api/v1/conversations**" : "**/api/v1/customer**",
-      async (route) => {
-        requested = true;
-        await pending;
-        await route.continue();
-      },
-    );
+    // Account keeps the mascot; Messages now shows its page-shaped skeleton.
+    await page.route("**/api/v1/customer**", async (route) => {
+      requested = true;
+      await pending;
+      await route.continue();
+    });
     try {
       if (width === 390)
         await page
           .locator(".mobile-bottom")
-          .getByRole("link", { name: "Pesan", exact: true })
+          .getByRole("link", { name: "Akun", exact: true })
           .click();
       else {
         await header.getByRole("button", { name: "Buka menu akun" }).click();
