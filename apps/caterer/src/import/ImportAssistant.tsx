@@ -24,6 +24,7 @@ import {
   useListMotion,
   useToast,
   useUnsavedGuard,
+  warmSuccessRig,
 } from "@catera/mobile-ui";
 import { Attachments } from "./Attachments";
 import { commitImport } from "./commits";
@@ -53,6 +54,8 @@ export function ImportAssistant() {
   const options = useData(`impor:${catererId}`, () => runtime.api.sellerImportOptions(catererId));
   const packages = options.data?.packages ?? [];
   const { text, files, rows, setText, setFiles, setRows, setPackages, number: numbered, lastRemoved, reset } = useImportStore();
+  // A save ends on the success beat: its mascot layers are fetched now, so they are in when it plays.
+  useEffect(() => warmSuccessRig(), []);
   const toast = useToast();
   const [busy, setBusy] = useState("");
   // The message and a number that rises with every failure, so an identical failure is announced again.

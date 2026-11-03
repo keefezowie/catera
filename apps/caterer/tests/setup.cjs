@@ -117,3 +117,9 @@ jest.mock("@react-native-community/netinfo", () => {
 });
 // usePreventRemove needs a navigator; tests that mount a screen outside one get a no-op (Daftar's outcome guard).
 jest.mock("expo-router/react-navigation", () => ({ ...jest.requireActual("expo-router/react-navigation"), usePreventRemove: jest.fn() }));
+// The success and reading rigs wait for their layers' onLoad, which the test renderer never fires: tests start loaded.
+// mascot-art.test.tsx turns this off to test the wait itself.
+beforeEach(() => {
+  require("../../../packages/mobile-ui/src/brand/SuccessRig").__setSuccessRigLoadedForTests(true);
+  require("../../../packages/mobile-ui/src/brand/MascotReading").__setReadingLoadedForTests(true);
+});

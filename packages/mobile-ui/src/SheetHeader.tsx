@@ -457,8 +457,9 @@ export function SheetBody({
   ) : null;
   return (
     <SheetFooterContext.Provider value={setSlot}>
-      {/* The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot. */}
-      <View ref={frame} testID="sheet-frame" style={{ flex: 1, marginBottom: bar + lift + iosLift }}>
+      {/* The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot.
+          A native view (see `SheetFitBody`), so iOS never resizes the scroll view inside it. */}
+      <View ref={frame} testID="sheet-frame" collapsable={false} style={{ flex: 1, marginBottom: bar + lift + iosLift }}>
         <ScrollView
           ref={scroller}
           testID="sheet-body"
@@ -528,7 +529,11 @@ export function SheetFitBody({
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   return (
-    <View testID={testID} style={{ maxHeight: height - insets.top - FIT_TOP_GAP }}>
+    // iOS: react-native-screens looks for a sheet's ScrollView among the content's native children (on iOS 26 its
+    // SafeAreaView's) and down the first-child chain, and forces it to the sheet's frame: one found as the third child
+    // or later is moved to y 0, over the title row. This body, the `SheetHeader` and `SheetBody`'s frame are native views
+    // (`collapsable={false}`), so the scroll view is never found and the sheet's own layout stands.
+    <View testID={testID} collapsable={false} style={{ maxHeight: height - insets.top - FIT_TOP_GAP }}>
       {header}
       <ScrollView
         testID="sheet-fit-body"
@@ -609,7 +614,7 @@ export function SheetHeader({
 
   if (ios)
     return (
-      <View style={{ paddingTop: 12, paddingHorizontal: 8, paddingBottom: 8 }}>
+      <View collapsable={false} style={{ paddingTop: 12, paddingHorizontal: 8, paddingBottom: 8 }}>
         <View style={{ flexDirection: "row", alignItems: "center", minHeight: IOS_SIDE }}>
           <HeaderIconButton icon="close" label={closeLabel} onPress={close} os="ios" />
           <View style={{ flex: 1, paddingHorizontal: 4 }}>
