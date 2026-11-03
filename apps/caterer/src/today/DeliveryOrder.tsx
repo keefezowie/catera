@@ -19,6 +19,7 @@ import {
 } from "@catera/mobile-ui";
 import { ACTION, ActionPair, HEADING_GAP, LinkRow, TextAction } from "./rows";
 import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
+import { stopStatus } from "./stopStatus";
 import { areaRuns, selectableStops, stopChoices, type Selection } from "./selection";
 import { pushScreen } from "../nav";
 
@@ -79,7 +80,7 @@ export function DeliveryOrder({
   meal: KitchenMeal;
   date: string;
   /** Which exceptions the day allows; null on a copy kept from before the connection dropped, which cannot be acted on. */
-  report: "today" | "tomorrow" | null;
+  report: "today" | "later" | null;
   caterer: string;
   /** "Pilih" mode, owned by the screen so its bottom bar can read it. Left out, the list has no selection. */
   selection?: Selection;
@@ -142,6 +143,7 @@ export function DeliveryOrder({
         portions={portions}
         packageName={s.packageName}
         note={s.note || undefined}
+        status={stopStatus(s, t) ?? undefined}
         address={[s.addressLine, s.area].filter(Boolean).join(", ")}
         mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
         onMap={() => void Linking.openURL(s.mapsUrl)}
@@ -209,7 +211,7 @@ export function DeliveryOrder({
           <View style={{ gap: HEADING_GAP }}>
             {(picking ? areaRuns(shown) : [{ area: "", stops: shown }]).map((run) => {
               const open = run.stops.filter((x) => stopChoices(x, t).selectable);
-              const every = open.length > 0 && open.every((x) => selection!.selected.has(x.deliveryId));
+              const every = open.length > 0 && open.every((x) => selection?.selected.has(x.deliveryId));
               return (
                 <View key={`${run.area}-${run.stops[0].deliveryId}`}>
                   {picking ? (

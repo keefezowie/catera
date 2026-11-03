@@ -27,6 +27,7 @@ import {
   nextDeliveryStatuses,
   mealArrived,
   scheduleSummary,
+  listsMeal,
   mealWorkload,
   deliveryDeadlines,
   destinationKey,
@@ -255,10 +256,13 @@ function OperationsPage({
       scroll: false,
     });
   }
+  const includeCancelled = schedule && status !== "active";
   const dayRows = s.operationalDate === date ? s.deliveries : [];
   const rows = dayRows.filter(
     (d) =>
-      (meal === "all" || d.meals.some((m) => m.meal === meal)) &&
+      (includeCancelled
+        ? meal === "all" || d.meals.some((m) => m.meal === meal)
+        : listsMeal(d, meal)) &&
       (!packageId || d.offer.id === packageId) &&
       ((!schedule && d.status !== "cancelled") ||
         status === "all" ||
@@ -275,7 +279,6 @@ function OperationsPage({
           d.address.area,
         ].some((value) => value.toLocaleLowerCase().includes(search))),
   );
-  const includeCancelled = schedule && status !== "active";
   const groupKey = (row: SellerDelivery) =>
     grouping === "customers" ? row.customer.id : destinationKey(row.address);
   const groupOptions = [

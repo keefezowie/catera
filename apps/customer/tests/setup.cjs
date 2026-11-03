@@ -128,3 +128,28 @@ jest.mock("expo-apple-authentication", () => ({
   }),
   AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
 }));
+// A failed matcher on a queried element (`expect(screen.queryByText(…)).toBeNull()`) prints the element. Jest's matcher
+// messages take no snapshot serializers, so it would walk the instance's whole fiber graph: seconds of pretty-printing,
+// long enough for waitFor's 1 s timeout to fire before React commits. pretty-format prints `toJSON()` when an object
+// has one, so a test instance prints as its tag (`<Text>`). The renderer's JSON tree (`screen.toJSON()`) is unaffected.
+// (Kept for a tree still on react-test-renderer.)
+try {
+  const React = require("react");
+  const TestRenderer = require("react-test-renderer");
+  let probe;
+  TestRenderer.act(() => {
+    probe = TestRenderer.create(React.createElement("View"));
+  });
+  const proto = Object.getPrototypeOf(probe.root);
+  if (!Object.prototype.hasOwnProperty.call(proto, "toJSON"))
+    Object.defineProperty(proto, "toJSON", {
+      configurable: true,
+      value() {
+        const type = this.type;
+        return `<${typeof type === "string" ? type : (type?.displayName ?? type?.name ?? "Unknown")}>`;
+      },
+    });
+  TestRenderer.act(() => probe.unmount());
+} catch {
+  // Testing Library 14 renders with `test-renderer`, whose instances already print as their JSON; react-test-renderer is not installed.
+}

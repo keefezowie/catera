@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Share, View } from "react-native";
 import * as Print from "expo-print";
 import {
@@ -69,7 +70,7 @@ export function SessionCard({
   ticks: Ticks;
   meal: KitchenMeal;
   date: string;
-  report: "today" | "tomorrow" | null;
+  report: "today" | "later" | null;
   caterer: string;
   /** "Pilih" mode for the delivery order, owned by the screen. */
   selection?: Selection;
@@ -80,13 +81,19 @@ export function SessionCard({
   const c = useColors();
   const { recap, stops } = session;
   const departed = ["out_for_delivery", "arrived", "delivered"].includes(session.journey.stage);
+  const onTheRoad = session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0;
   const missing = unfilledByPackage(recap.unfilled);
   // The shared and printed recap is written in Indonesian, like the rest of its text.
   const missingForSharing = missing.map((m) => `Menu belum diisi · ${m.packageName}: ${m.summary}`);
   // The shared and printed text is Indonesian whatever the app language, so its title is too.
   const sharedTitle = meal === "lunch" ? "Makan siang" : "Makan malam";
-  return (
-    <View testID="session-card" style={{ gap: SECTION_GAP }}>
+  // One order per meal: its expanded list and WhatsApp part belong to the day and meal they were opened on (the screen keeps
+  // them by `${date}:${meal}`, so a stage change does not reset them).
+  const order = (
+    <DeliveryOrder key={`order-${meal}`} ops={ops} stops={stops} meal={meal} date={date} report={report} caterer={caterer} selection={selection} view={route} />
+  );
+  const cooking = (
+    <Fragment key="cooking">
       {departed ? (
         <ListCard>
           <View
@@ -116,8 +123,7 @@ export function SessionCard({
                   icon="share-outline"
                   flush
                   label={t("Bagikan", "Share")}
-                  onPress={() => void Share.share({ message: `${caterer}
-${recapLines(recap, sharedTitle, missingForSharing)}` })}
+                  onPress={() => void Share.share({ message: [caterer, recapLines(recap, sharedTitle, missingForSharing)].join("\n") })}
                 />
                 <IconAction
                   icon="print-outline"
@@ -173,9 +179,13 @@ ${recapLines(recap, sharedTitle, missingForSharing)}` })}
           ) : null}
         </>
       )}
-      {/* One order per meal: its expanded list and WhatsApp part belong to the day and meal they were opened on (the
-          screen keeps them by `${date}:${meal}`, so a stage change does not reset them). */}
-      <DeliveryOrder key={meal} ops={ops} stops={stops} meal={meal} date={date} report={report} caterer={caterer} selection={selection} view={route} />
+    </Fragment>
+  );
+  // Stops leave in subsets, so the session can hold several stages. Once any is out or past that, the order leads: it is the
+  // list the kitchen works from now. Both parts are keyed, so the order keeps its own state when it moves.
+  return (
+    <View testID="session-card" style={{ gap: SECTION_GAP }}>
+      {onTheRoad ? [order, cooking] : [cooking, order]}
     </View>
   );
 }

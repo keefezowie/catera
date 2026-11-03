@@ -1,5 +1,6 @@
 import { File } from "expo-file-system";
 import { uploadPhoto } from "../src/business/upload";
+import { uploadProof } from "../src/today/proof";
 
 // Expo's global fetch (the winter runtime) builds a multipart body only from Blob-like parts that can read their bytes.
 // React Native's `{ uri, name, type }` file part throws "Unsupported FormDataPart implementation" there, which made every
@@ -57,6 +58,7 @@ describe("uploadPhoto (demo)", () => {
     expect(calls[0].url).toBe("http://api.test/api/uploads");
     expect(calls[0].init.method).toBe("POST");
     expect(calls[0].init.headers).toEqual({ Authorization: "Bearer demo-token" });
+    expect((calls[0].init as RequestInit).credentials).toBe("omit");
     expect(append).toHaveBeenCalledTimes(1);
     const [field, part] = append.mock.calls[0] as unknown as [string, unknown];
     expect(field).toBe("file");
@@ -98,5 +100,41 @@ describe("uploadPhoto (demo)", () => {
       expect(manip.__context.resize).not.toHaveBeenCalled();
       expect(manip.__save).toHaveBeenCalledWith({ compress: 0.8, format: "jpeg" });
     });
+  });
+});
+
+describe("direct Catera API calls carry the bearer and no cookie", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  it("a live photo upload omits cookies on prepare and complete; the signed storage PUT is left as it was", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    global.fetch = (async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      if (url.startsWith("file://")) return { blob: async () => ({ size: 3 }) };
+      if (url.endsWith("/prepare")) return { ok: true, json: async () => ({ data: { url: "https://storage.test/signed", object: "o-1" } }) };
+      if (url.startsWith("https://storage.test")) return { ok: true };
+      return { ok: true, json: async () => ({ data: { url: "https://cdn.test/o-1.jpg" } }) };
+    }) as never;
+    await uploadPhoto(runtime, picked, false);
+    const catera = calls.filter((c) => c.url.startsWith("http://api.test/"));
+    expect(catera.map((c) => c.url)).toEqual(["http://api.test/api/uploads/prepare", "http://api.test/api/uploads/complete"]);
+    for (const c of catera) expect(c.init?.credentials).toBe("omit");
+    expect(calls.find((c) => c.url === "https://storage.test/signed")?.init?.credentials).toBeUndefined();
+  });
+
+  it("a delivery proof photo omits cookies", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    global.fetch = (async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return { ok: true, json: async () => ({ data: { path: "proof/d-1.jpg" } }) };
+    }) as never;
+    await expect(uploadProof(runtime, "file:///cache/proof.jpg", "d-1", "lunch")).resolves.toBe("proof/d-1.jpg");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("http://api.test/api/uploads/proof");
+    expect(calls[0].init?.credentials).toBe("omit");
+    expect(calls[0].init?.headers).toEqual({ Authorization: "Bearer demo-token" });
   });
 });

@@ -133,6 +133,54 @@ export function cookingRecap(state: SellerOperationsState, meal: KitchenMeal): C
   };
 }
 
+export type WeekRecap = {
+  /** Portions to cook across the days and both meals. */
+  total: number;
+  /** Dishes merged by name and category, sorted by category (Indonesian order, no category last) then count, biggest first. */
+  byDish: { name: string; category: string; count: number }[];
+  /** Portions whose menu slot nobody has filled yet. They are not dishes: they never appear in `byDish`. */
+  unfilled: number;
+  from: string;
+  to: string;
+};
+
+/**
+ * What to shop for over several days, from one read per day: each day's lunch and dinner `cookingRecap`, the same dish
+ * (name and category) added up across them. There is no ingredient data, so this is portions per dish. `from` and `to`
+ * are the first and last day's `operationalDate`.
+ */
+export function weekRecap(days: SellerOperationsState[]): WeekRecap {
+  const dishes = new Map<string, WeekRecap["byDish"][number]>();
+  let total = 0;
+  let unfilled = 0;
+  for (const day of days)
+    for (const meal of ["lunch", "dinner"] as const) {
+      const recap = cookingRecap(day, meal);
+      total += recap.total;
+      for (const u of recap.unfilled) unfilled += u.portions;
+      for (const d of recap.byDish) {
+        const key = `${d.category}\u0000${d.name}`;
+        const entry = dishes.get(key) ?? { name: d.name, category: d.category, count: 0 };
+        entry.count += d.count;
+        dishes.set(key, entry);
+      }
+    }
+  return {
+    total,
+    byDish: [...dishes.values()].sort(
+      (a, b) =>
+        // A dish with no category (shown as "Lainnya") comes after every named one.
+        Number(a.category === "") - Number(b.category === "") ||
+        a.category.localeCompare(b.category, "id") ||
+        b.count - a.count ||
+        a.name.localeCompare(b.name, "id"),
+    ),
+    unfilled,
+    from: days[0]?.operationalDate ?? "",
+    to: days[days.length - 1]?.operationalDate ?? "",
+  };
+}
+
 /**
  * When the meal's first delivery window opens ("HH.MM", Jakarta), across the day's active deliveries of that meal;
  * null when there are none. Only a window the caterer actually set counts (`parsedWindowStart`): the 11.00 and 17.00

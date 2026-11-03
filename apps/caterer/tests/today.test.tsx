@@ -18,6 +18,7 @@ import { canvasDay, emptyDay, quietDay, report } from "./fixtures";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { lastConfirm, resetSheets, SheetHost, type Opened } from "./sheet-host";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
+import { dayTab } from "./week-tabs";
 
 /** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
@@ -26,9 +27,6 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
 }));
 
 const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
-
-// The date button's accessible name starts with its visible date and ends with the action.
-const CHANGE_DAY = /, ganti hari$/;
 
 const pinToday = () =>
   jest.useFakeTimers({
@@ -247,17 +245,17 @@ it("opens on the day a notification points to", async () => {
   await waitFor(() => expect(runtime.api.sellerOperations).toHaveBeenCalledWith("k-1", tomorrow));
 });
 
-it("keeps the day toggle for a kitchen with packages on a day without deliveries", async () => {
+it("keeps the week strip for a kitchen with packages on a day without deliveries", async () => {
   await renderToday(runtimeWith(async () => quietDay()));
   expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
-  expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
+  expect(screen.getByTestId("week-strip")).toBeTruthy();
   expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
 });
 
 it("never shows helpers the owner setup steps", async () => {
   await renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
   expect(await screen.findByText("Tidak ada yang dimasak hari ini")).toBeTruthy();
-  expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
+  expect(screen.getByTestId("week-strip")).toBeTruthy();
   expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
 });
 
@@ -398,7 +396,7 @@ describe("session cards", () => {
   it("words the empty state for tomorrow", async () => {
     await renderToday(runtimeWith(async () => quietDay()));
     await screen.findByText("Tidak ada yang dimasak hari ini");
-    await fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
+    await fireEvent.press(dayTab(1));
     expect(await screen.findByText("Tidak ada yang dimasak besok")).toBeTruthy();
   });
 });
@@ -444,35 +442,31 @@ describe("Hari ini by mood", () => {
   };
   const dinnerOnly = () => {
     const day = canvasDay();
-    for (const d of day.deliveries) d.meals = d.meals.map((m) => ({ ...m, meal: "dinner" }));
+    for (const d of day.deliveries)
+      d.meals = d.meals.map((m) => ({ ...m, meal: "dinner", status: "preparing", cooking_started_at: "2026-10-08T11:00:00Z" }) as typeof m);
     return day;
   };
   const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
-  const tabsSelected = () => screen.getAllByRole("tab").map((t) => t.props.accessibilityState.selected);
+  // The Siang / Malam switch sits in the header's top row; the week strip's day tabs are in the content below it.
+  const moodTabs = () => within(screen.getByTestId("mood-header-row")).getAllByRole("tab");
+  const tabsSelected = () => moodTabs().map((t) => t.props.accessibilityState.selected);
 
-  it("titles the header with the date, a button that switches between today and tomorrow", async () => {
+  it("titles the header with the plain date, and the strip switches between today and tomorrow", async () => {
     pinToday();
     await renderMood(runtimeWith(same(canvasDay())));
-    const button = await screen.findByRole("button", { name: CHANGE_DAY });
-    expect(within(button).getByText("Kamis 8 Okt")).toBeTruthy();
-    expect(StyleSheet.flatten(button.props.style).minHeight).toBe(48);
-    // Label in Name (WCAG 2.5.3): the accessible name begins with the text the eye reads.
-    expect(button.props.accessibilityLabel).toBe("Kamis 8 Okt, ganti hari");
-    expect(button.props.accessibilityHint).toBeUndefined();
-    expect(oneIcon(button)).toMatchObject({
-      name: "chevron-down",
-      color: nativeMood.light.siang.headerText,
-    });
-    expect(StyleSheet.flatten(within(button).getByText("Kamis 8 Okt").props.style).color).toBe(nativeMood.light.siang.headerText);
+    const title = await screen.findByText("Kamis 8 Okt");
+    // Not a button any more, and no chevron: the strip below it picks the day.
+    expect(title.props.accessibilityRole).toBe("header");
+    expect(StyleSheet.flatten(title.props.style).color).toBe(nativeMood.light.siang.headerText);
+    expect(screen.queryByRole("button", { name: /ganti hari/ })).toBeNull();
+    expect(iconsIn(screen.getByTestId("mood-header")).some((i) => i.name === "chevron-down")).toBe(false);
     expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
 
-    await fireEvent.press(button);
+    await fireEvent.press(dayTab(1));
     expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
     expect(screen.getByText("Jumat 9 Okt")).toBeTruthy();
 
-    const back = screen.getByRole("button", { name: CHANGE_DAY });
-    expect(back.props.accessibilityLabel).toBe("Jumat 9 Okt, ganti hari");
-    await fireEvent.press(back);
+    await fireEvent.press(dayTab(0));
     expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
     expect(screen.getByText("Kamis 8 Okt")).toBeTruthy();
   });
@@ -484,30 +478,30 @@ describe("Hari ini by mood", () => {
     const byDate = (_id: string, date: string) => (date === "2026-10-09" ? stuck : Promise.resolve(canvasDay()));
     await renderMood(runtimeWith(byDate as unknown as () => Promise<unknown>));
     await screen.findByText("Dapur Bu Rina · Hari ini");
-    await fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
+    await fireEvent.press(dayTab(1));
     expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
     expect(screen.getByLabelText("Memuat dapur")).toBeTruthy();
   });
 
-  it("words the date button in English", async () => {
+  it("words the title and the day word in English", async () => {
     pinToday();
     const runtime = runtimeWith(same(canvasDay()));
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
     await renderMood(runtime);
-    const button = await screen.findByRole("button", { name: /, change day$/ });
-    expect(button.props.accessibilityLabel).toBe("Thu 8 Oct, change day");
+    expect(await screen.findByText("Thu 8 Oct")).toBeTruthy();
     expect(await screen.findByText("Dapur Bu Rina · Today")).toBeTruthy();
-    await fireEvent.press(button);
+    await fireEvent.press(dayTab(1));
     expect(await screen.findByText("Dapur Bu Rina · Tomorrow")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Fri 9 Oct, change day" })).toBeTruthy();
+    expect(screen.getByText("Fri 9 Oct")).toBeTruthy();
   });
 
-  it("has exactly one tablist, the mood toggle", async () => {
+  it("has two tablists: the mood toggle in the top row and the week strip under the title", async () => {
     await renderMood(runtimeWith(same(canvasDay())));
     await screen.findByTestId("session-count");
     const tablists = findInScreen((n) => n.props.accessibilityRole === "tablist");
-    expect(tablists).toHaveLength(1);
-    expect(screen.getAllByRole("tab").map((t) => t.props.accessibilityLabel)).toEqual(["Siang", "Malam"]);
+    expect(tablists).toHaveLength(2);
+    expect(moodTabs().map((t) => t.props.accessibilityLabel)).toEqual(["Siang", "Malam"]);
+    expect(within(screen.getByTestId("week-strip")).getAllByRole("tab")).toHaveLength(7);
     expect(tabsSelected()).toEqual([true, false]);
     expect(screen.queryByText("Masak")).toBeNull();
   });
@@ -517,7 +511,7 @@ describe("Hari ini by mood", () => {
     await screen.findByTestId("session-count");
     const row = within(screen.getByTestId("mood-header")).getByTestId("mood-header-row");
     expect(StyleSheet.flatten(row.props.style).minHeight).toBe(36);
-    const [track] = findInScreen((n) => n.props.accessibilityRole === "tablist");
+    const [track] = findAll(row, (n) => n.props.accessibilityRole === "tablist");
     // 34 = the 1 edge, the 1 padding and the 30 pills: shorter than the row, so the row stays 36 (the 54 regular track grew it to 48).
     expect(StyleSheet.flatten(track.props.style)).toMatchObject({ borderWidth: 1, padding: 1 });
     expect(Number.isInteger(StyleSheet.flatten(track.props.style).width)).toBe(true);
@@ -525,7 +519,7 @@ describe("Hari ini by mood", () => {
     let wrapper = track.parent;
     while (wrapper && StyleSheet.flatten(wrapper.props.style as never)?.flexShrink !== 0) wrapper = wrapper.parent;
     expect(StyleSheet.flatten(wrapper!.props.style as never).marginVertical).toBe(0);
-    for (const tab of screen.getAllByRole("tab")) {
+    for (const tab of moodTabs()) {
       expect(StyleSheet.flatten(tab.props.style)).toMatchObject({ minHeight: 34, marginVertical: -2 });
       expect(tab.props.hitSlop).toEqual({ top: 7, bottom: 7 });
     }
@@ -659,8 +653,8 @@ describe("Hari ini by mood", () => {
       expect(flat("mood-fill-malam").backgroundColor).toBe("#E2ECDD");
       // The fill is always mounted; in Malam it is the opaque layer.
       expect(flat("mood-fill-malam").opacity).toBe(1);
-      const title = within(screen.getByTestId("mood-header")).getByRole("button", { name: CHANGE_DAY });
-      expect(StyleSheet.flatten(within(title).getByText(/\d/).props.style).color).toBe("#2E2E2E");
+      const title = within(screen.getByTestId("mood-header")).getByRole("header");
+      expect(StyleSheet.flatten(title.props.style).color).toBe("#2E2E2E");
     });
 
     it("keeps a failed read readable: the message sits on the body in the error colour, not inside the header", async () => {
@@ -975,7 +969,7 @@ describe("the live slot", () => {
 
     await renderToday(busy());
     await screen.findByTestId("live-slot");
-    await fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
+    await fireEvent.press(dayTab(1));
     await waitFor(() => expect(screen.queryByTestId("live-slot")).toBeNull());
     expect(screen.queryByRole("button", { name: "Pilih" })).toBeNull();
   });
@@ -1020,10 +1014,11 @@ describe("the compact rantang track and the regular one", () => {
 });
 
 describe("dark Malam", () => {
-  it("draws the figure strip on the dark surface and the compact track on the dark mood, in Malam", async () => {
+  it("draws the figure strip on the dark surface and the batch progress on the dark mood, in Malam", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const day = canvasDay();
-    for (const d of day.deliveries) d.meals = d.meals.map((m) => ({ ...m, meal: "dinner" }));
+    for (const d of day.deliveries)
+      d.meals = d.meals.map((m) => ({ ...m, meal: "dinner", status: "preparing", cooking_started_at: "2026-10-08T11:00:00Z" }) as typeof m);
     await render(
       <ThemeProvider storageKey="t.theme">
         <MoodProvider now={() => new Date("2026-10-08T12:00:00Z")}>
@@ -1037,10 +1032,11 @@ describe("dark Malam", () => {
     expect(StyleSheet.flatten(strip.props.style).backgroundColor).toBe(nativeThemes.dark.surface);
     expect(nativeMood.dark.malam.hero).toBe(nativeThemes.dark.surface);
     expect(StyleSheet.flatten(within(strip).getByText("34").props.style).color).toBe(nativeThemes.dark.charcoal);
-    const rail = screen.getByTestId("rantang-track-rail", { includeHiddenElements: true });
-    expect(StyleSheet.flatten(rail.props.style).height).toBe(40);
-    expect(StyleSheet.flatten(screen.getByTestId("rantang-track-line", { includeHiddenElements: true }).props.style).backgroundColor).toBe(
-      nativeMood.dark.malam.heroMeta,
-    );
+    const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
+    const ink = nativeMood.dark.malam;
+    expect(flatOf("batch-progress-track").backgroundColor).toBe(nativeThemes.dark.line);
+    // Dark Dimasak is cream: no grey step sits 3:1 off the track and 1.5:1 off the sunrise beside it.
+    expect(flatOf("batch-progress-segment-cooking").backgroundColor).toBe(ink.headerText);
+    expect(StyleSheet.flatten(screen.getByText("0 dari 4 sampai").props.style).color).toBe(ink.headerText);
   });
 });

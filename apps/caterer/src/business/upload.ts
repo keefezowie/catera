@@ -20,6 +20,8 @@ async function shrink(photo: Picked): Promise<string> {
 export async function uploadPhoto(runtime: MobileRuntime, picked: Picked, demo: boolean): Promise<string> {
   const photo = { uri: await shrink(picked), mimeType: "image/jpeg", fileSize: null };
   const token = await runtime.token();
+  // The Catera API calls below are bearer only (`credentials: "omit"`), so no cookie is sent or kept. The signed storage
+  // PUT and the read of the local file are not Catera calls and stay as they were.
   const auth: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   const type = photo.mimeType || "image/jpeg";
   const read = async (response: Response) => {
@@ -33,13 +35,14 @@ export async function uploadPhoto(runtime: MobileRuntime, picked: Picked, demo: 
     // "Unsupported FormDataPart implementation", so the picked file is sent as an expo-file-system File.
     const form = new FormData();
     form.append("file", new File(photo.uri) as unknown as Blob);
-    url = (await read(await fetch(`${runtime.apiBase}/api/uploads`, { method: "POST", headers: auth, body: form }))).url;
+    url = (await read(await fetch(`${runtime.apiBase}/api/uploads`, { method: "POST", headers: auth, body: form, credentials: "omit" }))).url;
   } else {
     const bytes = await (await fetch(photo.uri)).blob();
     const prepared = await read(
       await fetch(`${runtime.apiBase}/api/uploads/prepare`, {
         method: "POST",
         headers: { ...auth, "Content-Type": "application/json" },
+        credentials: "omit",
         body: JSON.stringify({ size: photo.fileSize || bytes.size, type }),
       }),
     );
@@ -50,6 +53,7 @@ export async function uploadPhoto(runtime: MobileRuntime, picked: Picked, demo: 
         await fetch(`${runtime.apiBase}/api/uploads/complete`, {
           method: "POST",
           headers: { ...auth, "Content-Type": "application/json" },
+          credentials: "omit",
           body: JSON.stringify({ object: prepared.object }),
         }),
       )

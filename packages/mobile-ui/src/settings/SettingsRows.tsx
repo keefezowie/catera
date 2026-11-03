@@ -5,7 +5,7 @@ import { nativeLayout } from "@catera/design-tokens";
 import { useLayoutScale } from "../layoutScale";
 import { useHaptic } from "../motion";
 import { Skeleton, SkeletonGroup } from "../Skeleton";
-import { cardEdge, useColors } from "../theme";
+import { cardEdge, cardEdgeWidth, useColors } from "../theme";
 import { fonts } from "../type";
 
 /**
@@ -82,6 +82,8 @@ export function SettingsSection({
             backgroundColor: palette.fill,
             borderRadius: nativeLayout.radius.card,
             borderCurve: "continuous",
+            // Always set (0 in dark), as in ListCard: a dropped border key on a live switch empties a clipped card on Android.
+            borderWidth: cardEdgeWidth(palette),
             ...cardEdge(palette),
             overflow: "hidden",
           }}

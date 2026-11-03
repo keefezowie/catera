@@ -1,5 +1,6 @@
 import "react-native-url-polyfill/auto";
 import * as SecureStore from "expo-secure-store";
+import * as ReactNative from "react-native";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createApi } from "@catera/api-client";
 import type { Actor } from "@catera/domain";
@@ -84,6 +85,33 @@ export async function ensureActor(
   return actor.data as Actor;
 }
 
+/**
+ * Empties the app's native cookie store. It never throws and waits at most two seconds, so a store that never answers
+ * cannot hold sign-out up.
+ *
+ * The store is shared, and clearing all of it is intended at sign-out. On Android it is the app's CookieManager, which
+ * React Native's networking, expo/fetch and any WebView all use. On iOS it is `HTTPCookieStorage.shared`. In Expo Go
+ * every project runs in the one Expo Go app, so it clears the cookies of the other projects too.
+ */
+function clearNativeCookies(): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, 2000);
+    const done = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    try {
+      // React Native exports Networking at runtime; the classic typings (types/index.d.ts) leave it out.
+      const { Networking } = ReactNative as unknown as {
+        Networking: { clearCookies: (callback: (cleared: boolean) => void) => void };
+      };
+      Networking.clearCookies(done);
+    } catch {
+      done();
+    }
+  });
+}
+
 /** Stateless services shared by the Catera apps: session, API and sign-in. */
 export function createMobileRuntime(config: MobileRuntimeConfig) {
   const apiBase = config.apiUrl.trim().replace(/\/+$/, "");
@@ -104,7 +132,9 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
     (await SecureStore.getItemAsync(key("demo.token"))) ||
     (await supabase?.auth.getSession())?.data.session?.access_token ||
     null;
-  const api = createApi(apiBase, token, { timeoutMs: 15_000 });
+  // Bearer only: the phone never keeps or sends the API's cookies, so the token is the whole session. The direct
+  // fetches to the Catera API (uploads, proof photos, the import assistant) pass `credentials: "omit"` too.
+  const api = createApi(apiBase, token, { timeoutMs: 15_000, credentials: "omit" });
 
   /** `name` names a brand-new profile when the account carries none (default "Katering"). */
   async function signInPassword(email: string, password: string, requestId: string, name = "Katering") {
@@ -211,6 +241,11 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
     await SecureStore.setItemAsync(key("demo.token"), r.token);
   }
 
+  /**
+   * Ends the session on this phone: the demo token, the Supabase session and every cookie in the native cookie store.
+   * The cookies matter for an install from before requests omitted them: the demo login's `catera_v1_demo` cookie was
+   * kept there and signed the phone straight back in.
+   */
   async function signOut() {
     // The demo session also lives in an httpOnly web cookie. Fire the logout best effort and do not wait for it,
     // so a hanging network never stalls sign-out. A build with no Supabase only talks to the demo backend, whose cookie
@@ -218,6 +253,7 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
     if (!supabase || (await SecureStore.getItemAsync(key("demo.token"))))
       void Promise.resolve(api.request("auth/logout", {})).catch(() => undefined);
     await SecureStore.deleteItemAsync(key("demo.token"));
+    await clearNativeCookies();
     const result = await supabase?.auth.signOut({ scope: "local" });
     if (result?.error) throw result.error;
   }

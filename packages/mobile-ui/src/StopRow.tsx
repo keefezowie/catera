@@ -8,6 +8,10 @@ import { useColors } from "./theme";
 import { fonts } from "./type";
 
 const BADGE = 28;
+const PILL_HEIGHT = 20;
+
+/** A stop's place in the run: cooking, out for delivery, or arrived. The Dapur row draws it as a pill under the address. */
+export type StopStatus = { label: string; tone: "cooking" | "out" | "arrived" };
 /** Under the Dapur geometry (a 48 touch target): the row is 64, and the map and "…" buttons are bare 48 icon buttons in one column. */
 const V2_ROW = 64;
 const V2_BUTTON = 48;
@@ -24,6 +28,8 @@ export const STOP_ROW_PICKING_INSET = 24 + 12 + STOP_ROW_INSET;
  * - `selection` turns the number-and-text block into one checkbox with a circle before it (Dapur's "Pilih" mode); the
  *   map button stays outside it, and the "…" button is hidden while selecting. A `disabled` stop cannot be ticked, and
  *   `note` under the address says why. Without `selection` the row is exactly as before.
+ * - `status` (Dapur geometry) is one more line after the note: a pill for cooking, out, or arrived. It is spoken in the row's
+ *   label, and an arrived stop's number badge goes muted (`muted` ink on `line`).
  * - The map button opens the stop in a map. The "…" button is the stop's other actions (move a day, report a problem)
  *   and exists only when the caller has some. Both are 48dp round buttons.
  * - Where the root asks for a 48 touch target (Catera Dapur's) the row is 64 (the `TwoLineRow` geometry): the 28 badge,
@@ -47,6 +53,7 @@ export function StopRow({
   portions,
   packageName,
   note,
+  status,
   testID = "stop-row",
 }: {
   n: number;
@@ -59,6 +66,8 @@ export function StopRow({
   packageName?: string;
   /** Dapur geometry only: the stop's delivery note, one more `meta` line under the address. */
   note?: string;
+  /** Dapur geometry only: where the stop's meal is, a pill after the note. An arrived stop's number goes muted. */
+  status?: StopStatus;
   onMap: () => void;
   mapLabel: string;
   onMore?: () => void;
@@ -77,6 +86,7 @@ export function StopRow({
         portions={portions}
         packageName={packageName}
         note={note}
+        status={status}
         onMap={onMap}
         mapLabel={mapLabel}
         onMore={onMore}
@@ -183,6 +193,13 @@ export function StopRow({
   );
 }
 
+/** Cooking is the quiet scheduled family, out is the one attention tint (cream with sunrise ink), arrived is solid forest. */
+function pillColors(tone: StopStatus["tone"], c: ReturnType<typeof useColors>) {
+  if (tone === "cooking") return { fill: c.scheduled, ink: c.forest, edge: null };
+  if (tone === "out") return { fill: c.cream, ink: c.sunriseInk, edge: c.attentionBorder };
+  return { fill: c.forest, ink: c.cream, edge: null };
+}
+
 function IconButton({ icon, label, onPress, testID }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; testID?: string }) {
   const c = useColors();
   return (
@@ -207,6 +224,7 @@ function StopRowV2({
   portions,
   packageName,
   note,
+  status,
   onMap,
   mapLabel,
   onMore,
@@ -221,6 +239,7 @@ function StopRowV2({
   portions?: string;
   packageName?: string;
   note?: string;
+  status?: StopStatus;
   onMap: () => void;
   mapLabel: string;
   onMore?: () => void;
@@ -231,12 +250,15 @@ function StopRowV2({
   const c = useColors();
   // At large text one line holds a word or two of the address, so the lines wrap a little before they are cut.
   const { title: titleLines, meta: lines } = useRowLines();
+  // A stop that has arrived is done with the kitchen: its number goes quiet so the eye lands on stops still out.
+  const done = status?.tone === "arrived";
+  const pill = status ? pillColors(status.tone, c) : null;
   const badge = (
     <View
       testID={`${testID}-badge`}
-      style={{ width: BADGE, height: BADGE, borderRadius: BADGE / 2, backgroundColor: c.sage, alignItems: "center", justifyContent: "center" }}
+      style={{ width: BADGE, height: BADGE, borderRadius: BADGE / 2, backgroundColor: done ? c.line : c.sage, alignItems: "center", justifyContent: "center" }}
     >
-      <Text variant="label" style={{ lineHeight: 16, fontVariant: ["tabular-nums"] }}>
+      <Text variant="label" style={{ lineHeight: 16, fontVariant: ["tabular-nums"], ...(done ? { color: c.muted } : null) }}>
         {n}
       </Text>
     </View>
@@ -245,7 +267,7 @@ function StopRowV2({
   // gets cut. Callers that pass neither get the name alone over `detail · address`.
   const split = portions !== undefined || packageName !== undefined;
   const meta = (packageName !== undefined ? [packageName, address] : split ? [address] : [detail, address]).filter(Boolean).join(" · ");
-  const spoken = `${n}. ${name}, ${detail}, ${address}` + (note ? `, ${note}` : "");
+  const spoken = `${n}. ${name}, ${detail}, ${address}` + (note ? `, ${note}` : "") + (status ? `, ${status.label}` : "");
   const text = (
     <View style={{ flex: 1, minWidth: 0 }}>
       <Text testID={`${testID}-title`} variant="rowTitle" numberOfLines={titleLines}>
@@ -260,8 +282,28 @@ function StopRowV2({
           {note}
         </Text>
       ) : null}
+      {status && pill ? (
+        <View
+          testID={`${testID}-status`}
+          style={{
+            alignSelf: "flex-start",
+            minHeight: PILL_HEIGHT,
+            marginTop: 2,
+            paddingHorizontal: 8,
+            justifyContent: "center",
+            borderRadius: PILL_HEIGHT / 2,
+            backgroundColor: pill.fill,
+            borderWidth: pill.edge ? 1 : 0,
+            borderColor: pill.edge ?? "transparent",
+          }}
+        >
+          <Text variant="meta" numberOfLines={1} style={{ color: pill.ink, fontVariant: ["tabular-nums"] }}>
+            {status.label}
+          </Text>
+        </View>
+      ) : null}
       {selection?.note ? (
-        // One line at the default size, cut at the end: a picking row is title, meta and this status (and the delivery note).
+        // One line at the default size, cut at the end: the last line of a picking row, after the delivery note and the status.
         <Text testID={`${testID}-note`} variant="meta" numberOfLines={lines}>
           {selection.note}
         </Text>

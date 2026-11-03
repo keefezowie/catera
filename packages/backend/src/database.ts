@@ -695,6 +695,12 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261030120000_caterer_contact_whatsapp.sql"), "utf8") + "\ncommit;");
   }
+  if (!(await db.query<{ done: boolean }>(
+    "select position('seller-calendar served meals' in pg_get_functiondef('public.catera_v1_read_lifecycle_base(text,jsonb)'::regprocedure)) > 0 as done",
+  )).rows[0].done) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261030100000_seller_calendar_served_meals.sql"), "utf8") + "\ncommit;");
+  }
   // Synthetic renewal, payment and kitchen-loop states for the demo customer, after everything else, only on a demo
   // database seeded just now (`r`: no v1 schema before). Demo storage only: never run against hosted data.
   await applyDemoStates(db, { seeded: !r.rows[0].exists, root: projectRoot(), folder: inMemory ? null : folder });

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
 import { localDay, addDays } from "@catera/domain";
@@ -8,6 +8,9 @@ test.skip(
   "Use the isolated operations config and synthetic fixture database",
 );
 const date = addDays(localDay(), -1);
+// A fresh demo database also carries the demo states (packages/backend/src/demo-states.ts), whose recently completed
+// plan delivered at Dapur Senja yesterday. Row counts are about this fixture's own rows: their addresses are synthetic.
+const fixtureRows = (rows: Locator) => rows.filter({ hasText: "Jalan Sintetis" });
 test.use({ baseURL: base });
 test.beforeEach(async ({ page }) => {
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
@@ -21,7 +24,7 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
     "aria-selected",
     "true",
   );
-  await expect(main.locator("tbody tr:not(.ops-group-heading)")).toHaveCount(3);
+  await expect(fixtureRows(main.locator("tbody tr:not(.ops-group-heading)"))).toHaveCount(3);
   await expect(
     main.getByText("Jalan Sintetis Kantor 2, Kelapa Gading"),
   ).toBeVisible();
@@ -39,7 +42,7 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
   await expect(page).toHaveURL(/search=Kantor/);
   await expect(main.locator("tbody tr:not(.ops-group-heading)")).toHaveCount(1);
   await main.getByRole("button", { name: "Hapus filter" }).click();
-  await expect(main.locator("tbody tr:not(.ops-group-heading)")).toHaveCount(3);
+  await expect(fixtureRows(main.locator("tbody tr:not(.ops-group-heading)"))).toHaveCount(3);
   await main
     .getByRole("checkbox", { name: "Pilih semua pesanan", exact: true })
     .check();
@@ -51,7 +54,10 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
     `/api/v1/seller/10000000-0000-4000-8000-000000000001?date=${date}`,
   );
   const state = (await response.json()).data;
-  const delivery = state.deliveries[0];
+  // One of the fixture's selected rows, not the demo's delivered one.
+  const delivery = state.deliveries.find(
+    (d: { address: { instructions: string } }) => d.address.instructions === "Fixture ID 0006",
+  );
   await page.request.post("/api/v1/commands", {
     data: {
       action: "delivery.status",
@@ -73,12 +79,9 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
   await confirmation
     .getByRole("button", { name: "Konfirmasi perubahan" })
     .click();
-  await expect(confirmation.getByRole("alert")).toContainText(
-    "Pesanan sudah berubah",
-  );
-  await confirmation
-    .getByRole("button", { name: "Kembali tinjau pilihan" })
-    .click();
+  // Since 1af1b7d a conflict closes the confirmation and reports above the refreshed list, keeping the selection.
+  await expect(confirmation).toBeHidden();
+  await expect(main.getByRole("alert").filter({ hasText: "Pesanan sudah berubah" })).toBeVisible();
   await expect(main.locator(".ops-bulk-toolbar")).toContainText(
     "pilihan tidak valid",
   );
@@ -103,9 +106,9 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
     "aria-selected",
     "true",
   );
-  await main
-    .getByRole("button", { name: /^Detail Nadia/ })
+  await fixtureRows(main.locator("tbody tr:not(.ops-group-heading)"))
     .first()
+    .getByRole("button", { name: /^Detail Nadia/ })
     .click();
   await expect(
     main.getByRole("complementary", { name: "Detail pesanan" }),
@@ -124,7 +127,7 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
     main.getByRole("heading", { name: "Jadwal pesanan" }),
   ).toBeVisible();
   await expect(
-    main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
+    fixtureRows(main.locator(".ops-order-table tbody tr:not(.ops-group-heading)")),
   ).toHaveCount(3);
   const packages = main.getByRole("combobox", { name: "Filter paket" });
   await main
@@ -133,7 +136,7 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
   await packages.click();
   await page.getByRole("option").nth(1).click();
   await expect(
-    main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
+    fixtureRows(main.locator(".ops-order-table tbody tr:not(.ops-group-heading)")),
   ).toHaveCount(1);
   await main.getByRole("button", { name: "Simpan daftar pengantaran" }).click();
   const csv = main.getByRole("link", { name: /Unduh CSV/ });
@@ -155,9 +158,14 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
     "true",
   );
   await expect(
-    main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
+    fixtureRows(main.locator(".ops-order-table tbody tr:not(.ops-group-heading)")),
   ).toHaveCount(3);
-  await expect(main.locator(`[data-day="${date}"]`)).toContainText("3 pesanan");
+  // The strip counts the whole day: the fixture's three orders and whatever else the demo delivered on it.
+  const day = (await (await page.request.get(`/api/v1/seller/10000000-0000-4000-8000-000000000001?date=${date}`)).json())
+    .data.deliveries as { service_date: string; status: string }[];
+  const orders = day.filter((d) => d.service_date === date && d.status !== "cancelled").length;
+  expect(orders).toBeGreaterThanOrEqual(3);
+  await expect(main.locator(`[data-day="${date}"]`)).toContainText(`${orders} pesanan`);
   await expect(page.locator(".toast")).not.toHaveClass(/visible/);
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await page.screenshot({
@@ -254,7 +262,7 @@ test("Schedule keeps keyboard focus across dates and supports English and narrow
   await page.goto(`/seller/schedule?date=${date}&meal=dinner`);
   await page.setViewportSize({ width: 320, height: 740 });
   await expect(
-    main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
+    fixtureRows(main.locator(".ops-order-table tbody tr:not(.ops-group-heading)")),
   ).toHaveCount(3);
   const wrap = main.locator(".ops-orders-panel .table-wrap");
   await wrap.evaluate((el) => {

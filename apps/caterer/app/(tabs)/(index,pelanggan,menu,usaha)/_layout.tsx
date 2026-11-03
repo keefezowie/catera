@@ -85,6 +85,10 @@ export default function TabStack({ segment }: { segment: string }) {
       <Stack.Protected guard={opens("sampai")}>
         <Stack.Screen name="sampai" options={sheetOptions({ detents: "large", palette })} />
       </Stack.Protected>
+      {/* Belanja 7 hari, pushed from Hari ini for an owner and a helper: a page with the large title and Bagikan and Cetak in the bar. */}
+      <Stack.Protected guard={opens("belanja")}>
+        <Stack.Screen name="belanja" options={contentTitled(t("Belanja 7 hari", "Shopping, 7 days"))} />
+      </Stack.Protected>
       <Stack.Protected guard={opens("tim")}>
         <Stack.Screen name="tim" options={sheetOptions({ detents: "fit", palette })} />
       </Stack.Protected>

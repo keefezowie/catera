@@ -1,13 +1,11 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react-native";
 import { render } from "./render-dapur";
 import { Linking, Pressable, Share, StyleSheet } from "react-native";
-import * as Reanimated from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { errorLabel, kitchenSession, routeMapsUrl, type SellerOperationsState } from "@catera/domain";
-import { nativeMotion } from "@catera/design-tokens";
 import { MoodProvider, ToastProvider, useMood } from "@catera/mobile-ui";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { TodayScreen } from "../src/today/TodayScreen";
@@ -15,6 +13,7 @@ import { dishKey } from "../src/today/ticks";
 import { canvasDay, delivery, report } from "./fixtures";
 import { spyFades } from "./fade";
 import { confirm, lastConfirm, resetSheets, SheetHost } from "./sheet-host";
+import { dayTab } from "./week-tabs";
 
 /** Jest's own window at the default text size, so the type ramp's line heights hold (above 1, Android drops them). */
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
@@ -142,30 +141,25 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-describe("the count card's rantang track", () => {
-  it("says Terjadwal for a meal nobody started, and Dimasak 08.10 once the kitchen did", async () => {
+describe("the count card's batch progress", () => {
+  it("shows nothing while every row is Terjadwal, and Mulai masak 08.10 once the kitchen started", async () => {
     let served = kitchenDay([scheduled]);
     const runtime = runtimeWith(async () => served);
     await renderToday(runtime);
-    const card = await screen.findByTestId("session-count");
-    // The compact track leaves its words line out of the picture; they are the first thing its accessibility value says.
-    const words = () => (within(screen.getByTestId("session-count")).getByTestId("rantang-track").props.accessibilityValue.text as string).split(". ")[0];
-    expect(words()).toBe("Terjadwal");
-    // The three stop labels are decoration for the eye; a screen reader gets the caption.
-    const hidden = { includeHiddenElements: true };
-    expect(within(card).getByText("Dimasak", hidden)).toBeTruthy();
-    expect(within(card).getByText("Diantar", hidden)).toBeTruthy();
-    expect(within(card).getByText("Sampai", hidden)).toBeTruthy();
+    await screen.findByTestId("session-count");
+    expect(screen.queryByTestId("batch-progress")).toBeNull();
 
     served = kitchenDay([cooking]);
     await fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
-    await waitFor(() => expect(words()).toBe("Dimasak 08.10"));
+    const progress = await within(screen.getByTestId("session-count")).findByTestId("batch-progress");
+    expect(within(progress).getByText("0 dari 4 sampai")).toBeTruthy();
+    expect(within(progress).getByText("mulai masak 08.10")).toBeTruthy();
   });
 });
 
-describe("the count card's four-stop track with mixed stages", () => {
-  it("puts a figure under each stop and fills the line to the furthest stage any row reached", async () => {
+describe("the count card's batch progress with mixed stages", () => {
+  it("counts the rows by stage: cooking, on the way and arrived, with the latest arrival beside the title", async () => {
     const left = { departed_at: "2026-10-08T03:00:00Z" };
     const day = kitchenDay([
       cooking,
@@ -174,19 +168,16 @@ describe("the count card's four-stop track with mixed stages", () => {
       { status: "out_for_delivery", cooking_started_at: cooking.cooking_started_at, ...left, arrived_at: "2026-10-08T04:00:00Z" },
     ]);
     await renderToday(runtimeWith(async () => day));
-    const card = await screen.findByTestId("session-count");
+    const card = within(await screen.findByTestId("session-count"));
     const hidden = { includeHiddenElements: true };
-    const figure = (i: number) => (within(card).getByTestId(`rantang-track-count-${i}`, hidden).children as string[]).join("");
-    expect([0, 1, 2, 3].map(figure)).toEqual(["0", "2", "1", "1"]);
-    const track = within(card).getByTestId("rantang-track");
-    // The caption, the line, the ring and the sentence all follow the furthest stage, so they never disagree.
-    expect((track.props.accessibilityValue.text as string).split(". ")[0]).toBe("Ditandai sampai");
-    expect(track.props.accessibilityValue.text).not.toContain("Dimasak 08.10");
-    expect(track.props.accessibilityLabel).toBe("Pesanan: Ditandai sampai, langkah 4 dari 4");
-    expect(within(card).getByTestId("rantang-track-stop-3-half", hidden)).toBeTruthy();
+    expect(card.getByText("1 dari 4 sampai")).toBeTruthy();
+    expect(card.getByText("terakhir 11.00")).toBeTruthy();
+    expect(card.getByTestId("batch-progress-bar").props.accessibilityLabel).toBe("1 sampai, 1 diantar, 2 dimasak, dari 4");
+    const figure = (key: string) => within(card.getByTestId(`batch-progress-cell-${key}`, hidden)).getAllByText(/^\d+$/, hidden)[0].props.children;
+    expect(["cooking", "out", "arrived"].map(figure)).toEqual(["2", "1", "1"]);
   });
 
-  it("stays still across a mood switch: the other meal's track mounts in place (Decision A)", async () => {
+  it("follows the meal on screen: Malam has nothing cooking yet, so its progress is gone", async () => {
     const day = kitchenDay([cooking]);
     for (const d of day.deliveries) d.meals.push({ meal: "dinner", status: "scheduled" } as never);
     const Switch = () => {
@@ -201,13 +192,10 @@ describe("the count card's four-stop track with mixed stages", () => {
         </MoodProvider>
       </MobileProvider>,
     );
-    const sentence = () => within(screen.getByTestId("session-count")).getByTestId("rantang-track").props.accessibilityLabel;
-    await waitFor(() => expect(sentence()).toBe("Pesanan: Dimasak, langkah 2 dari 4"));
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const label = () => within(screen.getByTestId("session-count")).queryByTestId("batch-progress-bar")?.props.accessibilityLabel;
+    await waitFor(() => expect(label()).toBe("0 sampai, 0 diantar, 4 dimasak, dari 4"));
     await fireEvent.press(screen.getByLabelText("ke Malam"));
-    await waitFor(() => expect(sentence()).toBe("Pesanan: Terjadwal, langkah 1 dari 4"));
-    // The tracker moves over `feature` only on a real stage change; the other meal is not one.
-    expect(timing.mock.calls.filter(([, config]) => config?.duration === nativeMotion.feature)).toEqual([]);
+    await waitFor(() => expect(label()).toBeUndefined());
   });
 });
 
@@ -399,10 +387,11 @@ describe("Mulai masak", () => {
     await renderToday(runtimeWith(async () => kitchenDay([{ status: "out_for_delivery", departed_at: "2026-10-08T02:00:00Z" }, scheduled])));
     expect(await screen.findByText("Mulai masak")).toBeTruthy();
     expect(screen.queryByText(/^Berangkat antar/)).toBeNull();
-    // The action follows the least advanced row; the track and its words follow the furthest one.
+    // The action follows the least advanced row; the progress counts every row where it is.
     const card = within(screen.getByTestId("session-count"));
-    expect((card.getByTestId("rantang-track").props.accessibilityValue.text as string).split(". ")[0]).toBe("Diantar");
-    expect(card.getByTestId("rantang-track").props.accessibilityLabel).toBe("Pesanan: Diantar, langkah 3 dari 4");
+    expect(card.getByText("0 dari 4 sampai")).toBeTruthy();
+    expect(card.getByText("berangkat 09.00")).toBeTruthy();
+    expect(card.getByTestId("batch-progress-bar").props.accessibilityLabel).toBe("0 sampai, 1 diantar, 0 dimasak, dari 4");
   });
 
   it("answers an INVALID_DATE with an error toast with Coba lagi, and reads the day again", async () => {
@@ -542,7 +531,7 @@ describe("other days and data", () => {
   it("shows the checklist for tomorrow and no footer action", async () => {
     await renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     await screen.findByText("Mulai masak");
-    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(dayTab(1));
     expect(await screen.findByText("Daftar masak")).toBeTruthy();
     await waitFor(() => expect(screen.queryByText("Mulai masak")).toBeNull());
     expect(screen.queryByTestId("screen-footer")).toBeNull();
@@ -734,7 +723,7 @@ describe("Urutan antar", () => {
   it("offers only a move on tomorrow, and only where the day can move", async () => {
     await renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     await screen.findByText("Mulai masak");
-    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(dayTab(1));
     // Tomorrow's day is read before its first stop shows; the checklist beside it reads its note too, so let that settle.
     expect(
       await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"),
@@ -859,7 +848,7 @@ describe("the order across the stages", () => {
     expect(screen.queryByText("Daftar masak")).toBeNull();
     expect(screen.queryByText("Per paket")).toBeNull();
     expect(screen.getByText("Dapur Bu Rina · Sedang diantar")).toBeTruthy();
-    expect(within(screen.getByTestId("session-count")).getByTestId("rantang-track").props.accessibilityValue.text).toMatch(/^Berangkat 09.30/);
+    expect(within(screen.getByTestId("session-count")).getByText("berangkat 09.30")).toBeTruthy();
     expect(screen.getByText(LINE)).toBeTruthy();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
     // The order and its buttons are all still there.
@@ -872,12 +861,29 @@ describe("the order across the stages", () => {
     await renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
     expect(screen.getByText(LINE)).toBeTruthy();
-    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(dayTab(1));
     // Wait for tomorrow's own day: the header names it before its stops are read.
     await screen.findByText("Dapur Bu Rina · Besok");
     await screen.findByLabelText(/^Pindah tanggal: /);
     await act(async () => undefined);
     expect(screen.queryByText(LINE)).toBeNull();
+  });
+
+  it("says Sedang diantar from the first stop out, before the rest have left", async () => {
+    const day = manyStops(6);
+    day.deliveries = day.deliveries.map((d, i) => {
+      const m = i < 2 ? departed : cooking;
+      return { ...d, status: m.status, meals: [{ meal: "lunch", ...m }] } as typeof d;
+    }) as typeof day.deliveries;
+    await renderToday(runtimeWith(async () => day));
+    expect(await screen.findByText("Dapur Bu Rina · Sedang diantar")).toBeTruthy();
+    expect(screen.queryByText("Dapur Bu Rina · Hari ini")).toBeNull();
+  });
+
+  it("goes back to Hari ini once every active stop is delivered", async () => {
+    await renderToday(runtimeWith(async () => kitchenDay([delivered])));
+    expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
+    expect(screen.queryByText("Dapur Bu Rina · Sedang diantar")).toBeNull();
   });
 
   it("lets a stop of a meal that is out for delivery be reported", async () => {
@@ -900,7 +906,7 @@ describe("the order across the stages", () => {
     // The stage moved the track and the footer in place; no block entered.
     expect(fades.mock.calls).toHaveLength(0);
     // A different day is different content: it fades.
-    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(dayTab(1));
     await screen.findByText("Dapur Bu Rina · Besok");
     await waitFor(() => expect(fades.mock.calls.length).toBeGreaterThan(0));
     fades.mockRestore();
@@ -1034,7 +1040,7 @@ describe("Semua beres", () => {
   it("is never done for a day other than today", async () => {
     await renderToday(runtimeWith(async (_id, date) => kitchenDay([delivered], { date })));
     await screen.findByText("Semua beres hari ini");
-    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(dayTab(1));
     await waitFor(() => expect(screen.queryByText("Semua beres hari ini")).toBeNull());
   });
 });
@@ -1114,7 +1120,7 @@ describe("Hari ini on the Dapur scale", () => {
   };
 
   describe("the header", () => {
-    it("runs the meta row, the date button, the figure strip with its Antar line and the compact track", async () => {
+    it("runs the meta row, the title, the week strip and the figure strip with its Antar line", async () => {
       const day = kitchenDay([scheduled]);
       for (const d of day.deliveries) {
         const windows = { lunch: "10.30–12.00", dinner: "18.00–19.30" };
@@ -1123,12 +1129,12 @@ describe("Hari ini on the Dapur scale", () => {
       await renderToday(runtimeWith(async () => day));
       const header = await screen.findByTestId("mood-header");
       const row = within(header).getByTestId("mood-header-row");
-      const date = within(header).getByRole("button", { name: /, ganti hari$/ });
+      const date = within(header).getByRole("header");
+      const week = within(header).getByTestId("week-strip");
       const strip = await within(header).findByTestId("session-figures");
-      const track = within(header).getByTestId("rantang-track");
       expect(before(header, row, date)).toBe(true);
-      expect(before(header, date, strip)).toBe(true);
-      expect(before(header, strip, track)).toBe(true);
+      expect(before(header, date, week)).toBe(true);
+      expect(before(header, week, strip)).toBe(true);
       // Porsi leads, then paket and alamat, with "Antar" as the strip's own line.
       const cell = (i: number) => within(strip).getByTestId(`session-figures-cell-${i}`);
       expect(cell(0).props.accessibilityLabel).toBe("34 porsi");
@@ -1140,27 +1146,30 @@ describe("Hari ini on the Dapur scale", () => {
       expect(within(header).queryByTestId("session-count-fill-siang", hidden)).toBeNull();
     });
 
-    it("sets the date as a 24/30 button at least 48 tall, in a 36 meta row", async () => {
+    it("sets the date as a 24/30 title, the day cells at least 48 tall, in a 36 meta row", async () => {
       await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
-      const date = await screen.findByRole("button", { name: /, ganti hari$/ });
-      expect(box(date).minHeight).toBe(48);
-      const title = within(date).getByText(/^Kamis 8 Okt$/);
+      const title = await screen.findByText(/^Kamis 8 Okt$/);
       expect(box(title)).toMatchObject({ fontSize: 24, lineHeight: 30 });
+      expect(title.props.accessibilityRole).toBe("header");
+      for (let i = 0; i < 7; i += 1) expect(box(screen.getByTestId(`week-day-${i}`)).minHeight).toBeGreaterThanOrEqual(48);
       // The band's top row is 36, with the Siang / Malam toggle at its end.
       const header = screen.getByTestId("mood-header");
       expect(box(within(header).getByTestId("mood-header-row")).minHeight).toBe(36);
       expect(within(header).getByRole("tab", { name: "Siang" })).toBeTruthy();
     });
 
-    it("draws the track compact: a 40 rail, no words line, the words kept for a screen reader", async () => {
-      await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
-      const track = await screen.findByTestId("rantang-track");
-      expect(box(within(track).getByTestId("rantang-track-rail")).height).toBe(40);
-      expect(within(track).queryByTestId("rantang-track-caption")).toBeNull();
-      expect(track.props.accessibilityValue.text).toContain("Terjadwal");
-      // Rings of 32 round discs of 24.
-      expect(box(within(track).getByTestId("rantang-track-stop-1", hidden)).width).toBe(32);
-      expect(box(within(track).getByTestId("rantang-track-stop-1-disc", hidden)).width).toBe(24);
+    it("draws the batch progress under the strip once cooking began, and not before", async () => {
+      const first = await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await screen.findByTestId("session-figures");
+      expect(within(screen.getByTestId("mood-header")).queryByTestId("batch-progress")).toBeNull();
+      await first.unmount();
+      await renderToday(runtimeWith(async () => kitchenDay([cooking])));
+      const header = await screen.findByTestId("mood-header");
+      const strip = await within(header).findByTestId("session-figures");
+      const progress = await within(header).findByTestId("batch-progress");
+      expect(before(header, strip, progress)).toBe(true);
+      // The old rantang track is gone from Hari ini.
+      expect(within(header).queryByTestId("rantang-track", hidden)).toBeNull();
     });
 
     it("is the date and meta row only when there is no session", async () => {
@@ -1170,8 +1179,8 @@ describe("Hari ini on the Dapur scale", () => {
       await screen.findByText("Tidak ada yang dimasak hari ini");
       const header = screen.getByTestId("mood-header");
       expect(within(header).queryByTestId("session-figures")).toBeNull();
-      expect(within(header).queryByTestId("rantang-track")).toBeNull();
-      expect(within(header).getByRole("button", { name: /, ganti hari$/ })).toBeTruthy();
+      expect(within(header).queryByTestId("batch-progress")).toBeNull();
+      expect(within(header).getByTestId("week-strip")).toBeTruthy();
     });
 
     it("words the figures in English", async () => {
@@ -1393,7 +1402,7 @@ describe("Hari ini on the Dapur scale", () => {
       expect(screen.getByText("Urutan antar")).toBeTruthy();
     });
 
-    it("starts Antar one row (48) and one gap (24) under where the cooking part began", async () => {
+    it("leads with Antar and folds the 48 cooked row under it, one 24 gap apart", async () => {
       const first = await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const card = await screen.findByTestId("session-card");
       // Before: the cooking list opens the session card, and the run is far below it.
@@ -1403,10 +1412,11 @@ describe("Hari ini on the Dapur scale", () => {
       await first.unmount();
       await renderToday(runtimeWith(async () => kitchenDay([out])));
       const after = await screen.findByTestId("session-card");
-      // After: the summary opens it, and Antar follows it directly: 48 + the 24 section gap, not a whole list further down.
+      // After: stops are out, so Antar opens the card and the folded 48 cooked row follows it across the 24 section gap.
       const parts = topOf(after, "");
-      expect(parts.map((n) => n.props.testID)).toEqual(["cooked-summary", "delivery-order"]);
-      expect((box(parts[0]).minHeight as number) + (box(after).gap as number)).toBe(72);
+      expect(parts.map((n) => n.props.testID)).toEqual(["delivery-order", "cooked-summary"]);
+      expect(box(parts[1]).minHeight).toBe(48);
+      expect(box(after).gap).toBe(24);
     });
   });
 

@@ -301,9 +301,9 @@ describe("FigureStrip in dark", () => {
     });
   });
 
-  it("keeps light as it was: no edge, padding 12 16", async () => {
+  it("keeps light as it was: a zero edge, padding 12 16", async () => {
     const light = await strip("light");
-    expect(light.borderWidth).toBeUndefined();
+    expect(light.borderWidth).toBe(0);
     expect(light).toMatchObject({ paddingVertical: 12, paddingHorizontal: 16 });
   });
 });

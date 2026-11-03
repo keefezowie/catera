@@ -24,6 +24,7 @@ import { canvasDay, report } from "./fixtures";
 import { withDapurScale } from "./dapur-scale";
 import { ancestorProps, findAll, findInScreen, iconsIn } from "./host-queries";
 import { declared, lastActionSheet, lastConfirm, lastGuard, resetSheets, SheetHost, unsavedGuard, type Opened } from "./sheet-host";
+import { dayTab } from "./week-tabs";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
 jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
@@ -271,7 +272,7 @@ describe("stop exceptions", () => {
     expect(within(sheet).queryByText("Pindah tanggal")).toBeNull();
     await act(() => router.back());
     // Besok: only a move, and only where the day can move.
-    await fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await fireEvent.press(dayTab(1));
     await fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"));
     expect(router.push).toHaveBeenLastCalledWith(expect.stringMatching(new RegExp(`date=${TOMORROW}$`)));
     sheet = await stopSheet();
@@ -900,7 +901,8 @@ describe("the action sheets on the Dapur scale", () => {
       expect(dark.sage).toMatchObject({ backgroundColor: nativeThemes.dark.sage, borderWidth: 1, borderColor: nativeThemes.dark.line, paddingHorizontal: 15 });
       // The 1px edge and the 15 padding put the rows 16 in, as the surface card's 16 does.
       expect(dark.surface).toMatchObject({ backgroundColor: nativeThemes.dark.surface, paddingHorizontal: 16 });
-      expect(dark.surface.borderWidth).toBeUndefined();
+      // Zero, never absent: a border key dropped on a live switch empties the clipped card on Android (gate 2026-10-30 #10).
+      expect(dark.surface.borderWidth).toBe(0);
       const light = await cards("light");
       expect(light.sage).toMatchObject({ backgroundColor: nativeThemes.light.sage, borderWidth: 1, borderColor: nativeThemes.light.cardBorder, paddingHorizontal: 15 });
       expect(light.surface).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderWidth: 1, paddingHorizontal: 15 });

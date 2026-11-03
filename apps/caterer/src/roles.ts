@@ -25,6 +25,7 @@ export const SCREEN_TAB = {
   sampai: "index",
   // The email link lands here signed out; the screen is never role-guarded (`+native-intent` lets it through as a root-stack path).
   "auth/callback": "index",
+  belanja: "index",
   "pengaturan/data-akun": "index",
   "pengaturan/hapus-akun": "index",
   pengaturan: "index",

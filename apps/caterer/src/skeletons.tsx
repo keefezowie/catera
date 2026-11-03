@@ -1,6 +1,6 @@
 import { View, type DimensionValue } from "react-native";
 import { useMobile } from "@catera/mobile-core";
-import { Card, CHECK_ROW_INSET, COMPACT_MEDIA_INSET, ListCard, Skeleton, SkeletonGroup, trackLabelLines, useScreenMargin, useTouchTarget } from "@catera/mobile-ui";
+import { Card, CHECK_ROW_INSET, COMPACT_MEDIA_INSET, ListCard, Skeleton, SkeletonGroup, useScreenMargin, useTouchTarget } from "@catera/mobile-ui";
 import { nativeLayout } from "@catera/design-tokens";
 import { useActionPairStacked } from "./layout/useActionPairStacked";
 import { ACTION, CHECK_HEIGHT, FIGURE_GAP, FIGURE_TOP, HEADING_GAP, HEADING_LINE, PACKAGE_HEIGHT, SECTION_GAP } from "./today/rows";
@@ -22,21 +22,15 @@ function Line({ width, block, line, onMood, testID }: { width: DimensionValue; b
   );
 }
 
-/** The rantang track's four stop labels (Terjadwal, Dimasak, Diantar, Sampai) and the count under each: centred caption blocks. */
-const STOPS = [0, 1, 2, 3] as const;
-
 /**
- * The header's figures while the day loads: the porsi, paket and alamat strip (label and value lines, then the "Antar" subline's room, in the
- * strip's own 12 16 padding) and the compact rantang track (its 40 rail and the stop labels and
- * counts, 8dp apart), 12dp apart under the date like the loaded pair. The track block is as tall as `RantangTrack
- * size="compact"` and the strip as tall as `FigureStrip`, so the header keeps its height when the figures replace it. The
- * blocks take the mood's toggle track, which stands off the header fill in Siang and Malam, light and dark (the strip's
- * surface is not drawn: in light Malam it is nearly the header's colour). The body's `TodaySkeleton` names the wait, so
- * this one is hidden from screen readers.
+ * The header's figures while the day loads: the porsi, paket and alamat strip (label and value lines, then the "Antar"
+ * subline's room, in the strip's own 12 16 padding), 12dp under the date like the loaded strip, so the header keeps its
+ * height when the figures replace it. The batch progress under the strip is not reserved: it shows only once a row has
+ * left Terjadwal, which a loading day cannot say. The blocks take the mood's toggle track, which stands off the header
+ * fill in Siang and Malam, light and dark (the strip's surface is not drawn: in light Malam it is nearly the header's
+ * colour). The body's `TodaySkeleton` names the wait, so this one is hidden from screen readers.
  */
 export function TodayCountSkeleton() {
-  // The stop labels take two lines' room in a language where one wraps (English "On the way"), so the block does too.
-  const labelLines = trackLabelLines(useMobile().t);
   return (
     <View
       testID="today-count-skeleton"
@@ -45,7 +39,7 @@ export function TodayCountSkeleton() {
       style={{ gap: FIGURE_GAP, marginTop: FIGURE_TOP }}
     >
       <SkeletonGroup label="">
-        <View style={{ gap: FIGURE_GAP }}>
+        <View>
           {/* The strip: three cells (the 13 label line over the 40 figure), then the room of the "Antar" subline (6 and an
               18 line), inside 12 16. Most kitchens have a window, so the header does not grow when the figures land. */}
           <View testID="today-count-strip" style={{ gap: 6, paddingVertical: 12, paddingHorizontal: 16 }}>
@@ -59,20 +53,6 @@ export function TodayCountSkeleton() {
               ))}
             </View>
             <Line width={96} block={10} line={18} onMood testID="today-count-block-subline" />
-          </View>
-          <View testID="today-count-track" style={{ gap: 8 }}>
-            {/* The track's rail (stops and line) as one bar through the middle of its 40. */}
-            <View testID="today-count-rail" style={{ height: 40, justifyContent: "center" }}>
-              <Skeleton height={8} radius={4} onMood testID="today-count-block-track" />
-            </View>
-            <View style={{ flexDirection: "row" }}>
-              {STOPS.map((i) => (
-                <View key={i} style={{ flex: 1, alignItems: "center" }}>
-                  <Line width={44} block={10} line={18 * labelLines} onMood testID={`today-count-block-stop-${i}`} />
-                  <Line width={16} block={10} line={18} onMood testID={`today-count-block-count-${i}`} />
-                </View>
-              ))}
-            </View>
           </View>
         </View>
       </SkeletonGroup>

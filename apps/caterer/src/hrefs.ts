@@ -18,3 +18,6 @@ export const reportHref = (id: string, customerName: string | null | undefined) 
 /** /balas/{id}: the reply sheet for a delivery report over Hari ini, titled with the customer's name. */
 export const replyHref = (id: string, customerName: string | null | undefined) =>
   titled(`/balas/${encodeURIComponent(id)}`, customerName ?? "");
+
+/** /belanja: the seven-day shopping recap, opened from Hari ini. */
+export const belanjaHref = () => "/belanja";

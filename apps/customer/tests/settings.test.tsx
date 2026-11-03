@@ -503,7 +503,8 @@ describe("grouped settings cards (customer scale)", () => {
     await waitFor(() =>
       expect(StyleSheet.flatten(screen.getAllByTestId("settings-card")[0].props.style).backgroundColor).toBe(nativeThemes.dark.fill),
     );
-    expect(StyleSheet.flatten(screen.getAllByTestId("settings-card")[0].props.style).borderWidth).toBeUndefined();
+    // Zero, never absent: a border key dropped on a live switch empties the clipped card on Android (gate 2026-10-30 #10).
+    expect(StyleSheet.flatten(screen.getAllByTestId("settings-card")[0].props.style).borderWidth).toBe(0);
   });
 
   it("at font 1.3 and 360dp the v2 rows grow and the trailing value wraps instead of clipping", async () => {

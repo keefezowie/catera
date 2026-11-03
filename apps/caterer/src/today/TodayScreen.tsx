@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { RefreshControl, useWindowDimensions, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
 import {
   errorLabel,
   firstOperatingDayAfter,
   jakartaDay,
-  journeyCaption,
   kitchenDayDone,
   kitchenSession,
-  mealLabel,
   sessionStart,
   shortDate,
+  weekdayName,
   type DeliveryIssue,
   type KitchenMeal,
   type KitchenSession,
@@ -21,14 +20,12 @@ import {
   Button,
   Card,
   ConnectionBanner,
+  DecorativeIcon,
   FadeSwap,
   FigureStrip,
   MoodHeader,
   PolishArt,
-  PressableScale,
-  RantangTrack,
-  trackCounts,
-  trackStage,
+  PressableRow,
   Screen,
   StateArt,
   stateArtSize,
@@ -41,15 +38,19 @@ import {
   useMood,
   useMoodColors,
 } from "@catera/mobile-ui";
+import { BatchProgress } from "./BatchProgress";
 import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
 import { SelectionBar } from "./SelectionBar";
 import { useStopSelection } from "./selection";
 import { SessionCard } from "./SessionCard";
 import { useTicks } from "./ticks";
+import { WEEK_DAYS, WeekStrip, weekOffset } from "./WeekStrip";
 import { useRouteView } from "./DeliveryOrder";
 import { LiveSlot } from "./LiveSlot";
-import { CAPTION_RESERVE, FIGURE_GAP, FIGURE_TOP, SECTION_GAP } from "./rows";
+import { ACTION, CAPTION_RESERVE, FIGURE_GAP, FIGURE_TOP, SECTION_GAP } from "./rows";
+import { belanjaRange, weekRange } from "./belanja";
+import { belanjaHref } from "../hrefs";
 import { ReadError } from "../ReadError";
 import { TodayCountSkeleton, TodaySkeleton } from "../skeletons";
 
@@ -78,12 +79,13 @@ async function keptDay(actorId: string, catererId: string, date: string): Promis
 
 /**
  * The session's headline figures in the header, under the date: porsi (the lead), paket and alamat in one strip, with
- * when the first window opens as its subline, and the compact rantang track under it showing how far the meal has got.
+ * when the first window opens as its subline, and the batch progress under it (how many stops have arrived, are on the way
+ * or are cooking; nothing while every row is still scheduled).
  * The strip is the theme's surface, which is also the hero surface of both moods, so it needs no fill of its own and
  * does not cross-fade with the header. The mascot is not here (it stays on the done and empty cards).
  */
 function HeaderFigures({ ops, session }: { ops: SellerOperationsState; session: KitchenSession }) {
-  const { t, locale } = useMobile();
+  const { t } = useMobile();
   const { meal, portions, addresses } = session;
   // The window opens with the first row still being served: a failed or cancelled row's hours do not count.
   const served = new Set(session.stops.map((s) => s.deliveryId));
@@ -100,13 +102,46 @@ function HeaderFigures({ ops, session }: { ops: SellerOperationsState; session: 
         ]}
         subline={start ? t(`Antar ${start}`, `Delivery ${start}`) : undefined}
       />
-      <RantangTrack
-        size="compact"
-        stage={trackStage(session.journey)}
-        caption={journeyCaption(session.journey, locale, "kitchen") ?? undefined}
-        counts={trackCounts(session.counts)}
-      />
+      <BatchProgress session={session} />
     </View>
+  );
+}
+
+/**
+ * The way into Belanja 7 hari, under the header on every day of the strip, for the owner and the helper alike: one
+ * surface card holding a 48+ row, the basket glyph, "Belanja 7 hari" over the range it covers (today and the six days
+ * after, the recap's own range), and a chevron. It reads nothing itself, so it is there before the day answers and
+ * stays put when the day, the meal or the stage changes.
+ */
+function BelanjaEntry() {
+  const { t, locale } = useMobile();
+  const c = useColors();
+  const range = weekRange(belanjaRange(new Date()), locale);
+  const title = t("Belanja 7 hari", "Shopping, 7 days");
+  const detail = t(`Porsi per menu, ${range}`, `Portions per dish, ${range}`);
+  return (
+    <Card testID="belanja-entry" style={{ paddingVertical: 0 }}>
+      {/* A PressableRow, not a LinkRow: LinkRow holds one label, and this row needs a title over its range line. */}
+      <PressableRow
+        testID="belanja-entry-row"
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, ${detail}`}
+        onPress={() => router.push(belanjaHref() as never)}
+        style={{ minHeight: ACTION, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 12 }}
+      >
+        {/* forest: the action's glyph */}
+        <DecorativeIcon name="basket-outline" size={22} color={c.forest} />
+        <View style={{ flex: 1 }}>
+          <Text testID="belanja-entry-title" variant="bodyStrong">
+            {title}
+          </Text>
+          <Text testID="belanja-entry-detail" variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
+            {detail}
+          </Text>
+        </View>
+        <DecorativeIcon name="chevron-forward" size={18} color={c.muted} />
+      </PressableRow>
+    </Card>
   );
 }
 
@@ -316,6 +351,7 @@ function DoneCard({ ops, onTomorrow }: { ops: SellerOperationsState; onTomorrow:
     : "";
   return (
     <DapurState
+      testID="done-card"
       art={<DapurArt name="dapur-selesai" />}
       title={t("Semua beres hari ini", "All done today")}
       body={
@@ -374,24 +410,36 @@ function DapurState({
 
 /**
  * Hari ini: the mood's meal as one session with what to cook and where to take it, plus only the exceptions to act on.
- * `date` (from a notification) opens Besok when it points to tomorrow.
+ * The strip under the title picks any of the next seven days; only today can be acted on. `date` (from a notification)
+ * opens that day when it is within the week, and today otherwise.
  */
 export function TodayScreen({ date: target }: { date?: string } = {}) {
   const { actor, runtime, t, locale } = useMobile();
   const c = useColors();
   const { mood, setMood } = useMood();
   const m = useMoodColors();
-  const [offset, setOffset] = useState<"0" | "1">(() => (target === jakartaDay(new Date(), 1) ? "1" : "0"));
+  const [offset, setOffset] = useState(() => weekOffset(target, new Date()));
   useEffect(() => {
-    if (target) setOffset(target === jakartaDay(new Date(), 1) ? "1" : "0");
+    if (target) setOffset(weekOffset(target, new Date()));
   }, [target]);
   const catererId = actor?.catererId ?? "";
   const actorId = actor?.id ?? "";
-  const date = jakartaDay(new Date(), Number(offset));
+  const date = jakartaDay(new Date(), offset);
   // A launch paints the day kept for this account first (`fromCache`); the fresh read replaces it.
   const day = useData(`ops:${catererId}:${date}`, () => loadDay(runtime, actorId, catererId, date), {
     cached: () => keptDay(actorId, catererId, date),
   });
+  // The week strip's counts: orders per day for the mood's meal, today through six days on. Its own read: a failure
+  // leaves the strip without counts and nothing else (the day itself is read separately).
+  const week = {
+    from: jakartaDay(new Date(), 0),
+    to: jakartaDay(new Date(), WEEK_DAYS - 1),
+    meal: mood === "siang" ? "lunch" : "dinner",
+  };
+  const calendar = useData(`cal:${catererId}:${week.from}:${week.meal}`, () =>
+    runtime.api.sellerCalendar(catererId, { ...week, status: "active" }),
+  );
+  const counts = calendar.data ? Object.fromEntries(calendar.data.days.map((d) => [d.date, d.orders])) : null;
   const attention = useData(`attention:${catererId}`, () =>
     runtime.api.sellerAttention(catererId, { scope: "future" }),
   );
@@ -401,6 +449,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     runtime.api.request<DeliveryIssue[]>(`delivery-issues?${new URLSearchParams({ id: catererId })}`),
   );
   const ops = day.data?.data;
+  const today = offset === 0;
 
   // A kitchen without packages has nothing to cook yet; only the owner can set it up.
   const newKitchen = !!ops && !ops.offers.length && actor?.role === "owner";
@@ -431,23 +480,31 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   const action = session && !day.data?.savedAt && (session.canCook || session.canDepart) ? session : null;
   // "Pilih": the order list and the bottom bar share one selection, reset when the day or the meal changes.
   const selection = useStopSelection(session?.stops ?? [], `${date}:${meal}`);
-  const picking = !!session && selection.active && offset === "0" && !day.data?.savedAt;
+  const picking = !!session && selection.active && today && !day.data?.savedAt;
   // The meta keeps the kitchen's name while the other day loads, instead of dropping it for a moment.
   const [catererName, setCatererName] = useState("");
   if (ops && ops.caterer.name !== catererName) setCatererName(ops.caterer.name);
-  // Once the meal is out the header says so, in place of the day word: the track and the order below say the rest.
-  const out = offset === "0" && (session?.journey.stage === "out_for_delivery" || session?.journey.stage === "arrived");
+  // From the first stop that leaves until every active stop is delivered, the header says the meal is out, in place of
+  // the day word (the same "left" test SessionCard uses to put the order first): the batch progress and the order below
+  // say the rest. A partial departure counts, so two of six out already reads "Sedang diantar".
+  const out =
+    today &&
+    !!session &&
+    session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0 &&
+    session.journey.stage !== "delivered";
   const dayWord = out
     ? t("Sedang diantar", "On the way")
-    : offset === "0"
+    : today
       ? t("Hari ini", "Today")
-      : t("Besok", "Tomorrow");
+      : offset === 1
+        ? t("Besok", "Tomorrow")
+        : weekdayName(date, locale);
   // The day is done when nothing is left to serve and no report is open. It needs the reports read (a failed read could
   // be hiding an open one), and a copy kept from before the connection dropped may be out of date. A meal whose rows
   // all failed keeps its own card saying so, which a "Semua beres" would otherwise cover.
   const done =
     !!ops &&
-    offset === "0" &&
+    today &&
     !day.data?.savedAt &&
     !!issues.data &&
     (session !== null || failedCount === 0) &&
@@ -455,6 +512,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // The first read of this day: the header and the body each hold their skeleton until it answers. A kept copy or a
   // failed read is never a skeleton (the copy shows itself, a failure shows Coba lagi).
   const loading = !ops && !day.error;
+  // The body's fade key: a different day, or the first read landing.
+  const dayKey = `${loading ? "loading" : "day"}-${date}`;
 
   // Pull to refresh reads the day and its reports again while what is on screen stays; only the spinner says so.
   const [pulling, setPulling] = useState(false);
@@ -471,7 +530,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     pulled.current = true;
     setPulling(true);
     try {
-      await Promise.all([day.reload(), issues.reload(), attention.reload()]);
+      await Promise.all([day.reload(), issues.reload(), attention.reload(), calendar.reload()]);
     } finally {
       setPulling(false);
     }
@@ -516,24 +575,15 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           toggle
           toggleSize="compact"
           title={
-            <PressableScale
-              accessibilityRole="button"
-              // The name starts with the visible date (WCAG 2.5.3, Label in Name); the meta line above says Hari ini or Besok.
-              accessibilityLabel={`${shortDate(date, locale)}, ${t("ganti hari", "change day")}`}
-              haptic="select"
-              onPress={() => setOffset(offset === "0" ? "1" : "0")}
-              style={{ minHeight: 48, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8 }}
-            >
-              <Text variant="heroTitle" style={{ color: m.headerText, flexShrink: 1 }}>
-                {shortDate(date, locale)}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={m.headerText} />
-            </PressableScale>
+            <Text variant="heroTitle" style={{ color: m.headerText }}>
+              {shortDate(date, locale)}
+            </Text>
           }
         >
+          <WeekStrip selected={offset} onSelect={setOffset} counts={counts} />
           {/* The figures enter from their skeleton as one block, in the same place on the header. They are keyed by
-              day and meal, so the mood toggle and Hari ini/Besok mount the other session's track in place instead of
-              sliding it (Decision A); only a stage change of the same session moves it. */}
+              day and meal, so the mood toggle and a day picked on the week strip mount the other session's batch
+              progress in place instead of sliding it (Decision A); only a stage change of the same session moves it. */}
           {loading || (ops && session) ? (
             <FadeSwap swapKey={loading ? "loading" : "count"}>
               {ops && session ? (
@@ -555,132 +605,149 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
       />
       {/* Only a different day (or the first read landing) is new content and fades. A stage change (Mulai masak, Berangkat
           antar, Semua beres) or the Siang / Malam switch is the same day answering a tap: its parts change in place,
-          so the body neither fades from zero nor blanks for a frame. */}
-      <FadeSwap swapKey={`${loading ? "loading" : "day"}-${date}`}>
-        <View style={{ gap: SECTION_GAP }}>
-          {day.fromCache && day.loading ? (
-            // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.
-            <Text testID="day-refreshing" variant="meta">
-              {t("Memperbarui…", "Updating…")}
-            </Text>
-          ) : day.data?.savedAt ? (
-            <Text testID="day-kept" variant="meta">
-              {t(
-                "Ini data terakhir yang tersimpan. Tombol Mulai masak dan Berangkat muncul lagi setelah data diperbarui.",
-                "This is the last saved data. The Start cooking and Head out buttons return once it refreshes.",
-              )}
-            </Text>
-          ) : null}
-          {!ops && day.error ? <ReadError art message={day.error} onRetry={() => void day.reload()} /> : null}
-          {loading ? <TodaySkeleton /> : null}
-          {offset === "0" && !issues.data && issues.error ? (
-            // A failed read must not look like "no reports".
-            <ReadError
-              message={t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
-              onRetry={() => void issues.reload()}
+          so the body neither fades from zero nor blanks for a frame. The day is two FadeSwaps on the same key with the
+          Belanja row between them: what needs the caterer first (the captions, the read errors, the live slot), then the
+          row, then the day's content. The row is the same on every day, so it stays out of both and never fades.
+          Each part ends (or starts) with a zero-height spacer, so its 24 to the row exists only when the part has
+          content: an empty part adds no gap. */}
+      <View testID="today-body">
+        <FadeSwap swapKey={dayKey}>
+          <View testID="today-first" style={{ gap: SECTION_GAP }}>
+            {day.fromCache && day.loading ? (
+              // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.
+              <Text testID="day-refreshing" variant="meta">
+                {t("Memperbarui…", "Updating…")}
+              </Text>
+            ) : day.data?.savedAt ? (
+              <Text testID="day-kept" variant="meta">
+                {t(
+                  "Ini data terakhir yang tersimpan. Tombol Mulai masak dan Berangkat muncul lagi setelah data diperbarui.",
+                  "This is the last saved data. The Start cooking and Head out buttons return once it refreshes.",
+                )}
+              </Text>
+            ) : null}
+            {!ops && day.error ? <ReadError art message={day.error} onRetry={() => void day.reload()} /> : null}
+            {today && !issues.data && issues.error ? (
+              // A failed read must not look like "no reports".
+              <ReadError
+                message={t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
+                onRetry={() => void issues.reload()}
+              />
+            ) : null}
+            {today && !attention.data && attention.error ? (
+              // A failed read must not look like "nothing needs attention".
+              <ReadError
+                message={t("Hal yang perlu dicek belum bisa dimuat.", "Items that need a check could not be loaded.")}
+                onRetry={() => void attention.reload()}
+              />
+            ) : null}
+            {/* The live slot: the first of the setup card, the reports and the attention items, the rest one tap away. */}
+            <LiveSlot
+              setup={newKitchen}
+              issues={today ? (issues.data ?? []) : []}
+              attention={today ? (attention.data?.items ?? []) : []}
             />
-          ) : null}
-          {offset === "0" && !attention.data && attention.error ? (
-            // A failed read must not look like "nothing needs attention".
-            <ReadError
-              message={t("Hal yang perlu dicek belum bisa dimuat.", "Items that need a check could not be loaded.")}
-              onRetry={() => void attention.reload()}
-            />
-          ) : null}
-          {/* The live slot: the first of the setup card, the reports and the attention items, the rest one tap away. */}
-          <LiveSlot
-            setup={newKitchen}
-            issues={offset === "0" ? (issues.data ?? []) : []}
-            attention={offset === "0" ? (attention.data?.items ?? []) : []}
-          />
-          {ops && done ? (
-            <DoneCard ops={ops} onTomorrow={() => setOffset("1")} />
-          ) : ops && session ? (
-            <SessionCard
-              ops={ops}
-              session={session}
-              ticks={ticks}
-              meal={meal}
-              date={date}
-              report={day.data?.savedAt ? null : offset === "0" ? "today" : "tomorrow"}
-              caterer={ops.caterer.name}
-              selection={selection}
-              route={route}
-            />
-          ) : ops && (failedCount > 0 || otherSession) ? (
-            // Rows marked "Gagal diantar" are not a quiet meal: their count stands alone, with no art. A meal with nothing
-            // scheduled shows the empty wok, like the empty day (polish ruling 7 retires the repeated tidur).
-            <DapurState
-              testID="meal-empty-note"
-              art={failedCount > 0 ? null : <DapurArt name="dapur-kosong" />}
-              title={
-                failedCount > 0
-                  ? undefined
-                  : meal === "lunch"
-                    ? t("Tidak ada pengantaran makan siang", "No lunch deliveries")
-                    : t("Tidak ada pengantaran makan malam", "No dinner deliveries")
-              }
-              body={
-                failedCount > 0
-                  ? meal === "lunch"
-                    ? t(
-                        `${failedCount} pengantaran makan siang ditandai Gagal diantar.`,
-                        `${failedCount} lunch ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
-                      )
-                    : t(
-                        `${failedCount} pengantaran makan malam ditandai Gagal diantar.`,
-                        `${failedCount} dinner ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
-                      )
-                  : undefined
-              }
-            >
-              {otherSession ? (
-                <Button
-                  variant="secondary"
-                  label={
-                    other === "lunch"
+            <View style={{ height: 0 }} />
+          </View>
+        </FadeSwap>
+        <BelanjaEntry />
+        <FadeSwap swapKey={dayKey}>
+          <View testID="today-day" style={{ gap: SECTION_GAP }}>
+            <View style={{ height: 0 }} />
+            {loading ? <TodaySkeleton /> : null}
+            {ops && done ? (
+              <DoneCard ops={ops} onTomorrow={() => setOffset(1)} />
+            ) : ops && session ? (
+              <SessionCard
+                ops={ops}
+                session={session}
+                ticks={ticks}
+                meal={meal}
+                date={date}
+                report={day.data?.savedAt ? null : today ? "today" : "later"}
+                caterer={ops.caterer.name}
+                selection={selection}
+                route={route}
+              />
+            ) : ops && (failedCount > 0 || otherSession) ? (
+              // Rows marked "Gagal diantar" are not a quiet meal: their count stands alone, with no art. A meal with nothing
+              // scheduled shows the empty wok, like the empty day (polish ruling 7 retires the repeated tidur).
+              <DapurState
+                testID="meal-empty-note"
+                art={failedCount > 0 ? null : <DapurArt name="dapur-kosong" />}
+                title={
+                  failedCount > 0
+                    ? undefined
+                    : meal === "lunch"
+                      ? t("Tidak ada pengantaran makan siang", "No lunch deliveries")
+                      : t("Tidak ada pengantaran makan malam", "No dinner deliveries")
+                }
+                body={
+                  failedCount > 0
+                    ? meal === "lunch"
                       ? t(
-                          `Lihat makan siang · ${otherSession.portions} porsi`,
-                          `See lunch · ${plural(otherSession.portions, "portion")}`,
+                          `${failedCount} pengantaran makan siang ditandai Gagal diantar.`,
+                          `${failedCount} lunch ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
                         )
                       : t(
-                          `Lihat makan malam · ${otherSession.portions} porsi`,
-                          `See dinner · ${plural(otherSession.portions, "portion")}`,
+                          `${failedCount} pengantaran makan malam ditandai Gagal diantar.`,
+                          `${failedCount} dinner ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
                         )
-                  }
-                  onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
-                  style={{ alignSelf: "stretch" }}
-                />
-              ) : null}
-            </DapurState>
-          ) : ops && rest ? (
-            // DapurLibur: the sleeping mascot is a character here, so it stays (polish ruling 7). 140 is the canvas size:
-            // the mascot is trimmed to its visible height, so it reads level with the 180 square polish boxes (115 compact).
-            <DapurState
-              art={<StateArt pose="tidur" base={140} />}
-              title={
-                offset === "0"
-                  ? t("Dapur libur hari ini", "The kitchen is off today")
-                  : t("Dapur libur besok", "The kitchen is off tomorrow")
-              }
-              body={t(
-                `Masak lagi ${shortDate(rest.next, locale)}.`,
-                `Cooking again ${shortDate(rest.next, locale)}.`,
-              )}
-            />
-          ) : ops && !newKitchen ? (
-            <DapurState
-              art={<DapurArt name="dapur-kosong" />}
-              title={
-                offset === "0"
-                  ? t("Tidak ada yang dimasak hari ini", "Nothing to cook today")
-                  : t("Tidak ada yang dimasak besok", "Nothing to cook tomorrow")
-              }
-              body={t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}
-            />
-          ) : null}
-        </View>
-      </FadeSwap>
+                    : undefined
+                }
+              >
+                {otherSession ? (
+                  <Button
+                    variant="secondary"
+                    label={
+                      other === "lunch"
+                        ? t(
+                            `Lihat makan siang · ${otherSession.portions} porsi`,
+                            `See lunch · ${plural(otherSession.portions, "portion")}`,
+                          )
+                        : t(
+                            `Lihat makan malam · ${otherSession.portions} porsi`,
+                            `See dinner · ${plural(otherSession.portions, "portion")}`,
+                          )
+                    }
+                    onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+                    style={{ alignSelf: "stretch" }}
+                  />
+                ) : null}
+              </DapurState>
+            ) : ops && rest ? (
+              // DapurLibur: the sleeping mascot is a character here, so it stays (polish ruling 7). 140 is the canvas size:
+              // the mascot is trimmed to its visible height, so it reads level with the 180 square polish boxes (115 compact).
+              <DapurState
+                art={<StateArt pose="tidur" base={140} />}
+                title={
+                  today
+                    ? t("Dapur libur hari ini", "The kitchen is off today")
+                    : offset === 1
+                      ? t("Dapur libur besok", "The kitchen is off tomorrow")
+                      : t(`Dapur libur hari ${dayWord}`, `The kitchen is off on ${dayWord}`)
+                }
+                body={t(
+                  `Masak lagi ${shortDate(rest.next, locale)}.`,
+                  `Cooking again ${shortDate(rest.next, locale)}.`,
+                )}
+              />
+            ) : ops && !newKitchen ? (
+              <DapurState
+                art={<DapurArt name="dapur-kosong" />}
+                title={
+                  today
+                    ? t("Tidak ada yang dimasak hari ini", "Nothing to cook today")
+                    : offset === 1
+                      ? t("Tidak ada yang dimasak besok", "Nothing to cook tomorrow")
+                      : t(`Tidak ada yang dimasak hari ${dayWord}`, `Nothing to cook on ${dayWord}`)
+                }
+                body={t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}
+              />
+            ) : null}
+          </View>
+        </FadeSwap>
+      </View>
     </Screen>
   );
 }

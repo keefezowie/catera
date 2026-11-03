@@ -113,3 +113,13 @@ it("reads a claim preview by its escaped token without a session", async () => {
   await expect(createApi("https://catera.example").claimPreview("a/b c")).resolves.toEqual(preview);
   expect(String(fetchMock.mock.calls[0][0])).toBe("https://catera.example/api/v1/claim-preview/a%2Fb%20c");
 });
+
+it("sends cookies for the web session by default, and none for a client that asks to omit them", async () => {
+  const ok = () => new Response(JSON.stringify({ data: { actor: null, demo: false } }));
+  fetchMock.mockImplementation(async () => ok());
+  await createApi("https://catera.example").me();
+  await createApi("https://catera.example", async () => "t", { credentials: "omit" }).me();
+  expect(fetchMock.mock.calls[0][1]?.credentials).toBe("include");
+  expect(fetchMock.mock.calls[1][1]?.credentials).toBe("omit");
+  expect((fetchMock.mock.calls[1][1]?.headers as Record<string, string>).Authorization).toBe("Bearer t");
+});

@@ -10,6 +10,7 @@ import {
   localDay,
   addDays,
   scheduleSummary,
+  listsMeal,
   nextDeliveryStatuses,
   deliveryBatchSchema,
   type SellerOperationsState,
@@ -228,6 +229,70 @@ it("filters calendar by package, meal and cancellation without counting cancelle
       "all",
     ).portions,
   ).toBe(0);
+});
+it("counts a calendar day only while the asked meal is not cancelled", async () => {
+  const cancelledDinner = addDays(localDay(), 300),
+    issueDinner = addDays(localDay(), 301),
+    cancelledBoth = addDays(localDay(), 302);
+  const kept = await fixture({ date: cancelledDinner });
+  await db.query("update v1.fulfillments set status='cancelled' where day_id=$1 and meal='dinner'", [kept.id]);
+  const issue = await fixture({ date: issueDinner });
+  await db.query("update v1.fulfillments set status='issue' where day_id=$1 and meal='dinner'", [issue.id]);
+  const both = await fixture({ date: cancelledBoth });
+  await db.query("update v1.fulfillments set status='cancelled' where day_id=$1", [both.id]);
+  const calendar = async (date: string, meal: string, status?: string) =>
+    (
+      await read<SellerCalendar>("seller-calendar", {
+        id: K[0],
+        from: date,
+        to: date,
+        packageId: P[0],
+        meal,
+        ...(status ? { status } : {}),
+      })
+    ).days;
+  // Lunch is kept, dinner is cancelled: Malam has no day, Siang and Semua still do.
+  expect(await calendar(cancelledDinner, "dinner")).toEqual([]);
+  expect(await calendar(cancelledDinner, "lunch")).toEqual([
+    { date: cancelledDinner, orders: 1, lunch: true, dinner: false },
+  ]);
+  expect(await calendar(cancelledDinner, "all")).toEqual([
+    { date: cancelledDinner, orders: 1, lunch: true, dinner: false },
+  ]);
+  // A meal marked Gagal diantar still counts: Dapur's failed-meal card and the web day list show it on that day.
+  expect(await calendar(issueDinner, "dinner")).toEqual([
+    { date: issueDinner, orders: 1, lunch: false, dinner: true },
+  ]);
+  expect(await calendar(issueDinner, "all")).toEqual([
+    { date: issueDinner, orders: 1, lunch: true, dinner: true },
+  ]);
+  // Every meal cancelled: no day at all for any meal.
+  expect(await calendar(cancelledBoth, "all")).toEqual([]);
+  expect(await calendar(cancelledBoth, "lunch")).toEqual([]);
+  // The calendar agrees with the kitchen's own day read and the web's active day list (listsMeal).
+  const kitchen = await read<SellerOperationsState>("seller", { id: K[0], date: cancelledDinner });
+  const keptRow = kitchen.deliveries.find((d) => d.id === kept.id)!;
+  expect(keptRow.meals.find((m) => m.meal === "lunch")?.status).toBe("scheduled");
+  expect(listsMeal(keptRow, "lunch")).toBe(true);
+  expect(listsMeal(keptRow, "dinner")).toBe(false);
+  expect(listsMeal(keptRow, "all")).toBe(true);
+  const issueDay = await read<SellerOperationsState>("seller", { id: K[0], date: issueDinner });
+  const issueRow = issueDay.deliveries.find((d) => d.id === issue.id)!;
+  expect(issueRow.meals.find((m) => m.meal === "dinner")?.status).toBe("issue");
+  expect(listsMeal(issueRow, "dinner")).toBe(true);
+  const bothDay = await read<SellerOperationsState>("seller", { id: K[0], date: cancelledBoth });
+  expect(listsMeal(bothDay.deliveries.find((d) => d.id === both.id)!, "all")).toBe(false);
+  // A meal cancelled on a running day appears only under status=all; status=cancelled lists cancelled days.
+  expect(await calendar(cancelledDinner, "dinner", "cancelled")).toEqual([]);
+  expect(await calendar(cancelledDinner, "dinner", "all")).toEqual([
+    { date: cancelledDinner, orders: 1, lunch: false, dinner: true },
+  ]);
+});
+it("lists a day's delivery on the web only while its meal is not cancelled", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile("apps/web/src/components/seller-operations.tsx", "utf8");
+  // The active view (and /seller) filters rows with listsMeal, the same rule as seller-calendar.
+  expect(source).toMatch(/includeCancelled\s*\?\s*meal === "all" \|\| d\.meals\.some\(\(m\) => m\.meal === meal\)\s*:\s*listsMeal\(d, meal\)/);
 });
 it("does not promise an auto-confirm time the scheduler does not keep yet", async () => {
   const { readFile } = await import("node:fs/promises");

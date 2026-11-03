@@ -169,6 +169,8 @@ export function ImportAssistant() {
       const response = await fetch(`${runtime.apiBase}/api/import-assistant`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        // Bearer only, like every Catera API call from the phone: no cookie is sent or kept.
+        credentials: "omit",
         body: JSON.stringify({
           text: text.trim() || undefined,
           images: files.flatMap((f) => (f.kind === "image" ? [{ mediaType: f.mediaType, data: f.data }] : [])),
