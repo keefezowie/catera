@@ -29,6 +29,7 @@ import { usePaymentsActive } from "../customers/usePayments";
 import { packageHref } from "../hrefs";
 import { PhotoThumb } from "../layout/PhotoThumb";
 import { photoUri } from "../photo";
+import { KitchenStatusCard, kitchenLive, packageState } from "./kitchen";
 import { ReadError } from "../ReadError";
 import { pushScreen } from "../nav";
 import { usePullToRefresh } from "../refresh";
@@ -146,9 +147,13 @@ export function UsahaScreen() {
         />
       }
     >
-      {/* The payments card (when it applies), Paket and Kelola: three blocks 24 apart. */}
+      {/* The kitchen card or the payments card (when one applies), Paket and Kelola: blocks 24 apart. */}
       <View testID="usaha-sections" style={{ gap: nativeLayout.dense.sectionGap, marginTop: BODY_LIFT }}>
-        {payments === false ? (
+        {ops.data ? (
+          <KitchenStatusCard status={ops.data.caterer.status} reviewNote={ops.data.caterer.review_note} packages={offers.length} />
+        ) : null}
+        {/* One cream card at a time: payments come after the kitchen is live, since their first step is the review. */}
+        {payments === false && kitchenLive(ops.data?.caterer.status) ? (
           <View testID="usaha-payments">
             <Card tone="attention">
               <Text variant="section">{t("Terima pembayaran lewat Catera", "Take payments through Catera")}</Text>
@@ -191,7 +196,7 @@ export function UsahaScreen() {
                   <ListCard clip={false}>
                     {offers.map((o) => {
                       // A draft with no price yet shows only its state: no stand-in for a value the read does not hold.
-                      const state = o.status === "published" ? t("tayang", "live") : t("draf", "draft");
+                      const state = packageState(o.status, ops.data?.caterer.status, t);
                       const detail = o.price === null ? state : `${currency(o.price, locale)} · ${state}`;
                       const meta = o.price === null ? state : `${currency(o.price, locale)} / ${t("makan", "meal")} · ${state}`;
                       const image = o.image ? photoUri(o.image, runtime.apiBase) : undefined;

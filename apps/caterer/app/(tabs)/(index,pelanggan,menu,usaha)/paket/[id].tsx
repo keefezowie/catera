@@ -28,5 +28,5 @@ export default function EditPackageRoute() {
       </Screen>
     );
   }
-  return <PackageDetail offer={offer} />;
+  return <PackageDetail offer={offer} kitchenStatus={ops.data?.caterer.status ?? "draft"} />;
 }
