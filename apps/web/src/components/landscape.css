@@ -190,7 +190,7 @@
   }
   .home-delivery-column .date-agenda {
     padding: 24px;
-    border-radius: 16px;
+    border-radius: 16px; corner-shape: var(--corner-shape);
   }
   .home-delivery-column .date-agenda h2 {
     font-size: 22px;
@@ -290,7 +290,7 @@
   .seller-operations .ops-scope-area {
     margin-bottom: 0;
     padding: 8px 16px;
-    border-radius: 12px;
+    border-radius: 12px; corner-shape: var(--corner-shape);
   }
   .ops-service-overview {
     display: grid;

@@ -9,7 +9,8 @@ import {
   type SettlementState,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { Dialog, ErrorNotice, Loading, Status } from "./ui";
+import { Dialog, ErrorNotice, Status } from "./ui";
+import { HistoryRowsSkeleton, PayoutDetailSkeleton } from "./skeletons-dapur";
 
 function useLabels() {
   const { t, locale, actor } = useApp();
@@ -109,7 +110,7 @@ function HistoryPage({
     `settlement-history:${catererId}:${kind}:${JSON.stringify(cursor)}`,
     () => api.settlementHistory(catererId, kind, cursor),
   );
-  if (state.loading) return <Loading />;
+  if (state.loading) return <HistoryRowsSkeleton kind={kind} />;
   if (state.error)
     return <ErrorNotice message={state.error} retry={state.reload} />;
   if (!state.data) return null;
@@ -332,7 +333,7 @@ function PayoutPage({
     `settlement-payout:${catererId}:${payoutId}:${JSON.stringify(cursor)}`,
     () => api.settlementPayout(catererId, payoutId, cursor),
   );
-  if (state.loading) return <Loading />;
+  if (state.loading) return <PayoutDetailSkeleton />;
   if (state.error)
     return <ErrorNotice message={state.error} retry={state.reload} />;
   if (!state.data) return null;

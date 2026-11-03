@@ -18,6 +18,11 @@ import {
   type MascotPose,
 } from "@catera/mobile-ui";
 import { __resetMascotWarmForTests } from "../../../packages/mobile-ui/src/brand/MascotArt";
+import {
+  __setSuccessRigLoadedForTests,
+  RIG_LOAD_CEILING_MS,
+  successRigLoaded,
+} from "../../../packages/mobile-ui/src/brand/SuccessRig";
 import { mascotPoses, readingRig, readingRigBox, stillRuntime, successRigBox, visibleBox } from "../../../packages/brand/phaseF";
 
 jest.mock("expo-secure-store", () => ({
@@ -204,6 +209,43 @@ describe("SuccessRig", () => {
     expect(flat("success-rig-layer-sparkles").opacity).toBe(0);
     await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays invisible and holds its play until every layer has loaded", async () => {
+    __setSuccessRigLoadedForTests(false);
+    jest.useFakeTimers();
+    const onDone = jest.fn();
+    const onReady = jest.fn();
+    await render(<SuccessRig size={180} play onDone={onDone} onReady={onReady} />);
+    expect(flat("success-rig-layers").opacity).toBe(0);
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
+    expect(onDone).not.toHaveBeenCalled();
+    const ids = screen.getAllByTestId(/^success-rig-layer-/, hidden);
+    // Six of seven in: still hidden, still waiting.
+    for (const node of ids.slice(0, 6)) await act(() => node.props.onLoad());
+    expect(flat("success-rig-layers").opacity).toBe(0);
+    expect(onReady).not.toHaveBeenCalled();
+    // The last one fails: a failure counts as in, so the rig shows and plays from its first frame.
+    await act(() => ids[6].props.onError());
+    expect(flat("success-rig-layers").opacity).toBe(1);
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(flat("success-rig-layer-badge").opacity).toBe(0);
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    // Loaded once, a later rig shows at once.
+    expect(successRigLoaded()).toBe(true);
+  });
+
+  it("shows what has arrived after the load ceiling, so a hung layer never hides the beat", async () => {
+    __setSuccessRigLoadedForTests(false);
+    jest.useFakeTimers();
+    const onDone = jest.fn();
+    await render(<SuccessRig size={180} play onDone={onDone} />);
+    await act(() => jest.advanceTimersByTime(RIG_LOAD_CEILING_MS));
+    expect(flat("success-rig-layers").opacity).toBe(1);
+    await act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(successRigLoaded()).toBe(false);
   });
 
   it("follows the success timeline: squash, hop with the lid open, badge pop, sparkles fade", async () => {

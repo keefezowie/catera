@@ -34,7 +34,7 @@
 }
 .saved-unavailable {
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius); corner-shape: var(--corner-shape);
   background: var(--surface);
   overflow: hidden;
 }
@@ -65,7 +65,7 @@
   display: inline-flex;
   gap: 3px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 10px; corner-shape: var(--corner-shape);
   padding: 3px;
   background: var(--surface);
 }
@@ -75,7 +75,7 @@
   gap: 5px;
   min-height: 44px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 7px; corner-shape: var(--corner-shape);
   background: transparent;
   padding: 7px 10px;
   font-weight: 650;
@@ -202,7 +202,7 @@
     min-height: 44px;
     padding: 0 8px;
     border: 1px solid var(--field-border);
-    border-radius: 8px;
+    border-radius: 8px; corner-shape: var(--corner-shape);
   }
   .catalog-feed .search-field > svg {
     display: none;
@@ -286,7 +286,7 @@
     min-height: 0;
     overflow: hidden;
     border: 1px solid var(--line);
-    border-radius: var(--radius);
+    border-radius: var(--radius); corner-shape: var(--corner-shape);
     background: var(--surface);
   }
   .discovery-viewport {

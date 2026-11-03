@@ -79,13 +79,13 @@
   gap: 2px;
   padding: 3px;
   background: var(--soft);
-  border-radius: 9px;
+  border-radius: 9px; corner-shape: var(--corner-shape);
 }
 .meal-switch button {
   min-height: 44px;
   min-width: 44px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 6px; corner-shape: var(--corner-shape);
   padding: 9px 13px;
   background: transparent;
   color: var(--forest);
@@ -203,7 +203,7 @@
   min-height: 44px;
   font-size: 0.8125rem;
   font-weight: 650;
-  border-radius: 9px;
+  border-radius: 9px; corner-shape: var(--corner-shape);
 }
 .package-actions button {
   border: 1px solid var(--line);
@@ -275,7 +275,7 @@
   border: 0;
   padding: 0;
   background: var(--soft);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   overflow: hidden;
 }
 .dish-photo img {
@@ -295,7 +295,7 @@
   background: var(--cream);
   color: var(--forest);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: 6px; corner-shape: var(--corner-shape);
   font-size: 0.75rem;
 }
 .dish-description {

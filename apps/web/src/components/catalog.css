@@ -61,7 +61,7 @@
   padding: 2px 4px 14px;
 }
 .filter-count {
-  border-radius: 20px;
+  border-radius: 20px; corner-shape: var(--corner-shape);
   background: var(--forest);
   color: var(--cream);
   padding: 0 7px;
@@ -105,7 +105,7 @@
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid #cbd8cd;
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
   background: var(--soft);
   color: var(--forest);
   font-size: 13px;

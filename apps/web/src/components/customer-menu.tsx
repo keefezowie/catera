@@ -4,7 +4,8 @@ import { useSearchParams } from "next/navigation";
 import { localDay, type CustomerState } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { MenuCalendar } from "./menu-calendar";
-import { Empty, ErrorNotice, Loading } from "./ui";
+import { Empty, ErrorNotice } from "./ui";
+import { CustomerMenuSkeleton } from "./skeletons-customer";
 export function CustomerMenu({ id }: { id: string }) {
   const { t } = useApp();
   const query = useSearchParams();
@@ -14,7 +15,7 @@ export function CustomerMenu({ id }: { id: string }) {
   );
   if (state.error)
     return <ErrorNotice message={state.error} retry={state.reload} />;
-  if (!state.data) return <Loading />;
+  if (!state.data) return <CustomerMenuSkeleton id={id} />;
   const subscription = state.data.subscriptions.find((s) => s.id === id);
   if (
     !subscription ||

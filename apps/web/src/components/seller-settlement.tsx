@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import { settlementCurrency, type SettlementState } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { Loading, ErrorNotice, Facts, RefreshNotice } from "./ui";
+import { ErrorNotice, Facts, RefreshNotice } from "./ui";
+import { SettlementSkeleton } from "./skeletons-dapur";
 import { useJourneyQuery } from "./journey-state";
 import { Button } from "./form-controls";
 import { SettlementChart } from "./settlement-chart";
@@ -71,16 +72,18 @@ function SettlementScreen({
     </Disclosure>
   );
   if (!state.data)
-    return (
+    return state.error ? (
       <>
-        {state.error ? (
-          <ErrorNotice message={state.error} retry={state.reload} />
-        ) : (
-          <Loading />
-        )}
+        <ErrorNotice message={state.error} retry={state.reload} />
         {purchases}
         {legacyFallback}
       </>
+    ) : (
+      <SettlementSkeleton
+        tab={tab}
+        purchases={purchases}
+        withSales={!!purchases}
+      />
     );
   const s = state.data;
   if ("unavailable" in s)

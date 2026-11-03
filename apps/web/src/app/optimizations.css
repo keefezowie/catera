@@ -139,7 +139,7 @@ body .package-detail .booking-commitment {
   grid-auto-flow: column;
   gap: 4px;
   padding: 4px;
-  border-radius: 10px;
+  border-radius: 10px; corner-shape: var(--corner-shape);
   background: var(--soft);
 }
 .duration-control .segmented label {
@@ -149,7 +149,7 @@ body .package-detail .booking-commitment {
   align-content: center;
   min-height: 48px;
   padding: 6px 4px;
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
   color: var(--forest);
   font-size: 14px;
   font-weight: 650;
@@ -221,7 +221,7 @@ body .purchase-secondary .button[aria-pressed="true"] {
     margin-inline: auto;
     padding: 10px 10px 10px 16px;
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: 14px; corner-shape: var(--corner-shape);
     background: var(--surface);
     box-shadow: 0 12px 32px rgb(29 55 45 / 18%);
   }
@@ -321,7 +321,7 @@ body .auth-secondary-link {
 /* Brand: light artwork needs a dark ground to be visible. */
 body .asset-grid .asset-on-dark img {
   background: var(--forest);
-  border-radius: 10px;
+  border-radius: 10px; corner-shape: var(--corner-shape);
 }
 body .asset-grid a > strong {
   display: block;

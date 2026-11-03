@@ -30,6 +30,7 @@ import { useJourneyQuery, useDiscardChanges } from "./journey-state";
 import { Button } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { Dialog, ErrorNotice, Field } from "./ui";
+import { Sk } from "./skeletons";
 import { MenuPanel, MenuSlots } from "./menu-assembly";
 import { PackageContents } from "./package-contents";
 import { PackageChoiceLibrary } from "./package-choice-library";
@@ -871,9 +872,31 @@ export function MenuCalendar({
                     retry={resource.reload}
                   />
                 ) : !data ? (
-                  <p role="status">
-                    {t("Memuat kalender…", "Loading calendar…")}
-                  </p>
+                  // The month's own grid, its days held as bars, so the loaded grid lands in place.
+                  <div className="menu-month-grid" aria-busy="true">
+                    <span className="sr-only" role="status">
+                      {t("Memuat kalender…", "Loading calendar…")}
+                    </span>
+                    {(locale === "id"
+                      ? ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
+                      : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                    ).map((d) => (
+                      <span className="menu-weekday" key={d}>
+                        {d}
+                      </span>
+                    ))}
+                    {datesBetween(weekStart(month), monthEnd(month)).map(
+                      (day) => (
+                        <span
+                          key={day}
+                          className="menu-day menu-day-unavailable"
+                          style={{ opacity: 1 }}
+                        >
+                          <Sk w="1.4em" />
+                        </span>
+                      ),
+                    )}
+                  </div>
                 ) : (
                   <>
                     <div

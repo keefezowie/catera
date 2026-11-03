@@ -24,6 +24,7 @@ import {
   useToast,
   useTouchTarget,
   useUnsavedGuard,
+  warmSuccessRig,
   withAlpha,
 } from "@catera/mobile-ui";
 import { emptyPackage, formFromOffer, nutritionIssues, packageIssues, quickOffer, type PackageForm } from "./package";
@@ -85,6 +86,8 @@ export function PackageEditor({
   const [error, setError] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [uploadAttempt, setUploadAttempt] = useState(0);
+  // The first publish ends on the success beat: its mascot layers are fetched now, so they are in when it plays.
+  useEffect(() => warmSuccessRig(), []);
   // The first publish, once saved: the beat replaces the form.
   const [published, setPublished] = useState(false);
   // A later publish: set when the save is done, so the guard is off before the screen goes back.

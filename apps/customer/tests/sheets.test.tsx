@@ -15,6 +15,7 @@ import {
   SHEET_FOCUS_SETTLE_MS,
   ConfirmDialog,
   SheetBody,
+  SheetFitBody,
   SheetHeader,
   ThemeProvider,
   unsavedCopy,
@@ -574,6 +575,22 @@ describe("sheet states", () => {
     await render(<SheetBody os="android">{null}</SheetBody>);
     expect(screen.getByTestId("sheet-body").props.automaticallyAdjustKeyboardInsets).toBe(false);
     // react-native-screens expands a sheet with two detents to its top one while the keyboard shows (SheetDelegate).
+  });
+
+  it("iOS: the header, fit body and form frame are native views, so react-native-screens never moves the scroll view over the title", async () => {
+    // Flattened, the scroll view became the third native child of the sheet's SafeAreaView (iOS 26) and the library set
+    // its frame to the whole sheet at y 0, covering the title row and Close.
+    const fit = await render(
+      <SheetFitBody testID="fit" header={<SheetHeader title="Tampilan" os="ios" />}>
+        {null}
+      </SheetFitBody>,
+    );
+    expect(screen.getByTestId("fit").props.collapsable).toBe(false);
+    const header = screen.getByText("Tampilan").parent?.parent?.parent;
+    expect(header?.props.collapsable).toBe(false);
+    await fit.unmount();
+    await render(<SheetBody os="ios">{null}</SheetBody>);
+    expect(screen.getByTestId("sheet-frame").props.collapsable).toBe(false);
   });
 
   it("the discard question speaks to each app in its own voice", async () => {

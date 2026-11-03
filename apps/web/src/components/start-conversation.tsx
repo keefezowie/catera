@@ -5,7 +5,8 @@ import { MessageCircle } from "lucide-react";
 import { api, useApp, useResource, useWorkspaceDraft } from "./context";
 import { useDiscardChanges } from "./journey-state";
 import { Button, TextArea, TextInput } from "./form-controls";
-import { ActionForm, Dialog, Field, ErrorNotice, Loading } from "./ui";
+import { ActionForm, Dialog, Field, ErrorNotice } from "./ui";
+import { RecipientRowsSkeleton } from "./skeletons-customer";
 type Recipient = { id: string; name: string; user_id: string | null };
 export function StartConversation({
   onStarted,
@@ -90,7 +91,7 @@ function RecipientPicker({ onStarted }: { onStarted: (id: string) => void }) {
         <ErrorNotice message={resource.error} retry={resource.reload} />
       )}
       {resource.loading ? (
-        <Loading />
+        <RecipientRowsSkeleton />
       ) : (
         resource.data?.items.map((c) => (
           <div className="request-row" key={c.id}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppState, Image, View, type ImageStyle } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -14,9 +14,19 @@ import { useReduced } from "../motion/useReduced";
 import { useScreenFocused } from "../navigation";
 import { decorative } from "./decorative";
 import { MascotArt, mascotArtFrame } from "./MascotArt";
+import { RIG_LOAD_CEILING_MS } from "./SuccessRig";
 
 /** One reading cycle (rig.json `motionRecipes` "reading-loop"). */
 export const READING_LOOP_MS = 2400;
+
+/** The images the rig waits for: the body, each eye and the magnifier. Once all have loaded, later rigs show at once. */
+const READING_IMAGES = 4;
+let readingLoaded = false;
+
+/** Tests only: whether the reading rig's images have loaded. Imported by file path, not from the package index. */
+export function __setReadingLoadedForTests(value: boolean) {
+  readingLoaded = value;
+}
 
 const layers = {
   body: require("../../../brand/assets/phase-f/runtime/rig-reading-body.png"),
@@ -65,6 +75,23 @@ export function MascotReading({ size }: { size: number }) {
     return () => subscription.remove();
   }, []);
 
+  // Each image loads on its own (over the network in Expo Go): the rig stays invisible until all four are in, so it
+  // never assembles itself on screen with the code-drawn highlight floating alone. A load that hangs shows it anyway.
+  const arrived = useRef(new Set<string>());
+  const [loaded, setLoaded] = useState(readingLoaded);
+  const arrive = (id: string) => () => {
+    arrived.current.add(id);
+    if (arrived.current.size < READING_IMAGES) return;
+    readingLoaded = true;
+    setLoaded(true);
+  };
+  useEffect(() => {
+    if (loaded) return;
+    const ceiling = setTimeout(() => setLoaded(true), RIG_LOAD_CEILING_MS);
+    return () => clearTimeout(ceiling);
+  }, [loaded]);
+  const loads = (id: string) => ({ onLoad: arrive(id), onError: arrive(id) });
+
   const playing = focused && foreground && !reduced;
   const phase = useSharedValue(0);
   useEffect(() => {
@@ -100,8 +127,11 @@ export function MascotReading({ size }: { size: number }) {
   const pivotAt = (point: { x: number; y: number }): [number, number, number] => [point.x * canvas, point.y * canvas, 0];
   return (
     <View testID="mascot-reading" {...decorative} style={{ width: frame.width, height: frame.height }}>
-      <View style={{ position: "absolute", left: frame.left, top: frame.top, width: canvas, height: canvas }}>
-        <Image testID="mascot-reading-body" source={layers.body} fadeDuration={0} style={full} />
+      <View
+        testID="mascot-reading-layers"
+        style={{ position: "absolute", left: frame.left, top: frame.top, width: canvas, height: canvas, opacity: loaded ? 1 : 0 }}
+      >
+        <Image testID="mascot-reading-body" source={layers.body} {...loads("body")} fadeDuration={0} style={full} />
         <Animated.View
           testID="mascot-reading-highlight"
           style={[
@@ -124,7 +154,7 @@ export function MascotReading({ size }: { size: number }) {
           style={{ position: "absolute", left: 0, top: 0, width: seam, height: canvas, overflow: "hidden" }}
         >
           <Animated.View style={[full, { transformOrigin: pivotAt(leftPivot) }, eyes]}>
-            <Image testID="mascot-reading-eye-left" source={layers.eyes} fadeDuration={0} style={full} />
+            <Image testID="mascot-reading-eye-left" source={layers.eyes} {...loads("eye-left")} fadeDuration={0} style={full} />
           </Animated.View>
         </View>
         <View
@@ -132,12 +162,13 @@ export function MascotReading({ size }: { size: number }) {
           style={{ position: "absolute", left: seam, top: 0, width: canvas - seam, height: canvas, overflow: "hidden" }}
         >
           <Animated.View style={[full, { left: -seam, transformOrigin: pivotAt(rightPivot) }, eyes]}>
-            <Image testID="mascot-reading-eye-right" source={layers.eyes} fadeDuration={0} style={full} />
+            <Image testID="mascot-reading-eye-right" source={layers.eyes} {...loads("eye-right")} fadeDuration={0} style={full} />
           </Animated.View>
         </View>
         <Animated.Image
           testID="mascot-reading-magnifier"
           source={layers.magnifier}
+          {...loads("magnifier")}
           fadeDuration={0}
           style={[full, { transformOrigin: pivotAt(readingRig.magnifierPivot) }, magnifier]}
         />

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AccessibilityInfo, View } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -13,7 +13,7 @@ import { nativeArt, nativeMotion } from "@catera/design-tokens";
 import { successRigBox } from "../../brand/phaseF";
 import { MascotArt } from "./brand/MascotArt";
 import { Sparkle } from "./brand/Sparkle";
-import { SuccessRig } from "./brand/SuccessRig";
+import { SuccessRig, successRigLoaded } from "./brand/SuccessRig";
 import { SuccessRing } from "./brand/SuccessRing";
 import { decorative } from "./brand/decorative";
 import { Text } from "./components";
@@ -114,6 +114,9 @@ export function SuccessBeat({
   const haptic = useHaptic();
   const c = useColors();
   const { scheme } = useThemePreference();
+  // The rig's layers load one by one; the beat (disc, burst, facts, haptic) starts with the rig once they are all in.
+  const [rigReady, setRigReady] = useState(successRigLoaded);
+  const ready = reduced || rigReady;
   const moving = play && !reduced;
   // Mounted already playing, the first painted frame is the beat's first frame, never its resting frame.
   const ring = useSharedValue(moving ? 0 : 1);
@@ -130,7 +133,7 @@ export function SuccessBeat({
 
   // A layout effect, so a play that starts on a later render resets every value before that render paints.
   useLayoutEffect(() => {
-    if (!play) return;
+    if (!play || !ready) return;
     success.current();
     AccessibilityInfo.announceForAccessibility(said.current);
     if (reducedNow.current) return;
@@ -148,9 +151,10 @@ export function SuccessBeat({
         v.value = 1;
       }
     };
-    // The shared values are stable; a play is keyed on `play` alone, so a re-render is never a new play.
+    // The shared values are stable; a play is keyed on `play` (held until the rig is ready), so a re-render is never a
+    // new play.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [play]);
+  }, [play, ready]);
 
   const factsStyle = useAnimatedStyle(() => ({
     opacity: facts.value,
@@ -168,7 +172,7 @@ export function SuccessBeat({
             <View style={{ position: "absolute", width: STAGE, height: STAGE, alignItems: "center", justifyContent: "center" }}>
               <SuccessRing size={RING} progress={ring} />
             </View>
-            <SuccessRig size={RIG} play={play} />
+            <SuccessRig size={RIG} play={play} onReady={() => setRigReady(true)} />
             <View style={{ position: "absolute", width: STAGE, height: STAGE }}>
               {BURST.map((b) => (
                 <BurstSparkle key={b.angle} burst={b} progress={burst} color={b.tone === "forest" ? c.forest : nativeArt.sparkles[scheme][b.tone]} />
@@ -184,7 +188,7 @@ export function SuccessBeat({
         {children}
       </Animated.View>
       {/* Over the beat, square to the vector's own canvas, so its burst rains over the rig and the title. */}
-      <Confetti play={play && confetti} style={{ bottom: undefined, aspectRatio: 1 }} />
+      <Confetti play={play && confetti && ready} style={{ bottom: undefined, aspectRatio: 1 }} />
     </View>
   );
 }

@@ -10,7 +10,11 @@ import {
 } from "@catera/domain";
 import { api, useApp, useResource, useWorkspaceDraft } from "./context";
 import { useUnsavedDeparture } from "./journey-state";
-import { ActionForm, Dialog, ErrorNotice, Field, Loading, Status } from "./ui";
+import { ActionForm, Dialog, ErrorNotice, Field, Status } from "./ui";
+import {
+  DeliveryIssuesSkeleton,
+  ReportDeliveryIssueSkeleton,
+} from "./skeletons-customer";
 import { Button, TextArea } from "./form-controls";
 import { Select, SelectOption } from "./select";
 
@@ -22,7 +26,7 @@ export function ReportDeliveryIssue({ id }: { id: string }) {
   );
   if (state.error)
     return <ErrorNotice message={state.error} retry={state.reload} />;
-  if (!state.data) return <Loading />;
+  if (!state.data) return <ReportDeliveryIssueSkeleton />;
   const delivery = state.data.deliveries.find((d) => d.id === id);
   if (!delivery)
     return (
@@ -119,7 +123,7 @@ export function DeliveryIssues({ catererId }: { catererId?: string }) {
   );
   if (state.error)
     return <ErrorNotice message={state.error} retry={state.reload} />;
-  if (!state.data) return <Loading />;
+  if (!state.data) return <DeliveryIssuesSkeleton />;
   return (
     <section
       className="panel spaced"

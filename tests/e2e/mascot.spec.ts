@@ -128,12 +128,14 @@ for (const width of [390, 1440])
       await page
         .locator(".mobile-bottom")
         .evaluate((el) => el.setAttribute("data-persistence-test", "retained"));
+    const box = (await header.boundingBox())!,
+      headerBottom = box.y + box.height;
     let release!: () => void;
     let requested = false;
     const pending = new Promise<void>((resolve) => {
       release = resolve;
     });
-    // Account keeps the mascot; Messages now shows its page-shaped skeleton.
+    // Account now shows its page-shaped skeleton, like Messages.
     await page.route("**/api/v1/customer**", async (route) => {
       requested = true;
       await pending;
@@ -150,23 +152,22 @@ for (const width of [390, 1440])
         await page.getByRole("menuitem", { name: "Akun", exact: true }).click();
       }
       await expect.poll(() => requested).toBe(true);
-      const loader = page.locator("#main .mascot-loading");
+      const loader = page.locator("#main .account-page.skeleton-screen");
       await expect(loader).toBeVisible();
       await expect(header).toHaveAttribute("data-persistence-test", "retained");
-      const h = await header.boundingBox(),
-        l = await loader.boundingBox();
-      expect(l!.y).toBeGreaterThanOrEqual(h!.y + h!.height);
+      // In document coordinates against the header's unscrolled bottom: the router may scroll
+      // the tall skeleton under the sticky header, as it does the loaded Account page.
+      const loaderTop = await loader.evaluate(
+        (el) => el.getBoundingClientRect().top + scrollY,
+      );
+      expect(loaderTop).toBeGreaterThanOrEqual(headerBottom);
       expect(await page.locator(".mascot-startup").count()).toBe(0);
       if (width === 390)
         await expect(page.locator(".mobile-bottom")).toHaveAttribute(
           "data-persistence-test",
           "retained",
         );
-      await expect(loader.locator(".mascot-loading-visual")).toBeVisible();
-      await expect(loader.locator(".mascot-loading-visual")).toHaveCSS(
-        "opacity",
-        "1",
-      );
+      await expect(loader.locator(".address-card").first()).toBeVisible();
       await page.screenshot({
         path: `output/mascot-motion/scoped-${width}.png`,
         fullPage: true,
@@ -174,7 +175,9 @@ for (const width of [390, 1440])
     } finally {
       release();
     }
-    await expect(page.locator("#main .mascot-loading")).toHaveCount(0);
+    await expect(
+      page.locator("#main .account-page.skeleton-screen"),
+    ).toHaveCount(0);
   });
 
 test("seller sidebar and top bar persist while the next workspace loads", async ({
@@ -203,14 +206,15 @@ test("seller sidebar and top bar persist while the next workspace loads", async 
       .getByRole("link", { name: "Paket", exact: true })
       .click();
     await expect.poll(() => requested).toBe(true);
-    await expect(page.locator("#main .mascot-loading-visual")).toBeVisible();
+    // The workspace now holds its page-shaped skeleton instead of the mascot.
+    await expect(page.locator("#main .skeleton-screen h1")).toBeVisible();
     for (const selector of [".ops-topbar", ".ops-sidebar"])
       await expect(page.locator(selector)).toHaveAttribute(
         "data-persistence-test",
         "retained",
       );
     const sidebar = await page.locator(".ops-sidebar").boundingBox(),
-      loader = await page.locator("#main .mascot-loading").boundingBox();
+      loader = await page.locator("#main .skeleton-screen h1").boundingBox();
     expect(loader!.x).toBeGreaterThanOrEqual(sidebar!.x + sidebar!.width);
     await page.screenshot({
       path: "output/mascot-motion/scoped-seller.png",
@@ -219,5 +223,5 @@ test("seller sidebar and top bar persist while the next workspace loads", async 
   } finally {
     release();
   }
-  await expect(page.locator("#main .mascot-loading")).toHaveCount(0);
+  await expect(page.locator("#main .skeleton-screen")).toHaveCount(0);
 });

@@ -1,0 +1,13 @@
+/* Dapur and admin skeletons reuse skeleton.css; these rules only cover what a fragment-shaped screen needs. */
+/* A screen that renders as a fragment keeps its parent's flow: the busy wrapper adds no box of its own. */
+.sk-contents {
+  display: contents;
+}
+.sk-contents > * {
+  animation: skeleton-in 200ms var(--ease) 300ms both;
+}
+/* A held form control keeps the real control's size but takes no input. */
+input.sk-ghost,
+textarea.sk-ghost {
+  resize: none;
+}

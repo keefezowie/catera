@@ -17,7 +17,8 @@ import {
   type UpcomingRow,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { ActionForm, ErrorNotice, Facts, Field, Heading, Loading } from "./ui";
+import { ActionForm, ErrorNotice, Facts, Field, Heading } from "./ui";
+import { ClaimSkeleton, RenewSkeleton } from "./skeletons-customer";
 import { Button, TextInput } from "./form-controls";
 import { Select, SelectOption } from "./select";
 /** Failures worth retrying; any other code means this claim link cannot be used. */
@@ -80,7 +81,7 @@ export function ClaimCustomer({ token }: { token: string }) {
         />
       </section>
     );
-  if (!preview) return <Loading />;
+  if (!preview) return <ClaimSkeleton />;
   const katering = preview.catererName;
   async function claim(name: string, phone: string) {
     let result: { status?: string };
@@ -322,7 +323,7 @@ export function RenewCustomer({ id }: { id: string }) {
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
     ) : (
-      <Loading />
+      <RenewSkeleton />
     );
   const r = state.data;
   const selectedOffer = r.offers.find((offer) => offer.id === r.packageId);

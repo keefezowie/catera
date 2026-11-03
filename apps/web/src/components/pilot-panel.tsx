@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { currency, localDay } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { ActionForm, ErrorNotice, Field, Loading } from "./ui";
+import { ActionForm, ErrorNotice, Field } from "./ui";
+import { PilotPanelSkeleton } from "./skeletons-dapur";
 import { Checkbox, TextInput } from "./form-controls";
 import { NumericInput } from "./numeric-input";
 import { Select, SelectOption } from "./select";
@@ -23,7 +24,7 @@ export function PilotPanel({ catererId }: { catererId: string }) {
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
     ) : (
-      <Loading />
+      <PilotPanelSkeleton />
     );
   const data = state.data,
     m = data.metrics,

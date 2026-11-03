@@ -128,3 +128,9 @@ jest.mock("expo-apple-authentication", () => ({
   }),
   AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
 }));
+// The success and reading rigs wait for their layers' onLoad, which the test renderer never fires: tests start loaded.
+// mascot-art.test.tsx turns this off to test the wait itself.
+beforeEach(() => {
+  require("../../../packages/mobile-ui/src/brand/SuccessRig").__setSuccessRigLoadedForTests(true);
+  require("../../../packages/mobile-ui/src/brand/MascotReading").__setReadingLoadedForTests(true);
+});
