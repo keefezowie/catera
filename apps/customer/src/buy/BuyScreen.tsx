@@ -25,6 +25,7 @@ import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { BuySummary, FieldGlyph, FieldRow, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { FOOTER_STACK_BELOW, footerFits, PAY_MIN_WIDTH } from "./metrics";
 import { useQuote, type BuyPayload } from "./useQuote";
+import { addressGlyph } from "../account/Addresses";
 import { useChoice } from "../choice";
 import { GLYPH_INSET, ListCard, SectionHeader } from "../layout";
 import { FLOW_HREF } from "../nav";
@@ -182,7 +183,7 @@ export function BuyScreen({
   async function pickAddress() {
     const picked = await choose("/pembelian/alamat-pilih", {
       title: t("Alamat pengantaran", "Delivery address"),
-      items: addresses.map((a) => ({ id: a.id, label: a.label, detail: a.line })),
+      items: addresses.map((a) => ({ id: a.id, label: a.label, detail: a.line, icon: addressGlyph(a.label) })),
       selected: address?.id,
       // Tambah alamat and Kelola alamat: the sheet opens the form or Alamat over the purchase in its own place.
       extras: [

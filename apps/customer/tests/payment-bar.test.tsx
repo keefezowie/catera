@@ -75,6 +75,9 @@ describe("the payment bar", () => {
     await settle();
     const button = screen.getByTestId("payment-bar-button");
     expect(button.props.accessibilityLabel).toBe("Selesaikan pembayaran, Makan Siang Rumahan, sisa 12:48, Bayar");
+    // Docked strip: the countdown at the end edge, no Bayar pill inside the button.
+    expect(screen.getByTestId("payment-bar-clock")).toBeTruthy();
+    expect(screen.queryByText("Bayar")).toBeNull();
     await fireEvent.press(button);
     expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-1");
   });
@@ -111,6 +114,7 @@ describe("the payment bar", () => {
     await settle();
     const button = screen.getByTestId("payment-bar-button");
     expect(button.props.accessibilityLabel).toBe("2 pembayaran belum selesai, Yang terdekat habis 05:00, Lihat");
+    expect(screen.queryByTestId("payment-bar-clock")).toBeNull();
     await fireEvent.press(button);
     expect(router.push).toHaveBeenLastCalledWith("/pembayaran");
   });

@@ -92,6 +92,7 @@ export * from "./layout/rowLabel";
 export * from "./layout/DecorativeIcon";
 export * from "./layout/Thumb";
 export * from "./layout/GlyphCircle";
+export * from "./layout/GlyphTile";
 export * from "./layout/GlyphRow";
 export * from "./layout/ListCard";
 export * from "./layout/MediaRow";

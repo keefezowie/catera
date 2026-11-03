@@ -2,11 +2,17 @@ import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import type { Address } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, PressableRow, ReadError, Screen, Text, useColors, useListMotion } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, GlyphTile, PressableRow, ReadError, Screen, Text, useColors, useListMotion } from "@catera/mobile-ui";
 import { DecorativeIcon } from "../layout";
 import { FLOW_HREF, pushSheet } from "../nav";
 import { ListSkeleton } from "../skeletons";
 import { SignInFirst } from "./SignInFirst";
+
+/** The glyph an address leads with, from its label (the form's presets): a house for Rumah, a briefcase for Kantor, a pin for any other. */
+export const addressGlyph = (label: string) => {
+  const l = label.trim();
+  return l === "Rumah" || l === "Home" ? "home-outline" : l === "Kantor" || l === "Office" ? "briefcase-outline" : "location-outline";
+};
 
 /** The address list's wait: its rows, under the screen's own header. */
 function AddressesLoading() {
@@ -88,9 +94,10 @@ function AddressRow({ address: a, onEdit }: { address: Address; onEdit: () => vo
       style={{ minHeight: 48 }}
     >
       <Card testID="address-card">
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+          <GlyphTile testID="address-glyph" name={addressGlyph(a.label)} />
           <View style={{ flex: 1, gap: 2 }}>
-            <Text variant="heading">{a.label}</Text>
+            <Text variant="rowTitle">{a.label}</Text>
             <Text>{a.line}</Text>
             <Text variant="caption">
               {a.area}, {a.city}

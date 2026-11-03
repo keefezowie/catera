@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AppState, StyleSheet, useWindowDimensions, View } from "react-native";
+import { AppState, StyleSheet, useWindowDimensions } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Animated, {
   cancelAnimation,
@@ -9,9 +9,7 @@ import Animated, {
   interpolateColor,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
-  withSequence,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,24 +20,20 @@ import { useData, useMobile } from "@catera/mobile-core";
 import { androidTabBarHeight, FadeSwap, fonts, PressableScale, RollingNumber, Text, useColors, useReduced } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 
-/** The bar's height and the gap it keeps above the tab bar. */
-const HEIGHT = 64;
+/** The strip's height, and the gap a tab screen keeps above it. */
+const HEIGHT = 60;
 const GAP = 8;
-/** What a tab screen gives up at its foot while the bar shows: the gap, the bar, and the same gap above it. */
-export const PAYMENT_BAR_ROOM = GAP + HEIGHT + GAP;
+/** What a tab screen gives up at its foot while the strip shows: the strip, and a gap above it. */
+export const PAYMENT_BAR_ROOM = HEIGHT + GAP;
 /** iOS's system tab bar (above the home indicator). Unverified on iOS 26's floating bar: no Mac to measure it. */
 const IOS_TAB_BAR = 49;
-/** Under this much time left the tile turns warm and breathes. */
+/** Under this much time left the strip turns warm. */
 const WARM_MS = 3 * 60_000;
 /** While a payment is open the read is asked again this often, so one paid elsewhere leaves without a tap. */
 const REFRESH_MS = 30_000;
-/** The warm breath: a 3% swell out and back over two selection beats, then a rest, once every 2 s. */
-const SWELL = 1.03;
-const BREATH_MS = 2_000;
-const BREATH_REST_MS = BREATH_MS - 2 * nativeMotion.selection;
 /** One turn of the checking arrow: slow, so it reads as waiting rather than loading fast. */
 const SPIN_MS = 1_400;
-/** How far below its place the bar starts as it rises in. */
+/** How far below its place the strip starts as it rises in. */
 const RISE = 28;
 
 const ease = Easing.bezier(...nativeMotion.ease);
@@ -95,10 +89,11 @@ export function usePaymentBar(): { bar: Bar | null; now: number } {
 }
 
 /**
- * The floating payment bar over the tab bar (canvas KzRYoncGboLLwvvGnRky2n, option B): one 64 tall button that opens
- * Bayar, or Riwayat pembayaran when several are open. It rises in on a spring and sinks out; the countdown digits roll;
- * under 3 minutes the tile warms and breathes; a payment being checked turns a slow arrow instead of a clock. Reduced
- * motion keeps every state and drops the movement.
+ * The payment strip docked on the tab bar (canvas SW4e22SY8NSHogaw7WUQpu, option B): one 60 tall button with rounded
+ * top corners that opens Bayar, or Riwayat pembayaran when several are open. A clock, what to do, the package, and the
+ * countdown at the end edge; no button inside the button. It rises in on a spring and sinks out; the digits roll; under
+ * 3 minutes the sage ground warms to cream; a payment being checked turns a slow arrow and drops the countdown.
+ * Reduced motion keeps every state and drops the movement.
  */
 export function PaymentBarView({ bar, now }: { bar: Bar; now: number }) {
   const { t } = useMobile();
@@ -129,43 +124,32 @@ export function PaymentBarView({ bar, now }: { bar: Bar; now: number }) {
         ? [t("Jangan bayar lagi", "Don't pay again"), bar.packageName].filter(Boolean).join(" · ")
         : [bar.packageName, bar.status === "choose" ? t("pilih cara bayar", "choose how to pay") : ""].filter(Boolean).join(" · ");
   const verb = bar.kind === "many" ? t("Lihat", "View") : bar.status === "choose" ? t("Lanjut", "Continue") : t("Bayar", "Pay");
-  // Read as one button: what it is, the detail, the time left (the "many" detail already says it), then the verb.
-  const spoken = checking || bar.kind === "many" ? "" : t(`sisa ${time}`, `${time} left`);
+  // The countdown sits at the end edge; "many" already says its time in the detail, and a check has no clock.
+  const countdown = !checking && bar.kind !== "many";
+  // Read as one button: what it is, the detail, the time left, then what a tap does.
+  const spoken = countdown ? t(`sisa ${time}`, `${time} left`) : "";
   const label = [title, detail, spoken, checking ? "" : verb].filter(Boolean).join(", ");
   const open = () =>
     router.push((bar.kind === "many" ? "/pembayaran" : customerLink(bar.href)) as never);
 
-  // The tile warms over a selection beat; under 3 minutes it breathes (a 3% swell every 2 s).
+  // The ground warms over a selection beat.
   const warmth = useSharedValue(warm ? 1 : 0);
-  const swell = useSharedValue(1);
   const spin = useSharedValue(0);
   useEffect(() => {
     warmth.value = reduced ? (warm ? 1 : 0) : withTiming(warm ? 1 : 0, { duration: nativeMotion.selection, easing: ease });
-    cancelAnimation(swell);
-    swell.value = 1;
-    if (warm && !reduced)
-      swell.value = withRepeat(
-        withSequence(
-          withTiming(SWELL, { duration: nativeMotion.selection, easing: ease }),
-          withTiming(1, { duration: nativeMotion.selection, easing: ease }),
-          withDelay(BREATH_REST_MS, withTiming(1, { duration: 0 })),
-        ),
-        -1,
-      );
-  }, [warm, reduced, warmth, swell]);
+  }, [warm, reduced, warmth]);
   useEffect(() => {
     cancelAnimation(spin);
     spin.value = 0;
     if (checking && !reduced) spin.value = withRepeat(withTiming(1, { duration: SPIN_MS, easing: Easing.linear }), -1);
   }, [checking, reduced, spin]);
-  const tileStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(warmth.value, [0, 1], [c.forest, c.cream]),
-    borderColor: interpolateColor(warmth.value, [0, 1], [c.forest, c.attentionBorder]),
-    transform: [{ scale: swell.value }],
+  const groundStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(warmth.value, [0, 1], [c.scheduled, c.cream]),
+    borderColor: interpolateColor(warmth.value, [0, 1], [c.secondaryBorder, c.attentionBorder]),
   }));
   const spinStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
-  // Warm text is charcoal, the urgent ink of direction K (Sunrise stays reserved for its four places).
-  const ink = warm ? c.charcoal : c.cream;
+  // Warm ink is charcoal, the urgent ink of direction K (Sunrise stays reserved for its four places).
+  const ink = warm ? c.charcoal : c.forest;
 
   return (
     <Animated.View
@@ -181,81 +165,59 @@ export function PaymentBarView({ bar, now }: { bar: Bar; now: number }) {
               .withInitialValues({ opacity: 0, transform: [{ translateY: RISE }] })
       }
       exiting={reduced ? undefined : FadeOutDown.duration(nativeMotion.control).easing(ease)}
-      style={[styles.lane, { bottom: insets.bottom + tabBar + GAP }]}
+      style={[styles.lane, { bottom: insets.bottom + tabBar }]}
     >
-      <PressableScale
-        testID="payment-bar-button"
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        onPress={open}
-        style={[
-          styles.bar,
-          {
-            backgroundColor: c.surface,
-            borderColor: c.line,
-            boxShadow: c.cardBorder ? "0 8px 24px rgba(22, 61, 46, 0.16)" : undefined,
-          },
-        ]}
-      >
-        <Animated.View testID="payment-bar-tile" style={[styles.tile, tileStyle]}>
+      <Animated.View testID="payment-bar-ground" style={[styles.ground, groundStyle]}>
+        <PressableScale
+          testID="payment-bar-button"
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          onPress={open}
+          style={styles.bar}
+        >
           {checking ? (
             <Animated.View style={spinStyle}>
-              <Ionicons name="sync" size={22} color={c.cream} />
+              <Ionicons name="sync" size={22} color={ink} />
             </Animated.View>
           ) : (
-            <>
-              <RollingNumber value={time} style={[styles.clock, { color: ink }]} accessibilityLabel={time} />
-              <Text style={[styles.left, { color: ink }]}>{t("sisa", "left")}</Text>
-            </>
+            <Ionicons name="timer-outline" size={22} color={ink} />
           )}
-        </Animated.View>
-        <FadeSwap swapKey={title} style={styles.text}>
-          <Text variant="bodyStrong" numberOfLines={1} style={{ color: c.charcoal }}>
-            {title}
-          </Text>
-          <Text variant="meta" numberOfLines={1} style={styles.figures}>
-            {detail}
-          </Text>
-        </FadeSwap>
-        {checking ? (
-          <Ionicons name="chevron-forward" size={18} color={c.muted} />
-        ) : (
-          <View style={[styles.verb, { backgroundColor: c.forest }]}>
-            <Text variant="bodyStrong" style={{ color: c.cream, fontSize: 14, lineHeight: 18 }}>
-              {verb}
+          <FadeSwap swapKey={title} style={styles.text}>
+            <Text variant="bodyStrong" numberOfLines={1} style={{ color: c.charcoal }}>
+              {title}
             </Text>
-          </View>
-        )}
-      </PressableScale>
+            <Text variant="meta" numberOfLines={1} style={styles.figures}>
+              {detail}
+            </Text>
+          </FadeSwap>
+          {countdown ? (
+            <RollingNumber testID="payment-bar-clock" value={time} style={[styles.clock, { color: ink }]} accessibilityLabel={time} />
+          ) : null}
+          <Ionicons name="chevron-forward" size={18} color={c.muted} />
+        </PressableScale>
+      </Animated.View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  lane: { position: "absolute", start: 12, end: 12 },
+  lane: { position: "absolute", start: 0, end: 0 },
+  ground: {
+    borderTopStartRadius: 16,
+    borderTopEndRadius: 16,
+    borderCurve: "continuous",
+    borderTopWidth: 1,
+    overflow: "hidden",
+  },
   bar: {
     height: HEIGHT,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingStart: 9,
-    paddingEnd: 12,
-    borderRadius: 16,
-    borderCurve: "continuous",
-    borderWidth: 1,
+    paddingStart: 20,
+    paddingEnd: 16,
   },
-  tile: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  clock: { fontSize: 14, lineHeight: 16, fontFamily: fonts.extrabold, fontVariant: ["tabular-nums"] },
-  left: { fontSize: 10, lineHeight: 12 },
+  clock: { fontSize: 17, lineHeight: 22, fontFamily: fonts.extrabold, fontVariant: ["tabular-nums"] },
   text: { flex: 1, minWidth: 0 },
   figures: { fontVariant: ["tabular-nums"] },
-  verb: { height: 36, paddingHorizontal: 16, borderRadius: 18, justifyContent: "center" },
 });

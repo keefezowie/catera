@@ -2,6 +2,7 @@ import { Children, cloneElement, Fragment, isValidElement, type ReactElement, ty
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Pressable, Switch, Text as RNText, View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
+import { GlyphTile, type GlyphName } from "../layout/GlyphTile";
 import { useLayoutScale } from "../layoutScale";
 import { useHaptic } from "../motion";
 import { Skeleton, SkeletonGroup } from "../Skeleton";
@@ -374,7 +375,7 @@ export function SettingsSwitchRow({
  * chosen row with a trailing checkmark; Android leads each row with the Material radio button. Choosing gives the
  * selection haptic and calls `onChange`, also for the option already chosen, so a sheet can close on any choice.
  * An option's `detail` is a muted supporting line under its label (an address's street); a row with one is at least
- * 72dp on Android, Material's two-line list item. `value` may be null when nothing is chosen yet.
+ * 72dp on Android, Material's two-line list item. An option's `icon` leads the row in a 40 glyph tile (an address's kind). `value` may be null when nothing is chosen yet.
  */
 export function ChoiceList<T extends string>({
   label,
@@ -384,7 +385,7 @@ export function ChoiceList<T extends string>({
   os = process.env.EXPO_OS,
 }: {
   label: string;
-  options: { value: T; label: string; detail?: string }[];
+  options: { value: T; label: string; detail?: string; icon?: GlyphName }[];
   value: T | null | undefined;
   onChange: (next: T) => void;
   os?: string;
@@ -435,6 +436,7 @@ export function ChoiceList<T extends string>({
                   {chosen ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: palette.forest }} /> : null}
                 </View>
               )}
+              {option.icon ? <GlyphTile name={option.icon} size={40} /> : null}
               <View style={{ flex: 1, gap: 2 }}>
                 <RNText
                   style={{

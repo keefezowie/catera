@@ -12,6 +12,7 @@ import { addDays, jakartaDay, shortDate, type CustomerState, type Delivery } fro
 import { systemPath } from "../src/nav";
 import { dayActionInput, dayHasActions } from "../src/schedule/dayActions";
 import { customerState, delivery, subscription } from "./fixtures";
+import { ionicons } from "./host-tree";
 
 // A cold real-router mount can pass the default 5 s under machine load, as in the other real-router suites.
 jest.setTimeout(30000);
@@ -119,7 +120,7 @@ jest.mock("../src/buy/BuyScreen", () => ({
         choose("/pembelian/alamat-pilih", {
           title: "Alamat pengantaran",
           items: [
-            { id: "a-1", label: "Kantor", detail: "Jl. Contoh No. 1" },
+            { id: "a-1", label: "Kantor", detail: "Jl. Contoh No. 1", icon: "briefcase-outline" },
             { id: "a-2", label: "Rumah", detail: "Jl. Mawar No. 9" },
           ],
           selected: "a-1",
@@ -906,6 +907,9 @@ describe("Beli and its sheets", () => {
     // The current address is marked; Kelola alamat is under the list.
     expect(screen.getByRole("radio", { name: "Kantor, Jl. Contoh No. 1" }).props.accessibilityState.checked).toBe(true);
     expect(screen.getByRole("button", { name: "Kelola alamat" })).toBeTruthy();
+    // A row with an `icon` leads with its glyph; one without (Rumah here) draws none.
+    expect(ionicons(screen.getByRole("radio", { name: "Kantor, Jl. Contoh No. 1" }), "briefcase-outline")).toHaveLength(1);
+    expect(ionicons(screen.getByRole("radio", { name: "Rumah, Jl. Mawar No. 9" }), "briefcase-outline")).toHaveLength(0);
     await swipeAway("pembelian/alamat-pilih");
     expect(root()).toEqual(["(tabs)", "beli/[id]"]);
     expect(screen.getByTestId("beli-picked").props.children).toBe("null");

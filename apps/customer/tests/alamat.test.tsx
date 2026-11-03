@@ -4,6 +4,8 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import type { Address, AddressUse } from "@catera/domain";
 import { Addresses } from "../src/account/Addresses";
 import { AddressForm } from "../src/account/AddressForm";
+import { addressGlyph } from "../src/account/Addresses";
+import { ionicons } from "./host-tree";
 import { customerLink } from "../src/links";
 import { SheetHost } from "./sheetHost";
 
@@ -101,6 +103,18 @@ it("Alamat has no Makanan diantar ke mana? heading", async () => {
   await renderBook();
   await screen.findByRole("button", { name: /^Rumah, / });
   expect(screen.queryByText("Makanan diantar ke mana?")).toBeNull();
+});
+
+it("each address leads with a glyph for its label: Rumah a house, Kantor a briefcase, any other a pin", async () => {
+  expect(addressGlyph(" Home ")).toBe("home-outline");
+  expect(addressGlyph("Office")).toBe("briefcase-outline");
+  expect(addressGlyph("Kos Dina")).toBe("location-outline");
+  await renderBook();
+  const home = await screen.findByRole("button", { name: /^Rumah, / });
+  const office = await screen.findByRole("button", { name: /^Kantor, / });
+  expect(within(home).getByTestId("address-glyph")).toBeTruthy();
+  expect(ionicons(within(home).getByTestId("address-glyph"), "home-outline")).toHaveLength(1);
+  expect(ionicons(within(office).getByTestId("address-glyph"), "briefcase-outline")).toHaveLength(1);
 });
 
 it("a row speaks its address, says it edits, and opens its edit form", async () => {
