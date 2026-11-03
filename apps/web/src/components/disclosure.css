@@ -4,7 +4,7 @@
 }
 .disclosure.disclosure-panel {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   padding: 0;
   background: var(--surface);
 }
@@ -21,7 +21,7 @@
   line-height: 1.5;
   list-style: none;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
 }
 .disclosure > summary::-webkit-details-marker {
   display: none;
@@ -42,7 +42,7 @@
 }
 .disclosure-panel > summary {
   padding-inline: var(--space-lg);
-  border-radius: 11px;
+  border-radius: 11px; corner-shape: var(--corner-shape);
 }
 .disclosure-heading {
   display: grid;

@@ -19,7 +19,7 @@
   gap: 10px;
   min-height: 46px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
   color: var(--muted);
   font-size: 0.875rem;
   font-weight: 600;
@@ -64,7 +64,7 @@
 
 .settingsContent {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   background: var(--surface);
 }
 
@@ -152,7 +152,7 @@
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
   color: var(--forest);
   font-weight: 600;
   text-decoration: none;
@@ -172,7 +172,7 @@
   min-height: 60px;
   margin: -4px -8px;
   padding: 8px;
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
   color: var(--forest);
   text-decoration: none;
 }

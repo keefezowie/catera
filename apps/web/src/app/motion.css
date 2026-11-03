@@ -65,7 +65,7 @@ body .package-card:hover .package-image img {
 
 .detail-image-frame {
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: 16px; corner-shape: var(--corner-shape);
 }
 .detail-image-frame .detail-hero {
   display: block;

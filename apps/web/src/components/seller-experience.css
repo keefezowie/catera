@@ -40,7 +40,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid #dbe2dc;
-  border-radius: 10px;
+  border-radius: 10px; corner-shape: var(--corner-shape);
   background: #fff;
   color: #163d2e;
 }

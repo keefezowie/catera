@@ -94,7 +94,7 @@
   min-height: 120px;
   padding: 10px 14px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   background: transparent;
   color: var(--forest);
   font: inherit;
@@ -210,11 +210,11 @@
   margin: 0 52px 24px;
   background: var(--soft);
   padding: 4px;
-  border-radius: 10px;
+  border-radius: 10px; corner-shape: var(--corner-shape);
 }
 .calendar-view-control button {
   border: 0;
-  border-radius: 7px;
+  border-radius: 7px; corner-shape: var(--corner-shape);
   background: transparent;
   color: var(--forest);
   font: inherit;
@@ -292,7 +292,7 @@
   max-height: calc(100dvh - 24px);
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 16px; corner-shape: var(--corner-shape);
   padding: 20px;
   background: var(--surface);
   color: var(--forest);
@@ -332,7 +332,7 @@
   min-height: 44px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 7px; corner-shape: var(--corner-shape);
   font: inherit;
   font-size: 13px;
   background: transparent;
@@ -371,7 +371,7 @@
   min-height: 44px;
   font: inherit;
   border: 1px solid var(--field-border);
-  border-radius: 9px;
+  border-radius: 9px; corner-shape: var(--corner-shape);
   padding: 8px 10px;
   background: var(--surface);
   color: var(--forest);

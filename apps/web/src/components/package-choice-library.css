@@ -2,7 +2,7 @@
   margin-block: 24px;
   padding: 24px;
   border: 1px solid var(--line, #d8dccd);
-  border-radius: 18px;
+  border-radius: 18px; corner-shape: var(--corner-shape);
   background: var(--surface, #fffdf8);
 }
 .choice-library-heading {
@@ -30,7 +30,7 @@
 .choice-active-count {
   padding: 8px 12px;
   background: var(--soft);
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -46,7 +46,7 @@
   flex-wrap: wrap;
   padding: 12px 16px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
   font-size: 13px;
 }
 .choice-option-grid {
@@ -59,7 +59,7 @@
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
 }
 .choice-option-card.is-retired {
   background: var(--soft);
@@ -115,7 +115,7 @@
 .public-choice-card {
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   background: var(--surface);
 }
 .public-choice-card > img {
@@ -141,7 +141,7 @@
   margin-top: 18px;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 10px; corner-shape: var(--corner-shape);
   background: var(--soft);
 }
 @media (max-width: 600px) {
@@ -163,7 +163,7 @@
 .choice-dish-list {
   padding: 16px;
   border: 1px solid var(--line, #d8dccd);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
 }
 .choice-dish-list .check-field {
   display: flex;
@@ -172,7 +172,7 @@
   padding-block: 10px;
 }
 .choice-dish-list img {
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
   object-fit: cover;
 }
 @media (max-width: 600px) {

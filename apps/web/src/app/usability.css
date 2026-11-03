@@ -66,7 +66,7 @@ body .field > .field-description {
 }
 .optional-section {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   min-width: 0;
 }
 .optional-section > summary {
@@ -113,7 +113,7 @@ body .field > .field-description {
   display: flex;
   align-items: center;
   padding-left: 12px;
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   background: var(--soft);
 }
 .tag-entry {
@@ -240,7 +240,7 @@ body .package-dialog > p {
   height: 112px;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   overflow: hidden;
   background: var(--soft);
 }
@@ -256,7 +256,7 @@ body .package-dialog > p {
   background: var(--cream);
   box-sizing: content-box;
   padding: 6px;
-  border-radius: 8px;
+  border-radius: 8px; corner-shape: var(--corner-shape);
 }
 body .file-upload.file-upload-compact {
   border: 0;
@@ -301,7 +301,7 @@ body .file-upload.file-upload-compact {
   padding: 14px;
   min-height: 48px;
   background: var(--soft);
-  border-radius: 10px;
+  border-radius: 10px; corner-shape: var(--corner-shape);
 }
 .business-links a span {
   flex: 1;
@@ -313,7 +313,7 @@ body .file-upload.file-upload-compact {
 }
 .seller-readiness {
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 16px; corner-shape: var(--corner-shape);
   padding: 20px;
   margin-bottom: 24px;
   background: var(--cream);
@@ -336,7 +336,7 @@ body .file-upload.file-upload-compact {
   height: 100%;
   min-height: 60px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 10px; corner-shape: var(--corner-shape);
   border: 1px solid var(--line);
   font-size: 14px;
 }
@@ -345,7 +345,7 @@ body .file-upload.file-upload-compact {
 }
 .seller-readiness li[data-complete="true"] {
   background: var(--soft);
-  border-radius: 10px;
+  border-radius: 10px; corner-shape: var(--corner-shape);
 }
 .seller-readiness svg {
   flex-shrink: 0;
@@ -399,7 +399,7 @@ body .ops-main .ops-order-table [data-cell="actions"] .text-button {
   z-index: 5;
   background: var(--cream);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   padding: 12px;
   box-shadow: 0 4px 16px #163d2e14;
 }
@@ -421,7 +421,7 @@ body .ops-main .ops-order-table [data-cell="actions"] .text-button {
 }
 .import-row {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -432,7 +432,7 @@ body .ops-main .ops-order-table [data-cell="actions"] .text-button {
 }
 .import-preview-card {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   padding: 16px;
 }
 .record-details > summary {
@@ -467,7 +467,7 @@ body .ops-main .ops-order-table [data-cell="actions"] .text-button {
     color: var(--muted);
     background: transparent;
     border: 0;
-    border-radius: 8px;
+    border-radius: 8px; corner-shape: var(--corner-shape);
     padding: 6px 0;
     min-height: 54px;
     min-width: 0;
@@ -522,7 +522,7 @@ body .ops-main .ops-order-table [data-cell="actions"] .text-button {
     position: relative;
     border: 1px solid var(--line);
     background: var(--cream);
-    border-radius: 12px;
+    border-radius: 12px; corner-shape: var(--corner-shape);
     padding: 16px;
   }
   .ops-order-table tbody tr.selected {
@@ -685,7 +685,7 @@ body .text-button {
 .import-preview article {
   border: 1px solid var(--line);
   padding: 16px;
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
 }
 .import-preview :is(p, small) {
   overflow-wrap: anywhere;
@@ -696,7 +696,7 @@ body .text-button {
 }
 .workspace-tabs button {
   min-height: 48px;
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   border: 1px solid var(--line);
   padding: 10px 18px;
   font-size: 16px;
@@ -815,7 +815,7 @@ html:has(.seller-operations) {
   .record-table tr {
     display: block;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: 12px; corner-shape: var(--corner-shape);
     padding: 12px;
   }
   body .ops-main .record-table td {
@@ -889,15 +889,15 @@ html:has(.seller-operations) {
 .checkout-package-details > summary { min-height: 44px; padding-block: 10px; cursor: pointer; color: var(--forest); font-weight: 650; }
 .checkout-package-details[open] > summary { margin-bottom: 12px; }
 .checkout-summary .checkout-package-details + p { margin-top: 0; }
-.checkout-address { display: flex; gap: 12px; background: var(--soft); padding: 16px; border-radius: 12px; }
+.checkout-address { display: flex; gap: 12px; background: var(--soft); padding: 16px; border-radius: 12px; corner-shape: var(--corner-shape); }
 .checkout-address > svg { flex-shrink: 0; color: var(--forest); margin-top: 3px; }
 .checkout-address p { overflow-wrap: anywhere; }
-.checkout-address-guidance { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--soft); }
+.checkout-address-guidance { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; corner-shape: var(--corner-shape); background: var(--soft); }
 .checkout-address-guidance > svg { flex-shrink: 0; margin-top: 4px; color: var(--forest); }
 .checkout-address-guidance p { margin: 0; overflow-wrap: anywhere; }
 .checkout-address-guidance p + p { margin-top: 4px; }
 .checkout-payment-status:empty { display: none; }
-.checkout-recovery { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); }
+.checkout-recovery { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; corner-shape: var(--corner-shape); background: var(--soft); }
 .checkout-recovery > div { flex: 1 1 240px; min-width: 0; }
 .checkout-recovery p { margin: 4px 0 0; }
 .checkout-recovery .button { flex-shrink: 0; }
@@ -975,7 +975,7 @@ html:has(.seller-operations) {
 }
 @media (max-width: 600px) {
   body .checkout-summary { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; padding: 16px; }
-  body .checkout-summary > img { width: 76px; height: 76px; object-fit: cover; border-radius: 10px; }
+  body .checkout-summary > img { width: 76px; height: 76px; object-fit: cover; border-radius: 10px; corner-shape: var(--corner-shape); }
   body .checkout-summary > div { display: contents; }
   .checkout-summary-description { min-width: 0; }
   .checkout-summary > div > :not(.checkout-summary-description) { grid-column: 1 / -1; }
@@ -985,7 +985,7 @@ html:has(.seller-operations) {
   .checkout-summary .checkout-package-details { margin-block: 0; }
   body .checkout-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   body .checkout-steps li { font-size: 11px; padding: 10px 8px; text-align: center; }
-  .checkout-actions { position: sticky; bottom: var(--mobile-bottom-clearance, 0px); z-index: 12; padding: 12px; margin-inline: -12px; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 -4px 20px #163d2e0a; }
+  .checkout-actions { position: sticky; bottom: var(--mobile-bottom-clearance, 0px); z-index: 12; padding: 12px; margin-inline: -12px; border: 1px solid var(--line); border-radius: 12px; corner-shape: var(--corner-shape); box-shadow: 0 -4px 20px #163d2e0a; }
   .checkout-actions .button { width: 100%; }
   html:has(.checkout-actions) { scroll-padding-bottom: calc(249px + env(safe-area-inset-bottom, 0px)); }
   .checkout-fields .checkbox-row { scroll-margin-block: 24px 220px; }

@@ -133,7 +133,7 @@ body .select-menu {
   > summary:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
-  border-radius: 6px;
+  border-radius: 6px; corner-shape: var(--corner-shape);
 }
 :is(.record-details, .library-category) > summary {
   min-height: 44px;
@@ -148,14 +148,14 @@ details > summary:focus-visible {
   margin-top: 12px;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   background: var(--surface);
 }
 .category-create > div {
   margin-top: 12px;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 12px; corner-shape: var(--corner-shape);
   background: var(--surface);
 }
 .category-create > div[hidden] {
