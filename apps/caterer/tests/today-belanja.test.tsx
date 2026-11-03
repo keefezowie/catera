@@ -26,7 +26,11 @@ const pinToday = () =>
   });
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
-jest.mock("../src/nav", () => ({ openLink: jest.fn(), goToTab: jest.fn() }));
+jest.mock("../src/nav", () => ({
+  openLink: jest.fn(),
+  goToTab: jest.fn(),
+  pushScreen: (href: string) => require("expo-router").router.push(href),
+}));
 jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),

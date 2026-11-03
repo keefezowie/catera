@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { RefreshControl, useWindowDimensions, View } from "react-native";
-import { router } from "expo-router";
 import {
   errorLabel,
   firstOperatingDayAfter,
@@ -51,6 +50,7 @@ import { LiveSlot } from "./LiveSlot";
 import { ACTION, CAPTION_RESERVE, FIGURE_GAP, FIGURE_TOP, SECTION_GAP } from "./rows";
 import { belanjaRange, weekRange } from "./belanja";
 import { belanjaHref } from "../hrefs";
+import { pushScreen } from "../nav";
 import { ReadError } from "../ReadError";
 import { TodayCountSkeleton, TodaySkeleton } from "../skeletons";
 
@@ -126,7 +126,7 @@ function BelanjaEntry() {
         testID="belanja-entry-row"
         accessibilityRole="button"
         accessibilityLabel={`${title}, ${detail}`}
-        onPress={() => router.push(belanjaHref() as never)}
+        onPress={() => pushScreen(belanjaHref())}
         style={{ minHeight: ACTION, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 12 }}
       >
         {/* forest: the action's glyph */}
