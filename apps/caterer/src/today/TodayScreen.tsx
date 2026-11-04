@@ -25,6 +25,7 @@ import {
   MoodHeader,
   PolishArt,
   PressableRow,
+  PressableScale,
   Screen,
   StateArt,
   stateArtSize,
@@ -44,7 +45,7 @@ import { SelectionBar } from "./SelectionBar";
 import { useStopSelection } from "./selection";
 import { SessionCard } from "./SessionCard";
 import { useTicks } from "./ticks";
-import { WEEK_DAYS, WeekStrip, weekOffset } from "./WeekStrip";
+import { validDay, WeekStrip, weekOf } from "./WeekStrip";
 import { useRouteView } from "./DeliveryOrder";
 import { LiveSlot } from "./LiveSlot";
 import { ACTION, CAPTION_RESERVE, FIGURE_GAP, FIGURE_TOP, SECTION_GAP } from "./rows";
@@ -410,34 +411,33 @@ function DapurState({
 
 /**
  * Hari ini: the mood's meal as one session with what to cook and where to take it, plus only the exceptions to act on.
- * The strip under the title picks any of the next seven days; only today can be acted on. `date` (from a notification)
- * opens that day when it is within the week, and today otherwise.
+ * The calendar under the title picks any day, its Monday to Sunday week or its month; only today can be acted on, and
+ * the title returns to today. `date` (from a notification) opens that day, whichever week it is in.
  */
 export function TodayScreen({ date: target }: { date?: string } = {}) {
   const { actor, runtime, t, locale } = useMobile();
   const c = useColors();
   const { mood, setMood } = useMood();
   const m = useMoodColors();
-  const [offset, setOffset] = useState(() => weekOffset(target, new Date()));
+  // The picked day is any Jakarta day; null follows today (even past midnight).
+  const [picked, setPicked] = useState<string | null>(() => (validDay(target) ? target : null));
   useEffect(() => {
-    if (target) setOffset(weekOffset(target, new Date()));
+    if (validDay(target)) setPicked(target);
   }, [target]);
   const catererId = actor?.catererId ?? "";
   const actorId = actor?.id ?? "";
-  const date = jakartaDay(new Date(), offset);
+  const todayDate = jakartaDay(new Date());
+  const date = picked ?? todayDate;
   // A launch paints the day kept for this account first (`fromCache`); the fresh read replaces it.
   const day = useData(`ops:${catererId}:${date}`, () => loadDay(runtime, actorId, catererId, date), {
     cached: () => keptDay(actorId, catererId, date),
   });
-  // The week strip's counts: orders per day for the mood's meal, today through six days on. Its own read: a failure
-  // leaves the strip without counts and nothing else (the day itself is read separately).
-  const week = {
-    from: jakartaDay(new Date(), 0),
-    to: jakartaDay(new Date(), WEEK_DAYS - 1),
-    meal: mood === "siang" ? "lunch" : "dinner",
-  };
-  const calendar = useData(`cal:${catererId}:${week.from}:${week.meal}`, () =>
-    runtime.api.sellerCalendar(catererId, { ...week, status: "active" }),
+  // The calendar's counts: orders per day for the mood's meal over the days it shows (the selected week, or the open month's
+  // grid). Its own read: a failure leaves the calendar without counts and nothing else (the day itself is read separately).
+  const [range, setRange] = useState(() => ({ from: weekOf(date)[0], to: weekOf(date)[6] }));
+  const meal0 = mood === "siang" ? "lunch" : "dinner";
+  const calendar = useData(`cal:${catererId}:${range.from}:${range.to}:${meal0}`, () =>
+    runtime.api.sellerCalendar(catererId, { ...range, meal: meal0, status: "active" }),
   );
   const counts = calendar.data ? Object.fromEntries(calendar.data.days.map((d) => [d.date, d.orders])) : null;
   const attention = useData(`attention:${catererId}`, () =>
@@ -449,7 +449,9 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     runtime.api.request<DeliveryIssue[]>(`delivery-issues?${new URLSearchParams({ id: catererId })}`),
   );
   const ops = day.data?.data;
-  const today = offset === 0;
+  const today = date === todayDate;
+  const tomorrow = date === jakartaDay(new Date(), 1);
+  const future = date > todayDate;
 
   // A kitchen without packages has nothing to cook yet; only the owner can set it up.
   const newKitchen = !!ops && !ops.offers.length && actor?.role === "owner";
@@ -496,7 +498,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     ? t("Sedang diantar", "On the way")
     : today
       ? t("Hari ini", "Today")
-      : offset === 1
+      : tomorrow
         ? t("Besok", "Tomorrow")
         : weekdayName(date, locale);
   // The day is done when nothing is left to serve and no report is open. It needs the reports read (a failed read could
@@ -575,12 +577,34 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           toggle
           toggleSize="compact"
           title={
-            <Text variant="heroTitle" style={{ color: m.headerText }}>
-              {shortDate(date, locale)}
-            </Text>
+            today ? (
+              <Text variant="heroTitle" style={{ color: m.headerText }}>
+                {shortDate(date, locale)}
+              </Text>
+            ) : (
+              // Another day's title is the way back to today.
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={t("Kembali ke hari ini", "Back to today")}
+                accessibilityHint={shortDate(date, locale)}
+                haptic="select"
+                onPress={() => setPicked(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text variant="heroTitle" style={{ color: m.headerText }}>
+                  {shortDate(date, locale)}
+                </Text>
+              </PressableScale>
+            )
           }
         >
-          <WeekStrip selected={offset} onSelect={setOffset} counts={counts} />
+          <WeekStrip
+            selected={date}
+            today={todayDate}
+            onSelect={setPicked}
+            counts={counts}
+            onRange={(r) => setRange((was) => (was.from === r.from && was.to === r.to ? was : r))}
+          />
           {/* The figures enter from their skeleton as one block, in the same place on the header. They are keyed by
               day and meal, so the mood toggle and a day picked on the week strip mount the other session's batch
               progress in place instead of sliding it (Decision A); only a stage change of the same session moves it. */}
@@ -656,7 +680,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <View style={{ height: 0 }} />
             {loading ? <TodaySkeleton /> : null}
             {ops && done ? (
-              <DoneCard ops={ops} onTomorrow={() => setOffset(1)} />
+              <DoneCard ops={ops} onTomorrow={() => setPicked(jakartaDay(new Date(), 1))} />
             ) : ops && session ? (
               <SessionCard
                 ops={ops}
@@ -664,7 +688,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                 ticks={ticks}
                 meal={meal}
                 date={date}
-                report={day.data?.savedAt ? null : today ? "today" : "later"}
+                report={day.data?.savedAt ? null : today ? "today" : future ? "later" : null}
                 caterer={ops.caterer.name}
                 selection={selection}
                 route={route}
@@ -723,7 +747,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                 title={
                   today
                     ? t("Dapur libur hari ini", "The kitchen is off today")
-                    : offset === 1
+                    : tomorrow
                       ? t("Dapur libur besok", "The kitchen is off tomorrow")
                       : t(`Dapur libur hari ${dayWord}`, `The kitchen is off on ${dayWord}`)
                 }
@@ -738,7 +762,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                 title={
                   today
                     ? t("Tidak ada yang dimasak hari ini", "Nothing to cook today")
-                    : offset === 1
+                    : tomorrow
                       ? t("Tidak ada yang dimasak besok", "Nothing to cook tomorrow")
                       : t(`Tidak ada yang dimasak hari ${dayWord}`, `Nothing to cook on ${dayWord}`)
                 }

@@ -1,4 +1,5 @@
-import { screen, within } from "@testing-library/react-native";
+import { screen } from "@testing-library/react-native";
+import { jakartaDay } from "@catera/domain";
 
-/** The strip's day tab `offset` days from today (0 today, 1 Besok). The Siang / Malam switch is a tab pair of its own. */
-export const dayTab = (offset: number) => within(screen.getByTestId("week-strip")).getAllByRole("tab")[offset];
+/** The calendar's day tab `offset` days from today (0 today, 1 Besok), by its date; the clock is pinned by the test. */
+export const dayTab = (offset: number) => screen.getByTestId(`week-day-${jakartaDay(new Date(), offset)}`);

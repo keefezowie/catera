@@ -108,7 +108,7 @@ function renderToday(runtime: MobileRuntime, { date, now = SIANG_NOW }: { date?:
 
 /** A glyph by its Ionicons name (the icon draws nothing in Jest, so it is found by its props). */
 const glyph = (name: string) => {
-  const found = iconsIn().find((i) => i.name === name)!;
+  const found = iconsIn(screen.getByTestId("belanja-entry")).find((i) => i.name === name)!;
   return { color: found.color as string, size: found.size as number };
 };
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;

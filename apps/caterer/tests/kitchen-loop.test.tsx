@@ -1151,7 +1151,9 @@ describe("Hari ini on the Dapur scale", () => {
       const title = await screen.findByText(/^Kamis 8 Okt$/);
       expect(box(title)).toMatchObject({ fontSize: 24, lineHeight: 30 });
       expect(title.props.accessibilityRole).toBe("header");
-      for (let i = 0; i < 7; i += 1) expect(box(screen.getByTestId(`week-day-${i}`)).minHeight).toBeGreaterThanOrEqual(48);
+      const tabs = within(screen.getByTestId("week-strip")).getAllByRole("tab");
+      expect(tabs).toHaveLength(7);
+      for (const tab of tabs) expect(box(tab).minHeight).toBeGreaterThanOrEqual(48);
       // The band's top row is 36, with the Siang / Malam toggle at its end.
       const header = screen.getByTestId("mood-header");
       expect(box(within(header).getByTestId("mood-header-row")).minHeight).toBe(36);
