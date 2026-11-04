@@ -450,6 +450,11 @@ export function WeekStrip({
         accessibilityRole="button"
         accessibilityLabel={expanded ? t("Tutup kalender bulan", "Close month calendar") : t("Buka kalender bulan", "Open month calendar")}
         accessibilityState={{ expanded }}
+        // TalkBack and VoiceOver activate with an accessibility action, not a touch, so the responder never sees it.
+        accessibilityActions={[{ name: "activate" }]}
+        onAccessibilityAction={(e) => {
+          if (e.nativeEvent.actionName === "activate") toggle();
+        }}
         style={{ height: HANDLE_TARGET, minHeight: HANDLE_TARGET, alignItems: "center", justifyContent: "center" }}
       >
         <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: ink.markerIdle }} />

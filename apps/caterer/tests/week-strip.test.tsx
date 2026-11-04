@@ -436,6 +436,16 @@ describe("the handle and the month", () => {
     expect(handle().props.accessibilityState.expanded).toBe(false);
   });
 
+  it("opens and closes from a screen reader's activate action, which never reaches the touch responder", async () => {
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    expect(handle().props.accessibilityActions).toEqual([{ name: "activate" }]);
+    await act(async () => handle().props.onAccessibilityAction({ nativeEvent: { actionName: "activate" } }));
+    expect(handle().props.accessibilityState.expanded).toBe(true);
+    await act(async () => handle().props.onAccessibilityAction({ nativeEvent: { actionName: "activate" } }));
+    expect(handle().props.accessibilityState.expanded).toBe(false);
+  });
+
   it("names the handle in English", async () => {
     const runtime = runtimeWith(null);
     store().set(runtime.storageKey("locale"), "en");
