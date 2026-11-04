@@ -37,10 +37,18 @@ export const ACCEPTED_HOSTED_ORDER = {
   catera_v1_read: ["catera_v1_read_journeys_base"],
 };
 
+/**
+ * The layers one migration creates for an RPC, in file order: a plain `alter function public.<rpc>(…) rename to <base>`,
+ * or a call to the `v1.rename_entry_point('<rpc>', '<args>', '<base>')` helper (20261030120000_caterer_contact_whatsapp
+ * renames that way, re-creating a self-qualified body under its new name).
+ */
 const renames = (sql, name) =>
-  [...sql.matchAll(new RegExp(`alter\\s+function\\s+public\\.${name}\\s*\\([^)]*\\)\\s+rename\\s+to\\s+([a-z0-9_]+)`, "gi"))].map(
-    (m) => m[1].toLowerCase(),
-  );
+  [
+    ...sql.matchAll(new RegExp(`alter\\s+function\\s+public\\.${name}\\s*\\([^)]*\\)\\s+rename\\s+to\\s+([a-z0-9_]+)`, "gi")),
+    ...sql.matchAll(new RegExp(`rename_entry_point\\(\\s*'${name}'\\s*,\\s*'[^']*'\\s*,\\s*'([a-z0-9_]+)'\\s*\\)`, "gi")),
+  ]
+    .sort((a, b) => a.index - b.index)
+    .map((m) => m[1].toLowerCase());
 
 /** The layers the repo's migrations create for one RPC, oldest first, and the hosted-only layers. */
 export async function repoLayers(name, dir = root) {

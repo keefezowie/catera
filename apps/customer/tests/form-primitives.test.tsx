@@ -88,16 +88,16 @@ describe("form primitives", () => {
     spy.mockClear();
     const view = await render(<PasswordRule value="abc" failed={false} />);
     expect(spy).not.toHaveBeenCalled();
-    await view.rerender(<PasswordRule value="abcdefgh" failed={false} />);
-    await view.rerender(<PasswordRule value="abcdefghi" failed={false} />);
+    await view.rerender(<PasswordRule value="abcdefghij" failed={false} />);
+    await view.rerender(<PasswordRule value="abcdefghijk" failed={false} />);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith("Syarat kata sandi terpenuhi");
-    expect(screen.getByText("Minimal 8 karakter")).toBeTruthy();
+    expect(screen.getByText("Minimal 10 karakter")).toBeTruthy();
   });
 
   it("PasswordRule failed and short shows danger text with the alert glyph", async () => {
     await render(<PasswordRule value="abc" failed />);
-    expect(screen.getByText("Minimal 8 karakter")).toBeTruthy();
+    expect(screen.getByText("Minimal 10 karakter")).toBeTruthy();
     expect(iconsIn(screen.getByTestId("password-rule")).map((i) => i.name)).toEqual(["alert-circle"]);
   });
 

@@ -691,6 +691,13 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261020100000_customer_live_address.sql"), "utf8") + "\ncommit;");
   }
+  // Repo order: the payment-channels layers sit below the contact layers (scripts/verify-function-stack.mjs checks).
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('public.catera_v1_command_channels_base(text,jsonb,uuid)') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261027120000_payment_channels.sql"), "utf8") + "\ncommit;");
+  }
   if ((await db.query<{ missing: boolean }>(
     "select to_regprocedure('public.catera_v1_command_contact_base(text,jsonb,uuid)') is null missing",
   )).rows[0].missing) {

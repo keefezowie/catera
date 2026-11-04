@@ -528,7 +528,7 @@ describe("Daftar validation and errors", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Daftar" }));
     expect(await screen.findByText("Tulis namamu, minimal 2 huruf.")).toBeTruthy();
     expect(screen.getByText("Isi emailmu dulu.")).toBeTruthy();
-    expect(screen.getByText("Minimal 8 karakter")).toBeTruthy();
+    expect(screen.getByText("Minimal 10 karakter")).toBeTruthy();
     expect(supabase.auth.signUp).not.toHaveBeenCalled();
     expect(screen.getByTestId("auth-mascot-bingung", hidden)).toBeTruthy();
   });
