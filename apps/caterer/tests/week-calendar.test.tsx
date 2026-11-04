@@ -1,4 +1,4 @@
-import { monthGrid, settleTarget, validDay, weekOf, weekStart, windowHeight } from "../src/today/WeekStrip";
+import { countOn, covers, monthGrid, settleTarget, validDay, weekOf, weekStart, windowHeight } from "../src/today/WeekStrip";
 
 describe("weekOf: Monday to Sunday around a day", () => {
   it.each([
@@ -74,5 +74,29 @@ describe("windowHeight: the clipped window between one row and the whole month",
   it("unfolds in between, and follows a month that changes its rows", () => {
     expect(windowHeight(0.5, 5)).toBe((56 + 296) / 2);
     expect(windowHeight(1, 5.5)).toBe((296 + 356) / 2);
+  });
+});
+
+describe("countOn: a count only speaks for the days it was read for", () => {
+  const range = { from: "2026-10-05", to: "2026-10-11" };
+  it("is the count inside the range, and 0 for a quiet day", () => {
+    expect(countOn({ "2026-10-09": 28 }, range, "2026-10-09")).toBe(28);
+    expect(countOn({ "2026-10-09": 28 }, range, "2026-10-10")).toBe(0);
+  });
+  it("is unknown outside the range and while nothing is loaded", () => {
+    expect(countOn({ "2026-10-09": 28 }, range, "2026-10-12")).toBeNull();
+    expect(countOn({ "2026-10-09": 28 }, range, "2026-10-04")).toBeNull();
+    expect(countOn(null, range, "2026-10-09")).toBeNull();
+  });
+});
+
+describe("covers", () => {
+  it("holds a range that sits inside another, and no other", () => {
+    const month = { from: "2026-09-28", to: "2026-11-01" };
+    expect(covers(month, { from: "2026-10-19", to: "2026-10-25" })).toBe(true);
+    expect(covers(month, month)).toBe(true);
+    expect(covers(month, { from: "2026-10-26", to: "2026-11-01" })).toBe(true);
+    expect(covers(month, { from: "2026-11-02", to: "2026-11-08" })).toBe(false);
+    expect(covers({ from: "2026-10-05", to: "2026-10-11" }, month)).toBe(false);
   });
 });

@@ -74,6 +74,19 @@ export function windowHeight(progress: number, rows: number): number {
   return CELL + (rows * ROW - CELL_GAP - CELL) * progress;
 }
 
+/** A day's order count from `counts`, which only speak for the days in `range`: null (unknown) for any other day. */
+export function countOn(
+  counts: Record<string, number> | null,
+  range: { from: string; to: string },
+  day: string,
+): number | null {
+  return counts && day >= range.from && day <= range.to ? (counts[day] ?? 0) : null;
+}
+
+/** Whether `outer` already covers every day of `inner`. */
+export const covers = (outer: { from: string; to: string }, inner: { from: string; to: string }) =>
+  outer.from <= inner.from && inner.to <= outer.to;
+
 /** The days a read has to cover: the selected week, or the displayed month's whole grid. */
 export function visibleRange(expanded: boolean, month: string, selected: string): { from: string; to: string } {
   if (!expanded) return { from: weekStart(selected), to: addDays(weekStart(selected), 6) };
@@ -83,7 +96,7 @@ export function visibleRange(expanded: boolean, month: string, selected: string)
 
 /**
  * One day of the calendar. The selected day's fill fades in over `control` (a layer under the text), and the text
- * switches at once.
+ * changes ink halfway through.
  */
 function DayCell({
   date,
@@ -116,6 +129,13 @@ function DayCell({
     fill.value = reduced ? target : withTiming(target, { duration: nativeMotion.control, easing: ease });
   }, [selected, reduced, fill]);
   const fillStyle = useAnimatedStyle(() => ({ opacity: fill.value }));
+  // The text flips ink halfway through the fade, when the fill is as near the new ink's ground as the old one's.
+  const [inked, setInked] = useState(selected);
+  useEffect(() => {
+    if (reduced) return setInked(selected);
+    const timer = setTimeout(() => setInked(selected), nativeMotion.control / 2);
+    return () => clearTimeout(timer);
+  }, [selected, reduced]);
 
   const isToday = date === today;
   const past = date < today;
@@ -126,8 +146,8 @@ function DayCell({
         ? t(`${orders} pengantaran`, plural(orders, "delivery", "deliveries"))
         : t("tidak ada pengantaran", "no deliveries")
   }`.replace(/, $/, "");
-  const first_ = selected ? ink.onToggleActive : outside ? ink.markerIdle : past ? ink.heroMeta : ink.heroText;
-  const rest = selected ? ink.onToggleActive : outside ? ink.markerIdle : ink.heroMeta;
+  const first_ = inked ? ink.onToggleActive : outside ? ink.markerIdle : past ? ink.heroMeta : ink.heroText;
+  const rest = inked ? ink.onToggleActive : outside ? ink.markerIdle : ink.heroMeta;
   const fit = { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: MIN_FIT } as const;
   const id = `week-day-${date}`;
   return (
@@ -217,12 +237,15 @@ export function WeekStrip({
   today,
   onSelect,
   counts,
+  countsRange,
   onRange,
 }: {
   selected: string;
   today: string;
   onSelect: (day: string) => void;
   counts: Record<string, number> | null;
+  /** The days `counts` was read for: any other day has no count (yet). */
+  countsRange: { from: string; to: string };
   onRange: (range: { from: string; to: string }) => void;
 }) {
   const { t, locale } = useMobile();
@@ -232,6 +255,8 @@ export function WeekStrip({
   const [expanded, setExpanded] = useState(false);
   // The month the open calendar shows; null while it is closed, when it follows the selected day.
   const [browsing, setBrowsing] = useState<string | null>(null);
+  // A finger is dragging the handle: the month is already showing, so the other months' days take their ink now.
+  const [dragging, setDragging] = useState(false);
   const month = browsing ?? monthOf(selected);
   const weeks = useMemo(() => monthGrid(month), [month]);
   const rowIndex = Math.max(0, weeks.findIndex((w) => w.includes(selected)));
@@ -262,42 +287,73 @@ export function WeekStrip({
     opacity: progress.value,
   }));
 
-  const settle = (target: 0 | 1) => {
-    progress.value = reduced ? target : withTiming(target, { duration: nativeMotion.content, easing: move });
+  const forget = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closing = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (forget.current) clearTimeout(forget.current);
+      if (closing.current) clearTimeout(closing.current);
+    },
+    [],
+  );
+  /** `quiet` skips the settle haptic (a picked day already gave its own). */
+  const settle = (target: 0 | 1, quiet = false) => {
     const open = target === 1;
-    if (open !== expanded) haptic.select();
+    if (forget.current) clearTimeout(forget.current);
+    if (open !== expanded && !quiet) haptic.select();
     setExpanded(open);
-    setBrowsing(open ? monthOf(selected) : null);
+    setDragging(false);
+    if (open) {
+      progress.value = reduced ? 1 : withTiming(1, { duration: nativeMotion.content, easing: move });
+      setBrowsing(monthOf(selected));
+    } else if (browsing === null || reduced) {
+      progress.value = 0;
+      setBrowsing(null);
+    } else if (weeks.some((w) => w.includes(selected))) {
+      // The browsed grid still holds the selected week: fold it, then let the grid follow the selected day's month
+      // (the same week sits in either, so nothing moves).
+      progress.value = withTiming(0, { duration: nativeMotion.content, easing: move });
+      forget.current = setTimeout(() => setBrowsing(null), nativeMotion.content);
+    } else {
+      // Another month's grid has no row for the selected week: show the week at once rather than fold the wrong row.
+      progress.value = 0;
+      setBrowsing(null);
+    }
   };
   const toggle = () => settle(expanded ? 0 : 1);
 
-  // The handle's own responder: a touch that starts anywhere else belongs to the screen's pull to refresh.
+  // The handle's own responder, claimed on touch so the screen's scroll and pull to refresh never take the gesture. A
+  // touch that barely moves is a tap.
   const travel = Math.max(1, (weeks.length - 1) * ROW);
   const reducedRef = useRef(reduced);
   reducedRef.current = reduced;
   const drag = useRef({ from: 0 });
-  const latest = useRef({ settle, expanded, travel });
-  latest.current = { settle, expanded, travel };
+  const latest = useRef({ settle, toggle, expanded, travel });
+  latest.current = { settle, toggle, expanded, travel };
   const pan = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponderCapture: (_e, g) => Math.abs(g.dy) > SLOP && Math.abs(g.dy) > Math.abs(g.dx),
+        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
         onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: () => {
           drag.current.from = progress.value;
         },
         onPanResponderMove: (_e, g) => {
+          if (Math.abs(g.dy) > SLOP && Math.abs(g.dy) > Math.abs(g.dx)) setDragging(true);
           if (reducedRef.current) return;
           progress.value = Math.min(1, Math.max(0, drag.current.from + g.dy / latest.current.travel));
         },
         onPanResponderRelease: (_e, g) => {
+          if (Math.abs(g.dy) < SLOP && Math.abs(g.dx) < SLOP) return latest.current.toggle();
           const base = latest.current.expanded ? 1 : 0;
           const now = reducedRef.current
             ? Math.min(1, Math.max(0, base + g.dy / latest.current.travel))
             : progress.value;
           latest.current.settle(settleTarget(now, g.vy));
         },
+        // A cancelled gesture goes back to the state it began in instead of freezing half open.
+        onPanResponderTerminate: () => latest.current.settle(latest.current.expanded ? 1 : 0),
       }),
     [progress],
   );
@@ -311,13 +367,12 @@ export function WeekStrip({
     shade.value = withTiming(1, { duration: nativeMotion.selection, easing: ease });
   };
 
-  const closing = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => void (closing.current && clearTimeout(closing.current)), []);
   const pick = (day: string) => {
     onSelect(day);
     if (!expanded) return;
-    // The fill fades in first, then the month folds back to that day's week.
-    closing.current = setTimeout(() => settle(0), reduced ? 0 : nativeMotion.control);
+    // The fill fades in first, then the month folds back to that day's week; a quick second pick restarts the wait.
+    if (closing.current) clearTimeout(closing.current);
+    closing.current = setTimeout(() => settle(0, true), reduced ? 0 : nativeMotion.control);
   };
 
   const iconButton = (by: number, icon: "chevron-back" | "chevron-forward", label: string) => (
@@ -378,8 +433,8 @@ export function WeekStrip({
                   date={day}
                   today={today}
                   selected={day === selected}
-                  outside={expanded && monthOf(day) !== month}
-                  orders={counts ? (counts[day] ?? 0) : null}
+                  outside={(expanded || dragging) && monthOf(day) !== month}
+                  orders={countOn(counts, countsRange, day)}
                   hidden={!expanded && index !== rowIndex}
                   onPress={() => pick(day)}
                 />
@@ -388,19 +443,16 @@ export function WeekStrip({
           ))}
         </Animated.View>
       </Animated.View>
-      <View {...pan.panHandlers} testID="week-handle-zone">
-        <PressableScale
-          testID="week-handle"
-          accessibilityRole="button"
-          accessibilityLabel={expanded ? t("Tutup kalender bulan", "Close month calendar") : t("Buka kalender bulan", "Open month calendar")}
-          accessibilityState={{ expanded }}
-          haptic="none"
-          pressFeedback={false}
-          onPress={toggle}
-          style={{ height: HANDLE_TARGET, minHeight: HANDLE_TARGET, alignItems: "center", justifyContent: "center" }}
-        >
-          <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: ink.markerIdle }} />
-        </PressableScale>
+      <View
+        {...pan.panHandlers}
+        testID="week-handle"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={expanded ? t("Tutup kalender bulan", "Close month calendar") : t("Buka kalender bulan", "Open month calendar")}
+        accessibilityState={{ expanded }}
+        style={{ height: HANDLE_TARGET, minHeight: HANDLE_TARGET, alignItems: "center", justifyContent: "center" }}
+      >
+        <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: ink.markerIdle }} />
       </View>
     </View>
   );

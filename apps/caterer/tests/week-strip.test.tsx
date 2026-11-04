@@ -19,6 +19,18 @@ import * as offline from "../src/today/offline";
 
 // The clock is pinned to Thursday 8 Oct 2026, 10.00 Jakarta. Only the clock: timers and microtasks keep running.
 const NOW = new Date("2026-10-08T03:00:00Z");
+/** Also fakes setTimeout and clearTimeout, so a test can step the calendar's waits (the fill's half fade, the fold after a pick). */
+const stepTimeouts = () => {
+  jest.useRealTimers();
+  jest.useFakeTimers({
+    now: NOW,
+    doNotFake: [
+      "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame",
+      "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "setImmediate",
+      "clearImmediate", "setInterval", "clearInterval",
+    ],
+  });
+};
 const pinToday = () =>
   jest.useFakeTimers({
     now: NOW,
@@ -129,7 +141,25 @@ const expectCountLinesHidden = () => {
 };
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
 const selectedDay = () => dayTabs().find((t) => t.props.accessibilityState.selected)?.props.testID.slice("week-day-".length);
-const openMonth = async () => fireEvent.press(handle());
+const touch = (y: number, t: number, from = y - 1) => ({
+  touchHistory: {
+    indexOfSingleActiveTouch: 0,
+    mostRecentTimeStamp: t,
+    numberActiveTouches: 1,
+    touchBank: [{ touchActive: true, startPageX: 100, startPageY: 0, startTimeStamp: 0, currentPageX: 100, currentPageY: y, currentTimeStamp: t, previousPageX: 100, previousPageY: from, previousTimeStamp: t - 16 }],
+  },
+  nativeEvent: { touches: [], changedTouches: [], timestamp: t },
+});
+// The handle is a responder, not a button with onPress: a tap is a touch that starts and ends without moving, and the
+// handlers are called as the responder system would.
+const tapHandle = async () => {
+  const zone = handle();
+  await act(async () => {
+    zone.props.onResponderGrant(touch(0, 0));
+    zone.props.onResponderRelease(touch(0, 40, 0));
+  });
+};
+const openMonth = tapHandle;
 const WEEK = ["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11"];
 const reads = (runtime: MobileRuntime) => weekReads(runtime).map((c) => [c[1].from, c[1].to]);
 const weekdayNames = () => screen.getByTestId("week-weekdays", { includeHiddenElements: true });
@@ -401,7 +431,7 @@ describe("the handle and the month", () => {
     await openMonth();
     expect(handle().props.accessibilityLabel).toBe("Tutup kalender bulan");
     expect(handle().props.accessibilityState.expanded).toBe(true);
-    await fireEvent.press(handle());
+    await tapHandle();
     expect(handle().props.accessibilityLabel).toBe("Buka kalender bulan");
     expect(handle().props.accessibilityState.expanded).toBe(false);
   });
@@ -495,7 +525,9 @@ describe("the handle and the month", () => {
     expect(handle().props.accessibilityState.expanded).toBe(false);
     expect(await screen.findByText("Dapur Bu Rina · Senin")).toBeTruthy();
     await waitFor(() => expect(runtime.api.sellerOperations).toHaveBeenCalledWith("k-1", "2026-10-19"));
-    await waitFor(() => expect(reads(runtime).at(-1)).toEqual(["2026-10-19", "2026-10-25"]));
+    // The open month was read for its whole grid, which already holds the folded week: no third read.
+    await waitFor(() => expect(reads(runtime)).toEqual([["2026-10-05", "2026-10-11"], ["2026-09-28", "2026-11-01"]]));
+    expect(within(cell("2026-10-20")).getByText("0")).toBeTruthy();
   });
 
   it("picking a neighbour's day in the grid lands on its own month's week", async () => {
@@ -514,7 +546,7 @@ describe("the handle and the month", () => {
     await screen.findByText("Dapur Bu Rina · Hari ini");
     await openMonth();
     await fireEvent.press(screen.getByRole("button", { name: "Bulan berikutnya" }));
-    await fireEvent.press(handle());
+    await tapHandle();
     expect(dayTabs().map((t) => t.props.testID)).toEqual(WEEK.map((d) => `week-day-${d}`));
     await openMonth();
     expect(screen.getByText("Oktober 2026")).toBeTruthy();
@@ -535,7 +567,7 @@ describe("the handle and the month", () => {
     (Haptics.selectionAsync as jest.Mock).mockClear();
     await openMonth();
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
-    await fireEvent.press(handle());
+    await tapHandle();
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
   });
 });
@@ -547,7 +579,7 @@ describe("motion", () => {
     const spy = jest.spyOn(Reanimated, "withTiming");
     await openMonth();
     expect(spy).toHaveBeenCalledWith(1, expect.objectContaining({ duration: 320, easing: expect.anything() }));
-    await fireEvent.press(handle());
+    await tapHandle();
     expect(spy).toHaveBeenCalledWith(0, expect.objectContaining({ duration: 320 }));
   });
 
@@ -587,19 +619,10 @@ describe("motion", () => {
 });
 
 describe("dragging the handle", () => {
-  const touch = (y: number, t: number, from = y - 1) => ({
-    touchHistory: {
-      indexOfSingleActiveTouch: 0,
-      mostRecentTimeStamp: t,
-      numberActiveTouches: 1,
-      touchBank: [{ touchActive: true, startPageX: 100, startPageY: 0, startTimeStamp: 0, currentPageX: 100, currentPageY: y, currentTimeStamp: t, previousPageX: 100, previousPageY: from, previousTimeStamp: t - 16 }],
-    },
-    nativeEvent: { touches: [], changedTouches: [], timestamp: t },
-  });
   // The responder never starts here (the handle only claims a vertical move), which fireEvent honours by not firing; the
   // handlers are called as the responder system would.
   const drag = async (to: number, ms: number) => {
-    const zone = screen.getByTestId("week-handle-zone");
+    const zone = handle();
     await act(async () => {
       zone.props.onResponderGrant(touch(0, 0));
       zone.props.onResponderMove(touch(to / 2, ms / 2, 0));
@@ -608,12 +631,59 @@ describe("dragging the handle", () => {
     });
   };
 
-  it("keeps the refresh control on the screen and claims no touch that starts elsewhere", async () => {
+  it("claims a touch on the handle at once, so the screen's scroll cannot take it, and no other touch", async () => {
     await renderToday(runtimeWith(null));
     await screen.findByText("Dapur Bu Rina · Hari ini");
-    expect(screen.getByTestId("week-handle-zone").props.onStartShouldSetResponder()).toBe(false);
+    expect(handle().props.onStartShouldSetResponder(touch(0, 0))).toBe(true);
+    expect(handle().props.onStartShouldSetResponderCapture(touch(0, 0))).toBe(true);
     expect(hostsOf("RCTScrollView").find((n) => n.props.refreshControl)).toBeTruthy();
     expect(strip().props.onStartShouldSetResponder).toBeUndefined();
+    expect(screen.getByTestId("week-window").props.onStartShouldSetResponder).toBeUndefined();
+    // One path: the handle has no press handler of its own.
+    expect(handle().props.onPress).toBeUndefined();
+  });
+
+  it("does not hand the gesture away while it is dragging", async () => {
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    expect(handle().props.onResponderTerminationRequest(touch(0, 0))).toBe(false);
+  });
+
+  it("goes back to the week when the gesture is cancelled half open", async () => {
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await act(async () => {
+      handle().props.onResponderGrant(touch(0, 0));
+      handle().props.onResponderMove(touch(150, 200, 0));
+      handle().props.onResponderTerminate(touch(150, 200, 0));
+    });
+    expect(handle().props.accessibilityState.expanded).toBe(false);
+    expect(dayTabs()).toHaveLength(7);
+  });
+
+  it("stays open when an open month's gesture is cancelled", async () => {
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await openMonth();
+    await act(async () => {
+      handle().props.onResponderGrant(touch(0, 0));
+      handle().props.onResponderMove(touch(-150, 200, 0));
+      handle().props.onResponderTerminate(touch(-150, 200, 0));
+    });
+    expect(handle().props.accessibilityState.expanded).toBe(true);
+    expect(dayTabs()).toHaveLength(35);
+  });
+
+  it("takes the other months' ink as soon as the finger drags the handle down", async () => {
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    const ink = nativeMood.light.siang;
+    await act(async () => {
+      handle().props.onResponderGrant(touch(0, 0));
+      handle().props.onResponderMove(touch(60, 100, 0));
+    });
+    expect(flat(screen.getByTestId("week-day-2026-09-30-number", { includeHiddenElements: true })).color).toBe(ink.markerIdle);
+    expect(handle().props.accessibilityState.expanded).toBe(false);
   });
 
   it("opens the month when it is pulled down past half way, and closes it when pushed up", async () => {
@@ -827,5 +897,139 @@ describe("light and dark, Siang and Malam", () => {
     expect(contrastRatio(ink.markerIdle, ink.header)).toBeGreaterThanOrEqual(3);
     // The weekday names read against the header.
     expect(contrastRatio(ink.headerMeta, ink.header)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("closing and picking", () => {
+  /** How many times the month was folded (0 over the content duration) so far; other motions share that duration. */
+  const folds = (spy: jest.SpyInstance) =>
+    spy.mock.calls.filter((c) => c[0] === 0 && (c[1] as { duration: number }).duration === 320).length;
+
+  it("closing after browsing to another month shows the selected week at once, without folding the wrong row", async () => {
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await openMonth();
+    await fireEvent.press(screen.getByRole("button", { name: "Bulan berikutnya" }));
+    await tapHandle();
+    expect(dayTabs().map((t) => t.props.testID)).toEqual(WEEK.map((d) => `week-day-${d}`));
+  });
+
+  it("closing without browsing away folds over the content duration", async () => {
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await openMonth();
+    const spy = jest.spyOn(Reanimated, "withTiming");
+    const before = folds(spy);
+    await tapHandle();
+    expect(folds(spy)).toBe(before + 1);
+  });
+
+  it("folds a picked neighbour-month day over its own week, in the grid it was picked in", async () => {
+    stepTimeouts();
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await openMonth();
+    const spy = jest.spyOn(Reanimated, "withTiming");
+    const before = folds(spy);
+    await fireEvent.press(screen.getByRole("tab", { name: /^Minggu 1 November/ }));
+    await act(async () => void (await jest.advanceTimersByTimeAsync(210)));
+    expect(folds(spy)).toBeGreaterThan(before);
+    expect(handle().props.accessibilityState.expanded).toBe(false);
+    const week = ["2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01"];
+    expect(dayTabs().map((t) => t.props.testID)).toEqual(week.map((d) => `week-day-${d}`));
+    // The grid then follows the selected day's month: the same week, nothing moves.
+    await act(async () => void (await jest.advanceTimersByTimeAsync(400)));
+    expect(dayTabs().map((t) => t.props.testID)).toEqual(week.map((d) => `week-day-${d}`));
+  });
+
+  it("buzzes once for a picked day: the cell's, not the fold's", async () => {
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await openMonth();
+    (Haptics.selectionAsync as jest.Mock).mockClear();
+    await fireEvent.press(screen.getByRole("tab", { name: /^Senin 19 Oktober/ }));
+    await act(async () => void (await jest.advanceTimersByTimeAsync(400)));
+    await waitFor(() => expect(dayTabs()).toHaveLength(7));
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("restarts the wait for a quick second pick and folds once", async () => {
+    stepTimeouts();
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await openMonth();
+    await fireEvent.press(screen.getByRole("tab", { name: /^Senin 19 Oktober/ }));
+    await act(async () => void (await jest.advanceTimersByTimeAsync(120)));
+    await fireEvent.press(screen.getByRole("tab", { name: /^Selasa 20 Oktober/ }));
+    // 240ms after the first pick: its own wait (200) would have folded the month by now.
+    await act(async () => void (await jest.advanceTimersByTimeAsync(120)));
+    expect(handle().props.accessibilityState.expanded).toBe(true);
+    await act(async () => void (await jest.advanceTimersByTimeAsync(120)));
+    expect(handle().props.accessibilityState.expanded).toBe(false);
+    expect(selectedDay()).toBe("2026-10-20");
+  });
+
+  it("leaves no fold behind when the screen goes away first", async () => {
+    const view = await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await openMonth();
+    await fireEvent.press(screen.getByRole("tab", { name: /^Senin 19 Oktober/ }));
+    await view.unmount();
+    await act(async () => void (await jest.advanceTimersByTimeAsync(400)));
+  });
+});
+
+describe("a Jakarta day, not a UTC day", () => {
+  it("is Monday's week and Monday itself when it is already Monday in Jakarta but still Sunday in UTC", async () => {
+    // 20.00 UTC on Sunday 11 Oct is 03.00 on Monday 12 Oct in Jakarta.
+    jest.setSystemTime(new Date("2026-10-11T20:00:00Z"));
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    expect(dayTabs()[0].props.testID).toBe("week-day-2026-10-12");
+    expect(dayTabs()[6].props.testID).toBe("week-day-2026-10-18");
+    expect(selectedDay()).toBe("2026-10-12");
+    expect(screen.getByText("Senin 12 Okt")).toBeTruthy();
+  });
+
+  it("is Friday when 23.00 UTC on Thursday is already Friday in Jakarta", async () => {
+    jest.setSystemTime(new Date("2026-10-08T23:00:00Z"));
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    expect(selectedDay()).toBe("2026-10-09");
+    expect(dayTabs()[0].props.testID).toBe("week-day-2026-10-05");
+    expect(screen.getByText("Jumat 9 Okt")).toBeTruthy();
+  });
+});
+
+describe("the selected day's ink and the title button", () => {
+  it("keeps the old ink until the fill is half faded, then flips to the toggle's ink", async () => {
+    stepTimeouts();
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    const ink = nativeMood.light.siang;
+    await fireEvent.press(cell("2026-10-10"));
+    expect(flat(screen.getByTestId("week-day-2026-10-10-number")).color).toBe(ink.heroText);
+    expect(flat(screen.getByTestId("week-day-2026-10-08-number")).color).toBe(ink.onToggleActive);
+    await act(async () => void (await jest.advanceTimersByTimeAsync(120)));
+    expect(flat(screen.getByTestId("week-day-2026-10-10-number")).color).toBe(ink.onToggleActive);
+    expect(flat(screen.getByTestId("week-day-2026-10-08-number")).color).toBe(ink.heroText);
+  });
+
+  it("flips the ink at once under reduced motion", async () => {
+    (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(true);
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await fireEvent.press(cell("2026-10-10"));
+    await act(async () => undefined);
+    expect(flat(screen.getByTestId("week-day-2026-10-10-number")).color).toBe(nativeMood.light.siang.onToggleActive);
+  });
+
+  it("makes the title button 48dp tall itself rather than reaching with a hit slop", async () => {
+    await renderToday(runtimeWith(null));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    await fireEvent.press(cell("2026-10-11"));
+    const back = await screen.findByRole("button", { name: "Kembali ke hari ini" });
+    expect(flat(back).minHeight).toBeGreaterThanOrEqual(48);
+    expect(back.props.hitSlop).toBeUndefined();
   });
 });

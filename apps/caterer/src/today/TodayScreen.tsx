@@ -45,7 +45,7 @@ import { SelectionBar } from "./SelectionBar";
 import { useStopSelection } from "./selection";
 import { SessionCard } from "./SessionCard";
 import { useTicks } from "./ticks";
-import { validDay, WeekStrip, weekOf } from "./WeekStrip";
+import { covers, validDay, WeekStrip, weekOf } from "./WeekStrip";
 import { useRouteView } from "./DeliveryOrder";
 import { LiveSlot } from "./LiveSlot";
 import { ACTION, CAPTION_RESERVE, FIGURE_GAP, FIGURE_TOP, SECTION_GAP } from "./rows";
@@ -589,7 +589,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                 accessibilityHint={shortDate(date, locale)}
                 haptic="select"
                 onPress={() => setPicked(null)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ minHeight: 48, marginVertical: -9, justifyContent: "center" }}
               >
                 <Text variant="heroTitle" style={{ color: m.headerText }}>
                   {shortDate(date, locale)}
@@ -603,7 +603,9 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             today={todayDate}
             onSelect={setPicked}
             counts={counts}
-            onRange={(r) => setRange((was) => (was.from === r.from && was.to === r.to ? was : r))}
+            countsRange={range}
+            // A range already read is kept while it covers what is shown (closing the month keeps its counts).
+            onRange={(r) => setRange((was) => (covers(was, r) ? was : r))}
           />
           {/* The figures enter from their skeleton as one block, in the same place on the header. They are keyed by
               day and meal, so the mood toggle and a day picked on the week strip mount the other session's batch
