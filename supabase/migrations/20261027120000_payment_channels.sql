@@ -9,7 +9,13 @@ alter table v1.provider_operations add constraint provider_operations_channel_ch
  'EMONEY_SHOPEE_PAY','EMONEY_DANA','EMONEY_OVO','EMONEY_LINKAJA',
  'PEER_TO_PEER_KREDIVO','PEER_TO_PEER_AKULAKU','PEER_TO_PEER_INDODANA'));
 
-alter function public.catera_v1_command(text,jsonb,uuid) rename to catera_v1_command_channels_base;
+-- A body that names its own parameters with the function name (catera_v1_command.request_id, from
+-- 20261014120000_address_delete_replace.sql) is re-created under the new name, as 20261014100000_profile_update.sql does.
+do $r$ declare d text;begin
+ d:=pg_get_functiondef('public.catera_v1_command(text,jsonb,uuid)'::regprocedure);
+ alter function public.catera_v1_command(text,jsonb,uuid) rename to catera_v1_command_channels_base;
+ execute replace(replace(d,'public.catera_v1_command(','public.catera_v1_command_channels_base('),'catera_v1_command.','catera_v1_command_channels_base.');
+end $r$;
 create function public.catera_v1_command(action text,payload jsonb,request_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
 declare r jsonb;h text;begin
  r:=public.catera_v1_command_channels_base(action,payload,request_id);

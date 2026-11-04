@@ -389,6 +389,13 @@ try {
   await (await import("./postgres-contact-phone.mjs")).verifyContactPhone(pool, cmd, evidence);
   await (await import("./postgres-seller-calendar.mjs")).verifySellerCalendar(pool, evidence);
   await pool.query(await readFile("supabase/migrations/20261007110000_import_before_approval.sql", "utf8"));
+  // A renamed entry point keeps working only if its body no longer qualifies parameters with the old name.
+  await pool.query(await readFile("supabase/migrations/20261104090000_entry_point_self_reference.sql", "utf8"));
+  const selfQualified = (await pool.query(`select p.proname,e from pg_proc p join pg_namespace n on n.oid=p.pronamespace,
+    unnest(array['catera_v1_command','catera_v1_read','catera_v1_system']) e
+    where n.nspname='public' and p.proname<>e and p.prosrc ~ ('\\m'||e||'\\.')`)).rows;
+  assert.deepEqual(selfQualified, []);
+  evidence.push("No renamed catera_v1 entry point qualifies its parameters with the old function name.");
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });
