@@ -50,7 +50,7 @@ function dayGroup(n: Notice, today: string): DayGroup {
 }
 
 function Updates() {
-  const { runtime, command, t, locale } = useMobile();
+  const { runtime, command, invalidate, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
   const toast = useToast();
@@ -81,18 +81,22 @@ function Updates() {
   }
 
   // One pass at a time: a second tap while the reads run sends nothing. There is no bulk read, so each unread update is
-  // read in order; a failure stops the pass and the refresh shows what is still unread.
+  // read in order; a failure stops the pass and the refresh shows what is still unread. Each read is sent quietly and
+  // the app reloads once for the whole pass (this screen with it), not once per update.
   const [marking, markAll] = useBusy(async () => {
+    let sent = 0;
     try {
       for (const n of unreadNotes) {
-        await command("notification.read", { id: n.id });
+        await command("notification.read", { id: n.id }, { refresh: false });
         markRead(n.id);
+        sent += 1;
       }
     } catch {
       // The rows that stayed unread keep their dots, and the action stays to try again.
       toast.show({ message: t("Belum semua ditandai dibaca. Coba lagi.", "Not all marked as read. Try again."), tone: "error" });
     }
-    await customer.reload();
+    if (sent) invalidate();
+    else await customer.reload();
   });
 
   const today = jakartaDay(new Date());

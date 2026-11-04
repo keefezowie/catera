@@ -2,6 +2,9 @@ import { parsedWindowStart } from "./windows";
 import type { DeliveryIssue, DeliveryMeal, Locale } from "./index";
 import { mealJourney, type Journey, type JourneyStage } from "./journey";
 import { destinationKey, type SellerDelivery, type SellerOperationsState } from "./seller-operations";
+import { collator } from "./intl";
+
+const indonesian = collator("id");
 
 /** Kitchen views shared by the caterer app and the web caterer workspace. */
 export type KitchenMeal = "lunch" | "dinner";
@@ -171,9 +174,9 @@ export function weekRecap(days: SellerOperationsState[]): WeekRecap {
       (a, b) =>
         // A dish with no category (shown as "Lainnya") comes after every named one.
         Number(a.category === "") - Number(b.category === "") ||
-        a.category.localeCompare(b.category, "id") ||
+        indonesian.compare(a.category, b.category) ||
         b.count - a.count ||
-        a.name.localeCompare(b.name, "id"),
+        indonesian.compare(a.name, b.name),
     ),
     unfilled,
     from: days[0]?.operationalDate ?? "",
@@ -206,8 +209,8 @@ export function deliveryRoute(state: SellerOperationsState, meal: KitchenMeal): 
     .filter((d) => servesMeal(d, meal))
     .sort(
       (a, b) =>
-        a.address.area.localeCompare(b.address.area, "id") ||
-        a.customer.name.localeCompare(b.customer.name, "id"),
+        indonesian.compare(a.address.area, b.address.area) ||
+        indonesian.compare(a.customer.name, b.customer.name),
     )
     .map((d, i) => {
       const journey = mealJourney(d.meals.find((m) => m.meal === meal)!);

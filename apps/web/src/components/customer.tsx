@@ -14,6 +14,7 @@ import { FoodImage } from "./food-image";
 import { OptionalSection } from "./optional-section";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { safeReturnPath } from "@/lib/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
@@ -1813,9 +1814,9 @@ export function Account({ view }: { view: string }) {
               instructions: f.get("instructions"),
             });
             setEditing(undefined);
-            const next = params.get("next");
-            if (next?.startsWith("/") && !next.startsWith("//"))
-              location.assign(next);
+            // `/\host` passes a plain "/" check but browsers read it as `//host`; safeReturnPath rejects it.
+            const next = safeReturnPath(params.get("next"));
+            if (next) location.assign(next);
           }}
         >
           <Field label={t("Label alamat", "Address label")}>

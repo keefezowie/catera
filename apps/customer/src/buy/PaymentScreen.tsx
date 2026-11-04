@@ -39,7 +39,7 @@ const clock = (ms: number) => {
 
 /** Bayar: the QR or VA number with a countdown; reopening restores it from the server. */
 export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
-  const { runtime, actor, ready, demo, command, t, locale } = useMobile();
+  const { runtime, actor, ready, demo, command, invalidate, t, locale } = useMobile();
   // `c` is the checkout in this component, so the palette keeps a longer name.
   const palette = useColors();
   const styles = useStyles();
@@ -142,10 +142,19 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   }, [live]);
 
   const reload = state.reload;
+  // The poll asks quietly: a refresh that finds nothing new must not reload every tab every 10 s. Only this screen
+  // reloads; the effect below lets the rest of the app catch up once the payment actually moves on.
   const check = useCallback(async () => {
-    if (direct) await command("checkout.payment.refresh", { id: checkoutId });
-    else await reload();
+    if (direct) await command("checkout.payment.refresh", { id: checkoutId }, { refresh: false });
+    await reload();
   }, [direct, command, checkoutId, reload]);
+  const seenStage = useRef<Stage | null>(null);
+  useEffect(() => {
+    if (!stage) return;
+    const before = seenStage.current;
+    seenStage.current = stage;
+    if (before !== null && before !== stage) invalidate();
+  }, [stage, invalidate]);
   // Ask the provider every 10 s, and once on returning from the bank app, only while this
   // screen is in front and the payment is open.
   useFocusEffect(

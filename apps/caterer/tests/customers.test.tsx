@@ -8,6 +8,7 @@ import { addDays, jakartaDay, shortDate, type SellerCustomer } from "@catera/dom
 import { activeEndLabel, customerStatus, endLabel, paymentsActive, renewalAction } from "../src/customers/rules";
 import { CustomerList } from "../src/customers/CustomerList";
 import { CustomerDetail } from "../src/customers/CustomerDetail";
+import { loadAllCustomers } from "../src/customers/load";
 import { canvasDay } from "./fixtures";
 import { withDapurScale } from "./dapur-scale";
 
@@ -256,6 +257,24 @@ it("counts every customer of a kitchen with more than one page of them", async (
   });
   await wrap(runtime, <CustomerList />);
   expect(await screen.findByText("Aktif · 150")).toBeTruthy();
+});
+
+it("reads the remaining customer pages a few at a time and keeps them in offset order", async () => {
+  const runtime = runtimeWith("approved", true);
+  const many = Array.from({ length: 450 }, (_, i) => customer(`c-${String(i).padStart(3, "0")}`, `Pelanggan ${i}`, [sub(10)]));
+  const pending: { offset: number; open: () => void }[] = [];
+  (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn((_id: string, query = "") => {
+    const offset = Number(new URLSearchParams(query.replace(/^\?/, "")).get("offset") ?? 0);
+    const page = { customers: many.slice(offset, offset + 100), total: 450, packages: [] };
+    if (!offset) return Promise.resolve(page);
+    return new Promise((resolve) => pending.push({ offset, open: () => resolve(page) }));
+  });
+  const all = loadAllCustomers(runtime, "k-1");
+  await waitFor(() => expect(pending.map((p) => p.offset)).toEqual([100, 200, 300, 400]));
+  // Answer out of order: the list still comes back in offset order.
+  for (const p of [...pending].reverse()) p.open();
+  const result = await all;
+  expect(result.customers.map((c) => c.id)).toEqual(many.map((c) => c.id));
 });
 
 it("opens a customer's own record with their delivery schedule", async () => {

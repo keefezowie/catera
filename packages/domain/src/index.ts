@@ -20,9 +20,11 @@ export * from "./customer-actions";
 export * from "./settlement";
 export * from "./saved-packages";
 export * from "./dates";
+export * from "./intl";
 export * from "./address-use";
 export * from "./offer-schema";
 import type { MealType } from "./offer-schema";
+import { numberFormat } from "./intl";
 
 export type Locale = "id" | "en";
 export type WorkspaceMode = "customer" | "caterer";
@@ -498,7 +500,7 @@ export const areaOptions = [
   "Bandung",
 ];
 export function currency(n: number, locale: Locale = "id") {
-  return new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-ID", {
+  return numberFormat(locale === "id" ? "id-ID" : "en-ID", {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,

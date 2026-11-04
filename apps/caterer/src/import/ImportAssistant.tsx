@@ -204,7 +204,12 @@ export function ImportAssistant() {
     setBusy("save");
     setError("");
     try {
-      const preview = await command<{ id: string }>("import.preview", { catererId, rows: clean.map((r) => toImportRow(r, today, r.n)) });
+      // A preview only checks rows (the web client skips its refresh too); the commit below is what reloads the app.
+      const preview = await command<{ id: string }>(
+        "import.preview",
+        { catererId, rows: clean.map((r) => toImportRow(r, today, r.n)) },
+        { refresh: false },
+      );
       await commitImport(command, catererId, preview.id);
       setSaved((s) => s + clean.length);
       setSaves((n) => n + 1);
@@ -224,7 +229,7 @@ export function ImportAssistant() {
       const flagged = new Map<number, string>();
       for (const r of clean) {
         try {
-          await command("import.preview", { catererId, rows: [toImportRow(r, today, r.n)] });
+          await command("import.preview", { catererId, rows: [toImportRow(r, today, r.n)] }, { refresh: false });
         } catch (rowError) {
           flagged.set(r.n, message(fail(rowError)));
         }

@@ -1,4 +1,5 @@
 import { addDays, localDay } from "./dates";
+import { dateTimeFormat } from "./intl";
 import type { Offer, Subscription } from "./index";
 
 /** Matches v1.cutoff: the previous day's cutoff in the caterer's timezone. */
@@ -14,7 +15,7 @@ export function purchaseStartAvailable(
     !offer.weekdays.includes(day.getUTCDay())
   )
     return false;
-  const parts = new Intl.DateTimeFormat("en-CA", {
+  const parts = dateTimeFormat("en-CA", {
     timeZone: offer.timezone,
     year: "numeric",
     month: "2-digit",

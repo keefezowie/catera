@@ -70,7 +70,18 @@ export type MobileContextValue = {
    */
   resumed: number;
   refresh: () => Promise<void>;
-  command: <T = Record<string, unknown>>(action: string, payload: unknown) => Promise<T>;
+  /**
+   * Sends a command, then moves `revision` so every mounted `useData` reloads. `{ refresh: false }` skips that move,
+   * for a command that repeats (a status poll) or runs in a loop: the caller reloads what it shows and calls
+   * `invalidate()` once when the rest of the app should catch up.
+   */
+  command: <T = Record<string, unknown>>(
+    action: string,
+    payload: unknown,
+    options?: { refresh?: boolean },
+  ) => Promise<T>;
+  /** Moves `revision` once: every mounted `useData` reloads. */
+  invalidate: () => void;
   signedIn: (actor: Actor) => Promise<void>;
   logout: () => Promise<void>;
   enablePush: (channelName: string) => Promise<void>;
@@ -228,7 +239,7 @@ export function MobileProvider({
   }, [runtime, signedOutLocally, countOpen]);
 
   const command = useCallback(
-    async <T,>(action: string, payload: unknown): Promise<T> => {
+    async <T,>(action: string, payload: unknown, options?: { refresh?: boolean }): Promise<T> => {
       const generation = sessionGeneration.current;
       // Retrying the same command reuses its request id, so the server applies it once.
       const key = generation + action + JSON.stringify(payload),
@@ -237,11 +248,12 @@ export function MobileProvider({
       const result = await runtime.api.command<T>(action, payload, id);
       requests.current.delete(key);
       if (generation !== sessionGeneration.current) throw new Error("UNAUTHORIZED");
-      setRevision((r) => r + 1);
+      if (options?.refresh !== false) setRevision((r) => r + 1);
       return result;
     },
     [runtime],
   );
+  const invalidate = useCallback(() => setRevision((r) => r + 1), []);
 
   useEffect(() => {
     const auth = runtime.supabase?.auth.onAuthStateChange((event) => {
@@ -439,6 +451,7 @@ export function MobileProvider({
         resumed,
         refresh,
         command,
+        invalidate,
         signedIn,
         logout,
         enablePush,

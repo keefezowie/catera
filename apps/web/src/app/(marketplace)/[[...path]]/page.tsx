@@ -2,7 +2,7 @@ import { redirect, permanentRedirect, notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { catalog } from "@/lib/catalog-cache";
 import type { Offer } from "@catera/domain";
-import { session } from "@/lib/auth";
+import { pageSession } from "@/lib/auth";
 import { resolveWorkspace, workspaceCookieName } from "@/lib/workspace";
 import { Application } from "@/components/application";
 export const dynamic = "force-dynamic";
@@ -100,8 +100,12 @@ export default async function Page({
     permanentRedirect(
       "/" + (query.size ? "?" + query.toString() : "") + "#packages",
     );
-  const s = await session();
-  const jar = await cookies();
+  // The catalog read does not depend on the session, so it starts now instead of after the session and redirect checks.
+  const catalogRead = catalog().then(
+    (items): { offers: Offer[]; issue: string | null } => ({ offers: items, issue: null }),
+    () => ({ offers: [], issue: "NOT_CONFIGURED" }),
+  );
+  const [s, jar] = await Promise.all([pageSession(), cookies()]);
   const workspace = resolveWorkspace(
     s.actor,
     jar.get(workspaceCookieName)?.value,
@@ -150,12 +154,6 @@ export default async function Page({
     redirect("/");
   if (path[0] === "seller" && path[1] === "capacity")
     redirect("/seller/packages");
-  let offers: Offer[] = [];
-  let issue: string | null = null;
-  try {
-    offers = await catalog();
-  } catch {
-    issue = "NOT_CONFIGURED";
-  }
+  const { offers, issue } = await catalogRead;
   return <Application path={path} offers={offers} issue={issue} />;
 }

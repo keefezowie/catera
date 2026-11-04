@@ -1,7 +1,8 @@
 import type { Locale } from "./index";
+import { dateTimeFormat } from "./intl";
 
 export function localDay(now = new Date(), timezone = "Asia/Jakarta") {
-  return new Intl.DateTimeFormat("en-CA", {
+  return dateTimeFormat("en-CA", {
     timeZone: timezone,
     year: "numeric",
     month: "2-digit",

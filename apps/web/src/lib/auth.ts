@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createServerClient } from "@supabase/ssr";
@@ -105,3 +106,10 @@ export async function session(
     return { id: null, actor: null, token: null };
   }
 }
+
+/**
+ * The session for one page render. The marketplace layout and its page both need it, and each `session()` is an Auth
+ * call plus an actor read, so a render shares one result (React `cache` lasts a single server request). Route handlers
+ * keep calling `session(request)` directly.
+ */
+export const pageSession = cache(() => session());

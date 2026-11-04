@@ -1,8 +1,6 @@
 "use client";
 import Link from "next/link";
-import { CustomerMenu } from "./customer-menu";
 import { RenewCustomer, ClaimCustomer } from "./customer-pilot";
-import { AdminSettlement } from "./admin-settlement";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Bell,
@@ -29,7 +27,15 @@ import {
   Bookmark,
   Globe,
 } from "lucide-react";
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   type Actor,
   type Offer,
@@ -54,10 +60,21 @@ import { CatererEntry, ProfileMenu } from "./profile-menu";
 import { Notifications } from "./notifications";
 import { RouteMotion } from "./motion";
 import dynamic from "next/dynamic";
+import { AdminSettlementSkeleton } from "./skeletons-dapur";
+import { CustomerMenuSkeleton } from "./skeletons-customer";
 import "./landscape.css";
 const Seller = dynamic(() => import("./seller").then((m) => m.Seller));
 const Onboarding = dynamic(() => import("./seller").then((m) => m.Onboarding));
 const Admin = dynamic(() => import("./admin").then((m) => m.Admin));
+// Only admins open the settlement view, and only a customer's package page opens the menu calendar; neither belongs
+// in the bundle every marketplace visitor downloads.
+// Each shows the skeleton it already paints while loading (both skeleton modules are in this bundle anyway).
+const AdminSettlement = lazy(() =>
+  import("./admin-settlement").then((m) => ({ default: m.AdminSettlement })),
+);
+const CustomerMenu = lazy(() =>
+  import("./customer-menu").then((m) => ({ default: m.CustomerMenu })),
+);
 export function Application({
   path,
   offers,
@@ -125,7 +142,11 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
     body = <Login key={root} mode={root} />;
   else if (root === "renew") body = <RenewCustomer id={id} />;
   else if (root === "claim") body = <ClaimCustomer token={id} />;
-  else if (root === "admin" && id === "settlement") body = <AdminSettlement />;
+  else if (root === "admin" && id === "settlement") body = (
+      <Suspense fallback={<AdminSettlementSkeleton />}>
+        <AdminSettlement />
+      </Suspense>
+    );
   else if (root === "packages") body = <PackagePage slug={id} />;
   else if (root === "caterers") body = <CatererPage slug={id} />;
   else if (root === "compare") body = <Compare />;
@@ -149,7 +170,11 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
       );
   else if (root === "admin") body = <Admin view={id || "sellers"} />;
   else if (root === "subscriptions" && path[2] === "menu" && id)
-    body = <CustomerMenu id={id} />;
+    body = (
+      <Suspense fallback={<CustomerMenuSkeleton id={id} />}>
+        <CustomerMenu id={id} />
+      </Suspense>
+    );
   else if (["home", "calendar", "subscriptions"].includes(root))
     body = <Customer view={root} id={id} />;
   else if (root === "brand") body = <AssetGallery />;

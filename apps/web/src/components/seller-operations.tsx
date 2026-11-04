@@ -229,6 +229,13 @@ function OperationsPage({
       ? query.get("stage")!
       : "";
   const search = (query.get("search") || "").trim().toLocaleLowerCase();
+  // Search only filters rows already on this page, so typing rewrites the URL in place (history.replaceState, which
+  // Next keeps in sync with useSearchParams) instead of a router.push per character: no server render of the page,
+  // no history entry per key. The field keeps its own draft and follows the URL when something else changes it.
+  const { update: updateQuery } = useJourneyQuery();
+  const urlSearch = query.get("search") || "";
+  const [searchDraft, setSearchDraft] = useState({ url: urlSearch, value: urlSearch });
+  if (searchDraft.url !== urlSearch) setSearchDraft({ url: urlSearch, value: urlSearch });
   const grouping =
     schedule && ["customers", "destinations"].includes(query.get("group") || "")
       ? query.get("group")!
@@ -579,8 +586,12 @@ function OperationsPage({
                 "Pelanggan, paket, atau alamat",
                 "Customer, package, or address",
               )}
-              value={query.get("search") || ""}
-              onChange={(event) => navigate({ search: event.target.value })}
+              value={searchDraft.value}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSearchDraft({ url: value, value });
+                updateQuery({ search: value }, true);
+              }}
             />
           </label>
           {schedule && (
