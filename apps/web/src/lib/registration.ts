@@ -3,7 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { safeReturnPath } from "./navigation";
 
 export const emailSchema = z.string().trim().email().max(254);
-export const newPasswordSchema = z.string().min(8).max(256);
+/** Matches minimum_password_length in supabase/config.toml and PASSWORD_MIN in @catera/mobile-core. */
+export const newPasswordSchema = z.string().min(10).max(256);
 export const registrationSchema = z.object({
   name: z.string().trim().min(1).max(100),
   email: emailSchema,

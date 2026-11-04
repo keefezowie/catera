@@ -22,8 +22,8 @@ export function accountMessage(e: unknown, locale: "id" | "en", t: T): string {
       return t("Kata sandi saat ini belum cocok.", "Your current password doesn't match.");
     case "PASSWORD_REJECTED":
       return t(
-        "Kata sandi baru belum bisa dipakai. Pilih yang lain, minimal 8 karakter.",
-        "The new password can't be used. Choose another, at least 8 characters.",
+        "Kata sandi baru belum bisa dipakai. Pilih yang lain, minimal 10 karakter.",
+        "The new password can't be used. Choose another, at least 10 characters.",
       );
     case "EMAIL_CHANGE_FAILED":
       return t("Email belum bisa diganti. Coba lagi nanti.", "The email couldn't be changed. Try again later.");

@@ -17,7 +17,7 @@ export function PasswordField({
   const id = useId();
   const [visible, setVisible] = useState(false);
   const [length, setLength] = useState(0);
-  const longEnough = length >= 8;
+  const longEnough = length >= 10;
   return (
     <div className="field password-field">
       <label htmlFor={id}>
@@ -67,8 +67,8 @@ export function PasswordField({
             <Circle size={14} aria-hidden="true" />
           )}
           {longEnough
-            ? t("Minimal 8 karakter terpenuhi", "At least 8 characters: met")
-            : t("Minimal 8 karakter", "At least 8 characters")}
+            ? t("Minimal 10 karakter terpenuhi", "At least 10 characters: met")
+            : t("Minimal 10 karakter", "At least 10 characters")}
         </small>
       )}
       {forgotHref && (

@@ -17,7 +17,7 @@ export type AccountRequestResult = {
 
 export const PROFILE_NAME_MIN = 2;
 export const PROFILE_NAME_MAX = 80;
-export const PASSWORD_MIN = 8;
+export const PASSWORD_MIN = 10;
 
 /** Codes the account callers reject with; the screens map each one to a message. */
 export type AccountErrorCode =

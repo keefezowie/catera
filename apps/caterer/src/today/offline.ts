@@ -6,11 +6,18 @@ export type CachedDay = { savedAt: string; data: SellerOperationsState };
 const PREFIX = "dapur-day-";
 
 /**
+ * The kept copies live in the caches folder: iOS leaves it out of iCloud and computer backups, and Android backup is off
+ * (app.config.ts), so customers' names and addresses never leave the phone in a backup. Builds before that kept them in
+ * the documents folder, so clearing sweeps both.
+ */
+const folders = () => [Paths.cache, Paths.document];
+
+/**
  * One file per account, kitchen and day. The actor id leads the key, so a helper and the owner on one phone, or a
  * person who signs in after another, never read each other's copy.
  */
 const fileFor = (actorId: string, catererId: string, date: string) =>
-  new File(Paths.document, `${PREFIX}${`${actorId}-${catererId}-${date}`.replace(/[^a-z0-9-]/gi, "_")}.json`);
+  new File(Paths.cache, `${PREFIX}${`${actorId}-${catererId}-${date}`.replace(/[^a-z0-9-]/gi, "_")}.json`);
 
 /**
  * Which session the kept days belong to: it moves on every time they are forgotten (`clearCachedDays`, run whenever the
@@ -57,10 +64,11 @@ export async function loadCachedDay(actorId: string, catererId: string, date: st
 export async function clearCachedDays(): Promise<void> {
   // First, so a read still in flight from the session that ended cannot write its day back after the clear.
   session += 1;
-  try {
-    for (const entry of new Directory(Paths.document).list())
-      if (entry instanceof File && entry.name.startsWith(PREFIX)) entry.delete();
-  } catch {
-    // Nothing kept, or the folder cannot be read: there is nothing to show either.
-  }
+  for (const folder of folders())
+    try {
+      for (const entry of new Directory(folder).list())
+        if (entry instanceof File && entry.name.startsWith(PREFIX)) entry.delete();
+    } catch {
+      // Nothing kept, or the folder cannot be read: there is nothing to show either.
+    }
 }

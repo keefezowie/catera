@@ -1,8 +1,11 @@
 import { redirect, permanentRedirect, notFound } from "next/navigation";
 import { cookies } from "next/headers";
+import { demoEnabled } from "@catera/backend";
 import { catalog } from "@/lib/catalog-cache";
 import type { Offer } from "@catera/domain";
-import { pageSession } from "@/lib/auth";
+import { pageSession, supabase } from "@/lib/auth";
+import { adminMfaState } from "@/lib/admin-mfa";
+import { AdminVerification } from "@/components/admin-verification";
 import { resolveWorkspace, workspaceCookieName } from "@/lib/workspace";
 import { Application } from "@/components/application";
 export const dynamic = "force-dynamic";
@@ -140,6 +143,11 @@ export default async function Page({
         ),
     );
   if (path[0] === "admin" && s.actor?.role !== "platform_admin") notFound();
+  // The database answers admin reads only for a TOTP-verified session, so Admin opens after that step.
+  if (path[0] === "admin" && !demoEnabled()) {
+    const mfa = await adminMfaState(await supabase());
+    if (!mfa.verified) return <AdminVerification enrolled={mfa.enrolled} />;
+  }
   if (
     path[0] === "seller" &&
     !["owner", "staff"].includes(s.actor?.role || "") &&

@@ -22,11 +22,13 @@ enabled = true
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["http://127.0.0.1:3000", "http://localhost:3000/auth/confirm", "http://127.0.0.1:3000/auth/confirm", "catera://auth/callback"]
 jwt_expiry = 3600
-minimum_password_length = 8
+minimum_password_length = 10
 enable_signup = true
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
+# A password change needs a sign-in within the last 24 hours (the apps re-check the current password first).
+secure_password_change = true
 enable_confirmations = true
 otp_expiry = 600
 otp_length = 6
@@ -47,3 +49,10 @@ content_path = "./supabase/templates/confirmation.html"
 [auth.email.template.recovery]
 subject = "Pulihkan akun Catera / Recover your Catera account"
 content_path = "./supabase/templates/recovery.html"
+
+# Platform admins must pass a TOTP check (aal2) before v1.is_admin answers true for them.
+[auth.mfa]
+max_enrolled_factors = 10
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true

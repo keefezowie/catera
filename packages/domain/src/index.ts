@@ -652,11 +652,13 @@ export const errors: Record<string, string> = {
   OFFLINE:
     "Belum ada koneksi. Cek internetmu, lalu coba lagi.",
   PASSWORD_REJECTED:
-    "Gunakan kata sandi lain yang lebih kuat, minimal 8 karakter.",
+    "Gunakan kata sandi lain yang lebih kuat, minimal 10 karakter.",
   AUTH_UNAVAILABLE:
     "Ada gangguan di sisi kami. Coba lagi sebentar lagi.",
   RECOVERY_EXPIRED:
     "Tautan pemulihannya sudah tidak berlaku. Minta tautan baru.",
+  MFA_INVALID:
+    "Kodenya belum cocok. Masukkan 6 angka yang sedang tampil di aplikasi autentikator.",
   INVALID_CREDENTIALS:
     "Email atau kata sandinya salah.",
   AUTH_RATE_LIMITED:
@@ -747,11 +749,13 @@ const errorsEn: Record<string, string> = {
   OFFLINE:
     "No connection. Check your internet and try again.",
   PASSWORD_REJECTED:
-    "Use a different, stronger password with at least 8 characters.",
+    "Use a different, stronger password with at least 10 characters.",
   AUTH_UNAVAILABLE:
     "Something went wrong on our side. Try again in a moment.",
   RECOVERY_EXPIRED:
     "This recovery link no longer works. Request a new one.",
+  MFA_INVALID:
+    "That code didn't match. Enter the 6 digits your authenticator app shows now.",
   INVALID_CREDENTIALS:
     "Wrong email or password.",
   AUTH_RATE_LIMITED:

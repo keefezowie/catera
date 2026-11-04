@@ -30,6 +30,9 @@ const config: ExpoConfig = {
     // Opts in to predictive back. No preview shows yet: ReactActivity keeps a back callback enabled at all times (so
     // the system never plays back-to-home), and react-native-screens 4.26 animates no in-app back progress.
     predictiveBackGestureEnabled: true,
+    // No Android auto-backup: the kept offline day and the signed-in session stay on this phone and never
+    // reach a Google backup that another device could restore.
+    allowBackup: false,
     adaptiveIcon: {
       foregroundImage: "../../packages/brand/assets/phase-f/adaptive-foreground.png",
       backgroundColor: "#163D2E",

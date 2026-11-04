@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { resendLink, useMobile } from "@catera/mobile-core";
+import { PASSWORD_MIN, resendLink, useMobile } from "@catera/mobile-core";
 import {
   authFields,
   AuthHeading,
@@ -40,7 +40,7 @@ export function Register() {
     },
     email: { value: email, check: emailCheck(t) },
     // Worded by the PasswordRule line under the field, so its message is not passed to the Field.
-    password: { value: password, check: (v) => (v.length >= 8 ? "" : "short") },
+    password: { value: password, check: (v) => (v.length >= PASSWORD_MIN ? "" : "short") },
   });
   const nameProps = checks.fieldProps("name");
   const emailProps = checks.fieldProps("email");

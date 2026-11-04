@@ -1,5 +1,5 @@
 import { serverErrorLabel } from "@catera/domain";
-import { validEmail } from "@catera/mobile-core";
+import { PASSWORD_MIN, validEmail } from "@catera/mobile-core";
 import { e164Indonesia } from "../onboarding";
 
 type T = (id: string, en: string) => string;
@@ -26,8 +26,8 @@ export const emailCheck = (t: T) => (v: string) => {
 /** Sign-in passwords are only checked for being empty, so an old short password still works. */
 export const passwordCheck = (t: T) => (v: string) => (v ? "" : t("Isi kata sandimu dulu.", "Enter your password first."));
 
-/** A new password: eight characters at least, worded by the PasswordRule line under the field. */
-export const newPasswordCheck = (v: string) => (v.length >= 8 ? "" : "short");
+/** A new password: PASSWORD_MIN characters at least (Supabase's own minimum), worded by the PasswordRule line under the field. */
+export const newPasswordCheck = (v: string) => (v.length >= PASSWORD_MIN ? "" : "short");
 
 export const nameCheck = (t: T) => (v: string) =>
   v.trim().length >= 3 ? "" : t("Tulis nama usahamu, minimal 3 huruf.", "Enter your business name, at least 3 letters.");

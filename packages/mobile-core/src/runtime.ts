@@ -61,10 +61,22 @@ export type MobileRuntimeConfig = {
 
 export type MobileRuntime = ReturnType<typeof createMobileRuntime>;
 
+/**
+ * The Supabase session never leaves this phone: "this device only" keeps it out of iCloud Keychain and encrypted
+ * backups restored onto another phone, and "after first unlock" still lets a push wake the app while the phone is
+ * locked. SecureStore only rewrites the value of an item that already exists, never its accessibility, so the old item
+ * is deleted first; every token refresh therefore moves a session saved by an older build onto this setting.
+ */
+const sessionKeychain = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+};
 const secureStorage = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, v: string) => SecureStore.setItemAsync(key, v),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+  getItem: (key: string) => SecureStore.getItemAsync(key, sessionKeychain),
+  setItem: async (key: string, v: string) => {
+    await SecureStore.deleteItemAsync(key, sessionKeychain);
+    await SecureStore.setItemAsync(key, v, sessionKeychain);
+  },
+  removeItem: (key: string) => SecureStore.deleteItemAsync(key, sessionKeychain),
 };
 
 /** Ensures the Catera profile exists for a fresh Supabase session and returns the actor. */

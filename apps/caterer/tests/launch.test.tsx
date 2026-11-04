@@ -73,7 +73,7 @@ jest.mock("expo-file-system", () => {
         .map((k) => new File(this, k.slice(this.uri.length + 1)));
     }
   }
-  return { __files: files, File, Directory, Paths: { document: { uri: "file:///doc" } } };
+  return { __files: files, File, Directory, Paths: { document: { uri: "file:///doc" }, cache: { uri: "file:///cache" } } };
 });
 
 /** What the native tab bar was handed: each trigger's route and whether it is hidden. */
@@ -150,7 +150,7 @@ function storedSession(prefix: string, actor: typeof owner) {
 /** The day the previous launch kept for `actor`. */
 function keptDay(actor: typeof owner) {
   files.set(
-    `file:///doc/dapur-day-${actor.id}-k-1-${TODAY}.json`,
+    `file:///cache/dapur-day-${actor.id}-k-1-${TODAY}.json`,
     JSON.stringify({ savedAt: "2026-10-08T01:00:00.000Z", data: today() }),
   );
 }
@@ -237,6 +237,8 @@ it("a failed fresh read keeps the kept day with its offline card", async () => {
 it("another account's kept day never paints, and logout forgets this one", async () => {
   // The owner's day is kept, but the helper is the one signed in now.
   keptDay(owner);
+  // A copy an older build left in the documents folder, which phone backups include.
+  files.set(`file:///doc/dapur-day-${owner.id}-k-1-2026-01-01.json`, "{}");
   storedSession("t", staff);
   const first = await renderToday(runtimeWith(staff, () => new Promise(() => undefined)));
   await act(async () => {});
@@ -292,7 +294,7 @@ it("a fresh read in the same session is kept for the next launch", async () => {
   storedSession("t", owner);
   await renderToday(runtimeWith(owner, async () => today()));
   expect(await screen.findByRole("button", { name: "Mulai masak" })).toBeTruthy();
-  await waitFor(() => expect(files.has(`file:///doc/dapur-day-u-owner-k-1-${TODAY}.json`)).toBe(true));
+  await waitFor(() => expect(files.has(`file:///cache/dapur-day-u-owner-k-1-${TODAY}.json`)).toBe(true));
 });
 
 it("the launch gate shows the mascot once the splash lets go, even while the phone's reads hang", async () => {

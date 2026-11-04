@@ -23,7 +23,7 @@ export function accountMessage(error: unknown, t: T, locale: "id" | "en", fallba
     EMAIL_IN_USE: t("Email ini sudah dipakai akun lain.", "That email is used by another account."),
     INVALID_CREDENTIALS: t("Kata sandi saat ini salah.", "The current password is wrong."),
     ACCOUNT_MISMATCH: t("Kata sandi itu milik akun lain. Masuk lagi dengan akunmu.", "That password belongs to another account. Sign in again with your own."),
-    PASSWORD_REJECTED: t("Kata sandi baru ditolak. Pilih yang lain, minimal 8 karakter.", "The new password was rejected. Pick another, at least 8 characters."),
+    PASSWORD_REJECTED: t("Kata sandi baru ditolak. Pilih yang lain, minimal 10 karakter.", "The new password was rejected. Pick another, at least 10 characters."),
     EMAIL_CHANGE_FAILED: t("Tautan konfirmasi belum terkirim. Coba lagi.", "Couldn't send the confirmation link. Try again."),
   };
   return known[code as AccountErrorCode] ?? (errorLabel(code, locale) || fallback);

@@ -1,5 +1,5 @@
 import {
-  validateFoodImage,
+  cleanFoodImage,
   uploadError,
   uploadStorage,
   withPlaceholder,
@@ -36,21 +36,9 @@ export async function POST(request: Request) {
       return errorResponse("INVALID_SIZE", "Image must be under 8 MB", 400);
     }
 
-    const bytes = Buffer.from(await file.arrayBuffer());
-    await validateFoodImage(bytes);
-    const type = bytes
-      .subarray(0, 8)
-      .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-      ? "png"
-      : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
-        ? "jpg"
-        : bytes.toString("ascii", 0, 4) === "RIFF" &&
-            bytes.toString("ascii", 8, 12) === "WEBP"
-          ? "webp"
-          : null;
-    if (!type) {
-      return errorResponse("INVALID_TYPE", "Use PNG, JPEG or WebP", 400);
-    }
+    const { ext: type, bytes } = await cleanFoodImage(
+      Buffer.from(await file.arrayBuffer()),
+    );
 
     const name = `${crypto.randomUUID()}.${type}`;
     let url: string;

@@ -70,7 +70,7 @@ Realtime migration publishes a minimal `catera_v1_events` table when the `supaba
 
 ## 4. Identity and first administrators
 
-Web email registration is `/register`, returning login is `/login`, and recovery starts at `/forgot-password`. Enable general and email signup in the intended V1 Supabase project, keep email confirmations enabled, and configure an eight-character minimum password. The checked-in local configuration enables these settings; it does not modify hosted Auth.
+Web email registration is `/register`, returning login is `/login`, and recovery starts at `/forgot-password`. Enable general and email signup in the intended V1 Supabase project, keep email confirmations enabled, configure a ten-character minimum password, turn on secure password change and, where the plan offers it, leaked-password protection. The web form, the apps (`PASSWORD_MIN` in `@catera/mobile-core`) and `supabase/config.toml` use the same minimum; existing passwords keep working until they are changed. The checked-in local configuration enables these settings; it does not modify hosted Auth.
 
 Set `CATERA_PUBLIC_URL` to the canonical app origin and `CATERA_SESSION_SECRET` to a stable, random secret of at least 32 characters shared by the deployment's instances. Recovery fails closed without this secret. A verified recovery link grants ten minutes to update the password in the same session; session replacement or refresh requires a new recovery link. Successful recovery clears the grant and signs out before returning to login.
 
@@ -85,6 +85,8 @@ Enable customer phone OTP and configure a supported SMS provider. Configure site
 Auth email goes through Brevo: verify a sender in Brevo, then set the hosted project's Auth SMTP (Dashboard > Authentication > SMTP) to host `smtp-relay.brevo.com`, port 587, the Brevo SMTP login and SMTP key, and the verified sender address (locally `BREVO_SMTP_LOGIN`, `BREVO_SMTP_KEY`, `BREVO_SENDER_EMAIL` feed `supabase start`). A free Gmail sender has weak deliverability; move to an owned domain with SPF/DKIM before production No other email path exists in the app. The implemented customer notification channels are the persistent inbox and Expo push; an SMTP configuration is not evidence that application email messages are being sent. Record actual test delivery without including codes or secrets in the evidence.
 
 The first platform administrator is an operator-provisioned, verified Auth identity. After that identity has a `v1.profiles` row, a database owner may promote that exact known UUID to `platform_admin` in a transaction and add a `v1.audit` record with the authorizing operator and reason. Do not grant this role through a public client, give seller owners this role, or use a demo UUID. Verify the identity and action in the audit record before continuing.
+
+**Admin second factor.** Since `20261104102000_admin_mfa.sql`, `v1.is_admin` answers yes for the signed-in admin only when their session passed TOTP (`aal2` in the JWT). Keep TOTP enrolment and verification enabled in hosted Auth (Authentication → Multi-Factor). On the first visit to `/admin` after the migration, each admin sets up an authenticator app from the verification page; later sign-ins ask for its six-digit code. An admin cannot replace a verified authenticator from the app. If one is lost, an operator removes that user's factor in the Supabase dashboard (Authentication → Users → the user → MFA factors), records the reason in `v1.audit`, and the admin sets it up again. Service-role jobs and the local demo are unchanged. Owners and staff do not need MFA yet.
 
 Seller applications start as drafts. Sellers submit evidence; a Catera admin requests corrections, approves, or suspends with a reason. Staff join using seller-issued invitation codes. Test consumed/wrong codes and removal of financial privileges. Suspension blocks new sales while existing fulfillment obligations remain visible.
 
@@ -168,6 +170,8 @@ On both Android and iOS verify public browsing, OTP, checkout, backgrounding, in
 
 Run `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:postgres`, `npm run test:e2e`, both native Jest presets and `npm run native:export` from a clean checkout. CI runs these with isolated PostgreSQL. Examine concurrency failures before rerunning; do not weaken assertions or reset a shared database.
 
+**RPC wrapper stack gate.** Every migration that changes a public RPC renames the current function to a `*_base` layer and wraps it, so a guard can live in a single layer. Before each release, and after anything is applied to a hosted project by hand, run `DATABASE_URL=<read-only connection string> node scripts/verify-function-stack.mjs` against that project. It reads `pg_proc` only, in a read-only transaction, and fails when a chain skips a repo layer, holds them out of filename order, has a layer that is not `SECURITY DEFINER` with a fixed `search_path`, or lets clients execute an inner layer. Layers created by `supabase/hosted/*.sql` are allowed and listed. `tests/function-stack.test.ts` runs the same check on the demo database.
+
 Before launch, restore a recent staging backup into a separate project and compare purchase counts, reservations, payments, audit history and storage objects. Exercise application rollback against the new schema; database recovery requires a planned migration or restored environment, never a destructive reset of customer data. Record recovery point/time and operator. Backups and monitoring must be operational before collecting real payments.
 
 ## 10. Release ledger
@@ -182,6 +186,7 @@ These dated baseline entries are not a fresh hosted-state audit. Read the later 
 | Brand alpha and requested master/export sizes | Open: opaque generated masters are below target sizes; no crops or artificial enlargement |
 | Complete English and accessibility/device QA | Partial English support and local checks; full locale/device evidence required |
 | Hosted Supabase Auth/RLS/storage/realtime | Not configured or verified |
+| Hosted RPC wrapper stacks match the repo | Open: run `scripts/verify-function-stack.mjs` against the hosted project (section 9) |
 | SMS / SMTP and push delivery | Not verified with staging/production credentials |
 | Xendit sandbox / merchant settlement topology | Adapter and contract tests only; actual transactions required |
 | Approved commercial policies | Required; local examples are fictional |

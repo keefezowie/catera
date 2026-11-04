@@ -50,3 +50,31 @@ it("rejects empty, forged, truncated and unsupported image bytes", async () => {
     .toBuffer();
   await expect(validateFoodImage(gif)).rejects.toThrow("INVALID_TYPE");
 });
+it("re-encodes uploads without EXIF, GPS or comments, upright and repeatable", async () => {
+  const { cleanFoodImage } = await import("../apps/web/src/lib/food-upload");
+  for (const format of ["jpeg", "png", "webp"] as const) {
+    // 20x10 landscape pixels tagged orientation 6: shown upright it is 10x20.
+    const tagged = await sharp({
+      create: { width: 20, height: 10, channels: 3, background: "#ee8855" },
+    })
+      .toFormat(format)
+      .withMetadata({ orientation: 6 })
+      .withExifMerge({
+        IFD0: { Make: "SyntheticCam", ImageDescription: "kitchen" },
+        IFD3: { GPSLatitudeRef: "S", GPSLatitude: "6/1 10/1 0/1" },
+      })
+      .toBuffer();
+    expect((await sharp(tagged).metadata()).orientation).toBe(6);
+    expect((await sharp(tagged).metadata()).exif).toBeDefined();
+    expect(tagged.includes(Buffer.from("SyntheticCam"))).toBe(true);
+    const { ext, bytes } = await cleanFoodImage(tagged);
+    expect(ext).toBe(format === "jpeg" ? "jpg" : format);
+    const meta = await sharp(bytes).metadata();
+    expect(meta.exif).toBeUndefined();
+    expect(meta.xmp).toBeUndefined();
+    expect(meta.orientation ?? 1).toBe(1);
+    expect([meta.width, meta.height]).toEqual([10, 20]);
+    expect(bytes.includes(Buffer.from("SyntheticCam"))).toBe(false);
+    expect((await cleanFoodImage(tagged)).bytes.equals(bytes)).toBe(true);
+  }
+});

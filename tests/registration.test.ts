@@ -74,9 +74,10 @@ describe("email registration", () => {
     ).toBe("/checkout/abc?trial=1");
   });
   it.each([
-    { name: " ", email: "a@catera.test", password: "12345678" },
-    { name: "Test", email: "invalid", password: "12345678" },
+    { name: " ", email: "a@catera.test", password: "1234567890" },
+    { name: "Test", email: "invalid", password: "1234567890" },
     { name: "Test", email: "a@catera.test", password: "short" },
+    { name: "Test", email: "a@catera.test", password: "123456789" },
   ])("rejects invalid registration before calling Auth", async (input) => {
     await expect(
       registerEmail(client, input, "https://catera.test"),
@@ -91,7 +92,7 @@ describe("email registration", () => {
     expect(
       await registerEmail(
         client,
-        { name: "Test", email: "existing@catera.test", password: "12345678" },
+        { name: "Test", email: "existing@catera.test", password: "1234567890" },
         "https://catera.test",
       ),
     ).toEqual({ sent: true });
@@ -104,7 +105,7 @@ describe("email registration", () => {
     await expect(
       registerEmail(
         client,
-        { name: "Test", email: "new@catera.test", password: "12345678" },
+        { name: "Test", email: "new@catera.test", password: "1234567890" },
         "https://catera.test",
       ),
     ).rejects.toThrow("NOT_CONFIGURED");

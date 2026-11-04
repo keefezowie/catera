@@ -557,17 +557,19 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261008102500_depart_today_one_push.sql"), "utf8") + "\ncommit;");
   }
-  if (!(await db.query<{ installed: boolean }>(
-    "select to_regclass('v1.import_assistant_usage') is not null installed",
-  )).rows[0].installed) {
-    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
-      "supabase/migrations/20261008110000_import_assistant_quota.sql"), "utf8") + "\ncommit;");
-  }
+  // Filename order, as Supabase applies them: push_timing (…103000) wraps catera_v1_system before
+  // import_assistant_quota (…110000). scripts/verify-function-stack.mjs checks the demo holds the same chain.
   if (!(await db.query<{ installed: boolean }>(
     "select to_regprocedure('v1.remind_due(timestamptz)') is not null installed",
   )).rows[0].installed) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261008103000_push_timing.sql"), "utf8") + "\ncommit;");
+  }
+  if (!(await db.query<{ installed: boolean }>(
+    "select to_regclass('v1.import_assistant_usage') is not null installed",
+  )).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261008110000_import_assistant_quota.sql"), "utf8") + "\ncommit;");
   }
   if (!(await db.query<{ installed: boolean }>(
     "select to_regprocedure('public.catera_v1_command_issue_reminder_base(text,jsonb,uuid)') is not null installed",
@@ -700,6 +702,24 @@ export async function createDemoDatabase(inMemory = false) {
   )).rows[0].done) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261030100000_seller_calendar_served_meals.sql"), "utf8") + "\ncommit;");
+  }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('v1.kitchen_customer(uuid,uuid)') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261104100000_kitchen_customer_scope.sql"), "utf8") + "\ncommit;");
+  }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('public.catera_v1_command_limits_base(text,jsonb,uuid)') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261104101000_command_input_limits.sql"), "utf8") + "\ncommit;");
+  }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('v1.session_aal2()') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261104102000_admin_mfa.sql"), "utf8") + "\ncommit;");
   }
   // Synthetic renewal, payment and kitchen-loop states for the demo customer, after everything else, only on a demo
   // database seeded just now (`r`: no v1 schema before). Demo storage only: never run against hosted data.

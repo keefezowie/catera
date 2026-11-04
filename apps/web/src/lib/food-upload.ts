@@ -40,7 +40,7 @@ export async function validateFoodImage(bytes: Buffer) {
     const ext = meta.format === "jpeg" ? "jpg" : meta.format;
     if (!ext || !["png", "jpg", "webp"].includes(ext))
       throw Error("INVALID_TYPE");
-    // Decode, not just a MIME/header check. Keep original validated bytes.
+    // Decode, not just a MIME/header check.
     await image.stats();
     return ext;
   } catch {
@@ -60,6 +60,34 @@ export async function withPlaceholder(url: string, bytes: Buffer) {
   } catch {
     return url;
   }
+}
+/**
+ * Validates, then re-encodes the image so nothing but pixels is stored: EXIF (GPS, device,
+ * timestamps), XMP and comments are dropped, and the EXIF orientation is applied first so
+ * the picture still stands the right way up. The same input always gives the same bytes,
+ * which keeps an immutable retry of the same upload byte-identical.
+ */
+export async function cleanFoodImage(
+  bytes: Buffer,
+): Promise<{ ext: string; bytes: Buffer }> {
+  const ext = await validateFoodImage(bytes);
+  let clean: Buffer;
+  try {
+    const image = sharp(bytes, {
+      limitInputPixels: 40000000,
+      failOn: "warning",
+    }).rotate();
+    clean = await (ext === "png"
+      ? image.png()
+      : ext === "webp"
+        ? image.webp({ quality: 90 })
+        : image.jpeg({ quality: 90 })
+    ).toBuffer();
+  } catch {
+    throw Error("INVALID_TYPE");
+  }
+  if (clean.length > uploadLimit) throw Error("INVALID_SIZE");
+  return { ext, bytes: clean };
 }
 export function uploadError(error: unknown) {
   const code =

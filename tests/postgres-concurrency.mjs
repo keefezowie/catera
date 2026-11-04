@@ -391,6 +391,12 @@ try {
   await pool.query(await readFile("supabase/migrations/20261007110000_import_before_approval.sql", "utf8"));
   // A renamed entry point keeps working only if its body no longer qualifies parameters with the old name.
   await pool.query(await readFile("supabase/migrations/20261104090000_entry_point_self_reference.sql", "utf8"));
+  await (await import("./postgres-security-audit.mjs")).verifySecurityAudit(pool, cmd, evidence, {
+    owner: DEMO_ACTORS.owner,
+    customer: DEMO_ACTORS.customer,
+    catererId: CATERER_IDS[0],
+  });
+  // Checked after the security audit's layers too: they rename catera_v1_command and catera_v1_read again.
   const selfQualified = (await pool.query(`select p.proname,e from pg_proc p join pg_namespace n on n.oid=p.pronamespace,
     unnest(array['catera_v1_command','catera_v1_read','catera_v1_system']) e
     where n.nspname='public' and p.proname<>e and p.prosrc ~ ('\\m'||e||'\\.')`)).rows;

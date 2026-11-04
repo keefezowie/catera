@@ -72,7 +72,7 @@ jest.mock("expo-file-system", () => {
         .map((k) => new File(this, k.slice(this.uri.length + 1)));
     }
   }
-  return { __files: files, File, Directory, Paths: { document: { uri: "file:///doc" } } };
+  return { __files: files, File, Directory, Paths: { document: { uri: "file:///doc" }, cache: { uri: "file:///cache" } } };
 });
 
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
@@ -154,7 +154,7 @@ function storedSession(actor: typeof rani) {
 /** Beranda as the previous launch kept it for `actor`: lunch on the way, so a fresh copy offers "Sudah sampai". */
 function keptHome(actor: typeof rani, savedAt = `${TODAY}T03:00:00.000Z`) {
   files.set(
-    `file:///doc/catera-customer-${actor.id}.json`,
+    `file:///cache/catera-customer-${actor.id}.json`,
     JSON.stringify({ savedAt, data: customerState({ status: "out_for_delivery" }) }),
   );
 }
@@ -397,6 +397,8 @@ describe("cache-first Beranda", () => {
     (runtime.api.customer as jest.Mock).mockImplementation(() => fresh.promise);
     storedSession(rani);
     keptHome(rani);
+    // A copy an older build left in the documents folder, which phone backups include.
+    files.set("file:///doc/catera-customer-u-rani.json", "{}");
     await renderHome();
     expect(await screen.findByText("Makan siang sedang diantar.")).toBeTruthy();
     await act(async () => {
@@ -440,7 +442,7 @@ describe("cache-first Beranda", () => {
     // The first check is waiting on `before`; the next read of the stored actor (the second check) waits on `after`.
     SecureStore.__gates.set("catera.actor", after.promise);
     await act(async () => before.resolve());
-    await waitFor(() => expect(files.has("file:///doc/catera-customer-u-rani.json")).toBe(true));
+    await waitFor(() => expect(files.has("file:///cache/catera-customer-u-rani.json")).toBe(true));
     SecureStore.__store.delete("catera.actor");
     await act(async () => after.resolve());
     await waitFor(() => expect([...files.keys()].filter((k) => k.includes("catera-customer-"))).toEqual([]));
@@ -450,7 +452,7 @@ describe("cache-first Beranda", () => {
     storedSession(rani);
     await renderHome();
     expect(await screen.findByRole("button", { name: "Sudah sampai" })).toBeTruthy();
-    await waitFor(() => expect(files.has("file:///doc/catera-customer-u-rani.json")).toBe(true));
+    await waitFor(() => expect(files.has("file:///cache/catera-customer-u-rani.json")).toBe(true));
   });
 
   it("a stored session paints the cached Beranda before me() answers, with Memperbarui", async () => {
@@ -511,7 +513,7 @@ describe("cache-first Beranda", () => {
     keptHome(rani);
     const first = await renderHome();
     expect(await screen.findByRole("button", { name: "Sudah sampai" })).toBeTruthy();
-    expect(files.has("file:///doc/catera-customer-u-rani.json")).toBe(true);
+    expect(files.has("file:///cache/catera-customer-u-rani.json")).toBe(true);
     await act(async () => {
       await mobile.logout();
     });

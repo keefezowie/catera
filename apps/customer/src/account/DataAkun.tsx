@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import {
   changePassword,
   listAccountRequests,
+  PASSWORD_MIN,
   requestEmailChange,
   updateProfileName,
   useData,
@@ -344,7 +345,7 @@ function PasswordEditor({ onDone }: { onDone: () => void }) {
         autoCorrect={false}
         autoComplete="new-password"
         maxLength={256}
-        hint={t("Minimal 8 karakter.", "At least 8 characters.")}
+        hint={t(`Minimal ${PASSWORD_MIN} karakter.`, `At least ${PASSWORD_MIN} characters.`)}
       />
       <Field
         label={t("Ulangi kata sandi baru", "Repeat the new password")}
@@ -360,7 +361,7 @@ function PasswordEditor({ onDone }: { onDone: () => void }) {
       <Button
         label={t("Ganti kata sandi", "Change password")}
         busy={action.busy}
-        disabled={!current || next.length < 8 || next !== again}
+        disabled={!current || next.length < PASSWORD_MIN || next !== again}
         onPress={() => void save()}
       />
     </Editor>

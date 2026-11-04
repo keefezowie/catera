@@ -2389,6 +2389,20 @@ td strong {
 .login-form .notice {
   margin-bottom: 22px;
 }
+/* Admin two-step verification: the QR code sits on white so every authenticator app can read it. */
+.admin-mfa-qr {
+  display: block;
+  margin: 0 0 16px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 12px;
+}
+.admin-mfa-secret {
+  display: block;
+  margin: 8px 0 20px;
+  word-break: break-all;
+  user-select: all;
+}
 .demo-roles {
   display: flex;
   flex-direction: column;

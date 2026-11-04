@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { PASSWORD_MIN } from "@catera/mobile-core";
 import { AccessibilityInfo, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCaptionStyle } from "../components";
@@ -27,7 +28,7 @@ function Line({ look, text, testID }: { look: Look; text: string; testID: string
 export const FieldMessage = ({ text, testID = "field-message" }: { text: string; testID?: string }) => <Line look="bad" text={text} testID={testID} />;
 
 /** One line under a password field: muted ring, forest check once met (announced once), danger when short after a blur or submit. */
-export function PasswordRule({ value, min = 8, failed }: { value: string; min?: number; failed: boolean }) {
+export function PasswordRule({ value, min = PASSWORD_MIN, failed }: { value: string; min?: number; failed: boolean }) {
   const t = useT();
   const met = value.length >= min;
   const was = useRef(met);

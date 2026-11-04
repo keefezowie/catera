@@ -4,7 +4,7 @@ import { assertSameOrigin } from "@/lib/request-origin";
 import {
   uploadError,
   uploadStorage,
-  validateFoodImage,
+  cleanFoodImage,
 } from "@/lib/food-upload";
 import {
   isMeal,
@@ -42,8 +42,9 @@ export async function POST(request: Request) {
     );
     if (slot.catererId !== s.actor.catererId) throw Error("FORBIDDEN");
     if (!(file instanceof File) || !file.size) throw Error("INVALID_SIZE");
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const ext = await validateFoodImage(bytes);
+    const { ext, bytes } = await cleanFoodImage(
+      Buffer.from(await file.arrayBuffer()),
+    );
     const object = proofPath(s.actor.catererId, deliveryId, meal, ext);
     if (demoEnabled()) await writeDemoProof(object, bytes);
     else {

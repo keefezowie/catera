@@ -224,9 +224,12 @@ const importRow = (user: string, addressId: string) => ({
 
 it("an import cannot use a removed address, in its preview or its commit", async () => {
   const user = await customer();
-  await q("insert into v1.relationships(user_id,caterer_id,source) values($1,$2,'legacy')", [user, K[0]]);
   const gone = await address(user, "Lama");
   const kept = await address(user, "Rumah");
+  // A kitchen imports only its own customers at addresses they gave it (20261104100000_kitchen_customer_scope): both
+  // addresses went on this kitchen's delivery days once. Those days are cancelled, so neither address is in use now.
+  for (const id of [...(await buy(user, P[0], gone)), ...(await buy(user, P[0], kept))])
+    await q("update v1.delivery_days set status='cancelled' where id=$1", [id]);
   const preview = await cmd("import.preview", { catererId: K[0], rows: [importRow(user, gone)] }, U.owner);
   await cmd("address.delete", { addressId: gone }, user);
   await expect(cmd("import.commit", { catererId: K[0], id: preview.id }, U.owner)).rejects.toThrow("NOT_FOUND");

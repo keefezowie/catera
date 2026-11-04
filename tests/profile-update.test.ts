@@ -115,7 +115,7 @@ it("changePassword re-checks the signed-in account's own email and never switche
 
   auth = make(me);
   auth.updateUser.mockResolvedValue({ data: {}, error: { status: 422, code: "same_password" } });
-  await expect(changePassword({ auth } as any, false, { current: "lama-lama", next: "lama-lama" })).rejects.toThrow("PASSWORD_REJECTED");
+  await expect(changePassword({ auth } as any, false, { current: "lama-lama-1", next: "lama-lama-1" })).rejects.toThrow("PASSWORD_REJECTED");
   await expect(changePassword({ auth } as any, false, { current: "x", next: "pendek" })).rejects.toThrow("INVALID_INPUT");
 });
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PASSWORD_MIN } from "@catera/mobile-core";
 import { View } from "react-native";
 import { AuthHeading, AuthScreen, PasswordField } from "../AuthLayout";
 import { Button } from "../components";
@@ -30,7 +31,7 @@ export function NewPasswordForm({
   const [confirm, setConfirm] = useState("");
   const [shown, setShown] = useState(false);
   const checks = useFieldCheck({
-    password: { value: password, check: (v) => (v.length >= 8 ? "" : "short") },
+    password: { value: password, check: (v) => (v.length >= PASSWORD_MIN ? "" : "short") },
     confirm: { value: confirm, check: (v) => (v === password ? "" : "mismatch") },
   });
   // The rule and match lines word these, so the Field itself shows no message.

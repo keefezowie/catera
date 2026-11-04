@@ -4,7 +4,7 @@ import {
   uploadError,
   uploadOwner,
   uploadStorage,
-  validateFoodImage,
+  cleanFoodImage,
   withPlaceholder,
 } from "../../../../lib/food-upload";
 export async function POST(request: Request) {
@@ -27,10 +27,11 @@ export async function POST(request: Request) {
       target = `${s.actor!.catererId}/${match[2]}.${match[3]}`;
     const download = await client.storage.from(stagingBucket).download(object);
     if (download.error || !download.data) throw Error("UPLOAD_EXPIRED");
-    const bytes = Buffer.from(await download.data.arrayBuffer());
-    let ext: string;
+    let ext: string, bytes: Buffer;
     try {
-      ext = await validateFoodImage(bytes);
+      ({ ext, bytes } = await cleanFoodImage(
+        Buffer.from(await download.data.arrayBuffer()),
+      ));
       if (ext !== match[3]) throw Error("INVALID_TYPE");
     } catch (error) {
       await client.storage.from(stagingBucket).remove([object]);

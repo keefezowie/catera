@@ -62,6 +62,7 @@ import { dispatchPushes } from "@/lib/push-dispatch";
 import { authLifecycle } from "@/lib/auth-lifecycle";
 import { recoveryCookie } from "@/lib/recovery-grant";
 import { passwordSignIn } from "@/lib/password-auth";
+import { enrollAdminTotp, verifyAdminTotp } from "@/lib/admin-mfa";
 import type { Actor } from "@catera/domain";
 import {
   canSwitchWorkspace,
@@ -121,6 +122,7 @@ const codes = [
   "PASSWORD_REJECTED",
   "AUTH_UNAVAILABLE",
   "RECOVERY_EXPIRED",
+  "MFA_INVALID",
   "TERMS_REQUIRED",
   "DURATION_UNAVAILABLE",
   "BOOKING_HORIZON",
@@ -442,6 +444,16 @@ export async function POST(request: Request, context: Context) {
       }
       if (demoEnabled()) throw new Error("FORBIDDEN");
       const client = await supabase();
+      // Admin second factor: only a signed-in platform admin sets up or passes TOTP here (cookie session).
+      if (path[1] === "mfa-enroll" || path[1] === "mfa-verify") {
+        const current = await session(request);
+        if (current.actor?.role !== "platform_admin") throw new Error("FORBIDDEN");
+        return ok(
+          path[1] === "mfa-enroll"
+            ? await enrollAdminTotp(client)
+            : await verifyAdminTotp(client, a),
+        );
+      }
       if (
         ["register", "resend", "recover", "reset-password"].includes(path[1])
       ) {
