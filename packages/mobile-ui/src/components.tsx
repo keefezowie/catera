@@ -227,7 +227,7 @@ export function Button({
     >
       {trailingIcon ? (
         <View style={[{ flexDirection: "row", alignItems: "center", gap: 6 }, spinning && { opacity: 0 }]}>
-          <RNText style={[styles.buttonLabel, { color: labelColor }]}>{label}</RNText>
+          <RNText style={[styles.buttonLabel, { color: labelColor, flexShrink: 1 }]}>{label}</RNText>
           <Ionicons testID="button-trailing-icon" name={trailingIcon} size={16} color={labelColor} accessible={false} importantForAccessibility="no" />
         </View>
       ) : (
@@ -847,7 +847,7 @@ const useStyles = themedStyles((c) => ({
   chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 9, borderCurve: "continuous", justifyContent: "center" },
   chipOn: { backgroundColor: c.forest },
   chipOff: { borderWidth: 1, borderColor: c.secondaryBorder },
-  chipLabel: { fontFamily: fontFor("700"), fontSize: 13 },
+  chipLabel: { fontFamily: fontFor("700"), fontSize: 13, textAlign: "center" },
   segmented: {
     flexDirection: "row",
     gap: 4,

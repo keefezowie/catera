@@ -220,7 +220,11 @@ function GroupLine({
     <View>
       <SectionHeader title={group.name} count={t(`${filled.length} dari ${group.slots}`, `${filled.length} of ${group.slots}`)} />
       {rows.length ? <ListCard inset={0}>{rows}</ListCard> : null}
-      {createError ? <FormError message={createError.message} failureKey={createError.key} /> : null}
+      {createError ? (
+        <View style={{ marginTop: nativeLayout.headingGap }}>
+          <FormError message={createError.message} failureKey={createError.key} />
+        </View>
+      ) : null}
     </View>
   );
 }

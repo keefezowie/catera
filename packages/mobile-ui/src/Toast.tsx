@@ -281,6 +281,8 @@ function ToastView({
         <Text
           style={{
             flexShrink: 1,
+            // Android's full-width snackbar keeps its action at the end edge; the iOS pill hugs its words.
+            flexGrow: ios ? 0 : 1,
             color: palette.onToast,
             fontFamily: ios ? fonts.semibold : fonts.regular,
             fontSize: 14,

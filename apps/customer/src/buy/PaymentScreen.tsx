@@ -355,7 +355,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         {instructions?.kind === "virtual_account" ? (
           <Card style={{ alignItems: "center" }}>
             <Text variant="caption">{t(`Nomor virtual account ${bankName(instructions.bank)}`, `${bankName(instructions.bank)} virtual account number`)}</Text>
-            <RNText selectable style={styles.va}>
+            {/* One line whatever its length or the text size: it shrinks to fit, never wraps or cuts a digit off. */}
+            <RNText selectable numberOfLines={1} adjustsFontSizeToFit style={styles.va}>
               {instructions.accountNumber}
             </RNText>
             <Text variant="caption">{instructions.accountName}</Text>

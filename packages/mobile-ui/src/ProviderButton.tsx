@@ -93,7 +93,7 @@ export function ProviderButton({
     >
       <View style={[styles.row, spinning && { opacity: 0 }]}>
         <Mark provider={provider} ink={ink} />
-        <RNText style={[styles.label, { color: ink }]} numberOfLines={1}>
+        <RNText style={[styles.label, { color: ink, flexShrink: 1 }]} numberOfLines={1}>
           {label}
         </RNText>
       </View>

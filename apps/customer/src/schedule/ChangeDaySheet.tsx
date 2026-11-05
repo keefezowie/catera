@@ -435,6 +435,7 @@ function OptionRow({
 const useStyles = themedStyles((c) => ({
   row: {
     minHeight: 56,
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,

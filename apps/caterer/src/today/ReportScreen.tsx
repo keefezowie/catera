@@ -365,7 +365,8 @@ function Report({ issue: i, reload, draftKey, page = false }: { issue: DeliveryI
       ) : null}
       <ListCard inset={0} tone={cardTone}>
         <View style={{ paddingVertical: nativeLayout.space.md, gap: nativeLayout.space.sm }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}>
+          {/* Top-aligned: beside a subject that wraps, the status stays on its first line. */}
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: nativeLayout.space.md }}>
             <Text variant="rowTitle" style={{ flex: 1 }}>
               {i.subject}
             </Text>

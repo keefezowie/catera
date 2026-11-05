@@ -2327,6 +2327,10 @@ td strong {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
+/* A wrapped label must not push its input below its neighbour's. A line under an input would undo this, so those rows stay top-aligned. */
+:is(.form-row, .form-grid):not(:has(.field-description, .field-error)) > .field {
+  align-self: end;
+}
 .checkbox {
   display: flex;
   align-items: center;
@@ -2756,6 +2760,7 @@ td strong {
   border-right: 1px solid var(--line);
   display: grid;
   grid-template-columns: 1fr auto;
+  align-content: space-between;
   gap: 8px;
 }
 .ops-metrics > :is(div, button):last-child {

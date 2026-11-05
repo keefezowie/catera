@@ -24,7 +24,7 @@ function Step({ n, title, state, children }: { n: number; title: string; state: 
   }[state];
   return (
     <Card tone={state === "todo" || state === "fix" || state === "blocked" ? "attention" : "surface"}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: nativeLayout.space.md }}>
+      <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: nativeLayout.space.md }}>
         <Text variant="section" style={{ flex: 1 }}>{`${n}. ${title}`}</Text>
         {badge ? <Text variant="meta" style={{ color: state === "done" ? c.charcoal : c.muted, fontFamily: fontFor("700") }}>{badge}</Text> : null}
       </View>

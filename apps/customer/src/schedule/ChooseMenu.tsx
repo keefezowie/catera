@@ -572,7 +572,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
 const useStyles = themedStyles((c) => ({
   monthRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   arrow: { width: nativeLayout.control.icon, height: nativeLayout.control.icon, alignItems: "center", justifyContent: "center" },
-  dateRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8 },
+  dateRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8, paddingVertical: 8 },
   dateOn: { backgroundColor: c.sage, borderRadius: 10, borderCurve: "continuous" },
   divider: { borderTopWidth: 1, borderTopColor: c.line },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

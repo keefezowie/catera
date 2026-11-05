@@ -119,7 +119,7 @@ export function PlansRow({
                   ) : null}
                 </View>
                 <View style={styles.text}>
-                  <Text variant="bodyStrong">{label(s)}</Text>
+                  <Text variant="bodyStrong" numberOfLines={2}>{label(s)}</Text>
                   <Text variant="meta" numberOfLines={2} style={{ fontVariant: ["tabular-nums"] }}>
                     {line(s)}
                   </Text>
