@@ -24,6 +24,10 @@ export type CalendarSheetProps = {
   onPick: (date: string) => void;
   /** The primary button once a new day is chosen, "Pindah ke {tanggal}". */
   confirmLabel: (date: string) => string;
+  /** The primary button before a day is chosen; "Pindah tanggal" when left out. */
+  idleLabel?: string;
+  /** The line under the grid before a day is chosen, in place of the move's own wording. */
+  promptText?: string;
   /** The move. A rejection stays on the sheet as a `FormError`. */
   onConfirm: (date: string) => Promise<void>;
   /** The first and last day that can be paged to. Paging stops at the months they sit in. */
@@ -101,6 +105,8 @@ export function CalendarPanel({
   current,
   onPick,
   confirmLabel,
+  idleLabel,
+  promptText,
   onConfirm,
   window,
   locale: forced,
@@ -151,7 +157,9 @@ export function CalendarPanel({
   const noneOpen = !Object.entries(days).some(
     ([date, day]) => day.state === "available" && date !== current && date >= window.from && date <= window.to,
   );
-  const prompt = noneOpen
+  const prompt = promptText
+    ? promptText
+    : noneOpen
     ? staff
       ? t("Belum ada hari lain yang bisa dipilih di rentang ini.", "No other day is open in this range.")
       : t("Belum ada hari lain yang bisa kamu pilih di rentang ini.", "There is no other day you can pick in this range.")
@@ -266,7 +274,7 @@ export function CalendarPanel({
           <FormError message={failure.message} failureKey={failure.key} retry={chosen ? () => void move(chosen) : undefined} />
         ) : null}
         <Button
-          label={chosen ? confirmLabel(chosen) : t("Pindah tanggal", "Move date")}
+          label={chosen ? confirmLabel(chosen) : (idleLabel ?? t("Pindah tanggal", "Move date"))}
           disabled={!chosen || confirmDisabled}
           busy={busy}
           onPress={() => chosen && void move(chosen)}

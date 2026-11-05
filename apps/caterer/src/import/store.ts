@@ -32,9 +32,9 @@ const EMPTY: State = { text: "", files: [], rows: null, packages: null, counter:
 
 /**
  * What Impor holds while it is open, shared with the row sheet (`/impor-baris`), which is a route of its own above it:
- * the pasted text, the attachments and the rows under review. In memory only, and emptied when Impor closes, as its
- * screen state always was. Signing out closes Impor (its route is guarded by role), so the next person on this phone
- * starts empty.
+ * the pasted text, the attachments and the rows under review. In memory only, and emptied when Impor closes: the rows
+ * live on as the kitchen's draft on the server (`import.draftSave`), the text and attachments do not. Signing out closes
+ * Impor (its route is guarded by role), so the next person on this phone starts empty.
  */
 let current: State = EMPTY;
 const listeners = new Set<() => void>();

@@ -1,4 +1,4 @@
-import { Children, createContext, isValidElement, use, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Children, createContext, isValidElement, use, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
 import { AccessibilityInfo, AppState, Keyboard, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View, type TextInstance, type ViewInstance, type ScrollViewInstance } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
@@ -344,9 +344,12 @@ export const sheetSidePadding = (os = process.env.EXPO_OS) => (os === "ios" ? 20
 export function SheetBody({
   children,
   footer,
+  scrollRef,
   os = process.env.EXPO_OS,
 }: {
   children: ReactNode;
+  /** The body's scroll view, for a form that brings a field into view. */
+  scrollRef?: Ref<ScrollViewInstance>;
   /**
    * The sheet's primary action (and the error above it), pinned under the scroll view instead of scrolling with it. It is
    * lifted by the same amounts as the body (the part of an Android root-stack sheet below the screen's edge, the keyboard,
@@ -382,6 +385,7 @@ export function SheetBody({
   // The frame holds the scroll view and the footer, so both are lifted by what is measured.
   const [footerHeight, setFooterHeight] = useState(SHEET_FOOTER_GUESS);
   const scroller = useRef<ScrollViewInstance>(null);
+  useImperativeHandle(scrollRef, () => scroller.current as ScrollViewInstance);
   // The footer's content changed (an error came or went) and no keyboard change has come since: only then is an inline
   // footer worth a scroll. A keyboard that flips the footer inline lays it out too, and the focused field must stay.
   const contentChanged = useRef(false);

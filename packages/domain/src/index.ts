@@ -374,6 +374,8 @@ export type SellerImportOptions = {
     areas: string[];
     meal: string;
   }[];
+  /** Impor pelanggan's review list as last saved; the app owns the shape of a row. */
+  draft?: { rows: unknown[]; updatedAt: string } | null;
 };
 export type PrepaidImportRow = {
   customerId: string;

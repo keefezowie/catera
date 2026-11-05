@@ -1,3 +1,4 @@
+import { earliestImportStart } from "@catera/domain";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { AccessibilityInfo, StyleSheet } from "react-native";
 import { nativeMotion, nativeThemes } from "@catera/design-tokens";
@@ -53,6 +54,14 @@ jest.mock("expo-notifications", () => ({
   clearLastNotificationResponseAsync: jest.fn(async () => undefined),
 }));
 
+/** Picks the first open day in the row's calendar and returns to the form. */
+async function pickDate() {
+  await fireEvent.press(screen.getByRole("button", { name: /^Antar berikutnya/ }));
+  await fireEvent.press(await screen.findByTestId(`calendar-day-${earliestImportStart(new Date())}`));
+  await fireEvent.press(screen.getByRole("button", { name: /^Pilih / }));
+  await screen.findByLabelText("Nama");
+}
+
 const row = (n: number, extra: Record<string, unknown> = {}) => ({
   name: `Pelanggan ${n}`,
   phone: `+62812345678${String(n).padStart(2, "0")}`,
@@ -61,7 +70,7 @@ const row = (n: number, extra: Record<string, unknown> = {}) => ({
   city: "Jakarta Selatan",
   notes: "",
   packageId: "p-rumahan",
-  startDate: "2026-10-01",
+  startDate: "2999-01-05",
   remainingDays: 9,
   portions: 1,
   needsReview: false,
@@ -83,7 +92,7 @@ it("builds an import row with a generated reference", () => {
     },
     packageId: "p-rumahan",
     portions: 1,
-    startDate: "2026-10-01",
+    startDate: "2999-01-05",
     remainingDays: 9,
     externalReference: "impor-2026-10-07-3",
   });
@@ -129,7 +138,7 @@ it("flags a start date before the earliest one the kitchen can cook for", () => 
 it("gives a row's reasons in English, with the date named and no ISO date", () => {
   const { recheck } = jest.requireActual("../src/import/rows") as typeof import("../src/import/rows");
   const checked = recheck(row(1, { name: "", startDate: "2026-10-01" }), [{ id: "p-rumahan", days: 20 }], "2026-10-08", (_id, en) => en, "en");
-  expect(checked.reason).toContain("Name missing");
+  expect(checked.reason).toContain("Missing: name");
   expect(checked.reason).toContain("Next delivery can be Thu 8 Oct at the earliest");
   expect(checked.reason).not.toMatch(/\d{4}-\d{2}-\d{2}/);
 });
@@ -211,7 +220,7 @@ it("offers manual entry, not 'try later', when the assistant is switched off", a
   expect(screen.queryByText(/Coba lagi nanti/)).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Isi manual" }));
   expect(await screen.findByText("Tanpa nama")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Tambah baris" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Tambah pelanggan" })).toBeTruthy();
 });
 
 it("keeps 'Coba lagi nanti' and no manual button for a real outage", async () => {
@@ -232,8 +241,8 @@ it("a phone typed and never blurred still reaches the preview in the +62 form", 
   await fireEvent.changeText(screen.getByLabelText("Alamat"), "Jl. Melati 5");
   await fireEvent.changeText(screen.getByLabelText("Area"), "Tebet");
   await fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta Selatan");
-  await fireEvent.press(screen.getByRole("button", { name: "Paket Hemat Kantor" }));
-  await fireEvent.changeText(screen.getByLabelText("Antar berikutnya (TTTT-BB-HH)"), "2999-01-05");
+  await fireEvent.press(screen.getByRole("radio", { name: /^Paket Hemat Kantor/ }));
+  await pickDate();
   await fireEvent.changeText(screen.getByLabelText("Sisa hari"), "8");
   await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
   await fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
@@ -247,15 +256,16 @@ it("saves manually typed rows through import.preview then import.commit", async 
   await setup(command, disabled);
   await read();
   await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
-  // the empty row opens for editing; it cannot be saved yet
-  expect(screen.getByRole("button", { name: "Simpan 0 pelanggan" }).props.accessibilityState?.disabled).toBe(true);
+  // the empty row opens for editing; nothing can be saved yet, and the list's button says what to do instead
+  expect(screen.queryByRole("button", { name: /^Simpan/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Lengkapi baris pertama" })).toBeTruthy();
   await fireEvent.changeText(await screen.findByLabelText("Nama"), "Bu Ani");
   await fireEvent(screen.getByLabelText("Nomor WhatsApp"), "endEditing", { nativeEvent: { text: "0812 3456 7890" } });
   await fireEvent.changeText(screen.getByLabelText("Alamat"), "Jl. Melati 5");
   await fireEvent.changeText(screen.getByLabelText("Area"), "Tebet");
   await fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta Selatan");
-  await fireEvent.press(screen.getByRole("button", { name: "Paket Hemat Kantor" }));
-  await fireEvent.changeText(screen.getByLabelText("Antar berikutnya (TTTT-BB-HH)"), "2999-01-05");
+  await fireEvent.press(screen.getByRole("radio", { name: /^Paket Hemat Kantor/ }));
+  await pickDate();
   await fireEvent.changeText(screen.getByLabelText("Sisa hari"), "8");
   await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
   await fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
@@ -266,18 +276,18 @@ it("saves manually typed rows through import.preview then import.commit", async 
     customer: { name: "Bu Ani", phone: "+6281234567890", address: { line: "Jl. Melati 5", area: "Tebet", city: "Jakarta Selatan" } },
     packageId: "p-hemat",
     portions: 1,
-    startDate: "2999-01-05",
+    startDate: earliestImportStart(new Date()),
     remainingDays: 8,
   });
 });
 
-it("adds another empty row with Tambah baris", async () => {
+it("adds another empty row with Tambah pelanggan", async () => {
   await setup(jest.fn(), disabled);
   await read();
   await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Tambah baris" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Tambah pelanggan" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
   expect(screen.getAllByText("Tanpa nama")).toHaveLength(2);
 });
 
@@ -286,7 +296,7 @@ it("a review row dims on press and still opens its editor", async () => {
   await setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [unset], needsReview: 1 } }) });
   await read();
   const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
-  const edit = async () => screen.findByRole("button", { name: "Ubah Pelanggan 1, perlu dicek: Alamat belum lengkap" });
+  const edit = async () => screen.findByRole("button", { name: "Lengkapi Pelanggan 1: Alamat belum lengkap" });
   await fireEvent(await edit(), "responderGrant", touch);
   expect(StyleSheet.flatten((await edit()).props.style).opacity).toBe(0.7);
   // What the row still needs is a to-do: its one line on the list, bold charcoal in its sheet, never a bare danger caption.
@@ -295,7 +305,7 @@ it("a review row dims on press and still opens its editor", async () => {
   expect(flatStyle(reason)).toMatchObject({ fontSize: 13, lineHeight: 18, color: nativeThemes.light.muted });
   expect(reason.props.numberOfLines).toBeUndefined();
   await fireEvent.press(await edit());
-  expect(await screen.findByRole("button", { name: "Selesai" })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: "Sudah benar" })).toBeTruthy();
   expect(StyleSheet.flatten(screen.getByTestId("import-row-reason").props.style)).toMatchObject(bold);
 });
 
@@ -430,11 +440,12 @@ describe("deleting an import row", () => {
       expect(card("Ubah Pelanggan 3").props.layout).toBeDefined();
       expect(card("Ubah Pelanggan 3").props.entering).toBeUndefined();
       // A row typed in by hand is new, not restored: it keeps the usual rise.
-      await fireEvent.press(screen.getByRole("button", { name: "Tambah baris" }));
-      if (screen.queryByTestId("import-row-sheet")) await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Tambah pelanggan" }));
+      if (screen.queryByTestId("import-row-sheet")) await fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
       const rows = screen.getAllByTestId("import-row");
       expect(rows).toHaveLength(4);
-      expect(rows[3].props.entering).toBe(reanimated.FadeInDown);
+      // An empty row needs completing, so it is listed first.
+      expect(rows[0].props.entering).toBe(reanimated.FadeInDown);
     } finally {
       delay.mockRestore();
     }
@@ -491,10 +502,9 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
       const trailing = screen.getByTestId(`import-row-${n}-trailing`);
       const edit = within(trailing).getByText("Ubah");
       expect(flatStyle(edit)).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: "Jakarta-SemiBold", color: nativeThemes.light.forest });
-      expect(within(trailing).queryByTestId(`import-row-${n}-pill`)).toBeNull();
     }
-    expect(screen.getByText("3 siap disimpan")).toBeTruthy();
-    expect(flatStyle(screen.getByText("3 siap disimpan"))).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: "Jakarta-SemiBold" });
+    expect(screen.getByText("3 dari 3 pelanggan siap disimpan")).toBeTruthy();
+    expect(flatStyle(screen.getByText("3 dari 3 pelanggan siap disimpan"))).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: "Jakarta-SemiBold" });
   });
 
   it("holds 20 rows in the same one card, 19 hairlines between them", async () => {
@@ -509,30 +519,29 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
   it("draws no empty card for no rows, and still offers a row to add", async () => {
     await setup(jest.fn(), response([]));
     await read();
-    expect(await screen.findByText("0 siap disimpan")).toBeTruthy();
+    expect(await screen.findByText("0 dari 0 pelanggan siap disimpan")).toBeTruthy();
     expect(screen.queryByTestId("list-card")).toBeNull();
-    expect(screen.getByRole("button", { name: "Tambah baris" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Simpan 0 pelanggan" }).props.accessibilityState?.disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Tambah pelanggan" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Simpan/ })).toBeNull();
   });
 
-  it("marks a row with a problem with a pale pill, and its one line says what it needs", async () => {
+  it("lists what needs completing first, and its one line says what it needs", async () => {
     await setup(jest.fn(), response([row(1), row(2, { addressLine: "", needsReview: true, reason: "Alamat belum lengkap" })]));
     await read();
-    expect(await screen.findByText("1 siap disimpan · 1 perlu dicek")).toBeTruthy();
-    // Only the problem row has the pill, in the trailing column before Ubah.
-    expect(screen.queryByTestId("import-row-1-pill")).toBeNull();
-    const pill = screen.getByTestId("import-row-2-pill");
-    expect(within(screen.getByTestId("import-row-2-trailing")).getByTestId("import-row-2-pill")).toBe(pill);
-    expect(flatStyle(pill)).toMatchObject({ backgroundColor: nativeThemes.light.cream, minHeight: 28, borderRadius: 14 });
-    const label = within(pill).getByText("Perlu dicek");
-    expect(flatStyle(label)).toMatchObject({ color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" });
+    expect(await screen.findByText("1 dari 2 pelanggan siap disimpan")).toBeTruthy();
+    expect(screen.getByText("Perlu dilengkapi · 1")).toBeTruthy();
+    expect(screen.getByText("Siap disimpan · 1")).toBeTruthy();
+    expect(screen.getAllByTestId("import-row").map((r) => within(r).queryByText("Pelanggan 2") !== null)).toEqual([true, false]);
+    expect(within(screen.getByTestId("import-row-2-trailing")).getByText("Lengkapi")).toBeTruthy();
+    expect(within(screen.getByTestId("import-row-1-trailing")).getByText("Ubah")).toBeTruthy();
+    expect(screen.getByText(/^Yang belum lengkap tersimpan sebagai draf/)).toBeTruthy();
     // What the row still needs is the row's one line (bold ink in its sheet), and the row is still one 64 line.
     const line = screen.getByTestId("import-row-2");
     expect(within(line).getByText("Alamat belum lengkap").props.numberOfLines).toBeUndefined();
     expect(flatStyle(line)).toMatchObject({ minHeight: 64 });
     // The label carries the state and the reason, so a screen reader hears what the row still needs.
-    expect(line.props.accessibilityLabel).toBe("Ubah Pelanggan 2, perlu dicek: Alamat belum lengkap");
-    expect(screen.getByRole("button", { name: "Ubah Pelanggan 2, perlu dicek: Alamat belum lengkap" })).toBe(line);
+    expect(line.props.accessibilityLabel).toBe("Lengkapi Pelanggan 2: Alamat belum lengkap");
+    expect(screen.getByRole("button", { name: "Lengkapi Pelanggan 2: Alamat belum lengkap" })).toBe(line);
   });
 
   it("names a row with no name by its place in the list, and says what a missing package needs", async () => {
@@ -540,7 +549,7 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
     await setup(jest.fn(), response([unset]));
     await read();
     expect(await screen.findByText("Tanpa nama")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Ubah baris 1, perlu dicek: Paket belum dipilih" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Lengkapi baris 1: Paket belum dipilih" })).toBeTruthy();
     expect(screen.getByText("Paket belum dipilih")).toBeTruthy();
     expect(screen.queryByText(/—/)).toBeNull();
     expect(screen.queryByText(/\?/)).toBeNull();
@@ -568,12 +577,12 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
     expect(screen.queryByTestId("import-row-portions")).toBeNull();
   });
 
-  it("the buttons under the card are Tambah baris and Mulai lagi", async () => {
+  it("the buttons under the card are Tambah pelanggan and Mulai lagi", async () => {
     await setup(jest.fn(), response([row(1)]));
     await read();
-    await fireEvent.press(await screen.findByRole("button", { name: "Tambah baris" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Tambah pelanggan" }));
     expect(router.push).toHaveBeenLastCalledWith("/impor-baris?n=2");
-    await fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
     await fireEvent.press(screen.getByRole("button", { name: "Mulai lagi" }));
     expect(await screen.findByLabelText("Tempel atau ketik daftar pelanggan")).toBeTruthy();
   });
@@ -637,14 +646,15 @@ describe("the row editor on the Dapur scale", () => {
     expect(flatStyle(within(sheet).getByTestId("import-row-skeleton"))).toMatchObject({ gap: 12 });
   });
 
-  it("its package chips wrap with a 14 row gap so each 34 chip keeps a 48 target of its own", async () => {
+  it("its packages are 56 tall choices that show their length", async () => {
     await editor(jest.fn(async () => options));
     await read();
     await fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
     const sheet = await screen.findByTestId("import-row-sheet");
-    const chip = await within(sheet).findByRole("button", { name: "Paket Hemat Kantor" });
-    expect(above(chip, "flexWrap")).toMatchObject({ flexWrap: "wrap", columnGap: 8, rowGap: 14 });
-    expect(chip.props.hitSlop).toEqual({ top: 7, bottom: 7 });
+    const choice = await within(sheet).findByRole("radio", { name: /^Paket Hemat Kantor/ });
+    expect(flatStyle(choice)).toMatchObject({ minHeight: 56 });
+    // The kitchen's one package is chosen for a row typed in by hand.
+    expect(choice.props.accessibilityState).toMatchObject({ checked: true });
   });
 });
 

@@ -591,19 +591,19 @@ describe("import row editor", () => {
     // The new row opens in its sheet; a row with errors says what is missing.
     expect(router.push).toHaveBeenLastCalledWith("/impor-baris?n=1");
     const sheet = await screen.findByTestId("import-row-sheet");
-    expect(within(sheet).getByText(/Nama belum ada/)).toBeTruthy();
+    expect(within(sheet).getByText("Isi nama pelanggan")).toBeTruthy();
     await fireEvent.changeText(within(sheet).getByLabelText("Nama"), "Bu Ani");
     // The list under the sheet reads the same row.
-    expect(screen.getByRole("button", { name: /^Ubah Bu Ani/ })).toBeTruthy();
-    // Selesai is pinned in the footer; "Hapus baris ini" stays in the content.
-    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Selesai" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Lengkapi Bu Ani:/ })).toBeTruthy();
+    // The next step is pinned in the footer; "Hapus baris ini" stays in the content.
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Lengkapi yang kurang" })).toBeTruthy();
     expect(within(screen.getByTestId("sheet-body")).getByRole("button", { name: "Hapus baris ini" })).toBeTruthy();
-    await fireEvent.press(within(sheet).getByRole("button", { name: "Selesai" }));
+    await fireEvent.press(within(sheet).getByRole("button", { name: "Nanti saja" }));
     expect(router.back).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(screen.queryByTestId("import-row-sheet")).toBeNull());
     expect(screen.getByText("Bu Ani")).toBeTruthy();
     // Opening it again edits the same row; removing it takes it off the list and returns.
-    await fireEvent.press(screen.getByRole("button", { name: /^Ubah Bu Ani/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /^Lengkapi Bu Ani:/ }));
     await fireEvent.press(within(await screen.findByTestId("import-row-sheet")).getByRole("button", { name: "Hapus baris ini" }));
     await waitFor(() => expect(screen.queryByTestId("import-row-sheet")).toBeNull());
     expect(screen.queryByText("Bu Ani")).toBeNull();

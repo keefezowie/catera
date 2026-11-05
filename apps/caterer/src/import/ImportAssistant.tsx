@@ -5,14 +5,13 @@ import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
-import { earliestImportStart, errorLabel, jakartaDay } from "@catera/domain";
+import { earliestImportStart, errorLabel, jakartaDay, shortDate } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Card,
   FONT,
-  fontFor,
   FormError,
   ListCard,
   MascotReading,
@@ -28,7 +27,7 @@ import {
 } from "@catera/mobile-ui";
 import { Attachments } from "./Attachments";
 import { commitImport } from "./commits";
-import { recheck, toImportRow, type AssistantRow } from "./rows";
+import { recheck, settle, toImportRow, type AssistantRow } from "./rows";
 import { rowHref } from "./RowEditor";
 import { useImportStore, type Attachment } from "./store";
 import { goToTab } from "../nav";
@@ -39,13 +38,13 @@ const ROW_CODES = new Set(["CAPACITY", "CONFLICT", "CUTOFF", "DUPLICATE_CUSTOMER
 
 const fail = (e: unknown) => (e as { code?: string }).code || (e as Error).message;
 
-/** A row with a problem wears this pale pill (a cream pill, 28 tall, as the customer's report list draws its open one). */
-const PILL_HEIGHT = 28;
+/** How long after an edit the draft is saved: typing a name is one save, not one per letter. */
+const DRAFT_SAVE_MS = 600;
 
 /**
- * Impor pelanggan: paste or attach anything, check what the assistant read, save the clean rows. A row is corrected in
- * its own form sheet (`/impor-baris`); both read the import in progress from `useImportStore`, which empties when
- * Impor closes.
+ * Impor pelanggan: paste or attach anything, check what the assistant read, save the complete rows. A row is completed
+ * in its own form sheet (`/impor-baris`); both read the import in progress from `useImportStore`. The rows are kept on
+ * the server as the kitchen's draft, so whoever needs more details from a customer can come back to them later.
  */
 export function ImportAssistant() {
   const { runtime, actor, t, locale, command } = useMobile();
@@ -67,14 +66,70 @@ export function ImportAssistant() {
   // Each save plays the beat again: it is keyed by the number of saves made on this screen.
   const [saves, setSaves] = useState(0);
   const [off, setOff] = useState(false);
-  // Pasted text, attachments or read rows are lost when Impor closes; once every row is saved the list is an empty one.
-  useUnsavedGuard(rows ? rows.length > 0 : text.trim() !== "" || files.length > 0, t("daftar", "list"), { t, nounEn: "list", voice: "kamu" });
+  // The kitchen's draft as the first read found it, until the caterer continues it or adds to it. Null once it is in the
+  // list; `loaded` says the read has answered, so a save never overwrites a draft nobody has seen.
+  const [waiting, setWaiting] = useState<{ rows: AssistantRow[]; updatedAt: string } | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [draftFailed, setDraftFailed] = useState(false);
+  const earliest = earliestImportStart(new Date());
+  // Only the very first answer counts: later reads (a save moves the revision) must not bring a draft back.
+  useEffect(() => {
+    if (!options.data || loaded) return;
+    setLoaded(true);
+    const found = (options.data.draft?.rows ?? []) as AssistantRow[];
+    savedDraft.current = JSON.stringify(found);
+    if (!found.length) return;
+    const settled = found.map((r) => settle(r, options.data!.packages, earliest, t, locale));
+    // A list read before this answered joins the draft; otherwise the draft waits for "Lanjutkan".
+    if (rows) setRows((current) => [...numbered(settled), ...(current ?? [])]);
+    else setWaiting({ rows: settled, updatedAt: options.data.draft!.updatedAt });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the first answer only
+  }, [options.data, loaded]);
+  // What the server should hold: the list, nothing once it is cleared, or (null) the waiting draft left alone.
+  const wanted = rows ?? (waiting ? null : []);
+  const wantedJson = useRef<string | null>(null);
+  wantedJson.current = loaded && wanted ? JSON.stringify(wanted) : null;
+  // Saves run one at a time and always send the latest list, so an old one can never land after a new one.
+  const savedDraft = useRef<string | null>(null);
+  const saving = useRef(Promise.resolve());
+  // The session as of the latest render: the one function below outlives the render it was made in.
+  const session = useRef({ command, catererId });
+  session.current = { command, catererId };
+  const saveDraft = useRef(() => {
+    saving.current = saving.current.then(async () => {
+      const json = wantedJson.current;
+      if (json === null || json === savedDraft.current) return;
+      try {
+        await session.current.command("import.draftSave", { catererId: session.current.catererId, rows: JSON.parse(json) }, { refresh: false });
+        savedDraft.current = json;
+        setDraftFailed(false);
+      } catch {
+        setDraftFailed(true);
+      }
+    });
+    return saving.current;
+  }).current;
+  const wantedKey = wantedJson.current;
+  useEffect(() => {
+    if (wantedKey === null || wantedKey === savedDraft.current) return;
+    const timer = setTimeout(() => void saveDraft(), DRAFT_SAVE_MS);
+    return () => clearTimeout(timer);
+  }, [wantedKey, saveDraft]);
+  // Pasted text and attachments are lost when Impor closes. The list is kept as a draft, so it only asks while that has
+  // failed or the kitchen's draft could not be read.
+  useUnsavedGuard(rows ? rows.length > 0 && (draftFailed || !loaded) : text.trim() !== "" || files.length > 0, t("daftar", "list"), { t, nounEn: "list", voice: "kamu" });
   // The row sheet checks a row against the same packages this screen read.
   useEffect(() => {
     if (options.data) setPackages(options.data.packages);
   }, [options.data, setPackages]);
-  // Closing Impor forgets the import, as it always has.
-  useEffect(() => reset, [reset]);
+  // Closing Impor sends the last edits and forgets the import on this screen; the draft holds the rows.
+  useEffect(
+    () => () => {
+      void saveDraft();
+      reset();
+    },
+    [reset, saveDraft],
+  );
   /** Opens one row's form sheet over this screen. */
   const edit = (n: number) => router.push(rowHref(n) as never);
   const message = (code: string) =>
@@ -100,6 +155,13 @@ export function ImportAssistant() {
     ]);
     setRows((all) => [...(all ?? []), row]);
     edit(row.n);
+  }
+
+  /** Brings the waiting draft into the list, ahead of anything just read. */
+  function continueDraft(read: AssistantRow[] = []) {
+    const draft = waiting?.rows ?? [];
+    setWaiting(null);
+    setRows(numbered([...draft, ...read]));
   }
 
   // One pick at a time, from the tap until its photos land: a second tap before the gallery opens is ignored.
@@ -184,7 +246,7 @@ export function ImportAssistant() {
       const body = (await response.json().catch(() => ({}))) as { data?: { rows: AssistantRow[] }; error?: { code?: string } };
       if (!response.ok || !body.data) throw Object.assign(new Error(body.error?.code || "IMPORT_UNAVAILABLE"), { code: body.error?.code });
       setOff(false);
-      setRows(numbered(body.data.rows));
+      continueDraft(body.data.rows);
     } catch (e) {
       if (fail(e) === "IMPORT_ASSISTANT_DISABLED") {
         setOff(true);
@@ -243,6 +305,9 @@ export function ImportAssistant() {
   }
 
   const clean = rows?.filter((r) => !r.needsReview).length ?? 0;
+  const todo = rows?.filter((r) => r.needsReview) ?? [];
+  const ready = rows?.filter((r) => !r.needsReview) ?? [];
+  const firstName = todo[0]?.name || t("baris pertama", "the first row");
   const reading = busy === "read";
   // What the assistant is reading, named only as far as it holds: "2 foto dan 1 file", "1 foto", or nothing for text.
   const photoCount = files.filter((f) => f.kind === "image").length;
@@ -270,10 +335,29 @@ export function ImportAssistant() {
     <Screen
       footer={
         rows ? (
-          <>
-            {error ? <FormError message={error} failureKey={errorState.key} /> : null}
-            <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} busy={busy === "save"} disabled={!clean || (!!busy && busy !== "save")} onPress={() => void save()} />
-          </>
+          rows.length ? (
+            <>
+              {error ? <FormError message={error} failureKey={errorState.key} /> : null}
+              {draftFailed ? (
+                <View testID="import-draft-failed">
+                  <FormError
+                    message={t("Draf belum tersimpan. Cek koneksimu, jangan tutup halaman ini dulu.", "The draft isn't saved yet. Check your connection and keep this page open.")}
+                    failureKey={1}
+                    retry={() => void saveDraft()}
+                  />
+                </View>
+              ) : clean && todo.length ? (
+                <Text variant="meta" style={{ textAlign: "center" }}>
+                  {t("Yang belum lengkap tersimpan sebagai draf. Lanjutkan kapan saja.", "Incomplete customers stay in your draft. Continue any time.")}
+                </Text>
+              ) : null}
+              {clean ? (
+                <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} busy={busy === "save"} disabled={!!busy && busy !== "save"} onPress={() => void save()} />
+              ) : (
+                <Button label={t(`Lengkapi ${firstName}`, `Complete ${firstName}`)} onPress={() => edit(todo[0].n)} />
+              )}
+            </>
+          ) : undefined
         ) : reading ? (
           // In place of the button while the assistant reads: the reading mascot names the wait and what is read.
           <View style={{ alignItems: "center", gap: nativeLayout.space.xs }}>
@@ -302,6 +386,16 @@ export function ImportAssistant() {
       ) : null}
       {rows === null ? (
         <>
+          {waiting ? (
+            <Card testID="import-draft">
+              <Text variant="heading">{t(`Draf: ${waiting.rows.length} pelanggan`, `Draft: ${plural(waiting.rows.length, "customer")}`)}</Text>
+              <Text variant="meta" numberOfLines={2}>
+                {waiting.rows.map((r) => r.name || t("Tanpa nama", "No name")).join(", ")} · {t(`diubah ${shortDate(jakartaDay(new Date(waiting.updatedAt)), locale)}`, `changed ${shortDate(jakartaDay(new Date(waiting.updatedAt)), locale)}`)}
+              </Text>
+              <Button label={t("Lanjutkan", "Continue")} disabled={reading} onPress={() => continueDraft()} />
+            </Card>
+          ) : null}
+          {waiting ? <Text variant="meta">{t("Daftar baru masuk ke draf yang sama.", "A new list joins this draft.")}</Text> : null}
           <Text variant="bodyL">
             {t(
               "Tempel catatan atau chat WhatsApp, atau lampirkan foto buku, PDF dan Excel. Asisten menyusunnya jadi daftar, lalu kamu cek.",
@@ -362,54 +456,60 @@ export function ImportAssistant() {
         </>
       ) : (
         <>
-          {/* The summary, 12 above the one card that holds every row (a card per row used to take 134 to 164 each). */}
-          <View style={{ gap: nativeLayout.headingGap }}>
+          {/* The summary and how far along the list is; what still needs something comes first. */}
+          <View style={{ gap: nativeLayout.groupGap }}>
             <Text variant="bodyStrong" style={{ fontVariant: ["tabular-nums"] }}>
-              {rows.length - clean
-                ? t(`${clean} siap disimpan · ${rows.length - clean} perlu dicek`, `${clean} ready · ${rows.length - clean} to check`)
-                : t(`${clean} siap disimpan`, `${clean} ready to save`)}
+              {t(`${clean} dari ${rows.length} pelanggan siap disimpan`, `${clean} of ${plural(rows.length, "customer")} ready to save`)}
             </Text>
             {rows.length ? (
-              <ListCard inset={0}>
-                {rows.map((r) => (
-                  <Animated.View key={r.n} testID="import-row" {...rowMotion(String(r.n))}>
-                    <TwoLineRow
-                      testID={`import-row-${r.n}`}
-                      // The reason is the point of a row that needs checking, so it wraps instead of being cut.
-                      wrap={r.needsReview ? "meta" : false}
-                      title={r.name || t("Tanpa nama", "No name")}
-                      // A row that still needs something says what in its one line; a clean row gives its phone and area.
-                      meta={
-                        r.needsReview
-                          ? r.reason
-                          : // Portions are saved with the row and shown nowhere else before the save, so a count other than 1 rides on the line, before the area, which is the part a narrow line may cut.
-                            [r.phone, r.portions !== 1 ? t(`${r.portions} porsi`, plural(r.portions, "portion")) : "", r.area].filter(Boolean).join(" · ")
-                      }
-                      // The label names the row, and a problem row's state and reason, so a screen reader hears what it needs.
-                      accessibilityLabel={`${t("Ubah", "Edit")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}${r.needsReview ? `, ${t("perlu dicek", "to check")}: ${r.reason}` : ""}`}
-                      onPress={() => edit(r.n)}
-                      trailing={
-                        <>
-                          {r.needsReview ? (
-                            <View testID={`import-row-${r.n}-pill`} style={{ minHeight: PILL_HEIGHT, paddingHorizontal: 10, borderRadius: PILL_HEIGHT / 2, justifyContent: "center", backgroundColor: c.cream }}>
-                              <Text variant="meta" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
-                                {t("Perlu dicek", "To check")}
-                              </Text>
-                            </View>
-                          ) : null}
-                          {/* forest: action */}
-                          <Text variant="bodyStrong" style={{ color: c.forest, paddingLeft: nativeLayout.space.md }}>
-                            {t("Ubah", "Edit")}
-                          </Text>
-                        </>
-                      }
-                    />
-                  </Animated.View>
-                ))}
-              </ListCard>
+              <View testID="import-progress" accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={{ height: 6, borderRadius: 3, backgroundColor: c.line, overflow: "hidden" }}>
+                <View style={{ height: 6, width: `${(clean / rows.length) * 100}%`, backgroundColor: c.forest }} />
+              </View>
             ) : null}
           </View>
-          <Button variant="secondary" label={t("Tambah baris", "Add a row")} onPress={addRow} />
+          {(
+            [
+              [t("Perlu dilengkapi", "To complete"), todo],
+              [t("Siap disimpan", "Ready to save"), ready],
+            ] as const
+          ).map(([title, group]) =>
+            group.length ? (
+              <View key={title} style={{ gap: nativeLayout.groupGap }}>
+                <Text variant="heading" accessibilityRole="header" style={{ fontVariant: ["tabular-nums"] }}>
+                  {title} · {group.length}
+                </Text>
+                <ListCard inset={0}>
+                  {group.map((r) => (
+                    <Animated.View key={r.n} testID="import-row" {...rowMotion(String(r.n))}>
+                      <TwoLineRow
+                        testID={`import-row-${r.n}`}
+                        // The reason is the point of a row that needs something, so it wraps instead of being cut.
+                        wrap={r.needsReview ? "meta" : false}
+                        title={r.name || t("Tanpa nama", "No name")}
+                        // A row that still needs something says what in its one line; a clean row gives its phone and area.
+                        meta={
+                          r.needsReview
+                            ? r.reason || t("Asisten menebak sebagian data ini", "The assistant guessed part of this")
+                            : // Portions are saved with the row and shown nowhere else before the save, so a count other than 1 rides on the line, before the area, which is the part a narrow line may cut.
+                              [r.phone, r.portions !== 1 ? t(`${r.portions} porsi`, plural(r.portions, "portion")) : "", r.area].filter(Boolean).join(" · ")
+                        }
+                        // The label names the row, and what a row still needs, so a screen reader hears it.
+                        accessibilityLabel={r.needsReview ? `${t("Lengkapi", "Complete")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}: ${r.reason}` : `${t("Ubah", "Edit")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}`}
+                        onPress={() => edit(r.n)}
+                        trailing={
+                          // forest: action
+                          <Text variant="bodyStrong" style={{ color: c.forest, paddingLeft: nativeLayout.space.md }}>
+                            {r.needsReview ? t("Lengkapi", "Complete") : t("Ubah", "Edit")}
+                          </Text>
+                        }
+                      />
+                    </Animated.View>
+                  ))}
+                </ListCard>
+              </View>
+            ) : null,
+          )}
+          <Button variant="secondary" label={t("Tambah pelanggan", "Add a customer")} onPress={addRow} />
           <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={startOver} />
         </>
       )}

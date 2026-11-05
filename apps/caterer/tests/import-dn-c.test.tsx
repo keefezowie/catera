@@ -1,3 +1,4 @@
+import { earliestImportStart, longDay } from "@catera/domain";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -42,21 +43,22 @@ const row = (n: number, extra: Record<string, unknown> = {}) => ({
   city: "Jakarta Selatan",
   notes: "",
   packageId: "p-rumahan",
-  startDate: "2026-10-01",
+  startDate: "2999-01-05",
   remainingDays: 9,
   portions: 1,
   needsReview: false,
   reason: "",
   ...extra,
 });
+const saved = (command: jest.Mock) => command.mock.calls.filter((c) => c[0] === "import.draftSave").map((c) => c[1] as { catererId: string; rows: { name: string }[] });
 const reply = (list: unknown[]) => ({ ok: true, json: async () => ({ data: { rows: list, needsReview: 0 } }) });
 
-async function setup(command: jest.Mock, response: { ok: boolean; status?: number; json: () => Promise<unknown> }) {
+async function setup(command: jest.Mock, response: { ok: boolean; status?: number; json: () => Promise<unknown> }, draft: { rows: unknown[]; updatedAt: string } | null = null) {
   const runtime = createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" });
   runtime.api = {
     ...runtime.api,
     me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
-    sellerImportOptions: jest.fn(async () => ({ customers: [], packages: [{ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, areas: [], meal: "lunch" }] })),
+    sellerImportOptions: jest.fn(async () => ({ customers: [], packages: [{ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, areas: [], meal: "lunch" }], draft })),
     command,
   } as unknown as MobileRuntime["api"];
   global.fetch = jest.fn(async () => response) as unknown as typeof fetch;
@@ -88,15 +90,62 @@ describe("unsaved guard", () => {
     expect(lastGuard()).toMatchObject({ voice: "kamu" });
   });
 
-  it("holds a close while read rows exist, and lets it go once they are all saved", async () => {
-    const command = jest.fn(async (action: string) => (action === "import.preview" ? { id: "pv-1", rows: [] } : { created: 1 }));
+  it("lets a read list go, because the draft holds it, and holds the close when the draft failed", async () => {
+    const command = jest.fn(async () => {
+      throw new Error("OFFLINE");
+    });
     await setup(command, reply([row(1)]));
     await read();
     await screen.findByRole("button", { name: "Simpan 1 pelanggan" });
+    expect(lastGuard()).toBeNull();
+    expect(await screen.findByTestId("import-draft-failed")).toBeTruthy();
     expect(lastGuard()).not.toBeNull();
-    await fireEvent.press(screen.getByRole("button", { name: "Simpan 1 pelanggan" }));
-    await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", expect.anything(), expect.any(String)));
-    await waitFor(() => expect(lastGuard()).toBeNull());
+  });
+});
+
+describe("the draft", () => {
+  const ok = () => jest.fn(async () => ({ saved: 1 }));
+  const draft = (...rows: unknown[]) => ({ rows, updatedAt: "2026-11-04T09:20:00Z" });
+
+  it("saves the list on the server as it changes", async () => {
+    const command = ok();
+    await setup(command, reply([row(1), row(2, { area: "", needsReview: true, reason: "x" })]));
+    await read();
+    await waitFor(() => expect(saved(command).length).toBeGreaterThan(0));
+    expect(saved(command).at(-1)).toMatchObject({ catererId: "k-1", rows: [{ name: "Pelanggan 1" }, { name: "Pelanggan 2" }] });
+  });
+
+  it("waits on the first screen with who is in it, and opens with Lanjutkan, today's checks applied", async () => {
+    const command = ok();
+    await setup(command, reply([]), draft({ ...row(1), n: 7, startDate: "2020-01-01" }));
+    const card = await screen.findByTestId("import-draft");
+    expect(within(card).getByText("Draf: 1 pelanggan")).toBeTruthy();
+    expect(within(card).getByText(/^Pelanggan 1 · diubah/)).toBeTruthy();
+    // Left alone, the waiting draft is not overwritten.
+    await new Promise((done) => setTimeout(done, 700));
+    expect(saved(command)).toHaveLength(0);
+    await fireEvent.press(within(card).getByRole("button", { name: "Lanjutkan" }));
+    expect(await screen.findByText("0 dari 1 pelanggan siap disimpan")).toBeTruthy();
+    expect(screen.getByText(/^Antar berikutnya paling cepat/)).toBeTruthy();
+  });
+
+  it("adds a newly read list to the waiting draft", async () => {
+    await setup(ok(), reply([row(2)]), draft(row(1)));
+    await screen.findByTestId("import-draft");
+    await read();
+    expect(await screen.findByText("Pelanggan 2")).toBeTruthy();
+    expect(screen.getByText("Pelanggan 1")).toBeTruthy();
+    expect(screen.queryByTestId("import-draft")).toBeNull();
+  });
+
+  it("a saved customer leaves the draft, and Mulai lagi empties it", async () => {
+    const command = jest.fn(async (action: string) => (action === "import.preview" ? { id: "pv-1", rows: [] } : { created: 1, saved: 0 }));
+    await setup(command, reply([row(1), row(2, { area: "", needsReview: true, reason: "x" })]));
+    await read();
+    await fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
+    await waitFor(() => expect(saved(command).at(-1)?.rows.map((r) => r.name)).toEqual(["Pelanggan 2"]));
+    await fireEvent.press(screen.getByRole("button", { name: "Mulai lagi" }));
+    await waitFor(() => expect(saved(command).at(-1)?.rows).toEqual([]));
   });
 });
 
@@ -126,14 +175,53 @@ describe("review rows", () => {
   it("the ready count uses tabular figures", async () => {
     await setup(jest.fn(), reply([row(1)]));
     await read();
-    expect(flat(await screen.findByText("1 siap disimpan"))).toMatchObject({ fontVariant: ["tabular-nums"] });
+    expect(flat(await screen.findByText("1 dari 1 pelanggan siap disimpan"))).toMatchObject({ fontVariant: ["tabular-nums"] });
   });
 
-  it("the date field opens the numbers and punctuation keyboard", async () => {
-    await setup(jest.fn(), reply([row(1)]));
+  it("the date is picked from a calendar, and never typed", async () => {
+    await setup(jest.fn(), reply([row(1, { startDate: null, needsReview: true, reason: "x" })]));
+    await read();
+    await fireEvent.press(await screen.findByRole("button", { name: /^Lengkapi Pelanggan 1:/ }));
+    const field = await screen.findByRole("button", { name: "Antar berikutnya, belum dipilih" });
+    expect(screen.getByText("Pilih tanggal antar berikutnya")).toBeTruthy();
+    await fireEvent.press(field);
+    const first = earliestImportStart(new Date());
+    expect(await screen.findByText(/paling cepat/)).toBeTruthy();
+    await fireEvent.press(screen.getByTestId(`calendar-day-${first}`));
+    await fireEvent.press(screen.getByRole("button", { name: /^Pilih / }));
+    expect(await screen.findByRole("button", { name: new RegExp("^Antar berikutnya, " + longDay(first, "id")) })).toBeTruthy();
+  });
+
+  it("says why a row can't be saved, under the field, with the package's limit and a fix", async () => {
+    await setup(jest.fn(), reply([row(1, { remainingDays: 21, needsReview: true, reason: "x" })]));
+    await read();
+    await fireEvent.press(await screen.findByRole("button", { name: /^Lengkapi Pelanggan 1:/ }));
+    expect(await screen.findByText("Kurang 1 lagi")).toBeTruthy();
+    expect(screen.getByText("Melebihi paket Makan Siang Rumahan (20 hari)")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Lengkapi yang kurang" })).toBeTruthy();
+    await fireEvent.press(screen.getByRole("button", { name: "Pakai 20 hari" }));
+    expect(await screen.findByText("Lengkap, siap disimpan")).toBeTruthy();
+    expect(screen.queryByText(/Melebihi paket/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Selesai" })).toBeTruthy();
+  });
+
+  it("goes straight on to the next customer who needs something", async () => {
+    await setup(jest.fn(), reply([row(1), row(2, { area: "", needsReview: true, reason: "x" })]));
     await read();
     await fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 1" }));
-    expect((await screen.findByLabelText("Antar berikutnya (TTTT-BB-HH)")).props.keyboardType).toBe("numbers-and-punctuation");
+    await fireEvent.press(await screen.findByRole("button", { name: "Lanjut ke Pelanggan 2" }));
+    expect(await screen.findByText("Kurang 1 lagi")).toBeTruthy();
+    expect(screen.getByLabelText("Nama").props.value).toBe("Pelanggan 2");
+    expect(screen.getByText("Isi area")).toBeTruthy();
+  });
+
+  it("keeps a row the assistant guessed at until the caterer has looked", async () => {
+    await setup(jest.fn(), reply([row(1, { needsReview: true, reason: "Nama kurang jelas" })]));
+    await read();
+    await fireEvent.press(await screen.findByRole("button", { name: /^Lengkapi Pelanggan 1:/ }));
+    expect(await screen.findByText("Perlu dicek: Nama kurang jelas")).toBeTruthy();
+    await fireEvent.press(screen.getByRole("button", { name: "Sudah benar" }));
+    expect(await screen.findByText("Lengkap, siap disimpan")).toBeTruthy();
   });
 });
 
