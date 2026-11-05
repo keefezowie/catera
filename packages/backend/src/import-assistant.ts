@@ -24,7 +24,7 @@ export type AssistantRow = {
   needsReview: boolean;
   reason: string;
 };
-export type AssistantClient = Pick<Anthropic, "beta">;
+export type AssistantClient = Pick<Anthropic, "messages">;
 
 const str = { type: "string" } as const;
 const rowSchema = {
@@ -104,7 +104,7 @@ export async function extractImportRows(
   options: { client?: AssistantClient; today: string; earliest: string },
 ): Promise<{ rows: AssistantRow[]; needsReview: number }> {
   const client = options.client ?? new Anthropic();
-  const content: Anthropic.Beta.BetaContentBlockParam[] = [
+  const content: Anthropic.ContentBlockParam[] = [
     ...(input.images ?? []).map((i) => ({
       type: "image" as const,
       source: { type: "base64" as const, media_type: i.mediaType as "image/jpeg", data: i.data },
@@ -117,13 +117,11 @@ export async function extractImportRows(
     { type: "text", text: `${instructions(packages, options.today, options.earliest)}\n\n<catatan_katerer>\n${input.text ?? ""}\n</catatan_katerer>` },
   ];
   // Streamed: a long list can take minutes, and the SDK refuses long non-streaming calls.
-  const response = await client.beta.messages.stream({
-    model: "claude-opus-5-5",
+  const response = await client.messages.stream({
+    model: "claude-haiku-5-5",
     max_tokens: 32000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
     thinking: { type: "adaptive" },
-    output_config: { effort: "low", format: { type: "json_schema", schema: outputSchema } },
+    output_config: { effort: "medium", format: { type: "json_schema", schema: outputSchema } },
     messages: [{ role: "user", content }],
   }).finalMessage();
   if (response.stop_reason === "refusal") throw new Error("IMPORT_UNREADABLE");

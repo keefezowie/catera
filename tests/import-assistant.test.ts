@@ -23,7 +23,7 @@ const modelRow = (extra: Record<string, unknown>) => ({
 // Streamed, so a long list never hits the SDK's non-streaming time guard.
 const fake = (response: Record<string, unknown>) => {
   const create = vi.fn((_params: unknown) => ({ finalMessage: async () => response }));
-  return { client: { beta: { messages: { stream: create } } } as unknown as AssistantClient, create };
+  return { client: { messages: { stream: create } } as unknown as AssistantClient, create };
 };
 const answer = (rows: unknown[]) => ({
   stop_reason: "end_turn",
@@ -55,16 +55,16 @@ describe("extractImportRows", () => {
     expect(JSON.stringify((create.mock.calls[0] as unknown[])[0])).toContain("2026-10-08");
   });
 
-  it("asks the model for structured rows with low effort and the server-side fallback", async () => {
+  it("asks Haiku for structured rows at medium effort, without the fallback Haiku rejects", async () => {
     const { client, create } = fake(answer([]));
     await extractImportRows({ text: "kosong", images: [{ mediaType: "image/jpeg", data: "AAAA" }] }, packages, { client, today: "2026-10-07", earliest: "2026-10-08" });
     const params = (create.mock.calls[0] as unknown[])[0] as Record<string, any>;
-    expect(params.model).toBe("claude-opus-5-5");
-    expect(params.output_config.effort).toBe("low");
+    expect(params.model).toBe("claude-haiku-5-5");
+    expect(params.output_config.effort).toBe("medium");
     expect(params.output_config.format.type).toBe("json_schema");
     expect(params.thinking).toEqual({ type: "adaptive" });
-    expect(params.betas).toContain("server-side-fallback-2026-07-01");
-    expect(params.fallbacks).toBe("default");
+    expect(params).not.toHaveProperty("fallbacks");
+    expect(params).not.toHaveProperty("betas");
     expect(JSON.stringify(params.messages)).toContain("p-rumahan");
     expect(params.messages[0].content.some((b: { type: string }) => b.type === "image")).toBe(true);
   });
