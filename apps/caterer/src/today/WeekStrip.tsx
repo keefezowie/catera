@@ -457,7 +457,7 @@ export function WeekStrip({
         }}
         style={{ height: HANDLE_TARGET, minHeight: HANDLE_TARGET, alignItems: "center", justifyContent: "center" }}
       >
-        <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: ink.markerIdle }} />
+        <View style={{ width: 40, height: 5, borderRadius: 3, borderCurve: "continuous", backgroundColor: ink.markerIdle }} />
       </View>
     </View>
   );
