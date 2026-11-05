@@ -96,6 +96,10 @@ export async function POST(request: Request) {
     return Response.json({ data: result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
-    return fail(code in codes ? code : "IMPORT_UNAVAILABLE");
+    if (code in codes) return fail(code);
+    // The caterer only ever sees "unavailable", so the cause is told here. Never the request: it holds customer data.
+    const { name, status, error: body } = error as { name?: string; status?: number; error?: { error?: { type?: string; message?: string } } };
+    console.error("import-assistant failed", { name, status, type: body?.error?.type, message: body?.error?.message ?? code.slice(0, 200) });
+    return fail("IMPORT_UNAVAILABLE");
   }
 }

@@ -135,9 +135,14 @@ describe("import assistant route", () => {
   });
   it("keeps the generic unavailable code for a real outage", async () => {
     state.outage = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const response = await send();
     expect(response.status).toBe(503);
     expect((await response.json()).error.code).toBe("IMPORT_UNAVAILABLE");
+    // The cause reaches the server log; the caterer's notes never do.
+    expect(JSON.stringify(log.mock.calls)).toContain("upstream exploded");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("Andre");
+    log.mockRestore();
   });
   it("allows long lists the time they need", () => {
     expect(maxDuration).toBe(300);
