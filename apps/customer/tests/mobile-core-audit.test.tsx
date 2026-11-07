@@ -83,8 +83,9 @@ const answer = (status: number, body: unknown) => ({
   json: async () => body,
 });
 const offline = () => Promise.reject(new TypeError("Network request failed"));
-const fetchBefore = global.fetch;
-const fetched = () => global.fetch as unknown as jest.Mock;
+// Never restored: a refresh retry can still be waiting when the file ends, and on the real fetch it logs after the tests
+// are done, which fails the run. Jest gives each test file its own globals.
+const fetched =() => global.fetch as unknown as jest.Mock;
 
 /** A runtime with a stand-in API: `me` answers `actor`, commands succeed, and nothing is stored as a session. */
 function stub(actor: unknown = rani, api: Record<string, unknown> = {}): MobileRuntime {
@@ -119,9 +120,6 @@ beforeEach(() => {
 });
 afterEach(async () => {
   for (const runtime of opened.splice(0)) await runtime.supabase?.auth.stopAutoRefresh();
-});
-afterAll(() => {
-  global.fetch = fetchBefore;
 });
 
 describe("A: a session that could not refresh", () => {

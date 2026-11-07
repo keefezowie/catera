@@ -273,6 +273,8 @@ describe("session cookies", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://synthetic.supabase.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "synthetic-key");
+    // CI runs with the demo on, and the proxy skips sessions then.
+    vi.stubEnv("CATERA_V1_DEMO", "");
     state.createServerClient.mockReturnValue(client);
   });
   it("are Secure in production, from the proxy and the server client", async () => {
