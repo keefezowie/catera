@@ -42,6 +42,7 @@ export function HapusAkun() {
         <Button
           variant="text"
           label={t("Baca kebijakan privasi", "Read the privacy policy")}
+          style={{ alignSelf: "flex-start" }}
           onPress={() => void Linking.openURL(`${runtime.apiBase}/syarat-dan-privasi#privasi`)}
         />
         {asked ? (

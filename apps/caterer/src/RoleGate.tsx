@@ -3,15 +3,17 @@ import { Linking, View } from "react-native";
 import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Card, Field, FormError, MascotLoading, MoodHeader, Screen, Text, useBusy } from "@catera/mobile-ui";
-import { settlePending, takeHeldInvite } from "./auth/pending";
+import { BukaDapur, KonfirmasiDapur } from "./auth/BukaDapur";
+import { clearHeldKitchen, readHeldKitchen, settlePending, takeHeldInvite, type PendingKitchen } from "./auth/pending";
 import { tabsForRole } from "./roles";
 
 const codeOf = (e: unknown) => (e as { code?: string }).code || (e as Error).message;
 
 /**
- * Customer accounts belong in the Catera app, unless they hold a helper invite code. The first signed-in session after a
- * confirmed Daftar or Gabung finishes it here (`settlePending`): the kitchen is made or the invite accepted, then the
- * actor is read again and the tabs open on Hari ini. This covers the email link and a later Masuk alike.
+ * An account with no kitchen can register one here, join one with a helper invite code, or go to the Catera app. The
+ * first signed-in session after a confirmed Daftar or Gabung finishes it here (`settlePending`): the kitchen is made or
+ * the invite accepted, then the actor is read again and the tabs open on Hari ini. This covers the email link and a later
+ * Masuk alike. Details typed in Daftar before finding the email already had an account wait here to be confirmed.
  */
 export function RoleGate({ children }: { children: ReactNode }) {
   const { runtime, actor, t, locale, logout, command, refresh } = useMobile();
@@ -23,6 +25,8 @@ export function RoleGate({ children }: { children: ReactNode }) {
   // The account the pending sign-up was last settled for; a gated actor waits on it before the customer screen shows.
   const [settledFor, setSettledFor] = useState("");
   const [setupFailure, setSetupFailure] = useState<{ message: string; key: number } | null>(null);
+  const [held, setHeld] = useState<PendingKitchen | null>(null);
+  const [registering, setRegistering] = useState(false);
   const tried = useRef("");
 
   const settle = async () => {
@@ -33,9 +37,10 @@ export function RoleGate({ children }: { children: ReactNode }) {
       if (await settlePending(runtime, command, actor)) await refresh();
       else if (!tabsForRole(actor.role).length) {
         // A code typed on Gabung before "Masuk dulu".
-        const held = await takeHeldInvite(runtime);
-        if (held) setCode(held);
-      }
+        const heldCode = await takeHeldInvite(runtime);
+        if (heldCode) setCode(heldCode);
+        setHeld(await readHeldKitchen(runtime));
+      } else await clearHeldKitchen(runtime);
     } catch (e) {
       const invite = (e as { invite?: string }).invite;
       if (invite) {
@@ -84,6 +89,13 @@ export function RoleGate({ children }: { children: ReactNode }) {
     }
   });
 
+  /** Back to the gate from registering; what was typed in Daftar is let go. */
+  const leave = () => {
+    setRegistering(false);
+    setHeld(null);
+    void clearHeldKitchen(runtime);
+  };
+
   const keluar = <Button variant="text" label={t("Keluar", "Sign out")} busy={leaving} onPress={() => void signOut()} />;
 
   if (gated && settledFor !== who) return <MascotLoading label={t("Menyiapkan dapurmu…", "Getting your kitchen ready…")} />;
@@ -96,20 +108,19 @@ export function RoleGate({ children }: { children: ReactNode }) {
         </View>
       </Screen>
     );
+  if (gated && registering) return <BukaDapur initial={held} onLeave={leave} />;
+  if (gated && held) return <KonfirmasiDapur kitchen={held} onEdit={() => setRegistering(true)} onLeave={leave} />;
   if (gated)
     return (
-      <Screen header={<MoodHeader testID="rolegate-header" title={t("Buka aplikasi Catera", "Open the Catera app")} />}>
+      <Screen header={<MoodHeader testID="rolegate-header" title={t("Punya usaha katering?", "Run a catering business?")} />}>
         <View style={{ gap: 12 }}>
           <Text>
             {t(
-              "Ini akun pelanggan. Catera Dapur khusus untuk katering dan staf dapurnya.",
-              "This is a customer account. Catera Dapur is for caterers and their kitchen staff.",
+              "Daftarkan dapurmu dengan akun ini. Langgananmu di Catera tetap jalan seperti biasa.",
+              "Register your kitchen with this account. Your Catera subscriptions keep running as usual.",
             )}
           </Text>
-          <Button
-            label={t("Buka Catera", "Open Catera")}
-            onPress={() => void Linking.openURL("catera://")}
-          />
+          <Button label={t("Daftarkan dapurmu", "Register your kitchen")} onPress={() => setRegistering(true)} />
           <Card tone="sage">
             <Text variant="heading">{t("Staf dapur?", "Kitchen staff?")}</Text>
             <Field
@@ -128,6 +139,7 @@ export function RoleGate({ children }: { children: ReactNode }) {
               onPress={() => void join()}
             />
           </Card>
+          <Button variant="text" label={t("Buka aplikasi Catera", "Open the Catera app")} onPress={() => void Linking.openURL("catera://")} />
           {/* Disabled while logout() lets go of this phone's push token (up to 3 s), so a second tap sends nothing. */}
           {keluar}
         </View>

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
-import { useMobile } from "@catera/mobile-core";
+import { isAppleSignInAvailable, redirectFor, useMobile } from "@catera/mobile-core";
 import {
   authFields,
   AuthHeading,
@@ -14,7 +14,9 @@ import {
   Field,
   FormError,
   PasswordField,
+  ProviderButton,
   Text,
+  useColors,
   useFieldCheck,
   useResendTimer,
 } from "@catera/mobile-ui";
@@ -23,10 +25,11 @@ import { useFormRun } from "../useFormRun";
 import { StepFooter } from "./parts";
 import { canRetry, emailCheck, FIELD_CODES, passwordCheck, rateText, serverFallback } from "./checks";
 
-type Waiting = "" | "step" | "owner" | "staff";
+type Waiting = "" | "step" | "owner" | "staff" | "apple" | "google";
 
 /**
- * Masuk with email and password (spec "Dapur app"), with the ways to Daftar and to Gabung pinned above the button.
+ * Masuk with email and password, or Apple and Google as in the customer app, so a customer who signed up that way can
+ * reach their account here (spec "Dapur app"), with the ways to Daftar and to Gabung pinned above the button.
  * Demo roles only in development. A first sign-in after Daftar or Gabung finishes its setup in RoleGate.
  */
 export function Masuk() {
@@ -35,8 +38,19 @@ export function Masuk() {
   useEffect(() => {
     if (actor) goToTab("index");
   }, [actor]);
-  const [email, setEmail] = useState("");
+  const c = useColors();
+  // Daftar's "Masuk dengan email ini" arrives with the address.
+  const { email: prefill } = useLocalSearchParams<{ email?: string }>();
+  const [email, setEmail] = useState(typeof prefill === "string" ? prefill : "");
   const [password, setPassword] = useState("");
+  const [apple, setApple] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void isAppleSignInAvailable().then((ok) => live && setApple(ok), () => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
   // Wrong passwords in a row: the second one offers the way back in.
   const [badLogins, setBadLogins] = useState(0);
   // Which button is waiting, so only it shows the spinner (D-6); the typed values stay on screen.
@@ -96,6 +110,19 @@ export function Masuk() {
   const message = failCode === "AUTH_RATE_LIMITED" ? (limited ? rateText(t, wait) : "") : failure?.message;
   const retry = canRetry(t, failure) && last.current ? () => last.current?.() : undefined;
 
+  /** A provider's own sheet: closing it is no failure, and a session goes on as a password sign-in does. */
+  const provider = (which: "apple" | "google") => {
+    last.current = () => provider(which);
+    void go(which, async () => {
+      try {
+        await signedIn(await (which === "apple" ? runtime.signInWithApple(Crypto.randomUUID()) : runtime.signInWithGoogle(redirectFor("catera-dapur"), Crypto.randomUUID())));
+        goToTab("index");
+      } catch (e) {
+        if ((e as Error).message !== "CANCELLED") throw e;
+      }
+    });
+  };
+
   return (
     <AuthScreen
       revealKey={failure?.key}
@@ -121,7 +148,7 @@ export function Masuk() {
         </StepFooter>
       }
     >
-      <AuthHeading title={t("Masuk", "Sign in")} subtitle={t("Masuk dengan email dan kata sandi dapurmu.", "Sign in with your kitchen's email and password.")} />
+      <AuthHeading title={t("Masuk", "Sign in")} subtitle={t("Masuk dengan email dan kata sandi, atau akun Google dan Apple-mu.", "Sign in with your email and password, or your Google or Apple account.")} />
       <View testID="masuk-fields" style={{ gap: nativeLayout.space.lg }}>
         <Field
           {...authFields.email}
@@ -147,6 +174,17 @@ export function Masuk() {
           hideA11y={t("Sembunyikan kata sandi", "Hide password")}
         />
         <Button variant="text" label={t("Lupa kata sandi?", "Forgot password?")} style={{ alignSelf: "flex-start", marginTop: -8 }} onPress={forgot} />
+      </View>
+      <View testID="masuk-or" style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
+        <Text variant="meta">{t("atau", "or")}</Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
+      </View>
+      <View testID="masuk-providers" style={{ gap: nativeLayout.space.md }}>
+        {apple ? (
+          <ProviderButton provider="apple" label={t("Lanjut dengan Apple", "Continue with Apple")} busy={waiting === "apple"} disabled={limited || (busy && waiting !== "apple")} onPress={() => provider("apple")} />
+        ) : null}
+        <ProviderButton provider="google" label={t("Lanjut dengan Google", "Continue with Google")} busy={waiting === "google"} disabled={limited || (busy && waiting !== "google")} onPress={() => provider("google")} />
       </View>
       {message ? (
         <FormError

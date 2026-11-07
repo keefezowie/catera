@@ -6,7 +6,7 @@ import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { VA_CHANNELS, currency, directChannelKind, errorLabel, paidSummary, paymentMethodInfo, type Checkout, type CustomerState, type DirectPaymentMethod, type VaBank } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, fontFor, FormError, Screen, Text, themedStyles, useBusy, useColors, useToast } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, FormError, Screen, Text, themedStyles, useBusy, useColors, useHaptic, useToast } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FLOW_HREF, goToTab } from "../nav";
 import { firstPaidPlan, PaidActions, PaidBeat } from "./PaidOutcome";
@@ -14,6 +14,8 @@ import { CHECKING, CheckingWait, FINAL, PaymentOutcome, stageOf, type Stage } fr
 import { QrisCode, useQris } from "./QrisCode";
 
 const POLL_MS = 10_000;
+/** How long the copy button says "Disalin" before it offers to copy again. */
+const COPIED_MS = 2_000;
 /** Paid is final: whatever opened this screen (a purchase, a renewal, Payments, a notification), leaving goes home. */
 const home = () => goToTab("index");
 
@@ -84,6 +86,14 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     if (notice) announceNotice(notice);
   }, [notice]);
   const toast = useToast();
+  const haptic = useHaptic();
+  // How many copies so far: each restarts the 2 s the button says "Disalin"; 0 is the resting label.
+  const [copies, setCopies] = useState(0);
+  useEffect(() => {
+    if (!copies) return;
+    const timer = setTimeout(() => setCopies(0), COPIED_MS);
+    return () => clearTimeout(timer);
+  }, [copies]);
   const [method, setMethod] = useState<DirectPaymentMethod | null>(null);
   const qris = useQris();
   const summary = c ? paidSummary(c) : null;
@@ -362,10 +372,17 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
             <Text variant="caption">{instructions.accountName}</Text>
             <Button
               variant="secondary"
-              label={t("Salin nomor", "Copy number")}
+              label={copies ? t("Disalin", "Copied") : t("Salin nomor", "Copy number")}
+              leadingIcon={copies ? "checkmark" : undefined}
+              style={{ minWidth: 168 }}
               onPress={() =>
                 void Clipboard.setStringAsync(instructions.accountNumber).then(
-                  () => toast.show({ message: t("Nomor disalin", "Number copied"), tone: "success", haptic: "select" }),
+                  () => {
+                    // The confirmation is the button itself; nothing pops up on the screen someone is paying from.
+                    setCopies((n) => n + 1);
+                    haptic.select();
+                    AccessibilityInfo.announceForAccessibility(t("Nomor disalin", "Number copied"));
+                  },
                   () => toast.show({ message: t("Belum bisa menyalin nomor. Coba lagi.", "Couldn't copy the number. Try again."), tone: "error" }),
                 )
               }

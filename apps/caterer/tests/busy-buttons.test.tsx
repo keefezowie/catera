@@ -3,7 +3,8 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import { Masuk } from "../src/auth/Masuk";
 import { RoleGate } from "../src/RoleGate";
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: () => ({}), router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
 jest.mock("../src/nav", () => ({ openLink: jest.fn(), goToTab: jest.fn() }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),

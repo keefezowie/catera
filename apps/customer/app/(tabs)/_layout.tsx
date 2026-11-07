@@ -4,7 +4,7 @@ import { useSegments } from "expo-router";
 import { NativeTabs } from "expo-router/native-tabs";
 import { useMobile } from "@catera/mobile-core";
 import { tabBarColors, TabOverlayContext, useColors, useTabLabelStyle, useTabBarNativeProps } from "@catera/mobile-ui";
-import { onTabRoot, PAYMENT_BAR_ROOM, PaymentBarView, usePaymentBar } from "../../src/buy/PaymentBar";
+import { onTabRoot, PAYMENT_BAR_ROOM, PaymentAccessory, PaymentBarContext, PaymentBarView, usePaymentBar, usePaymentVibration, usesTabAccessory } from "../../src/buy/PaymentBar";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
@@ -42,6 +42,8 @@ export default function TabsLayout() {
   const segments = useSegments() as string[];
   const payment = usePaymentBar();
   const shown = onTabRoot(segments) ? payment.bar : null;
+  const accessory = usesTabAccessory();
+  usePaymentVibration(shown, payment.now);
   const titles: Record<CustomerTab, string> = {
     index: t("Beranda", "Home"),
     jadwal: t("Jadwal", "Schedule"),
@@ -50,6 +52,7 @@ export default function TabsLayout() {
   };
   return (
     <TabOverlayContext value={shown ? PAYMENT_BAR_ROOM : 0}>
+      <PaymentBarContext value={shown ? { bar: shown, now: payment.now } : null}>
       <View style={{ flex: 1 }}>
         <NativeTabs
           unstable_nativeProps={nativeProps}
@@ -65,6 +68,11 @@ export default function TabsLayout() {
             selected: { ...label, color: bar.labelColor.selected },
           }}
         >
+          {accessory && shown ? (
+            <NativeTabs.BottomAccessory>
+              <PaymentAccessory />
+            </NativeTabs.BottomAccessory>
+          ) : null}
           {order.map((name) => (
             <NativeTabs.Trigger key={name} name={`(${name})`}>
               <NativeTabs.Trigger.Icon
@@ -77,8 +85,9 @@ export default function TabsLayout() {
             </NativeTabs.Trigger>
           ))}
         </NativeTabs>
-        {shown ? <PaymentBarView bar={shown} now={payment.now} /> : null}
+        {shown && !accessory ? <PaymentBarView bar={shown} now={payment.now} /> : null}
       </View>
+      </PaymentBarContext>
     </TabOverlayContext>
   );
 }

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { AppState, BackHandler, Linking, StyleSheet } from "react-native";
+import { AccessibilityInfo, AppState, BackHandler, Linking, StyleSheet } from "react-native";
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
@@ -1159,6 +1159,7 @@ describe("Bayar", () => {
   });
 
   it("a virtual account number can be copied", async () => {
+    const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     const runtime = server({
       checkout: pendingCheckout(
         {},
@@ -1172,7 +1173,11 @@ describe("Bayar", () => {
     expect(await screen.findByText("8808123456789012")).toBeTruthy();
     await fireEvent.press(screen.getByRole("button", { name: "Salin nomor" }));
     await waitFor(() => expect(Clipboard.setStringAsync).toHaveBeenCalledWith("8808123456789012"));
-    await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ message: "Nomor disalin", tone: "success", haptic: "select" }));
+    // The button says so itself, for 2 seconds, and a screen reader hears it; no toast pops up over the payment.
+    expect(await screen.findByRole("button", { name: "Disalin" })).toBeTruthy();
+    expect(announce).toHaveBeenCalledWith("Nomor disalin");
+    expect(mockToast).not.toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: "Salin nomor" }, { timeout: 3000 })).toBeTruthy();
   });
 
   it("a copy that fails says so in an error toast instead of rejecting unhandled", async () => {

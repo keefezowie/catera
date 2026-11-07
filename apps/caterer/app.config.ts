@@ -16,6 +16,8 @@ const config: ExpoConfig = {
     },
     supportsTablet: true,
     bundleIdentifier: "id.catera.dapur",
+    // Sign in with Apple: a customer who signed up that way reaches the same account here.
+    usesAppleSignIn: true,
   },
   android: {
     package: "id.catera.dapur",
@@ -35,6 +37,8 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-secure-store",
+    "expo-apple-authentication",
+    "expo-web-browser",
     ["expo-notifications", { color: "#163D2E" }],
     ["expo-image-picker", { photosPermission: "Catera Dapur memakai fotomu untuk gambar paket, foto menu, dan menu yang kamu impor.", microphonePermission: false, cameraPermission: "Catera Dapur memakai kamera untuk memotret bukti pengantaran yang sudah sampai." }],
     // One splash in both themes (the system draws it before the app's stored theme is known): the forest of the app icon with

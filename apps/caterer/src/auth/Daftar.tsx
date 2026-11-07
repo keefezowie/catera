@@ -1,29 +1,26 @@
-import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, BackHandler, View, type ViewInstance } from "react-native";
+import { useEffect, useState } from "react";
+import { BackHandler, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router } from "expo-router";
-import { nativeLayout } from "@catera/design-tokens";
-import { areaOptions } from "@catera/domain";
 import { authClient, authError, clearPending, redirectFor, resendLink, savePending, useMobile } from "@catera/mobile-core";
 import {
   authFields,
-  AuthHeading,
   AuthScreen,
   AuthSwitch,
   Button,
   CheckEmail,
   Field,
-  FieldMessage,
   FormError,
   PasswordField,
   PasswordRule,
   StepHeader,
   useFieldCheck,
 } from "@catera/mobile-ui";
-import { e164Indonesia } from "../onboarding";
-import type { PendingKitchen } from "./pending";
-import { AREA_CHIP, AreaChip, StepFooter, StepTitle, Terms, WhatsAppCheck } from "./parts";
-import { areaCheck, emailCheck, nameCheck, newPasswordCheck, registeredText, waCheck } from "./checks";
+import { goToTab } from "../nav";
+import { holdKitchen } from "./pending";
+import { StepFooter, StepTitle, Terms } from "./parts";
+import { emailCheck, kitchenRegisteredText, newPasswordCheck } from "./checks";
+import { useKitchenSteps } from "./kitchenSteps";
 import { useAuthRun } from "./useAuthRun";
 
 const TOTAL = 4;
@@ -35,41 +32,30 @@ export const leaveAuth = () => (router.canGoBack?.() ? router.back() : router.re
  * Daftar, one topic per step (spec "Dapur app"): the business name, the kitchen area, the kitchen's WhatsApp, then the
  * account. Each step is checked on Lanjut; back (the header's, or Android's) goes to the step before. Daftar signs up
  * with the kitchen in the account's metadata; once the email link (or a later Masuk) signs in, `settlePending` makes it.
+ * An email that already has an account (a customer, usually) keeps what was typed and signs in with the password just
+ * given; RoleGate then asks them to confirm the kitchen. A wrong password says so and sends them to Masuk.
  */
 export function Daftar() {
-  const { runtime, t } = useMobile();
+  const { runtime, t, signedIn } = useMobile();
   const [step, setStep] = useState(1);
-  const [name, setName] = useState("");
-  const [area, setArea] = useState("");
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [sent, setSent] = useState(false);
   const [resent, setResent] = useState(false);
-  const slugSuffix = useRef(Crypto.randomUUID().replace(/-/g, "").slice(0, 4));
-  const firstChip = useRef<ViewInstance>(null);
   const run = useAuthRun();
+  const next = () => {
+    const checks = [...steps.checks, four][step - 1];
+    checks.submit(() => (step < TOTAL ? setStep(step + 1) : void signUp()));
+  };
+  const steps = useKitchenSteps({ onSubmit: next });
 
-  const one = useFieldCheck({ name: { value: name, check: nameCheck(t) } });
-  const two = useFieldCheck({ area: { value: area, check: areaCheck(t) } });
-  const three = useFieldCheck({ phone: { value: phone, check: waCheck(t) } });
   const four = useFieldCheck({
     email: { value: email, check: emailCheck(t) },
     // Worded by the PasswordRule line under the field, so its message is not passed to the Field.
     password: { value: password, check: newPasswordCheck },
   });
-  const nameField = one.fieldProps("name");
-  const areaField = two.fieldProps("area");
-  const phoneField = three.fieldProps("phone");
   const emailField = four.fieldProps("email");
   const { error: _ruleOnly, ...passwordField } = four.fieldProps("password");
-  // The area has no text input: focus for it means the first chip.
-  (areaField.inputRef as { current: unknown }).current = {
-    focus: () => {
-      const node = firstChip.current;
-      if (node) AccessibilityInfo.sendAccessibilityEvent(node, "focus");
-    },
-  };
 
   const back = () => (step > 1 ? setStep(step - 1) : leaveAuth());
   useEffect(() => {
@@ -87,7 +73,7 @@ export function Daftar() {
       await savePending(runtime, "signup", "/", address);
       try {
         const client = authClient(runtime);
-        const kitchen: PendingKitchen = { name: name.trim(), area, whatsapp: e164Indonesia(phone) ?? undefined, slugSuffix: slugSuffix.current };
+        const kitchen = steps.kitchen();
         const { data, error } = await client.auth.signUp({
           email: address,
           password,
@@ -99,7 +85,15 @@ export function Daftar() {
           throw new Error("NOT_CONFIGURED");
         }
         // Supabase hides a registered address behind a user with no identities; say so instead of a link that never comes.
-        if (["user_already_exists", "email_exists"].includes(error?.code || "") || data.user?.identities?.length === 0) throw new Error("EMAIL_REGISTERED");
+        if (["user_already_exists", "email_exists"].includes(error?.code || "") || data.user?.identities?.length === 0) {
+          await holdKitchen(runtime, kitchen);
+          const actor = await runtime.signInPassword(address, password, Crypto.randomUUID()).catch(() => null);
+          if (!actor) throw new Error("EMAIL_REGISTERED");
+          await clearPending(runtime);
+          await signedIn(actor);
+          goToTab("index");
+          return;
+        }
         authError(error);
       } catch (e) {
         // No link went out, so a later expired-link screen must not offer to resend to this address.
@@ -117,19 +111,14 @@ export function Daftar() {
       setResent(true);
     });
 
-  const next = () => {
-    const checks = [one, two, three, four][step - 1];
-    checks.submit(() => (step < TOTAL ? setStep(step + 1) : void signUp()));
-  };
-
   const registered = run.code === "EMAIL_REGISTERED";
-  const message = registered ? registeredText(t) : run.message;
+  const message = registered ? kitchenRegisteredText(t) : run.message;
   const failed = message ? (
     <FormError
       message={message}
       failureKey={run.failures}
       retry={run.retryable && !registered ? () => void (sent ? resend() : signUp()) : undefined}
-      action={registered ? { label: t("Masuk dengan email ini", "Sign in with this email"), onPress: () => router.replace("/masuk" as never) } : undefined}
+      action={registered ? { label: t("Masuk dengan email ini", "Sign in with this email"), onPress: () => router.replace({ pathname: "/masuk", params: { email: email.trim() } } as never) } : undefined}
     />
   ) : null;
 
@@ -176,66 +165,7 @@ export function Daftar() {
       }
     >
       <StepHeader step={step} total={TOTAL} onBack={back} />
-      {step === 1 ? (
-        <>
-          <AuthHeading
-            title={t("Apa nama usaha kateringmu?", "What's your catering business called?")}
-            subtitle={t("Nama ini yang dilihat pelanggan di Catera. Bisa diubah nanti.", "Customers see this name on Catera. You can change it later.")}
-          />
-          <Field
-            {...authFields.name}
-            {...nameField}
-            label={t("Nama usaha katering", "Catering business name")}
-            value={name}
-            onChangeText={setName}
-            returnKeyType="next"
-            onSubmitEditing={next}
-          />
-        </>
-      ) : null}
-      {step === 2 ? (
-        <>
-          <StepTitle
-            title={t("Di mana dapurmu?", "Where is your kitchen?")}
-            subtitle={t(`Pelanggan di area ini akan melihat paket ${name.trim()}.`, `Customers in this area will see ${name.trim()}'s packages.`)}
-          />
-          <View style={{ gap: nativeLayout.groupGap }}>
-            {/* 40 chips reach their 48 target by 4 of slop above and below, so the wrapped rows sit 8 apart. */}
-            <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: nativeLayout.groupGap, rowGap: 48 - AREA_CHIP }}>
-              {areaOptions.map((a, i) => (
-                <View key={a} ref={i === 0 ? firstChip : undefined} collapsable={false}>
-                  <AreaChip label={a} selected={area === a} onPress={() => setArea(a)} />
-                </View>
-              ))}
-            </View>
-            {areaField.error ? <FieldMessage text={areaField.error} testID="area-error" /> : null}
-          </View>
-        </>
-      ) : null}
-      {step === 3 ? (
-        <>
-          <StepTitle
-            title={t("Nomor WhatsApp dapur", "Kitchen WhatsApp number")}
-            subtitle={t(
-              "Pelanggan dan kurir menghubungimu lewat nomor ini. Kami tidak mengirim kode ke sini.",
-              "Customers and couriers reach you on this number. We don't send codes to it.",
-            )}
-          />
-          <View style={{ gap: nativeLayout.groupGap }}>
-            <Field
-              {...authFields.phone}
-              {...phoneField}
-              label={t("Nomor WhatsApp", "WhatsApp number")}
-              hint={t("Contoh: 0812 3456 7890", "Example: 0812 3456 7890")}
-              value={phone}
-              onChangeText={setPhone}
-              returnKeyType="go"
-              onSubmitEditing={next}
-            />
-            <WhatsAppCheck phone={phone} ready={!waCheck(t)(phone)} />
-          </View>
-        </>
-      ) : null}
+      {last ? null : steps.body(step)}
       {last ? (
         <>
           <StepTitle

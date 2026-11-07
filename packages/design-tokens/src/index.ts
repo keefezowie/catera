@@ -19,6 +19,13 @@ export const colors = {
   attentionBorder: "#F3DFC3",
   danger: "#A33024",
 } as const;
+/** The payment card's last minutes: one deep green with coral words in both themes (5.45:1), the only place it appears. */
+export const urgentCard = {
+  ground: "#163D2E",
+  ink: "#FF8F80",
+  soft: "#D9E2D6",
+  ripple: "rgba(255, 255, 255, 0.2)",
+} as const;
 export const spacing = {
   xs: 4,
   sm: 8,

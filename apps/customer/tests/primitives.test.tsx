@@ -19,6 +19,7 @@ import {
   StickyAction,
   Text,
   ThemeProvider,
+  TabOverlayContext,
   ToastProvider,
   TopInsetOwner,
   sheetOptions,
@@ -390,20 +391,20 @@ describe("Toast", () => {
     expect(announce.mock.calls).toEqual([["Disimpan"], ["Alamat disimpan"]]);
   });
 
-  it("a toast with an action stays 5 seconds, without one 3 seconds", async () => {
+  it("a toast with an action stays 3 seconds, without one 2.5 seconds", async () => {
     jest.useFakeTimers();
     const timers = trackTimers();
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     await mount("android");
     await act(() => toast.show({ message: "Alamat disimpan" }));
-    await act(() => jest.advanceTimersByTime(2999));
+    await act(() => jest.advanceTimersByTime(2499));
     expect(screen.queryByText("Alamat disimpan")).not.toBeNull();
     await act(() => jest.advanceTimersByTime(1));
     expect(screen.queryByText("Alamat disimpan")).toBeNull();
 
     const onPress = jest.fn();
     await act(() => toast.show({ message: "Laporan terkirim", action: { label: "Lihat", onPress } }));
-    await act(() => jest.advanceTimersByTime(4999));
+    await act(() => jest.advanceTimersByTime(2999));
     expect(screen.queryByText("Laporan terkirim")).not.toBeNull();
     await act(() => jest.advanceTimersByTime(1));
     expect(screen.queryByText("Laporan terkirim")).toBeNull();
@@ -611,6 +612,24 @@ describe("Toast", () => {
     expect(lane()).toMatchObject({ bottom: 34 + 80 + 8 });
   });
 
+  it("on Android inside the tabs the snackbar rises above what floats over the tab bar (the payment card)", async () => {
+    jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    await render(
+      tree(
+        "android",
+        <TabOverlayContext value={76}>
+          <NavigationContext.Provider value={fakeNavigation({ types: ["stack", "tab", "stack"] }).navigation}>
+            <Screen>
+              <Text>Isi</Text>
+            </Screen>
+          </NavigationContext.Provider>
+        </TabOverlayContext>,
+      ),
+    );
+    await act(() => toast.show({ message: "Laporan terkirim" }));
+    expect(lane()).toMatchObject({ bottom: 34 + 80 + 76 + 8 });
+  });
+
   it("with a screen reader on, an action toast speaks its action and stays for the recommended time", async () => {
     jest.useFakeTimers();
     const timers = trackTimers();
@@ -622,15 +641,15 @@ describe("Toast", () => {
     const onPress = jest.fn();
     await act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
     expect(announce).toHaveBeenLastCalledWith("Dihapus dari simpanan, Urungkan");
-    expect(recommended).toHaveBeenCalledWith(5000);
+    expect(recommended).toHaveBeenCalledWith(3000);
     await act(async () => {});
-    // Android: the user's own accessibility timeout, not 5s.
+    // Android: the user's own accessibility timeout, not 3s.
     await act(() => jest.advanceTimersByTime(19999));
     expect(screen.queryByText("Dihapus dari simpanan")).not.toBeNull();
     await act(() => jest.advanceTimersByTime(1));
     expect(screen.queryByText("Dihapus dari simpanan")).toBeNull();
 
-    // A toast without an action keeps its 3s; a timeout that answers after the action toast was replaced sets nothing.
+    // A toast without an action keeps its 2.5s; a timeout that answers after the action toast was replaced sets nothing.
     await act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
     await act(() => toast.show({ message: "Alamat disimpan" }));
     expect(announce).toHaveBeenLastCalledWith("Alamat disimpan");
@@ -648,7 +667,7 @@ describe("Toast", () => {
     expect(screen.queryByText("Dihapus dari simpanan")).toBeNull();
     expect(clear).toHaveBeenCalled();
     await act(() => toast.show({ message: "Alamat disimpan" }));
-    await act(() => jest.advanceTimersByTime(2999));
+    await act(() => jest.advanceTimersByTime(2499));
     expect(screen.queryByText("Alamat disimpan")).not.toBeNull();
   });
 

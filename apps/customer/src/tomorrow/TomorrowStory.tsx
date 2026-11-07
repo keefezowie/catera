@@ -270,11 +270,12 @@ function StoryPage({
             {part.window ? `${meal} · ${part.window}` : meal}
           </Text>
         </View>
-        <Text variant="display" accessibilityRole="header" style={{ color: ink.cream }}>
+        {/* Capped, so a long menu at a large text size never runs up under the close button. */}
+        <Text variant="display" accessibilityRole="header" numberOfLines={4} style={{ color: ink.cream }}>
           {title}
         </Text>
         {part.menuSet ? (
-          <Text style={{ color: ink.cream }}>
+          <Text numberOfLines={3} style={{ color: ink.cream }}>
             {part.sides.length ? `${part.catererName} · ${part.sides.join(", ")}` : part.catererName}
           </Text>
         ) : null}

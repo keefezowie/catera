@@ -43,10 +43,10 @@ describe("RoleGate customer-account state", () => {
   it("opens on a Malam header with the existing heading, and keeps the actions on the page", async () => {
     await wrap(runtimeWith({ id: "u-c", role: "customer" }), <RoleGate>{null}</RoleGate>);
     expect(await screen.findByText("Gabung ke dapur")).toBeTruthy();
-    const header = expectMalam("rolegate-header", "Buka aplikasi Catera");
+    const header = expectMalam("rolegate-header", "Punya usaha katering?");
     expect(within(header).queryByText("Gabung ke dapur")).toBeNull();
-    expect(within(header).queryByRole("button", { name: "Buka Catera" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Buka Catera" })).toBeTruthy();
+    expect(within(header).queryByRole("button", { name: "Daftarkan dapurmu" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Daftarkan dapurmu" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Keluar" })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
   });

@@ -15,7 +15,8 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   default: () => ({ width: 750, height: 1334, scale: 2, fontScale: 1 }),
 }));
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => false }, Link: () => null, useNavigation: () => ({ setOptions: () => undefined }) }));
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: () => ({}), router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => false }, Link: () => null, useNavigation: () => ({ setOptions: () => undefined }) }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -65,7 +66,7 @@ describe("roles", () => {
         <RoleGate>{null}</RoleGate>
       </MobileProvider>,
     );
-    expect(await screen.findByText("Buka aplikasi Catera")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Buka aplikasi Catera" })).toBeTruthy();
   });
 });
 

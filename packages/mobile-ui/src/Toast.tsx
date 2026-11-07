@@ -22,10 +22,10 @@ export type ToastInput = {
 export type ToastApi = { show(input: ToastInput): void; hide(): void };
 
 /** How long a toast stays: long enough to read; one with an action stays long enough to reach it. */
-const SHOW_MS = 3000;
-const SHOW_WITH_ACTION_MS = 5000;
+const SHOW_MS = 2500;
+const SHOW_WITH_ACTION_MS = 3000;
 /**
- * With a screen reader on, reaching the action takes longer than 5s. Android asks the system for the user's own
+ * With a screen reader on, reaching the action takes longer than 3s. Android asks the system for the user's own
  * accessibility timeout (`getRecommendedTimeoutMillis`); iOS has no such setting, so it holds 10s.
  */
 const IOS_SCREEN_READER_ACTION_MS = 10000;
@@ -62,7 +62,7 @@ function mergeAnchors(anchors: ReadonlyMap<object, ToastAnchor>): ToastAnchor {
 
 /**
  * One per app, inside `ThemeProvider` and around the navigator, so every screen can report a routine outcome without
- * a dialog. One toast at a time: a new one replaces the shown one. It closes itself after 3s, or 5s when it carries an
+ * a dialog. One toast at a time: a new one replaces the shown one. It closes itself after 2.5s, or 3s when it carries an
  * action; while a screen reader is on, an action toast stays until its action is used, it is replaced, or the
  * platform's recommended timeout passes. Each `show` is announced once, with its action's name.
  * iOS draws a pill under the focused screen's header, or at the bottom when that screen is a sheet (above the home

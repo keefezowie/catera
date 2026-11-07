@@ -20,6 +20,7 @@ import {
 import { photoUri } from "./Plate";
 import { packageHref } from "../hrefs";
 import { goToTab } from "../nav";
+import { usePullToRefresh } from "../refresh";
 import { OffersSkeleton } from "../skeletons";
 
 /** The read of Beranda's suggested packages, as `useData` returns it. */
@@ -38,8 +39,9 @@ export type HomeCatalog = {
 export function EmptyHome({ lead }: { lead?: ReactNode } = {}) {
   const { runtime } = useMobile();
   const catalog = useData("home:catalog", () => runtime.api.catalog("?limit=3"));
+  const pull = usePullToRefresh(() => catalog.reload());
   return (
-    <Screen header={<EmptyHomeHeader />}>
+    <Screen refreshControl={pull} header={<EmptyHomeHeader />}>
       <EmptyHomeBody lead={lead} catalog={catalog} />
     </Screen>
   );

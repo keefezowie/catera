@@ -562,6 +562,8 @@ export function MenuWeek() {
           <MenuControlsSkeleton owner={canEdit} />
         ) : (
           <>
+            <View>
+            <Text variant="meta">{t("Menu untuk paket", "Menu for package")}</Text>
             {/* The chips are 34 with a 48 target: the scroller's content is a 48 frame so nothing clips the slop, and it
                 bleeds to the screen's edges so the chips scroll under them. */}
             <ScrollView
@@ -575,6 +577,7 @@ export function MenuWeek() {
                 <Chip key={o.id} label={o.name} selected={o.id === offer?.id} onPress={() => setPackageId(o.id)} />
               ))}
             </ScrollView>
+            </View>
             <View testID="menu-actions" style={{ flexDirection: canEdit && stacked ? "column" : "row", gap: 8 }}>
               {canEdit ? (
                 <Button style={canEdit && stacked ? undefined : { flex: 1 }} variant="secondary" busy={busy} disabled={!weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />

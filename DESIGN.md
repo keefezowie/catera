@@ -1495,6 +1495,7 @@ Owner pick of November 1, 2026, after an animation audit against current practic
 
 - `StoryViewer` opens on `nativeMotion.spring` instead of a 680ms timing, so a close during the opening turns around from where it is.
 - The customer Siang / Malam door uses `nativeMotion.toggle` instead of a copy of its values; the payment bar's breath is a 3% swell on two `selection` beats.
+- **Payment bar, last 3 minutes (November 5, 2026).** The floating card turns deep green with coral words in both themes (`urgentCard` in `@catera/design-tokens`, used nowhere else). Every 15 seconds it shakes and plays the `warning` haptic, while the bar shows and the app is open; reduced motion keeps the haptic and drops the shake. iOS 26's glass capsule can't take a colour, so its icon, title and countdown turn the theme's `danger` red (coral on dark glass, a deeper red on light) and only its contents shake. `apps/customer/src/buy/PaymentBar.tsx`.
 - The web's legacy `motion` export and its `--ease` variable are gone: every web transition names `--motion-*` (`--motion-move` added).
 - `tests/native-motion-tokens.test.ts` pins the new column and keeps `move` equal on native and web.
 

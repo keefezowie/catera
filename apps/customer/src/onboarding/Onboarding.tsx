@@ -96,8 +96,8 @@ export function Welcome() {
             justifyContent: "space-between",
           }}
         >
-          <View style={{ height: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: c.forest, justifyContent: "center" }}>
-            <Text style={{ fontFamily: fonts.extrabold, fontSize: 16, lineHeight: 20, color: c.cream }}>Catera</Text>
+          <View style={{ minHeight: 44, paddingHorizontal: 18, borderRadius: 22, borderCurve: "continuous", backgroundColor: c.forest, justifyContent: "center" }}>
+            <Text style={{ fontFamily: fonts.extrabold, fontSize: 15, lineHeight: 20, color: c.cream }}>Catera</Text>
           </View>
           <PressableScale
             testID="mulai-lewati"

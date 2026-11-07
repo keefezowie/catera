@@ -1,9 +1,13 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
+import * as Reanimated from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import { StyleSheet } from "react-native";
+import { AppState } from "react-native";
 import { router } from "expo-router";
 import type { CustomerActionItem } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { customerLink } from "../src/links";
-import { onTabRoot, PaymentBarView, usePaymentBar } from "../src/buy/PaymentBar";
+import { onTabRoot, PaymentBarView, usePaymentBar, usePaymentVibration } from "../src/buy/PaymentBar";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
@@ -12,6 +16,10 @@ jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => undefined),
   deleteItemAsync: jest.fn(async () => undefined),
+}));
+jest.mock("expo-haptics", () => ({
+  notificationAsync: jest.fn(async () => undefined),
+  NotificationFeedbackType: { Warning: "warning" },
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
 
@@ -123,5 +131,76 @@ describe("the payment bar", () => {
     await mount([]);
     await settle();
     expect(screen.queryByTestId("payment-bar")).toBeNull();
+  });
+
+  describe("the last 3 minutes", () => {
+    const bar = (ms: number, status = "pay") =>
+      ({ kind: "one", status, deadline: new Date(NOW.getTime() + ms).toISOString(), packageName: "Makan Siang", href: "/payment/p1" }) as never;
+    const draw = async (ms: number) => {
+      const shake = jest.spyOn(Reanimated, "withSequence");
+      shake.mockClear();
+      await render(
+        <MobileProvider runtime={runtimeWith([])} linkMapper={customerLink}>
+          <PaymentBarView bar={bar(ms)} now={NOW.getTime()} os="android" />
+        </MobileProvider>,
+      );
+      await settle();
+      return shake;
+    };
+
+    it("the card shakes", async () => {
+      expect(await draw(2 * 60_000)).toHaveBeenCalled();
+    });
+
+    it("with time to spare it stays still", async () => {
+      expect(await draw(10 * 60_000)).not.toHaveBeenCalled();
+    });
+
+    it("vibrates once per nudge, every 15 seconds, and never while a payment is being checked or with time to spare", async () => {
+      AppState.currentState = "active";
+      const buzz = Haptics.notificationAsync as jest.Mock;
+      const start = NOW.getTime();
+      const { rerender } = await renderHook(({ b, now }: { b: never | null; now: number }) => usePaymentVibration(b, now), {
+        initialProps: { b: bar(130_000) as never | null, now: start },
+      });
+      expect(buzz).toHaveBeenCalledTimes(1);
+      await rerender({ b: bar(130_000), now: start + 1_000 });
+      expect(buzz).toHaveBeenCalledTimes(1);
+      await rerender({ b: bar(130_000), now: start + 16_000 });
+      expect(buzz).toHaveBeenCalledTimes(2);
+      await rerender({ b: bar(130_000, "checking"), now: start + 31_000 });
+      await rerender({ b: bar(10 * 60_000), now: start + 46_000 });
+      await rerender({ b: null, now: start + 61_000 });
+      expect(buzz).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("by platform", () => {
+    const bar = { kind: "one", status: "pay", deadline: new Date(NOW.getTime() + 10 * 60_000).toISOString(), packageName: "Makan Siang", href: "/payment/p1" } as const;
+    const draw = async (os: string) => {
+      await render(
+        <MobileProvider runtime={runtimeWith([])} linkMapper={customerLink}>
+          <PaymentBarView bar={bar as never} now={NOW.getTime()} os={os} />
+        </MobileProvider>,
+      );
+      await settle();
+      return StyleSheet.flatten(screen.getByTestId("payment-bar-ground").props.style);
+    };
+
+    it("Android is a Material elevated card: a ripple, no border and no chevron", async () => {
+      const ground = await draw("android");
+      expect(ground.borderWidth).toBeUndefined();
+      expect(ground.boxShadow).toContain("0 4px 8px 3px");
+      expect(screen.queryByTestId("payment-bar-chevron")).toBeNull();
+      // Pressable hands android_ripple to its host view under this name.
+      expect(screen.getByTestId("payment-bar-button").props.nativeBackgroundAndroid).toBeTruthy();
+    });
+
+    it("older iOS keeps the border, the soft shadow and the chevron", async () => {
+      const ground = await draw("ios");
+      expect(ground.borderWidth).toBe(1);
+      expect(ground.boxShadow).toContain("0 6px 20px");
+      expect(screen.getByTestId("payment-bar-chevron")).toBeTruthy();
+    });
   });
 });

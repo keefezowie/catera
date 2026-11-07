@@ -34,6 +34,7 @@ import { barTone, cardEdge, cardEdgeWidth, themedStyles, useColors } from "./the
 import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
 import { ScreenHeaderContext, screenInsetBehavior } from "./screenInsets";
 import { insideTabs, useScreenBottomEdge, useTabOverlay, useToastAnchor } from "./toastAnchor";
+import { MoodFill } from "./MoodFill";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
 
@@ -159,6 +160,7 @@ export function Button({
   style,
   spinnerTestID = "button-spinner",
   trailingIcon,
+  leadingIcon,
 }: {
   label: string;
   onPress: () => void;
@@ -182,6 +184,8 @@ export function Button({
   spinnerTestID?: string;
   /** A glyph after the label in its colour (the ↗ of a link that leaves the app); none by default. Not announced. */
   trailingIcon?: keyof typeof Ionicons.glyphMap;
+  /** A glyph before the label in its colour (the ✓ of a copy that just worked); none by default. Not announced. */
+  leadingIcon?: keyof typeof Ionicons.glyphMap;
 }) {
   const danger = variant === "danger";
   // A danger button is filled like the primary one, in the danger ink.
@@ -225,10 +229,15 @@ export function Button({
         style,
       ]}
     >
-      {trailingIcon ? (
+      {trailingIcon || leadingIcon ? (
         <View style={[{ flexDirection: "row", alignItems: "center", gap: 6 }, spinning && { opacity: 0 }]}>
+          {leadingIcon ? (
+            <Ionicons testID="button-leading-icon" name={leadingIcon} size={18} color={labelColor} accessible={false} importantForAccessibility="no" />
+          ) : null}
           <RNText style={[styles.buttonLabel, { color: labelColor, flexShrink: 1 }]}>{label}</RNText>
-          <Ionicons testID="button-trailing-icon" name={trailingIcon} size={16} color={labelColor} accessible={false} importantForAccessibility="no" />
+          {trailingIcon ? (
+            <Ionicons testID="button-trailing-icon" name={trailingIcon} size={16} color={labelColor} accessible={false} importantForAccessibility="no" />
+          ) : null}
         </View>
       ) : (
         <RNText style={[styles.buttonLabel, { color: labelColor }, spinning && { opacity: 0 }]}>{label}</RNText>
@@ -492,6 +501,8 @@ export function Stepper({
 
 /** Where the Android content title ends, in scroll content coordinates, before it is laid out. */
 const NO_LINE = Number.POSITIVE_INFINITY;
+/** How far the header's tone reaches behind a page: more than any pull travels before it springs back. */
+const PULL_BAND = 480;
 
 export function Screen({
   children,
@@ -638,12 +649,14 @@ export function Screen({
       {children}
     </View>
   );
+  const pullBand = ios && scroll && !!header && !plainHeader && !bleed;
   // One set of scroll props for the screen's own ScrollView and for a list that is the scroll root.
   const scrollProps: ScrollViewProps = {
     testID: "screen-scroll",
     contentInsetAdjustmentBehavior: screenInsetBehavior({ header: !!header, bleed }),
     automaticallyAdjustKeyboardInsets: ios,
-    contentContainerStyle: { paddingBottom: 32 + bottomInset + extraBottom + tabOverlay },
+    // Over the band behind the page (below), the page keeps its own ground, so only a pull shows the band.
+    contentContainerStyle: { paddingBottom: 32 + bottomInset + extraBottom + tabOverlay, ...(pullBand ? { flexGrow: 1, backgroundColor: palette.canvas } : null) },
     keyboardShouldPersistTaps: "handled",
     onScroll: handleScroll,
     scrollEventThrottle: handleScroll ? 16 : undefined,
@@ -656,6 +669,13 @@ export function Screen({
       style={styles.screen}
       edges={topOwned || header || underHeader ? ["left", "right"] : ["top", "left", "right"]}
     >
+      {/* iOS bounces the header down with the page while the status band stays put: the header's tone behind the scroll
+          view fills that gap, and the refresh spinner still shows on it (a fill inside the page would cover the spinner). */}
+      {pullBand ? (
+        <View testID="screen-pull-band" pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", top: 0, left: 0, right: 0, height: PULL_BAND }}>
+          <MoodFill surface="header" testID="screen-pull-fill" />
+        </View>
+      ) : null}
       <KeyboardAvoidingView
         style={styles.keyboard}
         enabled={ios && !!footer}

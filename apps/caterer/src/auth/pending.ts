@@ -24,24 +24,8 @@ export async function settlePending(runtime: MobileRuntime, command: Command, ac
   const kitchen = meta.pendingKitchen;
   const invite = meta.pendingInvite;
   if (!kitchen && !invite) return false;
-  // The account as the server has it now: a retry after a create that went through (but answered with an error, or
-  // whose re-read failed) must not create again.
-  const hasKitchen = async (fallback: Actor) => {
-    const now = await runtime.api.me().then((r) => r.actor, () => fallback);
-    return !!now && tabsForRole(now.role).length > 0;
-  };
-  if (!(await hasKitchen(actor))) {
-    if (kitchen)
-      await command("seller.create", {
-        name: kitchen.name,
-        slug: catererSlug(kitchen.name, kitchen.slugSuffix),
-        description: "",
-        areas: [kitchen.area],
-        ...(kitchen.whatsapp ? { whatsapp: kitchen.whatsapp } : {}),
-      }).catch(async (e: unknown) => {
-        // The same slug again is the earlier create having gone through: done when the account now has its kitchen.
-        if (!(await hasKitchen({ ...actor, role: "customer" }))) throw e;
-      });
+  if (!(await hasKitchen(runtime, actor))) {
+    if (kitchen) await createKitchen(runtime, command, actor, kitchen);
     else if (invite)
       await command("invite.accept", { code: invite }).catch(async (e: unknown) => {
         // A code that is not (or no longer) valid is dropped, so the gate's own code field takes over with it filled in.
@@ -55,6 +39,46 @@ export async function settlePending(runtime: MobileRuntime, command: Command, ac
   await clearPendingSetup(runtime);
   return true;
 }
+
+/**
+ * The account as the server has it now: a retry after a create that went through (but answered with an error, or whose
+ * re-read failed) must not create again.
+ */
+const hasKitchen = async (runtime: MobileRuntime, fallback: Actor) => {
+  const now = await runtime.api.me().then((r) => r.actor, () => fallback);
+  return !!now && tabsForRole(now.role).length > 0;
+};
+
+/** Makes the kitchen on this account (seller.create), unless it already has one. */
+export async function createKitchen(runtime: MobileRuntime, command: Command, actor: Actor, kitchen: PendingKitchen) {
+  await command("seller.create", {
+    name: kitchen.name,
+    slug: catererSlug(kitchen.name, kitchen.slugSuffix),
+    description: "",
+    areas: [kitchen.area],
+    ...(kitchen.whatsapp ? { whatsapp: kitchen.whatsapp } : {}),
+  }).catch(async (e: unknown) => {
+    // The same slug again is the earlier create having gone through: done when the account now has its kitchen.
+    if (!(await hasKitchen(runtime, { ...actor, role: "customer" }))) throw e;
+  });
+}
+
+/**
+ * What Daftar's steps collected when the email already had an account, kept on this phone so the first three steps need
+ * no retyping after signing in. RoleGate reads it; only the press on "Buka dapur" makes a kitchen.
+ */
+const heldKitchenKey = (runtime: MobileRuntime) => runtime.storageKey("auth.kitchen");
+export const holdKitchen = (runtime: MobileRuntime, kitchen: PendingKitchen) =>
+  SecureStore.setItemAsync(heldKitchenKey(runtime), JSON.stringify(kitchen)).catch(() => undefined);
+export async function readHeldKitchen(runtime: MobileRuntime): Promise<PendingKitchen | null> {
+  const held = await SecureStore.getItemAsync(heldKitchenKey(runtime)).catch(() => null);
+  try {
+    return held ? (JSON.parse(held) as PendingKitchen) : null;
+  } catch {
+    return null;
+  }
+}
+export const clearHeldKitchen = (runtime: MobileRuntime) => SecureStore.deleteItemAsync(heldKitchenKey(runtime)).catch(() => undefined);
 
 /** Drops both sign-up intents from the account's metadata. */
 export async function clearPendingSetup(runtime: MobileRuntime) {

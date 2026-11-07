@@ -45,6 +45,13 @@ export const registeredText = (t: T) =>
     "This email is already registered. Sign in, or use Forgot password if you don't remember it.",
   );
 
+/** Daftar, after the password it was given did not open the account that email already has. */
+export const kitchenRegisteredText = (t: T) =>
+  t(
+    "Email ini sudah punya akun, tapi kata sandinya belum cocok. Data dapurmu kami bawa setelah kamu masuk.",
+    "This email already has an account, but the password doesn't match. We'll keep your kitchen details for after you sign in.",
+  );
+
 export const rateText = (t: T, time: string) => t(`Terlalu banyak percobaan. Coba lagi dalam ${time}.`, `Too many tries. Try again in ${time}.`);
 
 /** Spec 7: "Coba lagi" for a connection or server failure (the server fallback included), never for a field or the rate limit. */

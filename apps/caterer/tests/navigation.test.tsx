@@ -440,7 +440,10 @@ describe("links from the system", () => {
   });
 
   it("is what +native-intent hands the router, which applies it to a cold link", async () => {
-    expect(require("../app/+native-intent").redirectSystemPath).toBe(redirectSystemPath);
+    const intent = require("../app/+native-intent").redirectSystemPath;
+    expect(intent({ path: "/menu", initial: true })).toBe(redirectSystemPath({ path: "/menu", initial: true }));
+    // With no Google sign-in in progress, an email link's callback still routes.
+    expect(intent({ path: "catera-dapur://auth/callback?code=x", initial: false })).not.toBeNull();
     const nav = require("../src/nav");
     const spy = jest.spyOn(nav, "redirectSystemPath");
     try {

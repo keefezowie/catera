@@ -20,7 +20,7 @@ port = 54324
 [auth]
 enabled = true
 site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://127.0.0.1:3000", "http://localhost:3000/auth/confirm", "http://127.0.0.1:3000/auth/confirm", "catera://auth/callback"]
+additional_redirect_urls = ["http://127.0.0.1:3000", "http://localhost:3000/auth/confirm", "http://127.0.0.1:3000/auth/confirm", "catera://auth/callback", "catera-dapur://auth/callback"]
 jwt_expiry = 3600
 minimum_password_length = 10
 enable_signup = true

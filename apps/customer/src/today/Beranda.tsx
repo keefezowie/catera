@@ -279,7 +279,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
     if (catalogMissing) void catalog.reload();
   }, [catalogMissing, catalog.reload]);
   // Pulling down reads Beranda and its menu choices again; the page stays as it is until the answers land.
-  const pull = usePullToRefresh(() => Promise.all([home.reload(), actions.reload()]));
+  const pull = usePullToRefresh(() => Promise.all([home.reload(), actions.reload(), ...(empty ? [catalog.reload()] : [])]));
   // A kept copy is on screen and the fresh read is out: "· Memperbarui…" follows the date in the meta row (see
   // HomeMeta). TalkBack reads it once through its live region; iOS has no live region, so VoiceOver hears it once,
   // announced when the refresh starts.
@@ -317,7 +317,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const recap = day.recaps.length ? <RecapCardM candidates={day.recaps} onShownChange={setRecapShown} /> : null;
   if (empty)
     return (
-      <Screen header={<EmptyHomeHeader />}>
+      <Screen refreshControl={pull} header={<EmptyHomeHeader />}>
         <FadeSwap swapKey="empty" style={{ gap: 16 }}>
           <EmptyHomeBody lead={recap} leadShown={recapShown} catalog={catalog} />
         </FadeSwap>
