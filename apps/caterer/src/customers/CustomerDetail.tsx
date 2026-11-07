@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Linking, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { nativeLayout } from "@catera/design-tokens";
@@ -17,14 +17,16 @@ import {
   Text,
   useBusy,
   useColors,
+  useToast,
 } from "@catera/mobile-ui";
 import { useActionPairStacked } from "../layout/useActionPairStacked";
 import { activeSubscriptions, customerStatus, renewalAction } from "./rules";
-import { usePaymentsActive } from "./usePayments";
+import { usePayments } from "./usePayments";
 import { loadCustomer } from "./load";
 import { ReadError } from "../ReadError";
 import { DetailSkeleton } from "../skeletons";
 import { pushScreen } from "../nav";
+import { usePullToRefresh } from "../refresh";
 
 /** A schedule shows this many deliveries before "Lihat semua". */
 const SCHEDULE_CAP = 5;
@@ -43,7 +45,22 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const palette = useColors();
   const catererId = actor?.catererId ?? "";
   const record = useData(`customer:${catererId}:${id}`, () => loadCustomer(runtime, catererId, id));
-  const payments = usePaymentsActive();
+  const paymentsRead = usePayments();
+  const payments = paymentsRead.data;
+  const toast = useToast();
+  const pulled = useRef(false);
+  const pull = usePullToRefresh(() => {
+    pulled.current = true;
+    return Promise.all([record.reload(), paymentsRead.reload()]);
+  });
+  const reading = record.loading || paymentsRead.loading;
+  const staleNow = record.stale || paymentsRead.stale;
+  // A pull that ended with the old data still on screen says so; a background reload that fails stays quiet.
+  useEffect(() => {
+    if (reading || !pulled.current) return;
+    pulled.current = false;
+    if (staleNow) toast.show({ message: t("Belum bisa memperbarui. Tarik lagi untuk mencoba.", "Couldn't refresh. Pull again to try."), tone: "error" });
+  }, [reading, staleNow, toast, t]);
   const [failure, setFailure] = useState<{ message: string; key: number; subscription: string } | null>(null);
   // Which package's button is waiting; the hook drops a second press while one runs.
   const [which, setWhich] = useState("");
@@ -53,8 +70,9 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const stacked = useActionPairStacked();
   const c = record.data;
   const [busy, renew] = useBusy(async (s: CustomerSubscription) => {
-    if (!c) return;
-    if (payments !== true) {
+    // Null is a read still running or one that failed: neither says payments are off.
+    if (!c || payments === null) return;
+    if (payments === false) {
       pushScreen("/aktifkan");
       return;
     }
@@ -120,7 +138,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
     d.status === "delivered" ? t("Sampai", "Arrived") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled");
 
   return (
-    <Screen nativeTitle={c.name}>
+    <Screen nativeTitle={c.name} refreshControl={pull}>
       <FadeSwap swapKey="loaded" style={{ gap: 16 }}>
         <Text variant="meta">{`${status} · ${origin}`}</Text>
         {shown.map((s, index) => {
@@ -154,7 +172,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
                       <Button
                         label={t("Kirim tautan perpanjang", "Send renewal link")}
                         busy={busy && which === s.id}
-                        disabled={busy && which !== s.id}
+                        disabled={payments === null || (busy && which !== s.id)}
                         onPress={() => void renew(s)}
                         style={stacked ? undefined : GROW}
                       />
@@ -167,6 +185,16 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
                         "This customer has no Catera account yet. The link in the message takes them to create one, then pay for the renewal.",
                       )}
                     </Text>
+                  ) : null}
+                  {/* Why the button waits. The action is the customer's, so once is enough however many packages show. */}
+                  {renewable && index === 0 && payments === null && paymentsRead.error ? (
+                    <ReadError
+                      message={t(
+                        "Status pembayaran belum bisa dicek, jadi tautan perpanjang belum bisa dikirim.",
+                        "Couldn't check your payment status, so the renewal link can't be sent yet.",
+                      )}
+                      onRetry={() => void paymentsRead.reload()}
+                    />
                   ) : null}
                   {renewable && failure?.subscription === s.id ? (
                     <FormError message={failure.message} failureKey={failure.key} retry={() => void renew(s)} />

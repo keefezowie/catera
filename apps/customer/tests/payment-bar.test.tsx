@@ -46,9 +46,11 @@ function runtimeWith(items: CustomerActionItem[]): MobileRuntime {
   return runtime;
 }
 
+let hookRenders = 0;
 function Harness() {
-  const { bar, now } = usePaymentBar();
-  return bar ? <PaymentBarView bar={bar} now={now} /> : null;
+  hookRenders++;
+  const { bar } = usePaymentBar();
+  return bar ? <PaymentBarView bar={bar} /> : null;
 }
 
 const mount = async (items: CustomerActionItem[]) =>
@@ -100,6 +102,22 @@ describe("the payment bar", () => {
     expect(screen.queryByTestId("payment-bar")).toBeNull();
   });
 
+  it("the countdown ticks in the bar, without re-rendering what holds it", async () => {
+    await mount([pay("ck-1", "awaiting_payment", 600_000)]);
+    await settle();
+    const before = hookRenders;
+    await act(() => void jest.advanceTimersByTime(5_000));
+    expect(screen.getByTestId("payment-bar-button").props.accessibilityLabel).toContain("sisa 09:55");
+    expect(hookRenders).toBe(before);
+  });
+
+  it("caps both lines' font scale, so large text can't clip in the card", async () => {
+    await mount([pay("ck-1", "awaiting_payment", 600_000)]);
+    await settle();
+    expect(screen.getByText("Selesaikan pembayaran").props.maxFontSizeMultiplier).toBe(1.5);
+    expect(screen.getByText("Makan Siang Rumahan").props.maxFontSizeMultiplier).toBe(1.5);
+  });
+
   it("no method yet asks to continue", async () => {
     await mount([pay("ck-1", "choose_method", 600_000)]);
     await settle();
@@ -141,7 +159,7 @@ describe("the payment bar", () => {
       shake.mockClear();
       await render(
         <MobileProvider runtime={runtimeWith([])} linkMapper={customerLink}>
-          <PaymentBarView bar={bar(ms)} now={NOW.getTime()} os="android" />
+          <PaymentBarView bar={bar(ms)} os="android" />
         </MobileProvider>,
       );
       await settle();
@@ -180,7 +198,7 @@ describe("the payment bar", () => {
     const draw = async (os: string) => {
       await render(
         <MobileProvider runtime={runtimeWith([])} linkMapper={customerLink}>
-          <PaymentBarView bar={bar as never} now={NOW.getTime()} os={os} />
+          <PaymentBarView bar={bar as never} os={os} />
         </MobileProvider>,
       );
       await settle();

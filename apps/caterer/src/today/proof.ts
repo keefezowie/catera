@@ -5,6 +5,8 @@ import type { MobileRuntime } from "@catera/mobile-core";
 
 /** A camera photo is shrunk to this long edge before it is sent, like the import photos: a proof needs a face, not a poster. */
 const LONG_EDGE = 1600;
+/** A stalled connection gives up here and counts as a photo that did not send, so the spinner always ends. */
+const UPLOAD_TIMEOUT_MS = 30_000;
 
 /** The photo as it will be sent: the long edge cut to 1600 px and saved as a JPEG. The picked file stays on the phone. */
 export async function shrinkProof(photo: { uri: string; width: number; height: number }): Promise<{ uri: string }> {
@@ -32,17 +34,24 @@ export async function uploadProof(
   form.append("file", new File(uri) as unknown as Blob);
   form.append("deliveryId", deliveryId);
   form.append("meal", meal);
-  const response = await fetch(`${runtime.apiBase}/api/uploads/proof`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    // Bearer only, like every Catera API call from the phone: no cookie is sent or kept.
-    credentials: "omit",
-    body: form,
-  });
-  const body = (await response.json().catch(() => ({}))) as { data?: { path?: string }; error?: { code?: string } };
-  if (!response.ok || !body.data?.path) {
-    const code = body.error?.code || "UPLOAD_UNAVAILABLE";
-    throw Object.assign(new Error(code), { code });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${runtime.apiBase}/api/uploads/proof`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      // Bearer only, like every Catera API call from the phone: no cookie is sent or kept.
+      credentials: "omit",
+      body: form,
+      signal: controller.signal,
+    });
+    const body = (await response.json().catch(() => ({}))) as { data?: { path?: string }; error?: { code?: string } };
+    if (!response.ok || !body.data?.path) {
+      const code = body.error?.code || "UPLOAD_UNAVAILABLE";
+      throw Object.assign(new Error(code), { code });
+    }
+    return body.data.path;
+  } finally {
+    clearTimeout(timer);
   }
-  return body.data.path;
 }

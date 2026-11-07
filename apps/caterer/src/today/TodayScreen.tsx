@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { RefreshControl, useWindowDimensions, View } from "react-native";
 import {
   errorLabel,
@@ -63,7 +63,8 @@ async function loadDay(runtime: MobileRuntime, actorId: string, catererId: strin
   const session = cacheSession();
   try {
     const data = await runtime.api.sellerOperations(catererId, date);
-    await saveCachedDay(actorId, catererId, date, { savedAt: new Date().toISOString(), data }, session);
+    // Not awaited: the kitchen's day does not wait for the disk.
+    void saveCachedDay(actorId, catererId, date, { savedAt: new Date().toISOString(), data }, session).catch(() => undefined);
     return { data, savedAt: null };
   } catch (error) {
     const cached = await keptDay(actorId, catererId, date);
@@ -435,11 +436,16 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // The calendar's counts: orders per day for the mood's meal over the days it shows (the selected week, or the open month's
   // grid). Its own read: a failure leaves the calendar without counts and nothing else (the day itself is read separately).
   const [range, setRange] = useState(() => ({ from: weekOf(date)[0], to: weekOf(date)[6] }));
+  // A range already read is kept while it covers what is shown (closing the month keeps its counts).
+  const onRange = useCallback((r: { from: string; to: string }) => setRange((was) => (covers(was, r) ? was : r)), []);
   const meal0 = mood === "siang" ? "lunch" : "dinner";
   const calendar = useData(`cal:${catererId}:${range.from}:${range.to}:${meal0}`, () =>
     runtime.api.sellerCalendar(catererId, { ...range, meal: meal0, status: "active" }),
   );
-  const counts = calendar.data ? Object.fromEntries(calendar.data.days.map((d) => [d.date, d.orders])) : null;
+  const counts = useMemo(
+    () => (calendar.data ? Object.fromEntries(calendar.data.days.map((d) => [d.date, d.orders])) : null),
+    [calendar.data],
+  );
   const attention = useData(`attention:${catererId}`, () =>
     runtime.api.sellerAttention(catererId, { scope: "future" }),
   );
@@ -467,8 +473,11 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // The session is worked out once here: the count card, the checklist, the order and the footer all read it, so they
   // agree on which rows count (a stop marked "Gagal diantar" or a cancelled one is in none of them).
   const now = new Date();
-  const session = ops ? kitchenSession(ops, meal, now) : null;
-  const otherSession = ops ? kitchenSession(ops, other, now) : null;
+  // The clock only tells a session whether `ops` is today's, so a new Jakarta day is the one way time changes the answer.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const session = useMemo(() => (ops ? kitchenSession(ops, meal, now) : null), [ops, meal, todayDate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const otherSession = useMemo(() => (ops ? kitchenSession(ops, other, now) : null), [ops, other, todayDate]);
   // A meal with no session can still have rows: the ones marked "Gagal diantar". Saying "no deliveries" then would be false.
   const failedCount =
     ops && !session
@@ -604,8 +613,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             onSelect={setPicked}
             counts={counts}
             countsRange={range}
-            // A range already read is kept while it covers what is shown (closing the month keeps its counts).
-            onRange={(r) => setRange((was) => (covers(was, r) ? was : r))}
+            onRange={onRange}
           />
           {/* The figures enter from their skeleton as one block, in the same place on the header. They are keyed by
               day and meal, so the mood toggle and a day picked on the week strip mount the other session's batch

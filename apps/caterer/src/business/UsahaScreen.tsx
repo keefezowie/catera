@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { currency } from "@catera/domain";
@@ -77,15 +77,16 @@ export function UsahaScreen() {
   const catererId = actor?.catererId ?? "";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const payments = usePaymentsActive();
-  const pull = usePullToRefresh(ops.reload);
+  const [pulls, setPulls] = useState(0);
+  const pull = usePullToRefresh(() => ops.reload().finally(() => setPulls((n) => n + 1)));
   const actions = useActionSheet();
   const toast = useToast();
-  // A read that fails while the packages are on screen leaves them there; say so once instead of staying silent.
+  // A pull that ended with the old packages still on screen says so; a background reload that fails stays quiet.
   useEffect(() => {
-    if (ops.error && ops.data)
+    if (pulls && ops.stale)
       toast.show({ message: t("Belum bisa memperbarui. Tarik lagi untuk mencoba.", "Couldn't refresh. Pull again to try."), tone: "error" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ops.error]);
+  }, [pulls]);
   const offers = (ops.data?.offers ?? []).filter((o) => o.status !== "retired");
   /** "…" on a package: look at it, or copy it into a new package (a live package's terms cannot change). */
   async function packageActions(o: (typeof offers)[number], detail: string, image: string | undefined) {

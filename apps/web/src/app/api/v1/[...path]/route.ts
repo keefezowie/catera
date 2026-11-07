@@ -104,6 +104,10 @@ const immediatePush = new Set([
   "deliveryIssue.respond",
   "deliveryIssue.resolve",
 ]);
+// Commands that write what v1.offer returns: packages and their menus, dishes and capacity, the caterer row, review
+// ratings, the multi-cycle flag. Everything else leaves the shared catalog cache to its 30 s expiry.
+const catalogCommand =
+  /^(package|packageOption|menu|dish|category|capacity|seller|review|admin)\.|^settlement\.features$/;
 type Context = { params: Promise<{ path: string[] }> };
 async function setWorkspaceCookie(value: ReturnType<typeof defaultWorkspace>) {
   (await cookies()).set(workspaceCookieName, value, {
@@ -175,8 +179,26 @@ function failure(e: unknown) {
       ? "INVALID_INPUT"
       : codes.find((c) => msg.includes(c)) || "REQUEST_FAILED";
   const requestId = crypto.randomUUID();
+  const { code: dbCode, hint } = (e ?? {}) as { code?: unknown; hint?: unknown };
+  // A refusal raised in SQL (P0001), a malformed value (class 22), a value a constraint refused (class 23) or a payment
+  // choice the provider layer refuses is the caller's; the rest is ours.
+  const serverFault =
+    code === "REQUEST_FAILED" &&
+    !(e instanceof SyntaxError) &&
+    dbCode !== "P0001" &&
+    !(typeof dbCode === "string" && /^2[23]/.test(dbCode)) &&
+    !["DIRECT_PAYMENT_REQUIRED", "DOKU_CHANNEL_NOT_SUPPORTED", "PAYOUT_CHANNEL_LIMIT"].some((c) => msg.includes(c));
+  // Never the message or details of a database error: they can quote row values.
   console.warn(
-    JSON.stringify({ event: "catera.v1.rejected", code, requestId }),
+    JSON.stringify({
+      event: "catera.v1.rejected",
+      code,
+      requestId,
+      dbCode,
+      hint,
+      constraint: /constraint "([^"]+)"/.exec(msg)?.[1],
+      reason: /^[A-Z][A-Z0-9_]*$/.test(msg) ? msg : (e as Error | null)?.name,
+    }),
   );
   return Response.json(
     { error: { code, requestId } },
@@ -192,7 +214,9 @@ function failure(e: unknown) {
                 ? 404
                 : code === "NOT_CONFIGURED"
                   ? 503
-                  : 400,
+                  : serverFault
+                    ? 500
+                    : 400,
     },
   );
 }
@@ -384,6 +408,13 @@ export async function GET(request: Request, context: Context) {
           : null,
       });
     }
+    // Public read: a reviewer's name shows, their account and subscription ids stay here.
+    if (resource === "reviews")
+      return ok(
+        ((await read()) as Record<string, unknown>[]).map(
+          ({ user_id: _user, subscription_id: _subscription, ...review }) => review,
+        ),
+      );
     return ok(
       resource === "seller-settlement" || resource === "settlement-controls"
         ? await readSettlementResource(s.actor, resource, params.id, read)
@@ -751,11 +782,12 @@ export async function POST(request: Request, context: Context) {
           }
         });
       }
-      // A committed command may change what the public catalog shows; its next read is fresh, never stale. The
+      // A committed command that changes what the public catalog shows makes its next read fresh, never stale. The
       // command has committed, so a cache that can't be cleared (it expires within 30 s) never fails it.
-      try {
-        revalidateTag(catalogTag, { expire: 0 });
-      } catch {}
+      if (catalogCommand.test(command.action))
+        try {
+          revalidateTag(catalogTag, { expire: 0 });
+        } catch {}
       return ok(result);
     }
     throw new Error("NOT_FOUND");

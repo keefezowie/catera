@@ -42,6 +42,18 @@ it("never completes or retries a push row that an older database hands to the ge
   expect(actions).not.toContain("outbox.retry");
 });
 
+it("logs a count, and nothing else, when provider events are stuck", async () => {
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  const ready = { "outbox.claim": [], "outbox.claimPush": [], "push.receipts": [] };
+  system({ ...ready, health: { providerInboxStuck: 0 } });
+  await GET(request());
+  expect(error).not.toHaveBeenCalled();
+  system({ ...ready, health: { providerInboxStuck: 3 } });
+  const response = await GET(request());
+  expect(error.mock.calls).toEqual([[JSON.stringify({ event: "catera.jobs.provider_inbox_stuck", count: 3 })]]);
+  expect(await response.json()).toMatchObject({ health: { providerInboxStuck: 3 } });
+});
+
 it("still returns the health payload when push dispatch fails", async () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   system({

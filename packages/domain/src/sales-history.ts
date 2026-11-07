@@ -11,7 +11,6 @@ export function salesHistory(rows: Transaction[]): Sale[] {
           row.user_id,
           row.package_id || row.quote.packageId,
           row.address_id,
-          row.quote.address,
           row.quote.portions,
           row.quote.dates,
           row.quote.trial,

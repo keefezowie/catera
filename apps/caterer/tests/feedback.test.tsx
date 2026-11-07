@@ -22,6 +22,8 @@ jest.mock("expo-router", () => ({
   useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
 }));
 jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), goToTab: jest.fn() }));
+// "Terbitkan paket" asks first; these tests are about what follows a yes.
+jest.mock("@catera/mobile-ui", () => ({ ...jest.requireActual("@catera/mobile-ui"), useConfirm: () => async () => true }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
 jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
 jest.mock("expo-image-manipulator", () => ({ ImageManipulator: { manipulate: jest.fn() }, SaveFormat: { JPEG: "jpeg" } }));

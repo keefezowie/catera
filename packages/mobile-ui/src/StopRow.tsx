@@ -54,6 +54,7 @@ export function StopRow({
   packageName,
   note,
   status,
+  mapNote,
   testID = "stop-row",
 }: {
   n: number;
@@ -68,6 +69,8 @@ export function StopRow({
   note?: string;
   /** Dapur geometry only: where the stop's meal is, a pill after the note. An arrived stop's number goes muted. */
   status?: StopStatus;
+  /** Dapur geometry only: a caution about the map link, such as a stop with no pin. */
+  mapNote?: string;
   onMap: () => void;
   mapLabel: string;
   onMore?: () => void;
@@ -87,6 +90,7 @@ export function StopRow({
         packageName={packageName}
         note={note}
         status={status}
+        mapNote={mapNote}
         onMap={onMap}
         mapLabel={mapLabel}
         onMore={onMore}
@@ -225,6 +229,7 @@ function StopRowV2({
   packageName,
   note,
   status,
+  mapNote,
   onMap,
   mapLabel,
   onMore,
@@ -240,6 +245,7 @@ function StopRowV2({
   packageName?: string;
   note?: string;
   status?: StopStatus;
+  mapNote?: string;
   onMap: () => void;
   mapLabel: string;
   onMore?: () => void;
@@ -267,7 +273,8 @@ function StopRowV2({
   // gets cut. Callers that pass neither get the name alone over `detail · address`.
   const split = portions !== undefined || packageName !== undefined;
   const meta = (packageName !== undefined ? [packageName, address] : split ? [address] : [detail, address]).filter(Boolean).join(" · ");
-  const spoken = `${n}. ${name}, ${detail}, ${address}` + (note ? `, ${note}` : "") + (status ? `, ${status.label}` : "");
+  const spoken =
+    `${n}. ${name}, ${detail}, ${address}` + (note ? `, ${note}` : "") + (status ? `, ${status.label}` : "") + (mapNote ? `, ${mapNote}` : "");
   const text = (
     <View style={{ flex: 1, minWidth: 0 }}>
       <Text testID={`${testID}-title`} variant="rowTitle" numberOfLines={titleLines}>
@@ -280,6 +287,11 @@ function StopRowV2({
       {note ? (
         <Text testID={`${testID}-delivery-note`} variant="meta" numberOfLines={lines} style={{ color: c.charcoal }}>
           {note}
+        </Text>
+      ) : null}
+      {mapNote ? (
+        <Text testID={`${testID}-map-note`} variant="meta" numberOfLines={lines}>
+          {mapNote}
         </Text>
       ) : null}
       {status && pill ? (

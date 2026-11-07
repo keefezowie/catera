@@ -103,13 +103,11 @@ export function Login({
           <>
             <div
               className="auth-methods"
-              role="tablist"
+              role="group"
               aria-label={t("Metode masuk", "Sign-in method")}
             >
               <Button
                 type="button"
-                role="tab"
-                aria-selected={method === "email"}
                 aria-pressed={method === "email"}
                 onClick={() => setMethod("email")}
               >
@@ -117,8 +115,6 @@ export function Login({
               </Button>
               <Button
                 type="button"
-                role="tab"
-                aria-selected={method === "phone"}
                 aria-pressed={method === "phone"}
                 onClick={() => setMethod("phone")}
               >

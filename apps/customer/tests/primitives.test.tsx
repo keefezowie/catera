@@ -391,7 +391,7 @@ describe("Toast", () => {
     expect(announce.mock.calls).toEqual([["Disimpan"], ["Alamat disimpan"]]);
   });
 
-  it("a toast with an action stays 3 seconds, without one 2.5 seconds", async () => {
+  it("a toast with an action stays 5 seconds, without one 2.5 seconds", async () => {
     jest.useFakeTimers();
     const timers = trackTimers();
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
@@ -404,7 +404,7 @@ describe("Toast", () => {
 
     const onPress = jest.fn();
     await act(() => toast.show({ message: "Laporan terkirim", action: { label: "Lihat", onPress } }));
-    await act(() => jest.advanceTimersByTime(2999));
+    await act(() => jest.advanceTimersByTime(4999));
     expect(screen.queryByText("Laporan terkirim")).not.toBeNull();
     await act(() => jest.advanceTimersByTime(1));
     expect(screen.queryByText("Laporan terkirim")).toBeNull();
@@ -641,9 +641,9 @@ describe("Toast", () => {
     const onPress = jest.fn();
     await act(() => toast.show({ message: "Dihapus dari simpanan", action: { label: "Urungkan", onPress } }));
     expect(announce).toHaveBeenLastCalledWith("Dihapus dari simpanan, Urungkan");
-    expect(recommended).toHaveBeenCalledWith(3000);
+    expect(recommended).toHaveBeenCalledWith(5000);
     await act(async () => {});
-    // Android: the user's own accessibility timeout, not 3s.
+    // Android: the user's own accessibility timeout, not 5s.
     await act(() => jest.advanceTimersByTime(19999));
     expect(screen.queryByText("Dihapus dari simpanan")).not.toBeNull();
     await act(() => jest.advanceTimersByTime(1));
@@ -669,6 +669,24 @@ describe("Toast", () => {
     await act(() => toast.show({ message: "Alamat disimpan" }));
     await act(() => jest.advanceTimersByTime(2499));
     expect(screen.queryByText("Alamat disimpan")).not.toBeNull();
+  });
+
+  it("holds a failure for 5 seconds and a long message by its length, up to 8 seconds; a brief success stays 2.5", async () => {
+    jest.useFakeTimers();
+    jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    await mount("android");
+    const stays = async (input: { message: string; tone?: "success" | "error" }, ms: number) => {
+      await act(() => toast.show(input));
+      await act(() => jest.advanceTimersByTime(ms - 1));
+      expect(screen.queryByText(input.message)).not.toBeNull();
+      await act(() => jest.advanceTimersByTime(1));
+      expect(screen.queryByText(input.message)).toBeNull();
+    };
+    await stays({ message: "Tersimpan", tone: "success" }, 2500);
+    await stays({ message: "Gagal menyimpan", tone: "error" }, 5000);
+    await stays({ message: "x".repeat(60) }, 60 * 70);
+    await stays({ message: "x".repeat(100), tone: "error" }, 7000);
+    await stays({ message: "x".repeat(300) }, 8000);
   });
 
   it("on iOS a screen reader turned on later holds an action toast 10 seconds", async () => {

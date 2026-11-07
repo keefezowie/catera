@@ -37,7 +37,7 @@ import { FilterChip } from "../discover/FilterChip";
 import { jakartaClock, photoUri } from "../today/Plate";
 import { longDay, monthTitle, shiftMonth, weekdayName } from "./dates";
 import { goToTab } from "../nav";
-import { ChooseMenuSkeleton } from "../skeletons";
+import { ChooseMenuSkeleton, ListSkeleton } from "../skeletons";
 import { DecorativeIcon } from "../layout/DecorativeIcon";
 import { DishCard } from "./DishCard";
 
@@ -148,8 +148,8 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
     };
   }, [reload]);
 
-  if (!customer.data || (offer && offer.menuSelectionMode === "customer" && !menus.data && !menus.error))
-    // The menus fade in from their skeleton as one block: every state of this screen keeps one FadeSwap in one place.
+  // Only a missing customer read takes the whole page; while just the menus load, the title and the chevrons stay.
+  if (!customer.data)
     return (
       <Screen>
         <FadeSwap swapKey={customer.error ? "error" : "loading"} style={{ gap: 16 }}>
@@ -385,49 +385,53 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 onChange={setMeal}
               />
             ) : null}
-            {menus.error ? <ReadError message={menus.error} onRetry={() => void menus.reload()} /> : null}
-            {menus.data && !dates.length ? (
-              <Text style={{ color: palette.muted }}>
-                {t("Tidak ada pengantaran bulan ini.", "No deliveries this month.")}
-              </Text>
-            ) : null}
-            <View>
-              {dates.map((d, i) => (
-                <PressableScale
-                  key={d.dayId}
-                  haptic="select"
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: d.dayId === selected?.dayId }}
-                  onPress={() => setDate(d.date)}
-                  style={[styles.dateRow, i > 0 && styles.divider, d.dayId === selected?.dayId && styles.dateOn]}
-                >
-                  <Text style={{ flex: 1, fontFamily: fontFor("700") }}>{longDay(d.date, locale)}</Text>
-                  <Text variant="caption">{stateLabel(d)}</Text>
-                </PressableScale>
-              ))}
-            </View>
-            {selected ? (
-              <Card>
-                <Text variant="heading">{longDay(selected.date, locale)}</Text>
-                <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-                  {stateLabel(selected)} · {t("batas pilih", "choose by")} {cutoff(selected)}
+            {/* The list fades in from its skeleton as one block, under the month row and the meal that stay put. */}
+            <FadeSwap swapKey={menus.data ? "ready" : menus.error ? "error" : "loading"} style={{ gap: 16 }}>
+              {menus.error ? <ReadError message={menus.error} onRetry={() => void menus.reload()} /> : null}
+              {!menus.data && !menus.error ? <ListSkeleton rows={4} label={t("Memuat menu", "Loading menus")} /> : null}
+              {menus.data && !dates.length ? (
+                <Text style={{ color: palette.muted }}>
+                  {t("Tidak ada pengantaran bulan ini.", "No deliveries this month.")}
                 </Text>
-                {selected.details ? <Text>{menuSummary(selected.details, locale)}</Text> : null}
-                {editable(selected) && options.length ? (
-                  <Button
-                    label={selected.details ? t("Ubah menu", "Change menu") : t("Pilih hidangan", "Choose dishes")}
-                    onPress={() => edit(selected)}
-                  />
-                ) : (
-                  <Text>
-                    {t(
-                      "Kalau belum kamu simpan sebelum batas pilih, katering yang pilihkan.",
-                      "If you don't save a choice before the cutoff, the caterer picks for you.",
-                    )}
+              ) : null}
+              <View>
+                {dates.map((d, i) => (
+                  <PressableScale
+                    key={d.dayId}
+                    haptic="select"
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: d.dayId === selected?.dayId }}
+                    onPress={() => setDate(d.date)}
+                    style={[styles.dateRow, i > 0 && styles.divider, d.dayId === selected?.dayId && styles.dateOn]}
+                  >
+                    <Text style={{ flex: 1, fontFamily: fontFor("700") }}>{longDay(d.date, locale)}</Text>
+                    <Text variant="caption">{stateLabel(d)}</Text>
+                  </PressableScale>
+                ))}
+              </View>
+              {selected ? (
+                <Card>
+                  <Text variant="heading">{longDay(selected.date, locale)}</Text>
+                  <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
+                    {stateLabel(selected)} · {t("batas pilih", "choose by")} {cutoff(selected)}
                   </Text>
-                )}
-              </Card>
-            ) : null}
+                  {selected.details ? <Text>{menuSummary(selected.details, locale)}</Text> : null}
+                  {editable(selected) && options.length ? (
+                    <Button
+                      label={selected.details ? t("Ubah menu", "Change menu") : t("Pilih hidangan", "Choose dishes")}
+                      onPress={() => edit(selected)}
+                    />
+                  ) : (
+                    <Text>
+                      {t(
+                        "Kalau belum kamu simpan sebelum batas pilih, katering yang pilihkan.",
+                        "If you don't save a choice before the cutoff, the caterer picks for you.",
+                      )}
+                    </Text>
+                  )}
+                </Card>
+              ) : null}
+            </FadeSwap>
           </>
         ) : (
           <View style={{ gap: 16 }}>

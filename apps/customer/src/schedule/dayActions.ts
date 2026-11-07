@@ -13,7 +13,7 @@ import {
 } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { useActionSheet, type ActionSheetInput } from "@catera/mobile-ui";
-import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
+import { catererPhoneOf, useCatererChat } from "../help/ChatKatering";
 import type { DayActionKey } from "./DayActionRow";
 import { photoUri } from "../today/photoUri";
 
@@ -96,6 +96,7 @@ export function dayHasActions(d: Delivery | null | undefined, now: Date, meal?: 
 export function useDayActions(delivery: Delivery | null | undefined, meal?: Meal): () => Promise<void> {
   const { t, locale, runtime } = useMobile();
   const ask = useActionSheet();
+  const openChat = useCatererChat();
   return useCallback(async () => {
     if (!delivery) return;
     const { input, meal: target } = dayActionInput(delivery, new Date(), { t, locale, apiBase: runtime.apiBase, meal });
@@ -104,9 +105,9 @@ export function useDayActions(delivery: Delivery | null | undefined, meal?: Meal
     const id = encodeURIComponent(delivery.id);
     if (key === "pindah") pushSheet(`/ubah-hari/${id}?mode=date` as never);
     else if (key === "alamat") pushSheet(`/ubah-hari/${id}?mode=address` as never);
-    else if (key === "chat") openCatererChat(catererPhoneOf(delivery));
+    else if (key === "chat") openChat(catererPhoneOf(delivery));
     else if (key === "lapor") pushSheet(`/masalah/${id}?meal=${target}` as never);
-  }, [delivery, meal, t, locale, runtime.apiBase, ask]);
+  }, [delivery, meal, t, locale, runtime.apiBase, ask, openChat]);
 }
 
 /** Whether a meal has a report that is still open (a resolved one can be followed by a new report). */

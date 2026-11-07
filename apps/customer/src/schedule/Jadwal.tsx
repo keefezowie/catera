@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { addDays, calendarDays, jakartaDay, type CustomerState } from "@catera/domain";
@@ -78,7 +78,7 @@ export function Jadwal() {
     );
   }
   if (!actor) return <SignInFirst title={t("Jadwal", "Schedule")} next="/jadwal" headerTestID="jadwal-header" />;
-  return <SignedInJadwal />;
+  return <SignedInJadwal key={actor.id} />;
 }
 
 function SignedInJadwal() {
@@ -91,8 +91,15 @@ function SignedInJadwal() {
   // Whole weeks: from the Monday of the month's first week to the Sunday of its last, so the agenda for a week that
   // straddles two months is complete. The grid still draws only the month's own days.
   const { from, to } = monthReadRange(month);
-  const data = useData(`jadwal:${month}`, () => runtime.api.customer(`?from=${from}&to=${to}`));
-  const state: CustomerState | null = data.data;
+  // Months already read this visit stay on screen while they are read again. Read here rather than through useData's
+  // `cached`, which answers a tick later: that tick would commit the skeleton and restart the fade.
+  const seen = useRef(new Map<string, CustomerState>());
+  const data = useData(`jadwal:${month}`, async () => {
+    const read = await runtime.api.customer(`?from=${from}&to=${to}`);
+    seen.current.set(month, read);
+    return read;
+  });
+  const state: CustomerState | null = data.data ?? seen.current.get(month) ?? null;
   const pull = usePullToRefresh(data.reload);
 
   const deliveries = useMemo(() => state?.deliveries ?? [], [state]);

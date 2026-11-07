@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Animated, {
@@ -98,7 +98,7 @@ export function visibleRange(expanded: boolean, month: string, selected: string)
  * One day of the calendar. The selected day's fill fades in over `control` (a layer under the text), and the text
  * changes ink halfway through.
  */
-function DayCell({
+const DayCell = memo(function DayCell({
   date,
   today,
   selected,
@@ -113,7 +113,7 @@ function DayCell({
   outside: boolean;
   orders: number | null;
   hidden: boolean;
-  onPress: () => void;
+  onPress: (date: string) => void;
 }) {
   const { t, locale } = useMobile();
   const ink = useMoodColors();
@@ -162,7 +162,7 @@ function DayCell({
       haptic={selected ? "none" : "select"}
       pressFeedback={!selected}
       onPress={() => {
-        if (!selected) onPress();
+        if (!selected) onPress(date);
       }}
       style={{
         flex: 1,
@@ -211,7 +211,7 @@ function DayCell({
       </View>
     </PressableScale>
   );
-}
+});
 
 /**
  * The calendar under the Hari ini title: the Monday to Sunday week that holds the selected day, which a handle opens
@@ -232,7 +232,7 @@ function DayCell({
  * `todayRing` edge, past days are open frames with `heroMeta` ink, the days of the other months in the grid take
  * `markerIdle` ink.
  */
-export function WeekStrip({
+export const WeekStrip = memo(function WeekStrip({
   selected,
   today,
   onSelect,
@@ -374,6 +374,10 @@ export function WeekStrip({
     if (closing.current) clearTimeout(closing.current);
     closing.current = setTimeout(() => settle(0, true), reduced ? 0 : nativeMotion.control);
   };
+  // One handler for every cell, so a memoised cell is not drawn again for a new closure; it always runs this render's `pick`.
+  const latestPick = useRef(pick);
+  latestPick.current = pick;
+  const onPick = useCallback((day: string) => latestPick.current(day), []);
 
   const iconButton = (by: number, icon: "chevron-back" | "chevron-forward", label: string) => (
     <PressableScale
@@ -436,7 +440,7 @@ export function WeekStrip({
                   outside={(expanded || dragging) && monthOf(day) !== month}
                   orders={countOn(counts, countsRange, day)}
                   hidden={!expanded && index !== rowIndex}
-                  onPress={() => pick(day)}
+                  onPress={onPick}
                 />
               ))}
             </View>
@@ -461,4 +465,4 @@ export function WeekStrip({
       </View>
     </View>
   );
-}
+});

@@ -15,9 +15,7 @@ import Animated, {
 import { nativeMotion } from "@catera/design-tokens";
 import { PressableScale } from "./motion";
 import { useReduced } from "./motion/useReduced";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboard } from "./useKeyboard";
-import { useLayoutScale } from "./layoutScale";
 import { AuthMascot } from "./brand/AuthMascot";
 import { AUTH_MARK } from "./brand/authMark";
 import type { MascotPose } from "./brand/MascotArt";
@@ -152,18 +150,11 @@ export function PasswordField({
 }
 
 /**
- * A sign-in or sign-up page that keeps its action in reach of the keyboard. On Android the window is edge-to-edge and
- * the keyboard draws over the page without resizing it, so the page adds the keyboard's height under its content (the
- * scroll view can then bring the error and the primary button above it), and scrolls to the end whenever `revealKey`
- * changes (a failed attempt), so the error and the button are what is on screen. iOS insets the scroll view itself.
- * No dependency: it reads the keyboard events (`useKeyboard`). The customer scale's Screen already pays the bottom inset
- * (the 3-button navigation bar); Dapur's does not, so there the page adds the bottom inset to the keyboard padding.
- * A `footer` (Dapur's Daftar pins its action) is lifted by the same amount instead of padding the content.
+ * A sign-in or sign-up page that keeps its action in reach of the keyboard: `Screen` makes the room for the keyboard, and
+ * on Android this page scrolls to the end whenever `revealKey` changes (a failed attempt), so the error and the button
+ * are what is on screen. iOS insets the scroll view itself.
  */
 export function AuthScreen({ children, revealKey, footer }: { children: ReactNode; revealKey?: string | number; footer?: ReactNode }) {
-  const { up, height } = useKeyboard();
-  const insets = useSafeAreaInsets();
-  const scaled = useLayoutScale() === "v2";
   const reduced = useReduced();
   const ref = useRef<ScrollViewInstance>(null);
   const android = process.env.EXPO_OS !== "ios";
@@ -173,15 +164,8 @@ export function AuthScreen({ children, revealKey, footer }: { children: ReactNod
     const frame = requestAnimationFrame(() => ref.current?.scrollToEnd({ animated: !reduced }));
     return () => cancelAnimationFrame(frame);
   }, [android, revealKey, reduced]);
-  const room = height + (scaled ? 0 : insets.bottom);
   return (
-    <Screen
-      scrollRef={ref}
-      footer={footer}
-      // A pinned footer rises with the keyboard (the scroll view above it shrinks); without one the page pads its content.
-      extraBottom={android && up && !footer ? room : 0}
-      footerLift={android && up && footer ? room : 0}
-    >
+    <Screen scrollRef={ref} footer={footer}>
       {children}
     </Screen>
   );

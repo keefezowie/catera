@@ -12,6 +12,7 @@ import {
   Screen,
   Text,
   useBlockEnter,
+  useBusy,
   useColors,
   useListMotion,
 } from "@catera/mobile-ui";
@@ -22,6 +23,7 @@ import { PackageGrid, useGridCell } from "./PackageGrid";
 import { useSaved } from "./saved";
 import { packageHref } from "../hrefs";
 import { goToTab } from "../nav";
+import { usePullToRefresh } from "../refresh";
 import { SavedSkeleton } from "../skeletons";
 
 /** Disimpan: the packages the customer hearted, as the same two column tile grid as Jelajah. */
@@ -44,6 +46,9 @@ function Saved() {
   const c = useColors();
   const cell = useGridCell();
   const saved = useSaved("/disimpan");
+  const pull = usePullToRefresh(saved.reload);
+  // Busy also holds a second tap: the only way to loadMore, so it cannot repeat the request.
+  const [loadingMore, loadMore] = useBusy(saved.loadMore);
   // A removal leaves and the rest close up; Urungkan brings the row back as one the customer inserted. The list's
   // first load enters as one block (Decision A), and so does each page "Lihat lebih banyak" loads: its rows are
   // taken without an entrance of their own, and each tile of the page fades in as the page lands (one grid holds every
@@ -102,7 +107,7 @@ function Saved() {
     </Animated.View>
   );
   return (
-    <Screen>
+    <Screen refreshControl={saved.loading ? undefined : pull}>
       {saved.error ? <FormError message={saved.error} /> : null}
       {/* The list enters from its skeleton as one block. */}
       <FadeSwap swapKey={saved.loading ? "loading" : "ready"} style={{ gap: 16 }}>
@@ -126,7 +131,7 @@ function Saved() {
         )}
       </FadeSwap>
       {saved.hasMore ? (
-        <Button variant="secondary" label={t("Lihat lebih banyak", "Show more")} onPress={() => void saved.loadMore()} />
+        <Button variant="secondary" label={t("Lihat lebih banyak", "Show more")} busy={loadingMore} onPress={() => void loadMore()} />
       ) : null}
     </Screen>
   );

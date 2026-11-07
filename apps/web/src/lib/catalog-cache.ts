@@ -19,7 +19,7 @@ const cached = unstable_cache(read, ["catalog-100"], {
 
 /**
  * The anonymous catalog every public page starts from. It is the same for everyone, so pages share one read for up to
- * 30 seconds; a committed command clears it at once, and checkout re-checks price and capacity on the server. Demo mode
+ * 30 seconds; a command that changes the catalog clears it at once, and checkout re-checks price and capacity on the server. Demo mode
  * reads straight through, so seeded and reset data shows immediately.
  */
 export const catalog = () => (demoEnabled() ? read() : cached());

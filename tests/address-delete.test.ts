@@ -136,7 +136,7 @@ it("replace moves every movable day in one transaction and reports the days that
   for (const v of versions) expect(after.get(v.id)).toBe([senja[0], hijau[0]].includes(v.id) ? v.version : v.version + 1);
   // The copy is the target address without the owner or the archive stamp.
   const copy = (await q<{ address: Record<string, unknown> }>("select address from v1.delivery_days where id=$1", [senja[1]]))[0].address;
-  expect(Object.keys(copy).sort()).toEqual(["area", "city", "id", "instructions", "label", "line", "version"]);
+  expect(Object.keys(copy).sort()).toEqual(["area", "city", "id", "instructions", "label", "lat", "line", "lng", "version"]);
   expect(await read("address-use", { id: home }, user)).toMatchObject({ count: 2 });
 });
 

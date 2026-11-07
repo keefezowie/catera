@@ -1,6 +1,9 @@
 import { z } from "zod";
 import type { Offer, Quote } from "./index";
 export const MAX_PURCHASE_AMOUNT = 2147483647;
+/** Whole rupiah off, in integers so it equals SQL's exact round(); percents carry at most 2 decimals. */
+export const percentOf = (amount: number, percent: number) =>
+  Math.floor((amount * Math.round(percent * 100) + 5000) / 10000);
 export const durationOptionsSchema = z
   .array(
     z.object({
@@ -70,10 +73,11 @@ export function purchasePricing(
         0,
         ...offer.tiers.filter((t) => portions >= t.min).map((t) => t.percent),
       );
-  const discount = Math.round((subtotal * discountPercent) / 100);
+  const discount = percentOf(subtotal, discountPercent);
   const durationDiscountPercent = trial ? 0 : option.discountPercent;
-  const durationDiscount = Math.round(
-    ((subtotal - discount) * durationDiscountPercent) / 100,
+  const durationDiscount = percentOf(
+    subtotal - discount,
+    durationDiscountPercent,
   );
   return {
     subtotal,

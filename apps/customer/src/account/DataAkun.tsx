@@ -10,7 +10,7 @@ import {
   useData,
   useMobile,
 } from "@catera/mobile-core";
-import { Button, Card, Field, FormError, ReadError, Screen, SettingsRow, SettingsSection, Text, useToast } from "@catera/mobile-ui";
+import { Button, Card, Field, FormError, PasswordField, ReadError, Screen, SettingsRow, SettingsSection, Text, useToast } from "@catera/mobile-ui";
 import { pushSheet } from "../nav";
 import { ListSkeleton } from "../skeletons";
 import { localPhone } from "./localPhone";
@@ -196,6 +196,7 @@ function NameEditor({ current, onDone }: { current: string; onDone: () => void }
   const [name, setName] = useState(current);
   const first = useFirstField();
   const action = useAction(accountMessage);
+  const ready = name.trim() !== current.trim() && [...name.trim()].length >= 2;
   const save = () =>
     action.run(async () => {
       await updateProfileName(command, name);
@@ -205,12 +206,12 @@ function NameEditor({ current, onDone }: { current: string; onDone: () => void }
     });
   return (
     <Editor>
-      <Field inputRef={first} label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" autoCapitalize="words" maxLength={80} autoFocus />
+      <Field inputRef={first} label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" autoCapitalize="words" maxLength={80} autoFocus returnKeyType="go" onSubmitEditing={() => ready && void save()} />
       {action.error ? <FormError message={action.error} failureKey={action.failures} testID="name-error" /> : null}
       <Button
         label={t("Simpan nama", "Save name")}
         busy={action.busy}
-        disabled={name.trim() === current.trim() || [...name.trim()].length < 2}
+        disabled={!ready}
         onPress={() => void save()}
       />
     </Editor>
@@ -246,6 +247,8 @@ function PhoneEditor({ current, onDone }: { current: string; onDone: () => void 
         placeholder="0812…"
         editable={!action.busy}
         autoFocus
+        returnKeyType="go"
+        onSubmitEditing={() => phone.trim() !== current.trim() && void save()}
         hint={t("Nomor WhatsApp untuk katering dan kurir. Contoh: 0812 3456 7890", "The WhatsApp number caterers and couriers use. Example: 0812 3456 7890")}
       />
       {action.error ? <FormError message={action.error} failureKey={action.failures} testID="phone-error" /> : null}
@@ -265,6 +268,7 @@ function EmailEditor() {
   const [sent, setSent] = useState(false);
   const first = useFirstField();
   const action = useAction(accountMessage);
+  const ready = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const send = () =>
     action.run(async () => {
       await requestEmailChange(runtime.supabase, demo, email);
@@ -283,6 +287,8 @@ function EmailEditor() {
         autoComplete="email"
         maxLength={254}
         autoFocus
+        returnKeyType="go"
+        onSubmitEditing={() => ready && void send()}
       />
       {sent ? (
         <Text testID="email-sent">
@@ -298,7 +304,7 @@ function EmailEditor() {
       <Button
         label={sent ? t("Kirim ulang tautan", "Send the links again") : t("Kirim tautan", "Send links")}
         busy={action.busy}
-        disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())}
+        disabled={!ready}
         onPress={() => void send()}
       />
     </Editor>
@@ -311,8 +317,14 @@ function PasswordEditor({ onDone }: { onDone: () => void }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [again, setAgain] = useState("");
+  // One show/hide for the new password and its repeat, like the sign-in forms' pair.
+  const [shownNew, setShownNew] = useState(false);
   const first = useFirstField();
+  const nextRef = useRef<TextInputInstance>(null);
+  const againRef = useRef<TextInputInstance>(null);
   const action = useAction(accountMessage);
+  const ready = !!current && next.length >= PASSWORD_MIN && next === again;
+  const toggle = { showA11y: t("Tampilkan kata sandi", "Show password"), hideA11y: t("Sembunyikan kata sandi", "Hide password") };
   const save = () =>
     action.run(async () => {
       const done = await changePassword(runtime.supabase, demo, { current, next });
@@ -324,44 +336,58 @@ function PasswordEditor({ onDone }: { onDone: () => void }) {
     });
   return (
     <Editor>
-      <Field
+      <PasswordField
+        {...toggle}
         inputRef={first}
         label={t("Kata sandi saat ini", "Current password")}
         value={current}
         onChangeText={setCurrent}
-        secureTextEntry
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="current-password"
         maxLength={256}
         autoFocus
+        returnKeyType="next"
+        submitBehavior="submit"
+        onSubmitEditing={() => nextRef.current?.focus()}
       />
-      <Field
+      <PasswordField
+        {...toggle}
+        shown={shownNew}
+        onShownChange={setShownNew}
+        inputRef={nextRef}
         label={t("Kata sandi baru", "New password")}
         value={next}
         onChangeText={setNext}
-        secureTextEntry
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="new-password"
         maxLength={256}
         hint={t(`Minimal ${PASSWORD_MIN} karakter.`, `At least ${PASSWORD_MIN} characters.`)}
+        returnKeyType="next"
+        submitBehavior="submit"
+        onSubmitEditing={() => againRef.current?.focus()}
       />
-      <Field
+      <PasswordField
+        {...toggle}
+        shown={shownNew}
+        onShownChange={setShownNew}
+        inputRef={againRef}
         label={t("Ulangi kata sandi baru", "Repeat the new password")}
         value={again}
         onChangeText={setAgain}
-        secureTextEntry
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="new-password"
         maxLength={256}
+        returnKeyType="go"
+        onSubmitEditing={() => ready && void save()}
       />
       {action.error ? <FormError message={action.error} failureKey={action.failures} testID="password-error" /> : null}
       <Button
         label={t("Ganti kata sandi", "Change password")}
         busy={action.busy}
-        disabled={!current || next.length < PASSWORD_MIN || next !== again}
+        disabled={!ready}
         onPress={() => void save()}
       />
     </Editor>

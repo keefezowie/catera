@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { authClient, authError, clearPending, isOffline, savePending, type Pending } from "./emailAuth";
-import type { MobileRuntime } from "./runtime";
+import { secureStorage, type MobileRuntime } from "./runtime";
 
 /** An email link is good for an hour, on the phone that asked for it. */
 export const LINK_LIFETIME_MS = 60 * 60 * 1000;
@@ -33,9 +33,15 @@ export async function exchangeEmailLink(
   const expired = () => new Error("RECOVERY_EXPIRED");
   if (!link.code || link.linkError || !pending || !accepts.includes(pending.purpose) || Date.now() - pending.at > LINK_LIFETIME_MS) throw expired();
   const client = authClient(runtime);
+  // auth-js drops the PKCE verifier after any failed exchange: "Coba lagi" after an offline tap would have nothing to
+  // send, and a crafted callback link would end a pending sign-up. Only a successful exchange spends it here.
+  const verifierKey = `${client.auth["storageKey"]}-code-verifier`;
+  const verifier = await secureStorage.getItem(verifierKey).catch(() => null);
   const { data, error } = await client.auth
     .exchangeCodeForSession(link.code)
     .catch((e: unknown) => ({ data: { user: null, session: null }, error: e }));
+  if (verifier && (error || !data.user || !data.session))
+    await secureStorage.setItem(verifierKey, verifier).catch(() => undefined);
   // Offline, the code was never spent: say so, so the screen can try the same link again.
   if (error && isOffline(error)) throw new Error("OFFLINE");
   if (error || !data.user || !data.session) throw expired();

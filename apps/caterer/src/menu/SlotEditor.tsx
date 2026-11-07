@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode, type RefObject } from "react";
 import { TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { nativeLayout } from "@catera/design-tokens";
@@ -46,6 +46,13 @@ export function SlotEditor({
   canEdit: boolean;
 }) {
   const { t } = useMobile();
+  // The newest list, shared by every category: an add landing after `onCreate` must not undo what changed meanwhile.
+  const latest = useRef(items);
+  latest.current = items;
+  const change = (next: Dish[]) => {
+    latest.current = next;
+    onChange(next);
+  };
   // A dish the caterer adds enters and one removed leaves, the rest moving; the day's first draw does not animate.
   const rowMotion = useListMotion(items.map((i) => i.id));
   const complete = dayComplete(composition, items);
@@ -60,10 +67,11 @@ export function SlotEditor({
           key={group.id}
           group={group}
           items={items}
+          latest={latest}
           library={library}
           usage={usage}
           canEdit={canEdit}
-          onChange={onChange}
+          onChange={change}
           onCreate={onCreate}
           rowMotion={rowMotion}
         />
@@ -83,6 +91,7 @@ export function SlotEditor({
 function GroupLine({
   group,
   items,
+  latest,
   library,
   usage,
   canEdit,
@@ -92,6 +101,7 @@ function GroupLine({
 }: {
   group: ComponentGroup;
   items: Dish[];
+  latest: RefObject<Dish[]>;
   library: LibraryDish[];
   usage: Map<string, number>;
   canEdit: boolean;
@@ -109,7 +119,7 @@ function GroupLine({
 
   function add(dish: LibraryDish) {
     // The first free position: removing a dish frees its id for the next one.
-    const taken = new Set(items.map((i) => i.id));
+    const taken = new Set(latest.current.map((i) => i.id));
     let position = 1;
     while (taken.has(`${group.id}-${position}`)) position += 1;
     const slot: Dish = {
@@ -121,7 +131,7 @@ function GroupLine({
       groupId: group.id,
       categoryId: group.categoryId,
     };
-    onChange([...items, selectLibraryDish(slot, dish)]);
+    onChange([...latest.current, selectLibraryDish(slot, dish)]);
     setQuery("");
   }
 
@@ -150,7 +160,7 @@ function GroupLine({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={t(`Hapus ${i.name}`, `Remove ${i.name}`)}
-            onPress={() => onChange(items.filter((x) => x.id !== i.id))}
+            onPress={() => onChange(latest.current.filter((x) => x.id !== i.id))}
             // The glyph is 18 in a 48 target that stays inside the row; it is held against the end (3 in) so it sits near the card's edge.
             style={{ width: ROW, height: ROW, paddingRight: 3, alignItems: "flex-end", justifyContent: "center" }}
           >
@@ -170,6 +180,11 @@ function GroupLine({
           onChangeText={(v) => {
             setQuery(v);
             setCreateError(null);
+          }}
+          // Enter does what the first button under the input does: the first suggestion, else a new dish.
+          onSubmitEditing={() => {
+            if (suggestions[0]) add(suggestions[0]);
+            else if (query.trim()) void create(query.trim());
           }}
           placeholder={t(`Ketik nama ${group.name.toLowerCase()}…`, `Type a ${group.name.toLowerCase()} name…`)}
           placeholderTextColor={c.muted}

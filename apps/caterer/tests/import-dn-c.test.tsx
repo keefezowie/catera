@@ -5,7 +5,7 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import { ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import { ImportAssistant } from "../src/import/ImportAssistant";
 import { ImportRowEditor } from "../src/import/RowEditor";
-import { lastGuard, resetSheets, SheetHost } from "./sheet-host";
+import { lastConfirm, lastGuard, resetSheets, SheetHost } from "./sheet-host";
 import { withDapurScale } from "./dapur-scale";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
@@ -145,6 +145,7 @@ describe("the draft", () => {
     await fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
     await waitFor(() => expect(saved(command).at(-1)?.rows.map((r) => r.name)).toEqual(["Pelanggan 2"]));
     await fireEvent.press(screen.getByRole("button", { name: "Mulai lagi" }));
+    await lastConfirm().press("Kosongkan");
     await waitFor(() => expect(saved(command).at(-1)?.rows).toEqual([]));
   });
 });
@@ -155,6 +156,7 @@ describe("Mulai lagi", () => {
     await read();
     await screen.findByRole("button", { name: "Ubah Pelanggan 2" });
     await fireEvent.press(screen.getByRole("button", { name: "Mulai lagi" }));
+    await lastConfirm().press("Kosongkan");
     await screen.findByLabelText("Tempel atau ketik daftar pelanggan");
     expect(screen.queryByRole("button", { name: "Ubah Pelanggan 1" })).toBeNull();
     await fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));

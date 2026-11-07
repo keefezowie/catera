@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { router } from "expo-router";
@@ -20,6 +20,7 @@ import {
   Text,
   TwoLineRow,
   useColors,
+  useConfirm,
   useListMotion,
   useToast,
   useUnsavedGuard,
@@ -29,17 +30,61 @@ import { Attachments } from "./Attachments";
 import { commitImport } from "./commits";
 import { recheck, settle, toImportRow, type AssistantRow } from "./rows";
 import { rowHref } from "./RowEditor";
-import { useImportStore, type Attachment } from "./store";
+import { useImportStore, type Attachment, type ImportRow } from "./store";
 import { goToTab } from "../nav";
 import { fitsUpload, MAX_IMAGES, shrinkPhoto } from "./images";
 
 /** Refusals that belong to one row (pilot_import_row); anything else is about the request itself. */
 const ROW_CODES = new Set(["CAPACITY", "CONFLICT", "CUTOFF", "DUPLICATE_CUSTOMER", "DUPLICATE_IMPORT", "FORBIDDEN", "INVALID_DATE", "INVALID_INPUT", "NOT_AVAILABLE", "OVERLAP", "PRICE_CHANGED"]);
 
+/** The most rows the server takes in one import (`import.preview`); a longer list goes over in parts. */
+const MAX_BATCH = 100;
+/** How many rows are checked alone at once to find the ones the server refuses. */
+const CHECK_AT_ONCE = 5;
+/** 3.8 MB of base64 (`fitsUpload`) is about this many bytes of file; anything bigger is refused before it is read into memory. */
+const MAX_FILE_BYTES = 2_850_000;
+/** The assistant route's own limit (`maxDuration` 300 s): past it no answer can come. */
+const READ_TIMEOUT_MS = 300_000;
+
+/** Opens one row's form sheet over this screen. */
+const edit = (n: number) => router.push(rowHref(n) as never);
+
 const fail = (e: unknown) => (e as { code?: string }).code || (e as Error).message;
 
 /** How long after an edit the draft is saved: typing a name is one save, not one per letter. */
 const DRAFT_SAVE_MS = 600;
+
+/** One line of the review list, drawn again only when its own row changes: an edit in the row sheet touches one of up to 100. */
+const ReviewRow = memo(function ReviewRow({ r, ...motion }: { r: ImportRow } & ReturnType<ReturnType<typeof useListMotion>>) {
+  const { t } = useMobile();
+  const c = useColors();
+  return (
+    <Animated.View testID="import-row" {...motion}>
+      <TwoLineRow
+        testID={`import-row-${r.n}`}
+        // The reason is the point of a row that needs something, so it wraps instead of being cut.
+        wrap={r.needsReview ? "meta" : false}
+        title={r.name || t("Tanpa nama", "No name")}
+        // A row that still needs something says what in its one line; a clean row gives its phone and area.
+        meta={
+          r.needsReview
+            ? r.reason || t("Asisten menebak sebagian data ini", "The assistant guessed part of this")
+            : // Portions are saved with the row and shown nowhere else before the save, so a count other than 1 rides on the line, before the area, which is the part a narrow line may cut.
+              [r.phone, r.portions !== 1 ? t(`${r.portions} porsi`, plural(r.portions, "portion")) : "", r.area].filter(Boolean).join(" · ")
+        }
+        // The label names the row, and what a row still needs, so a screen reader hears it.
+        accessibilityLabel={r.needsReview ? `${t("Lengkapi", "Complete")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}: ${r.reason}` : `${t("Ubah", "Edit")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}`}
+        onPress={() => edit(r.n)}
+        trailing={
+          // forest: action
+          <Text variant="bodyStrong" style={{ color: c.forest, paddingLeft: nativeLayout.space.md }}>
+            {r.needsReview ? t("Lengkapi", "Complete") : t("Ubah", "Edit")}
+          </Text>
+        }
+      />
+    </Animated.View>
+  );
+});
 
 /**
  * Impor pelanggan: paste or attach anything, check what the assistant read, save the complete rows. A row is completed
@@ -56,12 +101,18 @@ export function ImportAssistant() {
   // A save ends on the success beat: its mascot layers are fetched now, so they are in when it plays.
   useEffect(() => warmSuccessRig(), []);
   const toast = useToast();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState("");
   // The message and a number that rises with every failure, so an identical failure is announced again.
   const [errorState, setErrorState] = useState({ message: "", key: 0 });
   const error = errorState.message;
   const setError = (message: string) => setErrorState((s) => ({ message, key: message ? s.key + 1 : s.key }));
   const savingRef = useRef(false);
+  // The preview of the part being saved, until its commit has answered: a commit that timed out may still have landed, so
+  // the retry sends the same commit (same request id, so the server's receipt answers) rather than a new preview.
+  const previewed = useRef<{ key: string; id: string } | null>(null);
+  const live = useRef(true);
+  const cancelRead = useRef<(() => void) | null>(null);
   const [saved, setSaved] = useState(0);
   // Each save plays the beat again: it is keyed by the number of saves made on this screen.
   const [saves, setSaves] = useState(0);
@@ -86,9 +137,12 @@ export function ImportAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the first answer only
   }, [options.data, loaded]);
   // What the server should hold: the list, nothing once it is cleared, or (null) the waiting draft left alone.
-  const wanted = rows ?? (waiting ? null : []);
+  const wantedNow = useMemo(() => {
+    const wanted = rows ?? (waiting ? null : []);
+    return loaded && wanted ? JSON.stringify(wanted) : null;
+  }, [rows, waiting, loaded]);
   const wantedJson = useRef<string | null>(null);
-  wantedJson.current = loaded && wanted ? JSON.stringify(wanted) : null;
+  wantedJson.current = wantedNow;
   // Saves run one at a time and always send the latest list, so an old one can never land after a new one.
   const savedDraft = useRef<string | null>(null);
   const saving = useRef(Promise.resolve());
@@ -122,16 +176,17 @@ export function ImportAssistant() {
   useEffect(() => {
     if (options.data) setPackages(options.data.packages);
   }, [options.data, setPackages]);
-  // Closing Impor sends the last edits and forgets the import on this screen; the draft holds the rows.
-  useEffect(
-    () => () => {
+  // Closing Impor sends the last edits and forgets the import on this screen; the draft holds the rows. A read still on
+  // its way is called off, so its answer cannot fill the store after the reset.
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+      cancelRead.current?.();
       void saveDraft();
       reset();
-    },
-    [reset, saveDraft],
-  );
-  /** Opens one row's form sheet over this screen. */
-  const edit = (n: number) => router.push(rowHref(n) as never);
+    };
+  }, [reset, saveDraft]);
   const message = (code: string) =>
     ({
       IMPORT_UNREADABLE: t("Catatan ini belum bisa dibaca. Coba ketik ulang atau kirim foto yang lebih jelas.", "We couldn't read this. Retype it, or send a clearer photo."),
@@ -140,6 +195,7 @@ export function ImportAssistant() {
       QUOTA: t("Jatah baca hari ini sudah habis. Coba lagi besok.", "You've used today's reading limit. Try again tomorrow."),
       IMPORT_ASSISTANT_DISABLED: t("Asisten impor belum aktif. Kamu tetap bisa memasukkan pelanggan satu per satu.", "The import assistant isn't switched on yet. You can still add customers one by one."),
       IMPORT_UNAVAILABLE: t("Asisten impor sedang tidak tersedia. Coba lagi nanti.", "The import assistant is unavailable. Try again later."),
+      DUPLICATE_CUSTOMER: t("Nomor WhatsApp ini sudah terdaftar sebagai pelanggan.", "This WhatsApp number already belongs to a customer."),
     })[code] ?? (errorLabel(code, locale) || t("Catatan belum bisa diproses. Coba lagi.", "Couldn't process the notes. Try again."));
 
   /** One empty row for typing a customer in by hand; it goes through the same review and save as the assistant's rows. */
@@ -153,7 +209,10 @@ export function ImportAssistant() {
         locale,
       ),
     ]);
-    setRows((all) => [...(all ?? []), row]);
+    // A waiting draft joins the list first, as it does for a list just read, so the next draft save cannot overwrite it.
+    const draft = numbered(waiting?.rows ?? []);
+    setWaiting(null);
+    setRows((all) => [...draft, ...(all ?? []), row]);
     edit(row.n);
   }
 
@@ -179,6 +238,7 @@ export function ImportAssistant() {
       const images: Attachment[] = [];
       for (const [i, a] of picked.assets.slice(0, room).entries())
         images.push({ kind: "image", name: a.fileName || `Foto ${files.length + i + 1}`, ...(await shrinkPhoto(a)) });
+      if (!live.current) return;
       // Never past six, whatever else landed in the meantime.
       setFiles((f) => [...f, ...images.slice(0, Math.max(0, MAX_IMAGES - f.filter((g) => g.kind === "image").length))]);
     } catch {
@@ -200,7 +260,10 @@ export function ImportAssistant() {
       const name = a.name.toLowerCase();
       const kind = name.endsWith(".pdf") ? "pdf" : name.endsWith(".xlsx") ? "xlsx" : name.endsWith(".csv") ? "csv" : null;
       if (!kind) return setError(t("Pilih PDF, CSV atau Excel (.xlsx).", "Choose a PDF, CSV or Excel (.xlsx) file."));
-      const data = await new File(a.uri).base64();
+      const file = new File(a.uri);
+      if ((a.size ?? file.size ?? 0) > MAX_FILE_BYTES) return setError(t("File terlalu besar. Maksimal sekitar 2,8 MB.", "That file is too large. About 2.8 MB at most."));
+      const data = await file.base64();
+      if (!live.current) return;
       setFiles((f) => [...f, { kind, name: a.name, data } as Attachment]);
     } catch {
       setError(t("File belum bisa dibaca. Coba lagi.", "Couldn't read the file. Try again."));
@@ -208,7 +271,19 @@ export function ImportAssistant() {
   }
 
   /** Back to the paste step; Urungkan puts the rows (and the text and attachments) back as they were. */
-  function startOver() {
+  async function startOver() {
+    // The list is the kitchen's draft too, and Urungkan lasts only as long as its toast.
+    if (rows?.length) {
+      const go = await confirm({
+        title: t("Kosongkan daftar?", "Clear the list?"),
+        message: t(`${rows.length} pelanggan di daftar ini dan drafnya akan dihapus.`, `${plural(rows.length, "customer")} on this list and its draft will be removed.`),
+        cancelLabel: t("Batal", "Cancel"),
+        confirmLabel: t("Kosongkan", "Clear"),
+        tone: "danger",
+        icon: "trash",
+      });
+      if (!go) return;
+    }
     const before = { text, files, rows };
     setRows(null);
     toast.show({
@@ -229,6 +304,15 @@ export function ImportAssistant() {
       return setError(t("Lampiran terlalu besar. Kirim sebagian dulu.", "Attachments are too large. Send some of them first."));
     setBusy("read");
     setError("");
+    const kitchen = catererId;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), READ_TIMEOUT_MS);
+    cancelRead.current = () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+    // Impor closed or the kitchen changed while it read: the answer belongs to nothing on this screen now.
+    const gone = () => !live.current || session.current.catererId !== kitchen;
     try {
       const token = await runtime.token();
       const response = await fetch(`${runtime.apiBase}/api/import-assistant`, {
@@ -236,6 +320,7 @@ export function ImportAssistant() {
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         // Bearer only, like every Catera API call from the phone: no cookie is sent or kept.
         credentials: "omit",
+        signal: controller.signal,
         body: JSON.stringify({
           text: text.trim() || undefined,
           images: files.flatMap((f) => (f.kind === "image" ? [{ mediaType: f.mediaType, data: f.data }] : [])),
@@ -244,16 +329,19 @@ export function ImportAssistant() {
         }),
       });
       const body = (await response.json().catch(() => ({}))) as { data?: { rows: AssistantRow[] }; error?: { code?: string } };
+      if (gone()) return;
       if (!response.ok || !body.data) throw Object.assign(new Error(body.error?.code || "IMPORT_UNAVAILABLE"), { code: body.error?.code });
       setOff(false);
       continueDraft(body.data.rows);
     } catch (e) {
+      if (gone()) return;
       if (fail(e) === "IMPORT_ASSISTANT_DISABLED") {
         setOff(true);
         return;
       }
       setError(message(fail(e)));
     } finally {
+      clearTimeout(timer);
       setBusy("");
     }
   }
@@ -265,40 +353,63 @@ export function ImportAssistant() {
     const clean = rows.filter((r) => !r.needsReview);
     setBusy("save");
     setError("");
+    let part = clean;
+    let landed = 0;
     try {
-      // A preview only checks rows (the web client skips its refresh too); the commit below is what reloads the app.
-      const preview = await command<{ id: string }>(
-        "import.preview",
-        { catererId, rows: clean.map((r) => toImportRow(r, today, r.n)) },
-        { refresh: false },
-      );
-      await commitImport(command, catererId, preview.id);
-      setSaved((s) => s + clean.length);
-      setSaves((n) => n + 1);
-      // From the current list, not the one this save began with: a row deleted meanwhile stays deleted.
-      const savedNs = new Set(clean.map((r) => r.n));
-      setRows((current) => current?.filter((r) => !savedNs.has(r.n)) ?? null);
-      // A row deleted during this save went with it, so its Urungkan would bring back a customer already saved. A row
-      // deleted before the save was never sent, and its Urungkan stays.
-      const removed = lastRemoved();
-      if (removed !== null && savedNs.has(removed)) toast.hide();
+      for (let i = 0; i < clean.length; i += MAX_BATCH) {
+        const rowsNow = clean.slice(i, i + MAX_BATCH);
+        part = rowsNow;
+        const key = JSON.stringify(rowsNow);
+        if (previewed.current?.key !== key) {
+          // A preview only checks rows (the web client skips its refresh too); the commit below is what reloads the app.
+          const preview = await command<{ id: string }>(
+            "import.preview",
+            { catererId, rows: rowsNow.map((r) => toImportRow(r, today, r.n)) },
+            { refresh: false },
+          );
+          previewed.current = { key, id: preview.id };
+        }
+        await commitImport(command, catererId, previewed.current.id);
+        previewed.current = null;
+        landed += rowsNow.length;
+        // From the current list, not the one this save began with: a row deleted meanwhile stays deleted.
+        const savedNs = new Set(rowsNow.map((r) => r.n));
+        setRows((current) => current?.filter((r) => !savedNs.has(r.n)) ?? null);
+        // A row deleted during this save went with it, so its Urungkan would bring back a customer already saved. A row
+        // deleted before the save was never sent, and its Urungkan stays.
+        const removed = lastRemoved();
+        if (removed !== null && savedNs.has(removed)) toast.hide();
+      }
     } catch (e) {
       if (!ROW_CODES.has(fail(e))) {
         setError(message(fail(e)));
         return;
       }
-      // One bad row stops the whole batch: find which rows the server refuses and flag them.
+      previewed.current = null;
+      // One bad row stops the whole part: find which rows the server refuses and flag them.
       const flagged = new Map<number, string>();
-      for (const r of clean) {
-        try {
-          await command("import.preview", { catererId, rows: [toImportRow(r, today, r.n)] }, { refresh: false });
-        } catch (rowError) {
-          flagged.set(r.n, message(fail(rowError)));
-        }
+      for (let i = 0; i < part.length; i += CHECK_AT_ONCE) {
+        const some = part.slice(i, i + CHECK_AT_ONCE);
+        const answers = await Promise.allSettled(some.map((r) => command("import.preview", { catererId, rows: [toImportRow(r, today, r.n)] }, { refresh: false })));
+        answers.forEach((answer, j) => {
+          if (answer.status === "rejected") flagged.set(some[j].n, message(fail(answer.reason)));
+        });
+      }
+      // Each row passes alone but not together: the server refuses the same number twice in one import.
+      if (!flagged.size) {
+        const phone = (r: ImportRow) => toImportRow(r, today, r.n).customer?.phone;
+        const seen = part.map(phone);
+        for (const r of part)
+          if (seen.filter((p) => p === phone(r)).length > 1) flagged.set(r.n, t("Nomor WhatsApp ini dipakai juga di baris lain.", "This WhatsApp number is also on another row."));
       }
       setRows((current) => current?.map((r) => (flagged.has(r.n) ? { ...r, needsReview: true, reason: flagged.get(r.n)! } : r)) ?? null);
       setError(flagged.size ? t(`${flagged.size} baris perlu dicek sebelum disimpan.`, `${plural(flagged.size, "row")} ${flagged.size === 1 ? "needs" : "need"} checking before saving.`) : message(fail(e)));
     } finally {
+      // One beat for the whole save, however many parts it took, and for the parts saved before one was refused.
+      if (landed) {
+        setSaved((s) => s + landed);
+        setSaves((n) => n + 1);
+      }
       savingRef.current = false;
       setBusy("");
     }
@@ -480,37 +591,14 @@ export function ImportAssistant() {
                 </Text>
                 <ListCard inset={0}>
                   {group.map((r) => (
-                    <Animated.View key={r.n} testID="import-row" {...rowMotion(String(r.n))}>
-                      <TwoLineRow
-                        testID={`import-row-${r.n}`}
-                        // The reason is the point of a row that needs something, so it wraps instead of being cut.
-                        wrap={r.needsReview ? "meta" : false}
-                        title={r.name || t("Tanpa nama", "No name")}
-                        // A row that still needs something says what in its one line; a clean row gives its phone and area.
-                        meta={
-                          r.needsReview
-                            ? r.reason || t("Asisten menebak sebagian data ini", "The assistant guessed part of this")
-                            : // Portions are saved with the row and shown nowhere else before the save, so a count other than 1 rides on the line, before the area, which is the part a narrow line may cut.
-                              [r.phone, r.portions !== 1 ? t(`${r.portions} porsi`, plural(r.portions, "portion")) : "", r.area].filter(Boolean).join(" · ")
-                        }
-                        // The label names the row, and what a row still needs, so a screen reader hears it.
-                        accessibilityLabel={r.needsReview ? `${t("Lengkapi", "Complete")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}: ${r.reason}` : `${t("Ubah", "Edit")} ${r.name || t(`baris ${r.n}`, `row ${r.n}`)}`}
-                        onPress={() => edit(r.n)}
-                        trailing={
-                          // forest: action
-                          <Text variant="bodyStrong" style={{ color: c.forest, paddingLeft: nativeLayout.space.md }}>
-                            {r.needsReview ? t("Lengkapi", "Complete") : t("Ubah", "Edit")}
-                          </Text>
-                        }
-                      />
-                    </Animated.View>
+                    <ReviewRow key={r.n} r={r} {...rowMotion(String(r.n))} />
                   ))}
                 </ListCard>
               </View>
             ) : null,
           )}
           <Button variant="secondary" label={t("Tambah pelanggan", "Add a customer")} onPress={addRow} />
-          <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={startOver} />
+          <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={() => void startOver()} />
         </>
       )}
     </Screen>

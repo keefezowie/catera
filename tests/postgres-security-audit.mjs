@@ -70,6 +70,92 @@ export async function verifySecurityAudit(pool, cmd, evidence, { owner, customer
   assert.equal(await isAdmin(admin, { role: "authenticated" }, "true"), true);
   evidence.push("Platform admin authority needs a TOTP-verified (aal2) session; jobs and the demo are unchanged");
 
+  // Audit hardening 2026-11-07 installs on top of this harness too. tests/audit-hardening.test.ts covers the behaviour;
+  // this is what needs real concurrency.
+  for (const file of ["20261008110000_import_assistant_quota.sql", "20261107100000_audit_hardening.sql"])
+    await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
+  const kitchen = async (status) =>
+    (await pool.query("insert into v1.caterers(slug,name,status) values($1,'Synthetic ceiling kitchen',$2) returning id", ["ceiling-" + crypto.randomUUID(), status])).rows[0].id;
+  const race = async (status, spent, room) => {
+    await pool.query("insert into v1.import_assistant_usage(caterer_id,day,calls) values($1,'2031-01-01',$2)", [await kitchen(status), spent]);
+    const other = await kitchen(status);
+    const spends = await Promise.allSettled(
+      Array.from({ length: 12 }, () => pool.query("select v1.import_assistant_consume($1,'2031-01-01')", [other])),
+    );
+    assert.equal(spends.filter((r) => r.status === "fulfilled").length, room);
+    assert.ok(spends.every((r) => r.status === "fulfilled" || /QUOTA/.test(r.reason?.message)));
+  };
+  // Below the five an unapproved kitchen may use and the twenty an approved one may, so the ceiling is what stops them.
+  await race("draft", 97, 3);
+  await race("approved", 495, 5);
+  evidence.push("Twelve simultaneous assistant reads against each daily ceiling: exactly the room left passes, the rest answer QUOTA, and neither ceiling touches the other");
+
+  // A paid event that failed 50 applies, including one past 50 under the old 1-minute retries: the same event arriving
+  // again gives it one more claim each time, and an applied event stays applied.
+  const sys = async (action, payload = {}) => {
+    const c = await pool.connect();
+    try {
+      await c.query("begin");
+      await c.query(`select set_config('request.jwt.claims','{"role":"service_role"}',true)`);
+      const r = (await c.query("select public.catera_v1_system($1,$2) result", [action, payload])).rows[0].result;
+      await c.query("commit");
+      return r;
+    } catch (e) {
+      await c.query("rollback");
+      throw e;
+    } finally {
+      c.release();
+    }
+  };
+  const operationId = (await pool.query(
+    `insert into v1.provider_operations(kind,entity_id,provider,environment,merchant,reference,state,amount)
+     values('payment',gen_random_uuid(),'doku','sandbox','m',$1,'pending',1000) returning id`,
+    ["stuck-" + crypto.randomUUID()],
+  )).rows[0].id;
+  const event = { status: "paid" };
+  const receive = (eventId) => sys("provider.inbox.receive", { operationId, eventId, event });
+  const stuck = async (eventId, attempts, processed = null) => {
+    await receive(eventId);
+    await pool.query("update v1.provider_inbox set attempts=$2,available_at=now()+interval '1 day',processed_at=$3 where id=$1", [eventId, attempts, processed]);
+  };
+  const claimed = async () => (await sys("provider.inbox.claim")).map((e) => e.id);
+  const attempts = async (eventId) => (await pool.query("select attempts from v1.provider_inbox where id=$1", [eventId])).rows[0].attempts;
+  await stuck("stuck-at-50", 50);
+  await stuck("stuck-at-300", 300);
+  await stuck("stuck-applied", 300, new Date());
+  await stuck("stuck-backing-off", 12);
+  assert.deepEqual(await claimed(), []);
+  for (const id of ["stuck-at-50", "stuck-at-300", "stuck-applied", "stuck-backing-off"])
+    assert.equal((await receive(id)).duplicate, true);
+  assert.equal(await attempts("stuck-applied"), 300);
+  assert.equal(await attempts("stuck-backing-off"), 12);
+  assert.equal((await sys("health")).providerInboxStuck, 2);
+  assert.deepEqual((await claimed()).sort(), ["stuck-at-300", "stuck-at-50"]);
+  assert.equal(await attempts("stuck-at-300"), 50);
+  assert.deepEqual(await claimed(), []);
+  await receive("stuck-at-300");
+  assert.deepEqual(await claimed(), ["stuck-at-300"]);
+  await pool.query("delete from v1.provider_inbox where operation_id=$1", [operationId]);
+  await pool.query("delete from v1.provider_operations where id=$1", [operationId]);
+  evidence.push("A provider event past 50 failed applies gets one more claim each time it arrives again, and health keeps counting it");
+
+  const open = (await pool.query(
+    `select d.id,d.version,d.service_date,f.meal from v1.delivery_days d join v1.fulfillments f on f.day_id=d.id
+     join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id
+     where p.caterer_id=$1 and f.status='scheduled' and s.user_id is not null
+      and d.service_date<=(now() at time zone 'Asia/Jakarta')::date
+      and not exists(select 1 from v1.fulfillments g where g.day_id=d.id and g.meal<>f.meal)
+     order by d.service_date desc limit 1`,
+    [catererId],
+  )).rows[0];
+  if (open) {
+    const issue = () => cmd("delivery.status", { id: open.id, version: open.version, meal: open.meal, status: "issue" }, owner);
+    const reports = await Promise.allSettled([issue(), issue(), issue(), issue()]);
+    assert.equal(reports.filter((r) => r.status === "fulfilled").length, 1);
+    assert.equal((await pool.query("select status from v1.fulfillments where day_id=$1", [open.id])).rows[0].status, "issue");
+    evidence.push("Four simultaneous Gagal diantar calls on a scheduled meal: one lands, the others answer CONFLICT");
+  } else evidence.push("Harness has no past scheduled meal: simultaneous Gagal diantar not exercised here");
+
   // M2: the gate reads this database. The harness applies migrations in its own sequence, so only report here.
   const { failures } = await verifyFunctionStack((sql, params) => pool.query(sql, params));
   evidence.push(

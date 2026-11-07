@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Linking, Share, View } from "react-native";
 import {
   routeMapsUrl,
@@ -55,6 +55,62 @@ const movable = (ops: SellerOperationsState, stop: Stop) =>
 /** Report it failed, on today only, while its meal still has a step to "issue" (not delivered, not failed). */
 const failable = (ops: SellerOperationsState, stop: Stop, meal: KitchenMeal) =>
   canReportFailed(ops.deliveries.find((d) => d.id === stop.deliveryId), meal);
+
+/**
+ * One row of the list: the stop, its title "name · n porsi" over "package · address", and the customer's note for this
+ * stop as one more line of the row where it has one. Memoised, so a tick draws only the stop it changed. The list works
+ * out `moreLabel` on every render (the move cutoff is the clock's), and a row without one has no "…".
+ */
+const StopItem = memo(function StopItem({
+  stop: s,
+  picking,
+  selected,
+  moreLabel,
+  unpinned,
+  onOpen,
+  onToggle,
+}: {
+  stop: Stop;
+  picking: boolean;
+  selected: boolean;
+  moreLabel?: string;
+  /** This stop's map link searches the written address while others on the run go to an exact pin. */
+  unpinned: boolean;
+  onOpen: (stop: Stop) => void;
+  onToggle: (id: string) => void;
+}) {
+  const { t } = useMobile();
+  const choice = stopChoices(s, t);
+  const portions = t(`${s.portions} porsi`, plural(s.portions, "portion"));
+  return (
+    <StopRow
+      testID={`stop-${s.n}`}
+      n={s.n}
+      name={s.name}
+      detail={`${portions} · ${s.packageName}`}
+      portions={portions}
+      packageName={s.packageName}
+      note={s.note || undefined}
+      status={stopStatus(s, t) ?? undefined}
+      mapNote={unpinned ? t("Belum ada titik. Peta memakai alamat tertulis.", "No pin yet. The map uses the written address.") : undefined}
+      address={[s.addressLine, s.area].filter(Boolean).join(", ")}
+      mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
+      onMap={() => void Linking.openURL(s.mapsUrl)}
+      onMore={moreLabel ? () => onOpen(s) : undefined}
+      moreLabel={moreLabel}
+      selection={
+        picking
+          ? {
+              selected,
+              disabled: !choice.selectable,
+              onToggle: () => onToggle(s.deliveryId),
+              note: choice.note ?? undefined,
+            }
+          : undefined
+      }
+    />
+  );
+});
 
 /**
  * "Urutan antar": a section whose heading carries how many addresses ("14 alamat") and "Pilih", over one `ListCard` of the
@@ -128,40 +184,25 @@ export function DeliveryOrder({
     }: ${s.name}`;
 
   const count = t(`${stops.length} alamat`, plural(stops.length, "address", "addresses"));
-  // One row of the list: the stop, its title "name · n porsi" over "package · address", and the customer's note for this
-  // stop as one more line of the row where it has one.
-  const stopRow = (s: Stop) => {
-    const choice = stopChoices(s, t);
-    const portions = t(`${s.portions} porsi`, plural(s.portions, "portion"));
-    return (
-      <StopRow
-        key={s.deliveryId}
-        testID={`stop-${s.n}`}
-        n={s.n}
-        name={s.name}
-        detail={`${portions} · ${s.packageName}`}
-        portions={portions}
-        packageName={s.packageName}
-        note={s.note || undefined}
-        status={stopStatus(s, t) ?? undefined}
-        address={[s.addressLine, s.area].filter(Boolean).join(", ")}
-        mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
-        onMap={() => void Linking.openURL(s.mapsUrl)}
-        onMore={hasMore(s) ? () => openSheet(s) : undefined}
-        moreLabel={hasMore(s) ? moreLabel(s) : undefined}
-        selection={
-          picking
-            ? {
-                selected: selection!.selected.has(s.deliveryId),
-                disabled: !choice.selectable,
-                onToggle: () => selection!.toggle(s.deliveryId),
-                note: choice.note ?? undefined,
-              }
-            : undefined
-        }
-      />
-    );
-  };
+  // Stable handlers for the memoised rows, which always run this render's sheet and selection.
+  const latest = useRef({ openSheet, selection });
+  latest.current = { openSheet, selection };
+  const onOpen = useCallback((s: Stop) => latest.current.openSheet(s), []);
+  const onToggle = useCallback((id: string) => latest.current.selection?.toggle(id), []);
+  // Only worth saying once pins exist on this run: before customers have any, every row would carry the same line.
+  const anyPinned = stops.some((s) => s.pinned);
+  const stopRow = (s: Stop) => (
+    <StopItem
+      key={s.deliveryId}
+      stop={s}
+      picking={picking}
+      selected={picking && selection!.selected.has(s.deliveryId)}
+      moreLabel={hasMore(s) ? moreLabel(s) : undefined}
+      unpinned={anyPinned && !s.pinned}
+      onOpen={onOpen}
+      onToggle={onToggle}
+    />
+  );
   const moreLink = hidden > 0 && !picking;
 
   return (

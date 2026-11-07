@@ -3,6 +3,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import { FadeSwap, Screen, Text } from "@catera/mobile-ui";
 import { PackageEditor } from "../../../../src/business/PackageEditor";
 import { isFirstPublish } from "../../../../src/business/package";
+import { ReadError } from "../../../../src/ReadError";
 import { DetailSkeleton } from "../../../../src/skeletons";
 
 export default function NewPackageRoute() {
@@ -21,7 +22,7 @@ export default function NewPackageRoute() {
       <Screen>
         <FadeSwap swapKey={ops.error ? "error" : ops.data ? "missing" : "loading"} style={{ gap: 16 }}>
           {ops.error ? (
-            <Text variant="caption">{ops.error}</Text>
+            <ReadError art message={ops.error} onRetry={() => void ops.reload()} />
           ) : ops.data ? (
             <Text>{t("Paket ini tidak ditemukan.", "This package was not found.")}</Text>
           ) : (

@@ -18,6 +18,7 @@ import {
   Text,
   useColors,
   useFieldCheck,
+  useKeyboard,
   useResendTimer,
 } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
@@ -39,6 +40,8 @@ export function Masuk() {
     if (actor) goToTab("index");
   }, [actor]);
   const c = useColors();
+  // On a short phone the two lines would take the room the fields need while the keyboard is up.
+  const { up: keyboardUp } = useKeyboard();
   // Daftar's "Masuk dengan email ini" arrives with the address.
   const { email: prefill } = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState(typeof prefill === "string" ? prefill : "");
@@ -129,7 +132,7 @@ export function Masuk() {
       footer={
         <StepFooter
           links={
-            <>
+            keyboardUp ? undefined : <>
               <AuthSwitch prompt={t("Belum punya dapur?", "No kitchen yet?")} action={t("Daftar", "Sign up")} onPress={() => router.push("/daftar" as never)} />
               <AuthSwitch
                 prompt={t("Diundang sebagai staf?", "Invited as staff?")}

@@ -15,6 +15,7 @@ export async function proxy(request: NextRequest) {
   )
     return response;
   const client = createServerClient(url, key, {
+    cookieOptions: { secure: process.env.NODE_ENV === "production" },
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (values) => {
@@ -30,6 +31,6 @@ export async function proxy(request: NextRequest) {
 }
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|assets/|favicon.ico|manifest.webmanifest|api/jobs|api/webhooks).*)",
+    "/((?!_next/static|_next/image|assets/|icons/|favicon.ico|manifest.webmanifest|api/jobs|api/webhooks).*)",
   ],
 };

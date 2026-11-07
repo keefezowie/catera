@@ -31,7 +31,7 @@ export function PasswordField({
           name="password"
           type={visible ? "text" : "password"}
           autoComplete={creating ? "new-password" : "current-password"}
-          minLength={creating ? 8 : 1}
+          minLength={creating ? 10 : 1}
           maxLength={256}
           required
           aria-describedby={creating ? id + "-rule" : undefined}

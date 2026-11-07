@@ -23,9 +23,13 @@ type DataState<T> = {
  * what is shown, no `loading`) when the app returns or the network comes back. With `cached`, a
  * screen with nothing to show paints the kept copy while the loader runs; `fromCache` stays true until the loader
  * answers, so the screen can hide what must not be acted on from a copy that may be out of date.
+ *
+ * `key` names the read: hooks of one account with the same key and revision, and no command finished between them,
+ * share one in-flight request, so one key must always mean one loader. A read begun before a command finished never
+ * serves a hook that asks after it. `reload()` always starts a new request, for a caller that just wrote something.
  */
 export function useData<T>(key: string, loader: () => Promise<T>, options?: DataOptions<T>) {
-  const { revision, resumed, locale, actor } = useMobile();
+  const { revision, resumed, locale, actor, reads } = useMobile();
   const identity = (actor?.id || "guest") + ":" + key;
   const [state, setState] = useState<DataState<T>>({
     key: identity,
@@ -43,7 +47,24 @@ export function useData<T>(key: string, loader: () => Promise<T>, options?: Data
   currentKey.current = identity;
   // Whether this identity already has something on screen (fresh or kept); only an empty screen reads the copy.
   const shown = useRef({ key: identity, has: false });
-  const reload = useCallback(async () => {
+  const asked = useRef(revision);
+  asked.current = revision;
+  const read = useCallback(
+    (join: boolean): Promise<T> => {
+      const slot = `${reads.epoch}|${asked.current}|${identity}`;
+      const running = join ? reads.inFlight.get(slot) : undefined;
+      if (running) return running as Promise<T>;
+      const started = Promise.resolve(load.current());
+      reads.inFlight.set(slot, started);
+      const done = () => {
+        if (reads.inFlight.get(slot) === started) reads.inFlight.delete(slot);
+      };
+      started.then(done, done);
+      return started;
+    },
+    [identity, reads],
+  );
+  const run = useCallback(async (join: boolean) => {
     const request = ++generation.current;
     const live = () => request === generation.current && currentKey.current === identity;
     if (shown.current.key !== identity) shown.current = { key: identity, has: false };
@@ -61,7 +82,7 @@ export function useData<T>(key: string, loader: () => Promise<T>, options?: Data
         setState((s) => (s.key === identity && s.data === null ? { ...s, data: value, fromCache: true } : s));
       });
     try {
-      const data = await load.current();
+      const data = await read(join);
       answered = true;
       if (live()) {
         shown.current = { key: identity, has: true };
@@ -84,13 +105,15 @@ export function useData<T>(key: string, loader: () => Promise<T>, options?: Data
         return { key: identity, data: fallback ? value : null, fromCache: fallback, loading: false, error };
       });
     }
-  }, [identity, locale]);
+  }, [identity, locale, read]);
+  // `reload` is handed straight to press handlers, so it takes no argument.
+  const reload = useCallback(() => run(false), [run]);
   useEffect(() => {
-    void reload();
+    void run(true);
     return () => {
       generation.current += 1;
     };
-  }, [reload, revision]);
+  }, [run, revision]);
   // A return to the app or a network that came back: a screen already showing this identity's data reads it again
   // without `loading`, so nothing on it flashes. A failure keeps what is shown; the next resume tries again.
   // Not while a read is running: that read answers with the newer data anyway.
@@ -101,12 +124,12 @@ export function useData<T>(key: string, loader: () => Promise<T>, options?: Data
   useEffect(() => {
     if (resumed === firstResume.current) return;
     if (failedEmpty) {
-      void reload();
+      void run(true);
       return;
     }
     if (!shownData) return;
     const request = ++generation.current;
-    void load.current().then(
+    void read(true).then(
       (data) => {
         if (request !== generation.current || currentKey.current !== identity) return;
         setState((s) => (s.key === identity ? { ...s, data, error: "", fromCache: false } : s));

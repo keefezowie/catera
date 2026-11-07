@@ -39,7 +39,7 @@ describe("extractImportRows", () => {
         modelRow({ name: "Bayu", phone: "081234567803", packageId: "p-tidak-ada" }),
       ]),
     );
-    const result = await extractImportRows({ text: "Andre 0812… Rumahan sisa 9 hari" }, packages, { client, today: "2026-10-07", earliest: "2026-10-08" });
+    const result = await extractImportRows({ text: "Andre 0812 3456 7801 Rumahan sisa 9 hari; Dewi 081234567802; Bayu 081234567803" }, packages, { client, today: "2026-10-07", earliest: "2026-10-08" });
     expect(result.rows[0]).toMatchObject({ phone: "+6281234567801", packageId: "p-rumahan", needsReview: false });
     expect(result.rows[1]).toMatchObject({ packageId: "p-hemat", needsReview: true });
     expect(result.rows[1].reason).toMatch(/alamat/i);
@@ -65,7 +65,8 @@ describe("extractImportRows", () => {
     expect(params.thinking).toEqual({ type: "adaptive" });
     expect(params).not.toHaveProperty("fallbacks");
     expect(params).not.toHaveProperty("betas");
-    expect(JSON.stringify(params.messages)).toContain("p-rumahan");
+    expect(params.system).toContain("p-rumahan");
+    expect(JSON.stringify(params.messages)).not.toContain("p-rumahan");
     expect(params.messages[0].content.some((b: { type: string }) => b.type === "image")).toBe(true);
   });
 

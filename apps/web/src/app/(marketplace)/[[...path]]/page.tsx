@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect, permanentRedirect, notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { demoEnabled } from "@catera/backend";
@@ -40,6 +41,23 @@ const routes = [
   "admin",
   "brand",
 ];
+// Metadata and page share one catalog read per render.
+const pageCatalog = cache(() => catalog());
+// The only routes whose components read `offers` (Messages also opens inside /seller/support); the rest ship without them.
+const readsCatalog = (path: string[]) =>
+  [
+    "",
+    "search",
+    "locations",
+    "categories",
+    "packages",
+    "caterers",
+    "compare",
+    "saved",
+    "checkout",
+    "messages",
+  ].includes(path[0] || "") ||
+  (path[0] === "seller" && path[1] === "support");
 export async function generateMetadata({
   params,
 }: {
@@ -47,8 +65,15 @@ export async function generateMetadata({
 }) {
   const { path = [] } = await params;
   const english = (await cookies()).get("catera_locale")?.value === "en";
+  const named =
+    path[1] && (path[0] === "packages" || path[0] === "caterers")
+      ? await pageCatalog().catch((): Offer[] => [])
+      : [];
   return {
     title:
+      (path[0] === "packages"
+        ? named.find((o) => o.slug === path[1] || o.id === path[1])?.name
+        : named.find((o) => o.catererSlug === path[1])?.caterer) ||
       (
         (english
           ? {
@@ -62,6 +87,20 @@ export async function generateMetadata({
               register: "Create an account",
               "forgot-password": "Recover your account",
               "reset-password": "Set a new password",
+              packages: "Package details",
+              caterers: "Caterer profile",
+              compare: "Compare packages",
+              checkout: "Checkout",
+              payment: "Payment",
+              messages: "Messages",
+              account: "Account",
+              addresses: "Addresses",
+              subscriptions: "Subscriptions",
+              deliveries: "Deliveries",
+              notifications: "Notifications",
+              support: "Support",
+              renew: "Renew your subscription",
+              claim: "Connect your subscription",
             }
           : {
               discover: "Jelajah katering",
@@ -74,6 +113,20 @@ export async function generateMetadata({
               register: "Buat akun",
               "forgot-password": "Pulihkan akun",
               "reset-password": "Buat kata sandi baru",
+              packages: "Detail paket",
+              caterers: "Profil katering",
+              compare: "Bandingkan paket",
+              checkout: "Selesaikan pesanan",
+              payment: "Pembayaran",
+              messages: "Pesan",
+              account: "Akun",
+              addresses: "Alamat",
+              subscriptions: "Langganan",
+              deliveries: "Pengantaran",
+              notifications: "Notifikasi",
+              support: "Bantuan",
+              renew: "Perpanjang langganan",
+              claim: "Sambungkan langganan",
             }) as Record<string, string>
       )[path[0]] ||
       (english
@@ -104,10 +157,12 @@ export default async function Page({
       "/" + (query.size ? "?" + query.toString() : "") + "#packages",
     );
   // The catalog read does not depend on the session, so it starts now instead of after the session and redirect checks.
-  const catalogRead = catalog().then(
-    (items): { offers: Offer[]; issue: string | null } => ({ offers: items, issue: null }),
-    () => ({ offers: [], issue: "NOT_CONFIGURED" }),
-  );
+  const catalogRead = readsCatalog(path)
+    ? pageCatalog().then(
+        (items): { offers: Offer[]; issue: string | null } => ({ offers: items, issue: null }),
+        () => ({ offers: [], issue: "NOT_CONFIGURED" }),
+      )
+    : { offers: [], issue: null };
   const [s, jar] = await Promise.all([pageSession(), cookies()]);
   const workspace = resolveWorkspace(
     s.actor,

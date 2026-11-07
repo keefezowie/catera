@@ -9,7 +9,7 @@ export const securityHeaders=[
   {key:'Referrer-Policy',value:'strict-origin-when-cross-origin'},
   {key:'X-Frame-Options',value:'DENY'},
   {key:'Strict-Transport-Security',value:'max-age=63072000; includeSubDomains'},
-  {key:'Permissions-Policy',value:'camera=(), microphone=(), geolocation=()'},
+  {key:'Permissions-Policy',value:'camera=(), microphone=(), geolocation=(self)'},
   {key:'Content-Security-Policy',value:"frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"},
 ];
 const config:NextConfig={distDir,poweredByHeader:false,devIndicators:false,transpilePackages:['@catera/domain','@catera/api-client','@catera/design-tokens','@catera/backend'],serverExternalPackages:['@electric-sql/pglite'],turbopack:{root},outputFileTracingRoot:root,outputFileTracingIncludes:{'/*':['../../supabase/migrations/*.sql','../../packages/backend/src/*.sql']},async headers(){return [{source:'/(.*)',headers:securityHeaders}]}};

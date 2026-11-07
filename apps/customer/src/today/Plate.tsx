@@ -1,5 +1,5 @@
 import { createContext, memo, use, useEffect, useState } from "react";
-import { Linking, StyleSheet, Text as RNText, View } from "react-native";
+import { StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { pushSheet } from "../nav";
@@ -9,7 +9,6 @@ import {
   changeDeadline,
   errorLabel,
   journeyCaption,
-  whatsappUrl,
   type Delivery,
   type Plate as PlateData,
 } from "@catera/domain";
@@ -31,6 +30,7 @@ import {
   cardEdge,
 } from "@catera/mobile-ui";
 import { HeroPhotoFrame } from "./HeroPhoto";
+import { useCatererChat } from "../help/ChatKatering";
 import { dayHasActions } from "../schedule/dayActions";
 import { DayMore } from "../schedule/DayMore";
 import { photoUri } from "./photoUri";
@@ -357,7 +357,10 @@ function PlateContent({
   // Which answer is on its way to the API (only its button shows the spinner); "" when none is.
   const [waiting, setWaiting] = useState<"" | "confirm" | "react">("");
   const busy = waiting !== "";
+  // The reaction just tapped, marked at once rather than after the command and its reload; dropped if it fails.
+  const [picked, setPicked] = useState<Reaction | null>(null);
   const toast = useToast();
+  const openChat = useCatererChat();
   // The journey caption (with its times) belongs to a meal on its normal way; a failed or reported plate gets none and
   // keeps its own message.
   const caption =
@@ -403,9 +406,11 @@ function PlateContent({
   async function run(action: string, payload: Record<string, unknown>, which: "confirm" | "react") {
     if (waiting) return;
     setWaiting(which);
+    if (which === "react") setPicked(payload.reaction as Reaction);
     try {
       await command(action, { deliveryId: plate.deliveryId, meal: plate.meal, ...payload });
     } catch (e) {
+      setPicked(null);
       toast.show({
         message: commandError(e, locale, t),
         tone: "error",
@@ -509,7 +514,7 @@ function PlateContent({
                   ["kurang", t("Kurang", "Not great")],
                 ] as const
               ).map(([value, label]) => {
-                const selected = plate.reaction === value;
+                const selected = (picked ?? plate.reaction) === value;
                 return (
                   <PressableScale
                     key={value}
@@ -545,7 +550,7 @@ function PlateContent({
                 label={plate.catererName ? t(`Chat ${plate.catererName}`, `Message ${plate.catererName}`) : t("Chat katering", "Message the caterer")}
                 ink={ink}
                 edge={edge}
-                onPress={() => void Linking.openURL(whatsappUrl("", plate.catererPhone ?? "")).catch(() => undefined)}
+                onPress={() => openChat(plate.catererPhone ?? "")}
               />
             ) : null}
             {!offline ? (

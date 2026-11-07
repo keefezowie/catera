@@ -36,11 +36,31 @@ const legacyMenuNutritionSchema = z
     fatG: z.number().finite().nonnegative().optional(),
   })
   .strict();
+const bundledOrDemoPhoto = /^\/(?:assets\/food\/|api\/uploads\?file=)[\w-]+\.\w+$/;
+/** The credited Commons photos scripts/clean-catalog.mjs put on every hosted menu; a re-save must keep working. */
+const creditedCatalogPhoto = /^https:\/\/thumb\.wikimedia\.org\/wikipedia\/commons\/thumb\//;
+/**
+ * Only photos that went through our EXIF-stripping upload or the credited catalog, so a caterer cannot make every
+ * customer's device fetch an arbitrary third party. A phone has no NEXT_PUBLIC_SUPABASE_URL, so there the server's
+ * parse is the one that pins the project.
+ */
+export function isFoodImage(value: string) {
+  if (!value) return true;
+  const src = value.replace(/#th=[A-Za-z0-9+/=]*$/, "");
+  if (bundledOrDemoPhoto.test(src) || creditedCatalogPhoto.test(src)) return true;
+  const project = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!project) return src.startsWith("https://");
+  const bucket = `${project.replace(/\/$/, "")}/storage/v1/object/public/catera-v1-food/`;
+  return src.startsWith(bucket) && /^[\w-]+(?:\/[\w-]+)*\.\w+$/.test(src.slice(bucket.length));
+}
+/** Write schemas only: no read parses these, so an older row still shows. */
+export const foodImage = (schema: z.ZodString) =>
+  schema.refine(isFoodImage, "Unggah foto lewat Catera / Upload the photo through Catera");
 export const dishSchema = z.object({
   id: text(80).min(1),
   name: text(120),
   description: text(600).default(""),
-  image: text(500).default(""),
+  image: foodImage(text(500)).default(""),
   serving: text(100).default(""),
   groupId: text(80).optional(),
   categoryId: text(80).optional(),
@@ -113,7 +133,7 @@ export const menuSchema = z.object({
   contentModel: z.literal("slots").optional(),
   name: text(1500),
   description: text(1500),
-  image: text(500),
+  image: foodImage(text(500)),
   meal: z.enum(["lunch", "dinner"]),
   items: z.array(dishSchema).max(60).optional(),
   composition: z.array(componentSchema).max(20).optional(),

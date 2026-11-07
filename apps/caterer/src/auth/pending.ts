@@ -65,18 +65,24 @@ export async function createKitchen(runtime: MobileRuntime, command: Command, ac
 
 /**
  * What Daftar's steps collected when the email already had an account, kept on this phone so the first three steps need
- * no retyping after signing in. RoleGate reads it; only the press on "Buka dapur" makes a kitchen.
+ * no retyping after signing in. RoleGate reads it; only the press on "Buka dapur" makes a kitchen. It carries the email
+ * it was typed for: another account on this phone is never offered it, and the read lets it go (an older value has none).
  */
 const heldKitchenKey = (runtime: MobileRuntime) => runtime.storageKey("auth.kitchen");
-export const holdKitchen = (runtime: MobileRuntime, kitchen: PendingKitchen) =>
-  SecureStore.setItemAsync(heldKitchenKey(runtime), JSON.stringify(kitchen)).catch(() => undefined);
+export const holdKitchen = (runtime: MobileRuntime, kitchen: PendingKitchen, email: string) =>
+  SecureStore.setItemAsync(heldKitchenKey(runtime), JSON.stringify({ ...kitchen, email: email.trim().toLowerCase() })).catch(() => undefined);
 export async function readHeldKitchen(runtime: MobileRuntime): Promise<PendingKitchen | null> {
   const held = await SecureStore.getItemAsync(heldKitchenKey(runtime)).catch(() => null);
+  if (!held) return null;
   try {
-    return held ? (JSON.parse(held) as PendingKitchen) : null;
+    const { email, ...kitchen } = JSON.parse(held) as PendingKitchen & { email?: string };
+    const session = await runtime.supabase?.auth.getSession();
+    if (email && email === session?.data.session?.user.email?.toLowerCase()) return kitchen;
   } catch {
-    return null;
+    // Unreadable: let go below.
   }
+  await clearHeldKitchen(runtime);
+  return null;
 }
 export const clearHeldKitchen = (runtime: MobileRuntime) => SecureStore.deleteItemAsync(heldKitchenKey(runtime)).catch(() => undefined);
 
@@ -94,4 +100,10 @@ export async function takeHeldInvite(runtime: MobileRuntime): Promise<string> {
   const code = await SecureStore.getItemAsync(heldInviteKey(runtime)).catch(() => null);
   if (code) await SecureStore.deleteItemAsync(heldInviteKey(runtime)).catch(() => undefined);
   return code ?? "";
+}
+
+/** Lets go of both, so nothing typed for one account waits on this phone for the next. */
+export async function clearHeld(runtime: MobileRuntime) {
+  await clearHeldKitchen(runtime);
+  await SecureStore.deleteItemAsync(heldInviteKey(runtime)).catch(() => undefined);
 }

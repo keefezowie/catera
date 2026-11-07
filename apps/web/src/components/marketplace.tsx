@@ -1081,8 +1081,14 @@ export function PackagePage({
             {mealLabel(p.meal, locale)}
             {p.meal === "both" ? " · 2 " + t("kali makan", "meals") : ""}
           </p>
-          <div className="portion-control">
-            <label>{t("Jumlah porsi", "Portions")}</label>
+          <div
+            className="portion-control"
+            role="group"
+            aria-labelledby="package-portions-label"
+          >
+            <label id="package-portions-label">
+              {t("Jumlah porsi", "Portions")}
+            </label>
             <div>
               <Button
                 className="icon-button"
@@ -1092,7 +1098,7 @@ export function PackagePage({
               >
                 <Minus size={16} />
               </Button>
-              <strong>{portions}</strong>
+              <strong aria-live="polite">{portions}</strong>
               <Button
                 className="icon-button"
                 aria-label={t("Tambah porsi", "Increase portions")}
@@ -1378,7 +1384,7 @@ export function Compare() {
                     ),
                   ],
                   [
-                    t("Trial 1 hari", "1-day trial"),
+                    t("Coba 1 hari", "1-day trial"),
                     ...selected.map((p) =>
                       p.trialPrice
                         ? currency(p.trialPrice * portions, locale)
@@ -1504,7 +1510,12 @@ export function CatererPage({ slug }: { slug: string }) {
           {t("Tanya katering", "Ask the caterer")}
         </Link>
       </section>
-      <Heading title={t("Paket katering", "Catering packages")} />
+      <div className="page-heading">
+        <div>
+          {/* The page's h1 is the caterer's name; this keeps the page-heading look of an h1. */}
+          <h2>{t("Paket katering", "Catering packages")}</h2>
+        </div>
+      </div>
       <div className="package-grid">
         {list.map((p) => (
           <PackageCard key={p.id} offer={p} />

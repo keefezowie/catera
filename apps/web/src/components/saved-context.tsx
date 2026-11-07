@@ -64,7 +64,7 @@ type Context = {
 const SavedContext = createContext<Context>(null!);
 export const useSaved = () => useContext(SavedContext);
 export function SavedProvider({ children }: { children: ReactNode }) {
-  const { actor, revision, locale, notify, t } = useApp();
+  const { actor, workspace, revision, resumed, locale, notify, t } = useApp();
   const pathname = usePathname();
   const params = useSearchParams();
   const [state, setState] = useState<State>(empty);
@@ -115,20 +115,12 @@ export function SavedProvider({ children }: { children: ReactNode }) {
     setBusy({ owner: actor?.id || "", ids: [] });
     if (!actor) setState(empty);
   }, [actor?.id]);
+  // Dapur and Admin screens show no saved packages; a caterer or admin on a public page still has a working Save button.
+  const needed =
+    workspace === "customer" || !/^\/(seller|admin)(\/|$)/.test(pathname);
   useEffect(() => {
-    void refresh();
-  }, [actor?.id, revision, refresh]);
-  useEffect(() => {
-    const focus = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    window.addEventListener("focus", focus);
-    document.addEventListener("visibilitychange", focus);
-    return () => {
-      window.removeEventListener("focus", focus);
-      document.removeEventListener("visibilitychange", focus);
-    };
-  }, [refresh]);
+    if (needed) void refresh();
+  }, [actor?.id, revision, resumed, needed, refresh]);
   const set = useCallback(
     async (packageId: string, saved: boolean, nonce?: string) => {
       if (!actor) {

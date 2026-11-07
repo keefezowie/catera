@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
-import { rpc } from "@catera/backend";
 import type { Offer } from "@catera/domain";
+import { catalog } from "@/lib/catalog-cache";
 import { publicOrigin } from "@/lib/public-url";
 
-// The catalog changes as caterers publish, so the sitemap is read per request instead of at build.
+// The catalog changes as caterers publish, so the sitemap is built per request instead of at build, from the shared 30 s read.
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -15,12 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
   let offers: Offer[] = [];
   try {
-    offers = (
-      await rpc<{ items: Offer[] }>(null, null, "catera_v1_read", {
-        resource: "catalog",
-        params: { limit: 100 },
-      })
-    ).items;
+    offers = await catalog();
   } catch {
     return entries; // Unconfigured or unreachable database: the static routes still index.
   }

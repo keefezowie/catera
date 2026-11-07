@@ -15,10 +15,11 @@ export async function GET(
       revision: number;
       entries: Delivery[];
     }>(s.id, s.token, "catera_v1_manifest", { version_id: id });
+    // A spreadsheet runs a cell starting with these as a formula; the apostrophe keeps it text (OWASP CSV injection).
     const safe = (v: unknown) =>
       '"' +
       String(v ?? "")
-        .replace(/^[=+@\-]/, "'")
+        .replace(/^[=+\-@\t\r]/, "'$&")
         .replaceAll('"', '""') +
       '"';
     const locale = /(?:^|;\s*)catera_locale=en(?:;|$)/.test(

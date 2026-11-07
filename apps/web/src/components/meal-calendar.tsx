@@ -802,7 +802,8 @@ export function MealCalendar() {
             className="calendar-date-entry"
             onSubmit={(e) => {
               e.preventDefault();
-              if (validDay(enteredDate)) pick(enteredDate);
+              const day = enteredDay(enteredDate);
+              if (day) pick(day);
             }}
           >
             <label htmlFor="calendar-direct-date">
@@ -814,8 +815,7 @@ export function MealCalendar() {
                 type="text"
                 inputMode="text"
                 autoComplete="off"
-                placeholder="YYYY-MM-DD"
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                placeholder="DD/MM/YYYY"
                 value={enteredDate}
                 required
                 onChange={(e) => setEnteredDate(e.target.value)}
@@ -823,7 +823,7 @@ export function MealCalendar() {
               <Button
                 className="button"
                 type="submit"
-                disabled={!validDay(enteredDate)}
+                disabled={!enteredDay(enteredDate)}
               >
                 {t("Lihat", "Go")}
               </Button>
@@ -833,6 +833,16 @@ export function MealCalendar() {
       </Dialog>
     </div>
   );
+}
+
+/** The typed date as an ISO day, from ISO or the d/m/yyyy Indonesians write; "" unless it is a real date. */
+export function enteredDay(text: string) {
+  const value = text.trim(),
+    dmy = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/),
+    day = dmy
+      ? `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`
+      : value;
+  return validDay(day) ? day : "";
 }
 
 function CalendarMeal({

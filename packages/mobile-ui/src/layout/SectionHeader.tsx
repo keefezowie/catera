@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { Text } from "../components";
 import { PressableRow } from "../PressableRow";
+import { useTouchTarget } from "../layoutScale";
 import { themedStyles, useColors } from "../theme";
 
 type SectionLink = { label: string; onPress: () => void };
@@ -18,8 +19,9 @@ const NODE_ACTION_HEIGHT = nativeLayout.space.xxxl;
  * at the right, before the trailing slot ("9 menu", "14 alamat"). `action` is the link, or any node for the trailing
  * slot (Dapur's 48 icon buttons, "Pilih"). A header with a node action is at least 48 tall, the title centred in it: the
  * row has to hold the whole 48 target, because Android delivers a touch only inside every ancestor's bounds and a
- * button that overhangs a 26 row loses the part outside it. A header without one stays one heading line, unless
- * `reserveAction` holds the 48 for an action that may arrive later.
+ * button that overhangs a 26 row loses the part outside it. A link's header is a touch target tall (44, or Dapur's 48) for
+ * the same reason, the link filling that height. A header without an action stays one heading line, unless `reserveAction`
+ * holds the 48 for an action that may arrive later.
  */
 export function SectionHeader({
   title,
@@ -35,9 +37,10 @@ export function SectionHeader({
 }) {
   const c = useColors();
   const styles = useStyles();
+  const target = useTouchTarget();
   const node = (!!action && !isLink(action)) || reserveAction;
   return (
-    <View testID="section-header" style={[styles.row, node && styles.rowWithAction]}>
+    <View testID="section-header" style={[styles.row, isLink(action) && { minHeight: target }, node && styles.rowWithAction]}>
       <Text variant="section" accessibilityRole="header" style={styles.title}>
         {title}
       </Text>
@@ -51,7 +54,8 @@ export function SectionHeader({
           accessibilityRole="button"
           accessibilityLabel={action.label}
           onPress={action.onPress}
-          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          hitSlop={{ left: 8, right: 8 }}
+          style={styles.link}
         >
           {/* forest: action (the section link) */}
           <Text variant="bodyStrong" style={{ color: c.forest }}>
@@ -77,6 +81,7 @@ const useStyles = themedStyles(() => ({
   },
   title: { flex: 1 },
   rowWithAction: { minHeight: NODE_ACTION_HEIGHT },
+  link: { alignSelf: "stretch", justifyContent: "center" },
   count: { flexShrink: 0, fontVariant: ["tabular-nums"] },
   trailing: { flexDirection: "row", alignItems: "center", flexShrink: 0 },
 }));

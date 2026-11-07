@@ -464,6 +464,8 @@ describe("Akun", () => {
 
 describe("Notifikasi", () => {
   it("lists the updates without a push card: the switch lives in Pengaturan", async () => {
+    // Past the one-time release for phones from older builds, which reads the permission too.
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.push.unmarked-released", "1");
     await renderWith(runtimeWith({}), <NotificationsScreen />);
     expect(await screen.findByText("Belum ada notifikasi baru.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Aktifkan" })).toBeNull();
@@ -579,10 +581,10 @@ describe("Notifikasi", () => {
     );
     await fireEvent.press(await screen.findByRole("button", { name: "Tandai semua dibaca" }));
     expect(await screen.findByText("Belum semua ditandai dibaca. Coba lagi.")).toBeTruthy();
-    expect(runtime.api.command).toHaveBeenCalledTimes(2);
+    expect(runtime.api.command).toHaveBeenCalledTimes(3);
     expect(screen.queryByText("REQUEST_TIMEOUT")).toBeNull();
-    // n-1 went through; n-3 and n-4 are still unread, so the action stays.
-    expect(screen.getAllByTestId("unread-dot")).toHaveLength(2);
+    // n-1 and n-4 went through in the same batch; n-3 is still unread, so the action stays.
+    expect(screen.getAllByTestId("unread-dot")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Tandai semua dibaca" })).toBeTruthy();
   });
 

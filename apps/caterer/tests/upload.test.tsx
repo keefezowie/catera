@@ -103,6 +103,35 @@ describe("uploadPhoto (demo)", () => {
   });
 });
 
+describe("a stalled connection", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+    jest.useRealTimers();
+  });
+
+  it("gives up after 30 seconds with the timeout code the caller words", async () => {
+    jest.useFakeTimers();
+    global.fetch = ((_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => init.signal!.addEventListener("abort", () => reject(new Error("Aborted"))))) as never;
+    const upload = uploadPhoto(runtime, picked, true).catch((e: unknown) => e);
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(upload).resolves.toMatchObject({ code: "REQUEST_TIMEOUT" });
+  });
+
+  it("a stalled storage PUT gives up the same way", async () => {
+    jest.useFakeTimers();
+    global.fetch = ((url: string, init: RequestInit) => {
+      if (url.startsWith("file://")) return Promise.resolve({ blob: async () => ({ size: 3 }) });
+      if (url.endsWith("/prepare")) return Promise.resolve({ ok: true, json: async () => ({ data: { url: "https://storage.test/signed", object: "o-1" } }) });
+      return new Promise((_resolve, reject) => init.signal!.addEventListener("abort", () => reject(new Error("Aborted"))));
+    }) as never;
+    const upload = uploadPhoto(runtime, picked, false).catch((e: unknown) => e);
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(upload).resolves.toMatchObject({ code: "REQUEST_TIMEOUT" });
+  });
+});
+
 describe("direct Catera API calls carry the bearer and no cookie", () => {
   const realFetch = global.fetch;
   afterEach(() => {
@@ -136,5 +165,24 @@ describe("direct Catera API calls carry the bearer and no cookie", () => {
     expect(calls[0].url).toBe("http://api.test/api/uploads/proof");
     expect(calls[0].init?.credentials).toBe("omit");
     expect(calls[0].init?.headers).toEqual({ Authorization: "Bearer demo-token" });
+  });
+
+  it("a stalled proof photo gives up after 30 seconds instead of waiting for ever", async () => {
+    jest.useFakeTimers();
+    try {
+      global.fetch = ((_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal!.addEventListener("abort", () => reject(new Error("aborted")));
+        })) as never;
+      const sent = uploadProof(runtime, "file:///cache/proof.jpg", "d-1", "lunch");
+      let settled = false;
+      const outcome = expect(sent.finally(() => { settled = true; })).rejects.toThrow("aborted");
+      await jest.advanceTimersByTimeAsync(29_000);
+      expect(settled).toBe(false);
+      await jest.advanceTimersByTimeAsync(1_000);
+      await outcome;
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

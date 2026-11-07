@@ -2154,3 +2154,13 @@ Not verified on a device or against a real DOKU notification: the `channel.id` v
 ### Not verified
 
 Unit tests, typecheck and build only (owner ruling, no emulator gate). Not checked on a device: the sheet's fit height and scrolling with many methods, the marks' legibility at 48×28 (CIMB's wide wordmark is thin), TalkBack order in the sheet, the 64 hello beside a two-line title at large text. Open: the hosted allow-list spells ShopeePay `EMONEY_SHOPEEPAY` where DOKU uses `EMONEY_SHOPEE_PAY` (`packages/backend/src/doku.ts:136-137`); every method past QRIS and BRI VA needs its backend channel.
+
+## Address pin (November 2026)
+
+The map sets where and the customer's words say which door: a pin never replaces the written address. Canvas: https://claude.ai/artifact/QHA8NUcoa57uefqzwiBSzn
+
+- The pin stays still at the map's centre and the map moves under it. Search and "my location" move the map too, so nobody has to be able to drag.
+- "Pakai titik ini" stays off while zoomed out (the pin could be a neighbourhood off) and outside the service area, and the panel says why and what to do.
+- The map screen is full screen, since a sheet's swipe would fight the map's. The form holds a still picture of the marked spot.
+- Location is asked for only on "my location". Refusing it leaves search and dragging working, with one line saying so.
+- The area chips stay; the pin picks one, and a chip that disagrees holds the save and says which way to fix it.

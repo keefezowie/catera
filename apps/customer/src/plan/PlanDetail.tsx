@@ -31,7 +31,7 @@ import {
   useScreenNavigation,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
-import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
+import { catererPhoneOf, useCatererChat } from "../help/ChatKatering";
 import { remainingLabel } from "../remaining";
 import { usePullToRefresh } from "../refresh";
 import { StaleCopy } from "../staleCopy";
@@ -112,6 +112,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
   // Chat with the kitchen sits at the trailing end of the native bar, as on the approved canvas, and only while the
   // read carries the caterer's verified number for this plan; without one the bar has no button at all.
   const navigation = useScreenNavigation();
+  const openChat = useCatererChat();
   const phone = catererPhoneOf(state?.deliveries.find((d) => d.subscription_id === id && d.catererPhone));
   const caterer = plan?.offer.caterer ?? "";
   useLayoutEffect(() => {
@@ -124,12 +125,12 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
                 icon="chat"
                 slot="trailing"
                 label={caterer ? t(`Chat ${caterer}`, `Message ${caterer}`) : t("Chat katering", "Message the caterer")}
-                onPress={() => openCatererChat(phone)}
+                onPress={() => openChat(phone)}
               />
             )
           : undefined,
     });
-  }, [navigation, plan, phone, caterer, t]);
+  }, [navigation, plan, phone, caterer, t, openChat]);
 
   if (!plan) {
     const loading = !state && read.loading;

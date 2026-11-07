@@ -15,6 +15,7 @@ export async function supabase() {
     key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) throw new Error("NOT_CONFIGURED");
   return createServerClient(url, key, {
+    cookieOptions: { secure: process.env.NODE_ENV === "production" },
     cookies: {
       getAll: () => jar.getAll(),
       setAll: (values) => {

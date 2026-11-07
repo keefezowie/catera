@@ -64,20 +64,43 @@ export type MobileRuntime = ReturnType<typeof createMobileRuntime>;
 /**
  * The Supabase session never leaves this phone: "this device only" keeps it out of iCloud Keychain and encrypted
  * backups restored onto another phone, and "after first unlock" still lets a push wake the app while the phone is
- * locked. SecureStore only rewrites the value of an item that already exists, never its accessibility, so the old item
- * is deleted first; every token refresh therefore moves a session saved by an older build onto this setting.
+ * locked. SecureStore's update applies the accessibility passed here (expo-secure-store 58, SecureStoreModule.swift), so
+ * every token refresh moves a session saved by an older build onto this setting. The item is written in place: a kill
+ * between a delete and a write, after the refresh token rotated, would sign the person out. An item the store refuses to
+ * update is deleted and written again.
  */
 const sessionKeychain = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
 };
-const secureStorage = {
+export const secureStorage = {
   getItem: (key: string) => SecureStore.getItemAsync(key, sessionKeychain),
   setItem: async (key: string, v: string) => {
-    await SecureStore.deleteItemAsync(key, sessionKeychain);
-    await SecureStore.setItemAsync(key, v, sessionKeychain);
+    try {
+      await SecureStore.setItemAsync(key, v, sessionKeychain);
+    } catch {
+      await SecureStore.deleteItemAsync(key, sessionKeychain);
+      await SecureStore.setItemAsync(key, v, sessionKeychain);
+    }
   },
   removeItem: (key: string) => SecureStore.deleteItemAsync(key, sessionKeychain),
 };
+
+/** Waits for `work` to settle, at most `ms`; its outcome, a rejection included, is ignored. */
+export function settleWithin(work: Promise<unknown>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    work.then(
+      () => undefined,
+      () => undefined,
+    ),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+/** How long Keluar waits for auth-js to finish; offline its refresh retries alone run about 30 s. */
+const SIGN_OUT_MS = 3000;
 
 /** Ensures the Catera profile exists for a fresh Supabase session and returns the actor. */
 export async function ensureActor(
@@ -140,10 +163,19 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
           },
         })
       : null;
-  const token = async () =>
-    (await SecureStore.getItemAsync(key("demo.token"))) ||
-    (await supabase?.auth.getSession())?.data.session?.access_token ||
-    null;
+  /** Whether Supabase's session item is on this phone: a local read that never refreshes or touches the network. */
+  const sessionStored = async () => !!supabase && !!(await secureStorage.getItem(supabase.auth["storageKey"]));
+  /** Whether this phone holds a session, however old its access token: what may reopen the last account offline. */
+  const hasSession = async () => !!(await SecureStore.getItemAsync(key("demo.token"))) || sessionStored();
+  const token = async () => {
+    const demo = await SecureStore.getItemAsync(key("demo.token"));
+    if (demo || !supabase) return demo || null;
+    const { data, error } = await supabase.auth.getSession();
+    // A refresh that failed with the session kept (no network, a 5xx). Going out anonymous would read as signed out; a
+    // refresh token the server rejected has its session removed by auth-js, and that request is rightly anonymous.
+    if (error && (await sessionStored())) throw new Error("OFFLINE");
+    return data.session?.access_token || null;
+  };
   // Bearer only: the phone never keeps or sends the API's cookies, so the token is the whole session. The direct
   // fetches to the Catera API (uploads, proof photos, the import assistant) pass `credentials: "omit"` too.
   const api = createApi(apiBase, token, { timeoutMs: 15_000, credentials: "omit" });
@@ -266,8 +298,20 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
       void Promise.resolve(api.request("auth/logout", {})).catch(() => undefined);
     await SecureStore.deleteItemAsync(key("demo.token"));
     await clearNativeCookies();
-    const result = await supabase?.auth.signOut({ scope: "local" });
-    if (result?.error) throw result.error;
+    if (!supabase) return;
+    // Only this phone's session matters here. It goes first, so auth-js has nothing to refresh and nothing to revoke: its
+    // signOut removes the session after those network calls, and arriving late that would remove the next account's. A
+    // refresh already out sees the item gone and discards its tokens, so it restores nothing. The server is told separately,
+    // which touches no storage; it refuses an expired access token, so that session's refresh token just lapses unused.
+    const stored = await secureStorage.getItem(supabase.auth["storageKey"]);
+    if (stored) {
+      await secureStorage.removeItem(supabase.auth["storageKey"]);
+      void Promise.resolve()
+        .then(() => supabase.auth.admin.signOut(JSON.parse(stored).access_token, "local"))
+        .catch(() => undefined);
+    }
+    // Still called for what it clears and for its SIGNED_OUT; before the client has initialized it waits on that.
+    await settleWithin(Promise.resolve(supabase.auth.signOut({ scope: "local" })), SIGN_OUT_MS);
   }
 
   return {
@@ -276,6 +320,7 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
     supabase,
     api,
     token,
+    hasSession,
     storageKey: key,
     signInPassword,
     signInWithGoogle,

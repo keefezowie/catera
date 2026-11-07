@@ -734,6 +734,18 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261105100000_import_drafts.sql"), "utf8") + "\ncommit;");
   }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('public.catera_v1_system_hardening_base(text,jsonb)') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261107100000_audit_hardening.sql"), "utf8") + "\ncommit;");
+  }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('public.catera_v1_command_pin_base(text,jsonb,uuid)') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261107120000_address_pin.sql"), "utf8") + "\ncommit;");
+  }
   // Synthetic renewal, payment and kitchen-loop states for the demo customer, after everything else, only on a demo
   // database seeded just now (`r`: no v1 schema before). Demo storage only: never run against hosted data.
   await applyDemoStates(db, { seeded: !r.rows[0].exists, root: projectRoot(), folder: inMemory ? null : folder });
@@ -782,6 +794,19 @@ export async function localRpc<T>(
     return r.rows[0].value;
   });
 }
+// The cron job's sweeps touch every due row; everything else is one short transaction.
+const slowJobs = new Set([
+  "maintenance",
+  "delivery.autoConfirm",
+  "delivery.autoDeliver",
+  "settlement.run",
+]);
+const hostedClient = (url: string, key: string, token: string | null) =>
+  createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: token ? { Authorization: "Bearer " + token } : {} },
+  });
+const sharedClients = new Map<string, ReturnType<typeof hostedClient>>();
 export async function rpc<T>(
   actor: string | null,
   accessToken: string | null,
@@ -804,13 +829,17 @@ export async function rpc<T>(
   if (!url || !key) throw new Error("NOT_CONFIGURED");
   if (url.includes("otmanljypltxkwjcebni"))
     throw new Error("PILOT_DATABASE_PROTECTED");
-  const client = createClient(url, key, {
-    auth: { persistSession: false },
-    global: {
-      headers: accessToken ? { Authorization: "Bearer " + accessToken } : {},
-    },
-  });
-  const { data, error } = await client.rpc(name, args);
-  if (error) throw new Error(error.message);
+  // A user's token never enters the shared clients, which hold no session of their own.
+  let client = accessToken ? hostedClient(url, key, accessToken) : sharedClients.get(url + key);
+  if (!client) sharedClients.set(url + key, (client = hostedClient(url, key, null)));
+  const { data, error } = await client
+    .rpc(name, args)
+    .abortSignal(AbortSignal.timeout(slowJobs.has(String(args.action)) ? 60000 : 15000));
+  if (error)
+    throw Object.assign(new Error(error.message), {
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
   return data as T;
 }

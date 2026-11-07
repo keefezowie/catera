@@ -129,6 +129,8 @@ function Navigation() {
           <Stack.Screen name="ubah-hari/[id]" options={sheetOptions({ detents: "large", palette })} />
           <Stack.Screen name="ulasan/[id]" options={sheetOptions({ detents: "form", palette })} />
           <Stack.Screen name="alamat-form" options={sheetOptions({ detents: "form", palette })} />
+          {/* The map behind an address's pin, over whichever form opened it: full screen, because a sheet's swipe would fight the map's. */}
+          <Stack.Screen name="alamat-peta" options={{ headerShown: false, presentation: "fullScreenModal", gestureEnabled: false }} />
           <Stack.Screen name="bantuan-form" options={sheetOptions({ detents: "form", palette })} />
           <Stack.Screen name="hapus-akun" options={sheetOptions({ detents: "form", palette })} />
           {/* A black story: its own close button replaces the header, and a fade keeps its ground from cutting in. */}

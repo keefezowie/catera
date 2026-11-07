@@ -106,12 +106,45 @@ describe("menu day save failure", () => {
 });
 
 describe("SlotEditor create dish", () => {
-  const editor = async (onCreate: () => Promise<unknown>, onChange = jest.fn()) =>
+  const editor = async (onCreate: () => Promise<unknown>, onChange = jest.fn(), library: never[] = []) =>
     await render(
       withMobile(
-        <SlotEditor composition={composition} items={[]} library={[]} usage={new Map()} onChange={onChange} onCreate={onCreate as never} canEdit />,
+        <SlotEditor composition={composition} items={[]} library={library} usage={new Map()} onChange={onChange} onCreate={onCreate as never} canEdit />,
       ),
     );
+
+  it("a dish removed while another is being created stays removed", async () => {
+    let finish: (d: unknown) => void = () => undefined;
+    await mountDay(jest.fn((action: string) => (action === "dish.save" ? new Promise((r) => { finish = r; }) : Promise.resolve({}))));
+    await fireEvent.press(await screen.findByRole("button", { name: "Hapus Ayam goreng" }));
+    await fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "Soto");
+    await fireEvent.press(screen.getByRole("button", { name: /Buat hidangan baru/ }));
+    await fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi putih" }));
+    await act(async () => finish(newDish));
+    await screen.findByText("Soto");
+    expect(screen.queryByText("Nasi putih")).toBeNull();
+  });
+
+  it("Enter picks the first suggestion", async () => {
+    const onChange = jest.fn();
+    const onCreate = jest.fn();
+    await editor(onCreate, onChange, [{ ...newDish, name: "Soto ayam" }] as never[]);
+    await fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "Soto");
+    await fireEvent(screen.getByLabelText("Tambah lauk"), "submitEditing");
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][0][0].name).toBe("Soto ayam");
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it("Enter creates when nothing is suggested, and does nothing on an empty input", async () => {
+    const onCreate = jest.fn(async () => newDish);
+    await editor(onCreate);
+    await fireEvent(screen.getByLabelText("Tambah lauk"), "submitEditing");
+    expect(onCreate).not.toHaveBeenCalled();
+    await fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "Soto");
+    await fireEvent(screen.getByLabelText("Tambah lauk"), "submitEditing");
+    expect(onCreate).toHaveBeenCalledWith("Soto", "main");
+  });
 
   it("creates once however often it is pressed, and shows busy", async () => {
     let resolve: (d: unknown) => void = () => undefined;

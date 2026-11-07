@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FlatList, ScrollView, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { router } from "expo-router";
@@ -50,6 +50,8 @@ const BUDGET = 30000;
 const centred = { textAlign: "center" } as const;
 /** The category chips after the two filters: the tags caterers used most in this area and meal. */
 const CATEGORIES = 6;
+/** How many catalog pages of 100 one read follows, so a server that never stops cannot hold the list. */
+const CATALOG_PAGES = 10;
 /** The search pill sits 16 under the headline (the header's 8 plus its own 8). */
 const SEARCH_TOP = 8;
 /** Below this effective width the full placeholder would wrap, and a TextInput measures one line, so it is cut. */
@@ -130,14 +132,29 @@ function Browse({
   // The catalog is read once the area is known, so the first read is already for it.
   const catalog = useData<{ items: Offer[] } | null>(
     area === null ? "jelajah:area" : `jelajah:${query}`,
-    () =>
-      area === null ? Promise.resolve(null) : runtime.api.catalog("?" + query),
+    async () => {
+      if (area === null) return null;
+      // Keyed by id: a package published between two pages shifts the offsets and would come back twice.
+      const byId = new Map<string, Offer>();
+      let offset: string | null = null;
+      for (let page = 0; page < CATALOG_PAGES; page++) {
+        // The server reads the `nextCursor` it gave as `offset` (catera_v1_read 'catalog'), not as `cursor`.
+        const read: { items: Offer[]; nextCursor: string | null } = await runtime.api.catalog(
+          "?" + query + (offset ? `&offset=${encodeURIComponent(offset)}` : ""),
+        );
+        for (const o of read.items) byId.set(o.id, o);
+        offset = read.nextCursor;
+        if (!offset) break;
+      }
+      return { items: [...byId.values()] };
+    },
   );
   const pull = usePullToRefresh(() => Promise.all([catalog.reload(), saved.reload()]));
   // One wait from the first frame to the first list: the area read, then the catalog read, under one skeleton.
   const waiting = area === null || (catalog.loading && !catalog.data);
 
-  const needle = search.trim().toLowerCase();
+  // The list follows the typing a beat behind, so a long catalog never slows the keyboard.
+  const needle = useDeferredValue(search).trim().toLowerCase();
   const all = catalog.data?.items;
   // Only packages that deliver to the chosen area; "Semua area" (no area) shows everything.
   const inArea = useMemo(
@@ -159,25 +176,27 @@ function Browse({
   const activeTag = tags.includes(tag) || tiles.some((x) => x.tag === tag) ? tag : "";
   const mealWord = mood === "siang" ? "siang" : "malam";
   const mealWordEn = mood === "siang" ? "lunch" : "dinner";
+  const sorted = useMemo(() => sortByLauk(inMeal, prefs, locale), [inMeal, prefs, locale]);
+  const haystacks = useMemo(
+    () =>
+      new Map(
+        inMeal.map((o) => [
+          o.id,
+          [o.name, o.caterer, ...o.tags, ...o.menus.map((m) => menuSummary(m, locale))].join(" ").toLowerCase(),
+        ]),
+      ),
+    [inMeal, locale],
+  );
   const items = useMemo(
     () =>
-      sortByLauk(inMeal, prefs, locale).filter(
+      sorted.filter(
         (o) =>
           (!activeTag || o.tags.includes(activeTag)) &&
           (!budget || perMealPrice(o) <= BUDGET) &&
           (!trial || !!o.trialPrice) &&
-          (!needle ||
-            [
-              o.name,
-              o.caterer,
-              ...o.tags,
-              ...o.menus.map((m) => menuSummary(m, locale)),
-            ]
-              .join(" ")
-              .toLowerCase()
-              .includes(needle)),
+          (!needle || haystacks.get(o.id)!.includes(needle)),
       ),
-    [inMeal, prefs, activeTag, budget, trial, needle, locale],
+    [sorted, haystacks, activeTag, budget, trial, needle],
   );
   // The meal is not a choice that can be cleared: it is the mood, so it is always one of the two.
   const filtered = !!(needle || activeTag || budget || trial);

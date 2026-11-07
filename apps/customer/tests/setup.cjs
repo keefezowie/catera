@@ -107,6 +107,23 @@ jest.mock("@react-native-community/netinfo", () => {
   };
   return { __esModule: true, default: NetInfo, ...NetInfo };
 });
+// The address map draws through a native view. The stand-in keeps every prop, so a test fires `onRegionChangeComplete`;
+// `animateToRegion` reports the same way a real map does when it settles.
+jest.mock("react-native-maps", () => {
+  const { createElement, forwardRef, useImperativeHandle } = require("react");
+  const { View } = require("react-native");
+  const MapView = forwardRef((props, ref) => {
+    useImperativeHandle(ref, () => ({ animateToRegion: (region) => props.onRegionChangeComplete?.(region) }));
+    return createElement(View, props);
+  });
+  MapView.displayName = "MapView";
+  return { __esModule: true, default: MapView, PROVIDER_GOOGLE: "google" };
+});
+jest.mock("expo-location", () => ({
+  requestForegroundPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  getCurrentPositionAsync: jest.fn(async () => ({ coords: { latitude: -6.2297, longitude: 106.7998 } })),
+  Accuracy: { Balanced: 3 },
+}));
 // A test that went offline (`goOffline()` in tests/offline.ts) must not leave the phone offline for the next one.
 afterEach(() => {
   require("@react-native-community/netinfo").__set();

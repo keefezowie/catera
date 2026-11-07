@@ -66,7 +66,6 @@ import {
   type LibraryDish,
   type SupportCase,
   type AdminState,
-  type Conversation,
 } from "@catera/domain";
 import { api, useApp, useResource, useWorkspaceDraft } from "./context";
 import {
@@ -77,6 +76,7 @@ import {
 import { SellerPackageDetails } from "./seller-package-details";
 import { Button, Checkbox, TextArea, TextInput } from "./form-controls";
 import {
+  Empty,
   Heading,
   Status,
   ErrorNotice,
@@ -93,10 +93,23 @@ import { PackageNutritionEditor } from "./package-nutrition-editor";
 import { packageNutrition } from "@catera/domain";
 
 export function Seller({ view }: { view: string }) {
-  const { actor } = useApp();
+  const { actor, t } = useApp();
   if (!actor?.catererId) return <Onboarding />;
   if (["today", "schedule", "production", "delivery"].includes(view))
     return <SellerOperations view={view} />;
+  if (
+    ![
+      "packages",
+      "menus",
+      "dishes",
+      "customers",
+      "support",
+      "transactions",
+      "settings",
+      "profile",
+    ].includes(view)
+  )
+    return <Empty title={t("Halaman tidak ditemukan", "Page not found")} />;
   return <SellerWorkspace view={view} />;
 }
 function SellerWorkspace({ view }: { view: string }) {
@@ -2058,8 +2071,8 @@ function SellerInbox({ cases }: { cases: SupportCase[] }) {
         ? "help"
         : "messages";
   const setTab = (value: string) => update({ tab: value });
-  const conversations = useResource<Conversation[]>("seller-inbox-count", () =>
-    api.conversations(),
+  const [conversationCount, setConversationCount] = useState<number | null>(
+    null,
   );
   const openCases = cases.filter(
     (c) => !["resolved", "closed", "refunded", "rejected"].includes(c.status),
@@ -2096,7 +2109,7 @@ function SellerInbox({ cases }: { cases: SupportCase[] }) {
         >
           <MessageCircle size={19} />
           {t("Pesan", "Messages")}{" "}
-          {conversations.data && <span>({conversations.data.length})</span>}
+          {conversationCount !== null && <span>({conversationCount})</span>}
         </Button>
         <Button
           role="tab"
@@ -2116,7 +2129,7 @@ function SellerInbox({ cases }: { cases: SupportCase[] }) {
         aria-labelledby="inbox-tab-messages"
         hidden={tab !== "messages"}
       >
-        <Messages embedded />
+        <Messages embedded onCount={setConversationCount} />
       </section>
       <section
         role="tabpanel"

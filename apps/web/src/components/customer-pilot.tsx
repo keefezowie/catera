@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowRight, Check, CircleAlert } from "lucide-react";
@@ -154,7 +155,7 @@ export function ClaimCustomer({ token }: { token: string }) {
         {store && (
           <section className="claim-app" aria-label={t("Aplikasi Catera", "Catera app")}>
             <div>
-              <img src="/assets/app-icon.png" alt="" width={52} height={52} />
+              <Image src="/assets/app-icon.png" alt="" width={52} height={52} />
               <p>
                 <strong>{t("Tahu saat makanan berangkat", "Know when your food leaves")}</strong>
                 {t(

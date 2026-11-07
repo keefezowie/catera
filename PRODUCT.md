@@ -9,7 +9,7 @@ This September 9, 2026 baseline replaces the tenant-specific pilot. The user app
 ## Audiences and surfaces
 
 - Public marketplace: address/area selection, search, food-led packages, seller profiles, menus, reviews and comparison of up to three offers at one quantity.
-- Global customer account: Beranda, Jelajah, Jadwal, Pesan, Akun on web; Beranda, Jadwal, Jelajah, Akun in the native app (see [Native apps](#native-apps--october-2026)). One calendar across caterers, immutable purchases, saved addresses, support, delivery changes and explicit renewal.
+- Global customer account: Beranda, Jelajah, Jadwal, Pesan, Akun on web; Beranda, Jadwal, Jelajah, Akun in the native app (see [Native apps](#native-apps--october-2026)). one calendar across caterers, immutable purchases, saved addresses with a map pin, support, delivery changes and explicit renewal.
 - Caterer web: Hari ini updates delivery statuses through separate lunch/dinner tabs and atomic bulk actions. Jadwal provides a date/package order dashboard with production and whole-day manifest revisions. Publishing, menus, portions-based capacity, customers, support, transactions and staff remain separate workspaces.
 - Catera Dapur (caterer app): the phone-first front door for a caterer's day, built on the same backend. See [Native apps](#native-apps--october-2026). The web seller workspace remains for publishing, settlement and heavier work.
 - Catera admin web: verification, listing/review moderation, transactions, support/refunds, legacy payout approval, delivery-earned weekly settlement, historical promotions and permanent audit history. Platform admins are distinct from seller owners.

@@ -57,8 +57,12 @@ import {
   type Conversation,
   type Subscription,
   type Address,
+  type GeoPoint,
   type Locale,
+  addressPoint,
+  pointFitsArea,
 } from "@catera/domain";
+import { AddressPin, webMapsKey } from "./address-pin";
 import { useApp, useResource, api, useWorkspaceDraft } from "./context";
 import { useJourneyQuery, useUnsavedDeparture } from "./journey-state";
 import { Button, TextArea, TextInput } from "./form-controls";
@@ -169,12 +173,22 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
             subscription={c.subscriptions.find((s) => s.id === id)}
             deliveries={c.deliveries}
           />
-        ) : (
+        ) : c.subscriptions.length ? (
           <div className="subscription-list">
             {c.subscriptions.map((s) => (
               <SubscriptionCard key={s.id} subscription={s} />
             ))}
           </div>
+        ) : (
+          <Empty
+            title={t("Belum ada langganan", "No subscriptions yet")}
+            description={t(
+              "Temukan paket untuk mulai berlangganan.",
+              "Find a package to start a subscription.",
+            )}
+            href="/#packages"
+            label={t("Jelajah katering", "Explore caterers")}
+          />
         )}
       </div>
     );
@@ -1356,7 +1370,13 @@ export function DeliveryPage({ id }: { id: string }) {
     </div>
   );
 }
-export function Messages({ embedded = false }: { embedded?: boolean }) {
+export function Messages({
+  embedded = false,
+  onCount,
+}: {
+  embedded?: boolean;
+  onCount?: (count: number) => void;
+}) {
   const { actor, workspace, t, perform, offers, locale } = useApp();
   const { query, update } = useJourneyQuery();
   const selectedCaterer = query.get("caterer");
@@ -1373,17 +1393,27 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
   );
   useUnsavedDeparture(Object.values(drafts).some((value) => !!value.trim()));
   const [sending, setSending] = useState(false);
-  if (state.error && !state.data)
-    return <ErrorNotice message={state.error} retry={state.reload} />;
-  if (!state.data)
-    return embedded ? <EmbeddedMessagesSkeleton /> : <MessagesSkeleton />;
+  const stream = useRef<HTMLDivElement>(null);
   const requestedCaterer = selected.startsWith("caterer:")
     ? selected.slice(8)
     : null;
   const c =
-    state.data.find((c) => c.id === selected) ||
-    state.data.find((c) => c.caterer_id === requestedCaterer) ||
-    (!selected ? state.data[0] : undefined);
+    state.data?.find((c) => c.id === selected) ||
+    state.data?.find((c) => c.caterer_id === requestedCaterer) ||
+    (!selected ? state.data?.[0] : undefined);
+  const messageCount = c?.messages.length;
+  // Keyed on id and count so a background refresh does not yank a reader scrolled back through history.
+  useEffect(() => {
+    if (stream.current) stream.current.scrollTop = stream.current.scrollHeight;
+  }, [c?.id, messageCount]);
+  const conversationCount = state.data?.length;
+  useEffect(() => {
+    if (conversationCount !== undefined) onCount?.(conversationCount);
+  }, [conversationCount, onCount]);
+  if (state.error && !state.data)
+    return <ErrorNotice message={state.error} retry={state.reload} />;
+  if (!state.data)
+    return embedded ? <EmbeddedMessagesSkeleton /> : <MessagesSkeleton />;
   const newCaterer =
     requestedCaterer &&
     !state.data.some((c) => c.caterer_id === requestedCaterer)
@@ -1486,6 +1516,7 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
                 )}
               </div>
               <div
+                ref={stream}
                 className="message-stream"
                 tabIndex={0}
                 role="region"
@@ -1501,11 +1532,15 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
                     >
                       <p>{m.body}</p>
                       <small>
-                        {new Date(m.created_at).toLocaleTimeString(
+                        {new Date(m.created_at).toLocaleString(
                           locale === "id" ? "id-ID" : "en-GB",
                           {
+                            ...(localDay(new Date(m.created_at)) !== localDay()
+                              ? { day: "numeric", month: "short" }
+                              : {}),
                             hour: "2-digit",
                             minute: "2-digit",
+                            timeZone: "Asia/Jakarta",
                           },
                         )}
                       </small>
@@ -1803,6 +1838,15 @@ export function Account({ view }: { view: string }) {
         )}
       >
         <ActionForm
+          validate={(f) => {
+            if (!webMapsKey()) return undefined;
+            const lat = Number(f.get("lat"));
+            const lng = Number(f.get("lng"));
+            if (!f.get("lat")) return t("Tandai titik lokasi di peta dulu.", "Mark the spot on the map first.");
+            return pointFitsArea({ lat, lng }, String(f.get("area")))
+              ? undefined
+              : t("Titik di peta tidak ada di area ini. Pilih area lain, atau ubah titiknya.", "The pin isn't in this area. Choose another, or change the pin.");
+          }}
           onSubmit={async (f) => {
             await perform("address.save", {
               id: editing?.id,
@@ -1812,6 +1856,7 @@ export function Account({ view }: { view: string }) {
               area: f.get("area"),
               city: f.get("city"),
               instructions: f.get("instructions"),
+              ...(f.get("lat") ? { lat: Number(f.get("lat")), lng: Number(f.get("lng")) } : {}),
             });
             setEditing(undefined);
             // `/\host` passes a plain "/" check but browsers read it as `//host`; safeReturnPath rejects it.
@@ -1842,16 +1887,7 @@ export function Account({ view }: { view: string }) {
               maxLength={240}
             />
           </Field>
-          <Field label={t("Area", "Area")}>
-            <Select
-              name="area"
-              defaultValue={editing?.area || "Jakarta Selatan"}
-            >
-              {areaOptions.map((a) => (
-                <SelectOption key={a}>{a}</SelectOption>
-              ))}
-            </Select>
-          </Field>
+          <PinAndArea editing={editing ?? null} />
           <Field label={t("Kota", "City")}>
             <TextInput
               name="city"
@@ -1869,6 +1905,39 @@ export function Account({ view }: { view: string }) {
         </ActionForm>
       </Dialog>
     </div>
+  );
+}
+/** The address form's map and area. The area follows the pin unless the customer's choice already fits it. */
+function PinAndArea({ editing }: { editing: Address | null }) {
+  const { t } = useApp();
+  const [area, setArea] = useState(editing?.area || "Jakarta Selatan");
+  const [pin, setPin] = useState<GeoPoint | null>(addressPoint(editing));
+  return (
+    <>
+      {webMapsKey() ? (
+        <div style={{ display: "grid", gap: 6 }}>
+          <strong className="small">{t("Titik lokasi", "Map pin")}</strong>
+          <AddressPin
+            value={pin}
+            area={area}
+            t={t}
+            onChange={(point, pinArea) => {
+              setPin(point);
+              if (point && pinArea && !pointFitsArea(point, area)) setArea(pinArea);
+            }}
+          />
+          <input type="hidden" name="lat" value={pin?.lat ?? ""} />
+          <input type="hidden" name="lng" value={pin?.lng ?? ""} />
+        </div>
+      ) : null}
+      <Field label={t("Area", "Area")}>
+        <Select name="area" value={area} onValueChange={setArea}>
+          {areaOptions.map((a) => (
+            <SelectOption key={a}>{a}</SelectOption>
+          ))}
+        </Select>
+      </Field>
+    </>
   );
 }
 export function Support() {

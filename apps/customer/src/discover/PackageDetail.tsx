@@ -203,7 +203,7 @@ export function PackageDetail() {
   const siang = useMoodColors("siang").header;
   const malam = useMoodColors("malam").header;
   const loaded = useData<{ offer: Offer | null }>(`paket:${id}`, () => runtime.api.offer(id));
-  const reviews = useData<Review[]>(`reviews:${id}`, () => runtime.api.request<Review[]>(`reviews/${id}`));
+  const reviews = useData<Review[]>(`reviews:${id}`, () => runtime.api.request<Review[]>(`reviews/${encodeURIComponent(id)}`));
   const o = loaded.data?.offer;
   const pending = usePendingPurchase(id);
   const insets = useSafeAreaInsets();

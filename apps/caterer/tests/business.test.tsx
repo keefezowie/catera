@@ -34,6 +34,8 @@ jest.mock("expo-router", () => ({
   useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
 }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn(), MediaTypeOptions: { Images: "Images" } }));
+// "Terbitkan paket" asks first; these tests are about what goes out once the answer is yes.
+jest.mock("@catera/mobile-ui", () => ({ ...jest.requireActual("@catera/mobile-ui"), useConfirm: () => async () => true }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),

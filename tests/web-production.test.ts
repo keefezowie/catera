@@ -7,6 +7,8 @@ vi.mock("@catera/backend", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   rpc: state.rpc,
 }));
+// Outside a Next render there is no cache store; the sitemap reads the catalog straight through.
+vi.mock("next/cache", () => ({ unstable_cache: (read: unknown) => read }));
 import config, { securityHeaders } from "../apps/web/next.config";
 import robots from "../apps/web/src/app/robots";
 import sitemap from "../apps/web/src/app/sitemap";

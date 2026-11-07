@@ -21,11 +21,16 @@ export type ToastInput = {
 
 export type ToastApi = { show(input: ToastInput): void; hide(): void };
 
-/** How long a toast stays: long enough to read; one with an action stays long enough to reach it. */
+/** How long a toast stays: a brief success goes quickly; a failure or an action holds long enough to read and reach it. */
 const SHOW_MS = 2500;
-const SHOW_WITH_ACTION_MS = 3000;
+const NEEDS_TIME_MS = 5000;
+/** A longer sentence stays longer, up to the cap. */
+const READ_MS_PER_CHAR = 70;
+const READ_CAP_MS = 8000;
+const showFor = ({ message, action, tone }: ToastInput) =>
+  Math.max(action || tone === "error" ? NEEDS_TIME_MS : SHOW_MS, Math.min(message.length * READ_MS_PER_CHAR, READ_CAP_MS));
 /**
- * With a screen reader on, reaching the action takes longer than 3s. Android asks the system for the user's own
+ * With a screen reader on, reaching the action takes longer than that. Android asks the system for the user's own
  * accessibility timeout (`getRecommendedTimeoutMillis`); iOS has no such setting, so it holds 10s.
  */
 const IOS_SCREEN_READER_ACTION_MS = 10000;
@@ -62,8 +67,8 @@ function mergeAnchors(anchors: ReadonlyMap<object, ToastAnchor>): ToastAnchor {
 
 /**
  * One per app, inside `ThemeProvider` and around the navigator, so every screen can report a routine outcome without
- * a dialog. One toast at a time: a new one replaces the shown one. It closes itself after 2.5s, or 3s when it carries an
- * action; while a screen reader is on, an action toast stays until its action is used, it is replaced, or the
+ * a dialog. One toast at a time: a new one replaces the shown one. It closes itself after 2.5s, or 5s when it is a failure or
+ * carries an action, and longer for a long message (up to 8s); while a screen reader is on, an action toast stays until its action is used, it is replaced, or the
  * platform's recommended timeout passes. Each `show` is announced once, with its action's name.
  * iOS draws a pill under the focused screen's header, or at the bottom when that screen is a sheet (above the home
  * indicator, the keyboard and any footer); Android a Material snackbar above its tab bar or footer (see
@@ -77,7 +82,8 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
   const shownId = useRef(0);
   const screenReader = useRef(false);
   const haptic = useHaptic();
-  // iOS only: a sheet's toast sits above the keyboard. Android's window resizes for the keyboard, so it needs nothing.
+  // iOS only: a sheet's toast sits above the keyboard. Android's edge-to-edge window does not resize for the keyboard:
+  // there the toast follows a lifted footer's anchor (ScreenFooter), and with no footer it stays behind the keyboard.
   const [keyboard, setKeyboard] = useState(0);
 
   useEffect(() => {
@@ -133,12 +139,12 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
       const closeAfter = (ms: number) => {
         if (shownId.current === id) timer.current = setTimeout(hide, ms);
       };
-      if (!input.action) return closeAfter(SHOW_MS);
-      if (!screenReader.current) return closeAfter(SHOW_WITH_ACTION_MS);
+      const showMs = showFor(input);
+      if (!input.action || !screenReader.current) return closeAfter(showMs);
       if (os !== "android") return closeAfter(IOS_SCREEN_READER_ACTION_MS);
-      AccessibilityInfo.getRecommendedTimeoutMillis(SHOW_WITH_ACTION_MS).then(
-        (ms) => closeAfter(typeof ms === "number" && ms > SHOW_WITH_ACTION_MS ? ms : SHOW_WITH_ACTION_MS),
-        () => closeAfter(SHOW_WITH_ACTION_MS),
+      AccessibilityInfo.getRecommendedTimeoutMillis(showMs).then(
+        (ms) => closeAfter(typeof ms === "number" && ms > showMs ? ms : showMs),
+        () => closeAfter(showMs),
       );
     },
     [hide, os, haptic],

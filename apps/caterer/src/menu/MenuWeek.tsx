@@ -203,7 +203,7 @@ function DishRow({
 
 /** Menu: this week's dishes per delivery day for one package. */
 export function MenuWeek() {
-  const { runtime, actor, demo, t, locale, command } = useMobile();
+  const { runtime, actor, demo, t, locale, command, invalidate } = useMobile();
   const c = useColors();
   const m = useMoodColors();
   const { mood } = useMood();
@@ -305,20 +305,27 @@ export function MenuWeek() {
       const { batches, skipped } = copyWeekBatches(filled, targets);
       let copied = 0;
       for (const batch of batches) {
-        await command("menu.saveBatch", {
-          catererId,
-          packageId: offer.id,
-          contentRevision: offer.contentRevision ?? 0,
-          meal,
-          dates: batch.dates,
-          details: batch.details,
-        });
+        await command(
+          "menu.saveBatch",
+          {
+            catererId,
+            packageId: offer.id,
+            contentRevision: offer.contentRevision ?? 0,
+            meal,
+            dates: batch.dates,
+            details: batch.details,
+          },
+          { refresh: false },
+        );
         copied += batch.dates.length;
         setNote(copyNote(copied, skipped));
       }
       setNote(copyNote(copied, skipped));
     } catch (e) {
       setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Menu minggu lalu belum tersalin. Coba lagi.", "Couldn't copy last week's menu. Try again."));
+    } finally {
+      // One reload for the whole copy; after a stop part-way the week still shows what the server holds.
+      invalidate();
     }
   });
 

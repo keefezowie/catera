@@ -28,10 +28,13 @@ export function useSaved(next: string) {
   const [cursor, setCursor] = useState<string | null>(null);
   const [error, setError] = useState("");
   const busy = useRef(new Set<string>());
+  // Moves with every fresh read, so a page asked for before it does not land on top of it.
+  const generation = useRef(0);
   const data = state.data ?? blank;
 
   // A fresh read is the truth again; drop the optimistic flips and extra pages.
   useEffect(() => {
+    generation.current += 1;
     setPending({});
     setMore([]);
     setCursor(data.nextCursor);
@@ -88,14 +91,17 @@ export function useSaved(next: string) {
 
   async function loadMore() {
     if (!cursor) return;
+    const asked = generation.current;
     try {
       const page = await runtime.api.savedPackages(cursor);
+      if (asked !== generation.current) return;
       setMore((m) => {
         const held = new Set(m.flat().map((i) => i.packageId));
         return [...m, page.items.filter((i) => !held.has(i.packageId))];
       });
       setCursor(page.nextCursor);
     } catch {
+      if (asked !== generation.current) return;
       setError(t("Belum bisa memuat lebih banyak. Coba lagi.", "Couldn't load more. Try again."));
     }
   }

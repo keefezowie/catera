@@ -263,10 +263,19 @@ describe("SectionHeader count and node action", () => {
     expect(flat(screen.getByTestId("section-header"))).toMatchObject({ minHeight: 48, alignItems: "center", marginBottom: 12 });
   });
 
-  it("keeps a header with no action, or a link, one heading line", async () => {
+  it("keeps a header with no action one heading line", async () => {
     await render(withDapurScale(<SectionHeader title="Paket" />));
-    await render(<SectionHeader title="Minggu ini" action={{ label: "Lihat semua", onPress: jest.fn() }} />);
-    for (const header of screen.getAllByTestId("section-header")) expect(flat(header).minHeight).toBeUndefined();
+    expect(flat(screen.getByTestId("section-header")).minHeight).toBeUndefined();
+  });
+
+  it("makes a link's header a whole touch target, the link filling it, for Android's ancestor bounds", async () => {
+    const link = { label: "Lihat semua", onPress: jest.fn() };
+    const view = await render(<SectionHeader title="Minggu ini" action={link} />);
+    expect(flat(screen.getByTestId("section-header"))).toMatchObject({ minHeight: 44, alignItems: "center" });
+    await view.unmount();
+    await render(withDapurScale(<SectionHeader title="Minggu ini" action={link} />));
+    expect(flat(screen.getByTestId("section-header")).minHeight).toBe(48);
+    expect(flat(screen.getByRole("button", { name: "Lihat semua" }))).toMatchObject({ alignSelf: "stretch" });
   });
 
   it("still takes the link action", async () => {

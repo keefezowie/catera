@@ -14,6 +14,10 @@ import { CHECKING, CheckingWait, FINAL, PaymentOutcome, stageOf, type Stage } fr
 import { QrisCode, useQris } from "./QrisCode";
 
 const POLL_MS = 10_000;
+/** The waits between asks while a payment is being checked; the last one repeats. */
+const CHECKING_POLL_MS = [POLL_MS, 30_000, 60_000];
+/** Automatic asks stop this long after they began; Cek status and returning to the app still ask. */
+const POLL_CEILING_MS = 15 * 60_000;
 /** How long the copy button says "Disalin" before it offers to copy again. */
 const COPIED_MS = 2_000;
 /** Paid is final: whatever opened this screen (a purchase, a renewal, Payments, a notification), leaving goes home. */
@@ -165,19 +169,49 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     seenStage.current = stage;
     if (before !== null && before !== stage) invalidate();
   }, [stage, invalidate]);
-  // Ask the provider every 10 s, and once on returning from the bank app, only while this
-  // screen is in front and the payment is open.
+  // Ask the provider every 10 s (backing off while it is being checked, stopping at the ceiling), and once on returning
+  // from the bank app, only while this screen is in front and the payment is open. An ask still out skips the next one.
+  const asking = useRef(false);
+  const checking = stage === CHECKING;
   useFocusEffect(
     useCallback(() => {
       if (!live) return;
-      const ask = () => void check().catch(() => undefined);
-      const timer = setInterval(ask, POLL_MS);
-      const foreground = AppState.addEventListener("change", (s) => s === "active" && ask());
+      const ask = () => {
+        if (asking.current) return;
+        asking.current = true;
+        void check()
+          .catch(() => undefined)
+          .finally(() => {
+            asking.current = false;
+          });
+      };
+      const waits = checking ? CHECKING_POLL_MS : [POLL_MS];
+      let started = Date.now();
+      let asked = 0;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const next = () => {
+        const wait = waits[Math.min(asked++, waits.length - 1)];
+        if (Date.now() - started + wait > POLL_CEILING_MS) return;
+        timer = setTimeout(() => {
+          ask();
+          next();
+        }, wait);
+      };
+      next();
+      // Back from the bank app the asks start over, however long it took: the screen still says the status moves by itself.
+      const foreground = AppState.addEventListener("change", (s) => {
+        if (s !== "active") return;
+        clearTimeout(timer);
+        started = Date.now();
+        asked = 0;
+        ask();
+        next();
+      });
       return () => {
-        clearInterval(timer);
+        clearTimeout(timer);
         foreground.remove();
       };
-    }, [live, check]),
+    }, [live, checking, check]),
   );
 
   /** The customer's own "cek status": says nothing came in only when the checkout read just now

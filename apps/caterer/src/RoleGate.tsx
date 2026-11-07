@@ -4,7 +4,7 @@ import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Card, Field, FormError, MascotLoading, MoodHeader, Screen, Text, useBusy } from "@catera/mobile-ui";
 import { BukaDapur, KonfirmasiDapur } from "./auth/BukaDapur";
-import { clearHeldKitchen, readHeldKitchen, settlePending, takeHeldInvite, type PendingKitchen } from "./auth/pending";
+import { clearHeld, clearHeldKitchen, readHeldKitchen, settlePending, takeHeldInvite, type PendingKitchen } from "./auth/pending";
 import { tabsForRole } from "./roles";
 
 const codeOf = (e: unknown) => (e as { code?: string }).code || (e as Error).message;
@@ -40,7 +40,7 @@ export function RoleGate({ children }: { children: ReactNode }) {
         const heldCode = await takeHeldInvite(runtime);
         if (heldCode) setCode(heldCode);
         setHeld(await readHeldKitchen(runtime));
-      } else await clearHeldKitchen(runtime);
+      } else await clearHeld(runtime);
     } catch (e) {
       const invite = (e as { invite?: string }).invite;
       if (invite) {
@@ -69,6 +69,7 @@ export function RoleGate({ children }: { children: ReactNode }) {
     try {
       // Signed out, the gate renders nothing of its own; a failure lets Keluar be tried again.
       await logout();
+      await clearHeld(runtime);
     } catch {
       setLeaving(false);
     }

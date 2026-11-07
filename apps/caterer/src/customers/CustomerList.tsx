@@ -127,7 +127,9 @@ export function CustomerList() {
   });
   const motion = useRowMotion();
   const rowMotion = useListMotion(list.data ? customers.map((c) => c.id) : null, !byImport);
+  const pulled = useRef(false);
   async function pull() {
+    pulled.current = true;
     setPulling(true);
     try {
       await list.reload();
@@ -135,12 +137,12 @@ export function CustomerList() {
       setPulling(false);
     }
   }
-  // A read that fails while the customers are on screen leaves them there; say so once instead of staying silent.
+  // A pull that ended with the old customers still on screen says so; a background reload that fails stays quiet.
   useEffect(() => {
-    if (list.error && list.data)
-      toast.show({ message: t("Belum bisa memperbarui. Tarik lagi untuk mencoba.", "Couldn't refresh. Pull again to try."), tone: "error" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [list.error]);
+    if (pulling || !pulled.current) return;
+    pulled.current = false;
+    if (list.stale) toast.show({ message: t("Belum bisa memperbarui. Tarik lagi untuk mencoba.", "Couldn't refresh. Pull again to try."), tone: "error" });
+  }, [pulling, list.stale, toast, t]);
   const addLabel = t("+ Impor pelanggan", "+ Import customers");
   return (
     <Screen
@@ -244,23 +246,22 @@ export function CustomerList() {
                 <RowSwap swapKey={`${filter}:${swaps}`}>
                   <CardRow first={index === 0} last={index === shown.length - 1}>
                     <Animated.View testID="customer-row" {...rowMotion(c.id)} layout={undefined}>
-                      <TwoLineRow
-                        title={c.name}
-                        meta={meta}
-                        onPress={() => pushScreen(customerHref(c.id, c.name))}
-                        trailing={
-                          c.phone ? (
-                            <PressableScale
-                              accessibilityRole="link"
-                              accessibilityLabel={`${t("Chat", "Chat")} ${c.name}`}
-                              onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
-                              style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", marginRight: CHAT_PULL }}
-                            >
-                              <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.forest} />
-                            </PressableScale>
-                          ) : undefined
-                        }
-                      />
+                      {/* The row and its chat button are two controls side by side, so a screen reader finds both. */}
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md }}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <TwoLineRow title={c.name} meta={meta} onPress={() => pushScreen(customerHref(c.id, c.name))} />
+                        </View>
+                        {c.phone ? (
+                          <PressableScale
+                            accessibilityRole="link"
+                            accessibilityLabel={`${t("Chat", "Chat")} ${c.name}`}
+                            onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
+                            style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", marginRight: CHAT_PULL }}
+                          >
+                            <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.forest} />
+                          </PressableScale>
+                        ) : null}
+                      </View>
                     </Animated.View>
                   </CardRow>
                 </RowSwap>

@@ -1,5 +1,5 @@
 import { use, useEffect, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, TextInput, View, type ScrollViewInstance, type ViewInstance } from "react-native";
+import { AccessibilityInfo, TextInput, View, type ScrollViewInstance, type TextInputInstance, type ViewInstance } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { NavigationContext } from "expo-router/react-navigation";
@@ -251,6 +251,7 @@ export function ImportRowEditor({ n: opened }: { n: number }) {
   const anchor = (field: RowField) => (node: ViewInstance | null) => {
     anchors.current[field] = node;
   };
+  const inputs = useRef<Partial<Record<RowField, TextInputInstance | null>>>({});
 
   // The removal waits for the sheet to have gone (G1a): first the sheet closes, then the row leaves the list under it
   // and the toast offers Urungkan. "Gone" is the route's own close transition (`transitionEnd` closing, which UIKit
@@ -343,6 +344,15 @@ export function ImportRowEditor({ n: opened }: { n: number }) {
     );
   }
 
+  /** The keyboard's next key: on to `next`, keeping the keyboard up, or done on the last field. */
+  const chain = (field: RowField, next?: RowField) => ({
+    inputRef: (node: TextInputInstance | null) => {
+      inputs.current[field] = node;
+    },
+    returnKeyType: next ? ("next" as const) : ("done" as const),
+    ...(next ? { submitBehavior: "submit" as const, onSubmitEditing: () => inputs.current[next]?.focus() } : {}),
+  });
+
   /** Brings the first thing missing into view and says what it is. */
   const showFirst = () => {
     const first = issues[0];
@@ -397,10 +407,11 @@ export function ImportRowEditor({ n: opened }: { n: number }) {
           </View>
           <Group title={t("Kontak", "Contact")}>
             <View ref={anchor("name")} collapsable={false}>
-              <Field label={t("Nama", "Name")} value={row.name} error={errorOf("name")} onChangeText={(v) => update({ name: v })} />
+              <Field {...chain("name", "phone")} autoCapitalize="words" autoComplete="name" label={t("Nama", "Name")} value={row.name} error={errorOf("name")} onChangeText={(v) => update({ name: v })} />
             </View>
             <View ref={anchor("phone")} collapsable={false}>
               <Field
+                {...chain("phone", "addressLine")}
                 label={t("Nomor WhatsApp", "WhatsApp number")}
                 defaultValue={row.phone}
                 error={errorOf("phone")}
@@ -420,15 +431,15 @@ export function ImportRowEditor({ n: opened }: { n: number }) {
           </Group>
           <Group title={t("Alamat", "Address")}>
             <View ref={anchor("addressLine")} collapsable={false}>
-              <Field label={t("Alamat", "Address")} value={row.addressLine} error={errorOf("addressLine")} onChangeText={(v) => update({ addressLine: v })} />
+              <Field {...chain("addressLine", "area")} autoCapitalize="words" autoComplete="street-address" label={t("Alamat", "Address")} value={row.addressLine} error={errorOf("addressLine")} onChangeText={(v) => update({ addressLine: v })} />
             </View>
             {/* Top-aligned: labels hold one line, so a line under one field never lifts it above its neighbour. */}
             <View style={{ flexDirection: "row", alignItems: "flex-start", gap: nativeLayout.groupGap }}>
               <View ref={anchor("area")} collapsable={false} style={{ flex: 1 }}>
-                <Field label={t("Area", "Area")} value={row.area} placeholder={t("Mis. Tebet", "E.g. Tebet")} error={errorOf("area")} onChangeText={(v) => update({ area: v })} />
+                <Field {...chain("area", "city")} autoCapitalize="words" label={t("Area", "Area")} value={row.area} placeholder={t("Mis. Tebet", "E.g. Tebet")} error={errorOf("area")} onChangeText={(v) => update({ area: v })} />
               </View>
               <View ref={anchor("city")} collapsable={false} style={{ flex: 1 }}>
-                <Field label={t("Kota", "City")} value={row.city} placeholder={t("Mis. Jakarta", "E.g. Jakarta")} error={errorOf("city")} onChangeText={(v) => update({ city: v })} />
+                <Field {...chain("city")} autoCapitalize="words" label={t("Kota", "City")} value={row.city} placeholder={t("Mis. Jakarta", "E.g. Jakarta")} error={errorOf("city")} onChangeText={(v) => update({ city: v })} />
               </View>
             </View>
           </Group>

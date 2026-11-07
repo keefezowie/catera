@@ -149,6 +149,12 @@ All cancellation/refund requests enter support and retain bookings on submission
 
 For external prepaid subscriptions, use the seller's legacy import preview with verified customer, package, saved address, remaining days, fixed portions and external receipt reference. Review every generated date and source before confirmation. Preview reserves nothing; confirmation reserves all remaining dates transactionally and labels the subscription as legacy. It does not create an invented provider payment or fresh payout allocation. No automatic hosted-pilot import exists.
 
+**Stuck provider events.** A DOKU event whose apply keeps failing backs off and stops at 50 attempts. It is never deleted, and each `/api/jobs` run that gets the same event from DOKU again gives it one more try. `health.providerInboxStuck` counts these events, and the job logs `catera.jobs.provider_inbox_stuck` with the count when it is above zero. Read `error_code` on the row (`select id,operation_id,attempts,error_code from v1.provider_inbox where processed_at is null and attempts>=49`), fix the cause, then give the events a full set of retries; the next `/api/jobs` run applies them:
+
+```sql
+update v1.provider_inbox set attempts=0,available_at=now() where processed_at is null and attempts>=49;
+```
+
 ## 8. Native development and release evidence
 
 Install the environment's development build using `apps/customer/eas.json`; `expo-dev-client` is included. Configure an EAS project, Apple signing and APNs, Android signing and FCM credentials. Use test identities and Xendit sandbox. The local machine has not produced signed Android/iOS builds or device evidence.
@@ -302,3 +308,23 @@ Owner actions before launch:
 4. **Rate limiting.** Supabase limits sign-in and the import assistant has a quota; the public API has no request-rate rule in code. Add a Vercel Firewall rate-limit rule for `/api/*` (serverless in-memory counters do not hold).
 5. **Remaining `npm audit` findings** are in the Expo, Jest and Remotion toolchains (`apps/caterer`, `apps/customer`, `apps/store-preview`) and `exceljs`'s transitive `uuid`/`archiver`; each fix is a major upgrade, so take them with the next native or store-preview phase.
 6. The Supabase advisor's `rls_enabled_no_policy` and `*_security_definer_function_executable` notices describe the intended design (deny-all tables behind authorizing RPCs); no change.
+
+## 18. Address pin (November 7, 2026)
+
+Customers mark each address on a map, write the address themselves, and drivers' links go to the pin. Everything stays off, and addresses work as before, until the keys below are set.
+
+Order:
+
+1. Apply `supabase/migrations/20261107120000_address_pin.sql` after `20261107100000_audit_hardening.sql`. It adds optional columns and is safe for older app builds.
+2. In Google Cloud, create a billing account and three keys, each restricted to one purpose:
+   - `EXPO_PUBLIC_GOOGLE_MAPS_KEY` (customer app build): Maps SDK for Android and iOS, restricted to `id.catera.customer` and the release SHA-1.
+   - `NEXT_PUBLIC_GOOGLE_MAPS_KEY` (web build): Maps JavaScript API, restricted to the web host.
+   - `GOOGLE_MAPS_SERVER_KEY` (web server, never public): Places API (New).
+3. Set quotas per API in Google Cloud. They are the only spending limit: Google has no automatic cap, and `/api/places` has no rate limit of its own beyond sign-in.
+4. Deploy web, then ship a new customer build: the map is native, so an older build cannot show it.
+
+With the keys set, a new address needs a pin, and a saved address without one is asked for it at the next purchase. The server does not enforce this at checkout, so older app builds keep working; `address.save` only checks a pin it is given. Deliveries with no pin keep their text link, and Dapur marks those stops once any stop on the run has a pin.
+
+Area boundaries in `packages/domain/src/area-bounds.ts` come from OpenStreetMap under the ODbL: keep the attribution, and add a new area's boundary whenever `areaOptions` grows. "Bandung" is Kota Bandung only, plus a 1.5 km margin.
+
+Still to check: the privacy text must name precise location before launch (the terms page is a placeholder), and Google's terms on storing coordinates need a read: Catera stores the point the customer confirmed on the map, not a geocoding result.

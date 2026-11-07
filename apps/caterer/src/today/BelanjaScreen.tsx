@@ -1,10 +1,11 @@
-import { useLayoutEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Share, View } from "react-native";
 import * as Print from "expo-print";
 import { weekRecap, type WeekRecap } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import {
+  bannerTime,
   FadeSwap,
   HeaderIconButton,
   KeyValueRow,
@@ -17,8 +18,10 @@ import {
   StateArt,
   Text,
   useScreenNavigation,
+  useToast,
 } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
+import { usePullToRefresh } from "../refresh";
 import { ScreenGuard } from "../ErrorBoundary";
 import { belanjaDates, belanjaHtml, belanjaLines, belanjaRange, dishSections, OTHER_CATEGORY, weekRange } from "./belanja";
 import { TextAction } from "./rows";
@@ -98,7 +101,7 @@ function BelanjaContent() {
   const days = useData(`belanja:${catererId}`, async () => {
     const now = new Date();
     const read = await Promise.all(belanjaDates(now).map((date) => runtime.api.sellerOperations(catererId, date)));
-    return { days: read, range: belanjaRange(now) };
+    return { days: read, range: belanjaRange(now), readAt: now };
   });
   const week = useMemo(
     () => (days.data ? { ...weekRecap(days.data.days), ...days.data.range } : null),
@@ -106,7 +109,26 @@ function BelanjaContent() {
   );
   const caterer = days.data?.days[0]?.caterer.name ?? "";
   useBelanjaActions(week, caterer);
+  const toast = useToast();
+  const pulled = useRef(false);
+  const pull = usePullToRefresh(() => {
+    pulled.current = true;
+    return days.reload();
+  });
+  // A pull that ended with the old recap still on screen says so; a background reload that fails stays quiet.
+  useEffect(() => {
+    if (days.loading || !pulled.current) return;
+    pulled.current = false;
+    if (days.stale) toast.show({ message: t("Belum bisa memperbarui. Tarik lagi untuk mencoba.", "Couldn't refresh. Pull again to try."), tone: "error" });
+  }, [days.loading, days.stale, toast, t]);
   const title = t("Belanja 7 hari", "Shopping, 7 days");
+  // This recap sets how much gets bought: an old one stays labelled as old until a read lands.
+  const staleLine =
+    days.stale && days.data ? (
+      <Text testID="belanja-stale" variant="meta" selectable>
+        {t(`Menampilkan data terakhir, ${bannerTime(days.data.readAt)}`, `Showing data from ${bannerTime(days.data.readAt)}`)}
+      </Text>
+    ) : null;
 
   if (!week) {
     // A failed read before anything arrived: no partial list.
@@ -130,13 +152,14 @@ function BelanjaContent() {
 
   if (week.total === 0 && week.unfilled === 0)
     return (
-      <Screen nativeTitle={title}>
+      <Screen nativeTitle={title} refreshControl={pull}>
         <FadeSwap swapKey="empty" style={{ gap: 16 }}>
           <View testID="belanja-empty" style={{ alignItems: "center", gap: 12 }}>
             <StateArt pose="tidur" />
             <Text selectable style={{ textAlign: "center" }}>
               {t("Belum ada pesanan 7 hari ke depan.", "No orders in the next 7 days.")}
             </Text>
+            {staleLine}
           </View>
         </FadeSwap>
       </Screen>
@@ -144,7 +167,7 @@ function BelanjaContent() {
 
   const portions = (n: number) => t(`${n} porsi`, plural(n, "portion"));
   return (
-    <Screen nativeTitle={title}>
+    <Screen nativeTitle={title} refreshControl={pull}>
       <FadeSwap swapKey="recap">
         <View testID="belanja-sections" style={{ gap: nativeLayout.dense.sectionGap }}>
           <View testID="belanja-lead" style={{ gap: nativeLayout.space.xs }}>
@@ -154,6 +177,7 @@ function BelanjaContent() {
             <Text variant="meta" selectable style={{ fontVariant: ["tabular-nums"] }}>
               {weekRange(week, locale)}
             </Text>
+            {staleLine}
           </View>
           {dishSections(week).map((section) => (
             <View key={section.category} testID={`belanja-section-${section.category || "lainnya"}`}>

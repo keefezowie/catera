@@ -253,6 +253,8 @@ describe("Keluar after a sign-out that failed", () => {
 
 describe("Keluar while sign-out waits", () => {
   it("Pengaturan shows the row busy, dimmed and not pressable, and a second tap sends nothing", async () => {
+    // Past the one-time release for phones from older builds, so the one token read below is sign-out's.
+    store().set("t.push.unmarked-released", "1");
     const runtime = runtimeWith(staff);
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
     await renderWith(runtime, <Pengaturan />);

@@ -496,6 +496,23 @@ describe("Beli / Perpanjang", () => {
     expect(commands(runtime).map((c) => c[0])).toEqual(["checkout.create"]);
   });
 
+  it.each([
+    ["a payment that starts", {}],
+    ["a start that fails", { startFails: true }],
+    ["a hosted payment", { mode: "hosted" as const }],
+  ])("%s reloads the app's data once", async (_name, options) => {
+    const runtime = server(options);
+    await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    const reads = () => (runtime.api.offer as jest.Mock).mock.calls.length;
+    const before = reads();
+    await fireEvent.press(screen.getByRole("button", { name: PAY }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
+    await waitFor(() => expect(reads()).toBeGreaterThan(before));
+    await act(async () => void (await new Promise((r) => setTimeout(r, 50))));
+    expect(reads()).toBe(before + 1);
+  });
+
   it("payment card makes no security claim", async () => {
     await wrap(server({ mode: "hosted" }), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();

@@ -26,6 +26,8 @@ export type AssistantRow = {
 };
 export type AssistantClient = Pick<Anthropic, "messages">;
 
+/** Under the route's 300 s, so a slow read ends as JSON and the paid call stops with it. */
+const READ_TIMEOUT_MS = 240_000;
 const str = { type: "string" } as const;
 const rowSchema = {
   type: "object",
@@ -71,7 +73,7 @@ function instructions(packages: AssistantPackage[], today: string, earliest: str
 }
 
 /** Server-side checks; the model's own doubts are kept and ours are added. */
-function review(raw: AssistantRow, packages: AssistantPackage[], earliest: string): AssistantRow {
+function review(raw: AssistantRow, packages: AssistantPackage[], earliest: string, sourceDigits: string | null): AssistantRow {
   const reasons: string[] = raw.needsReview && raw.reason ? [raw.reason] : [];
   let phone = raw.phone.trim();
   try {
@@ -79,6 +81,9 @@ function review(raw: AssistantRow, packages: AssistantPackage[], earliest: strin
   } catch {
     reasons.push("Nomor WhatsApp tidak lengkap");
   }
+  // Written +62 or 0 in the list: the part after that prefix is what must really be there.
+  const national = raw.phone.replace(/\D/g, "").replace(/^(?:62|0)/, "");
+  if (sourceDigits && national && !sourceDigits.includes(national)) reasons.push("Nomor WhatsApp tidak ada di daftar asli");
   const pkg = packages.find((p) => p.id === raw.packageId);
   if (!pkg) reasons.push("Paket belum dipilih");
   if (raw.addressLine.trim().length < 5 || !raw.area.trim() || !raw.city.trim()) reasons.push("Alamat belum lengkap");
@@ -101,9 +106,9 @@ function review(raw: AssistantRow, packages: AssistantPackage[], earliest: strin
 export async function extractImportRows(
   input: AssistantInput,
   packages: AssistantPackage[],
-  options: { client?: AssistantClient; today: string; earliest: string },
+  options: { client?: AssistantClient; today: string; earliest: string; signal?: AbortSignal },
 ): Promise<{ rows: AssistantRow[]; needsReview: number }> {
-  const client = options.client ?? new Anthropic();
+  const client = options.client ?? new Anthropic({ timeout: READ_TIMEOUT_MS, maxRetries: 0 });
   const content: Anthropic.ContentBlockParam[] = [
     ...(input.images ?? []).map((i) => ({
       type: "image" as const,
@@ -114,16 +119,19 @@ export async function extractImportRows(
       source: { type: "base64" as const, media_type: "application/pdf" as const, data: p.data },
     })),
     ...(input.sheets ?? []).map((s, i) => ({ type: "text" as const, text: `<spreadsheet ${i + 1}>\n${s}\n</spreadsheet>` })),
-    { type: "text", text: `${instructions(packages, options.today, options.earliest)}\n\n<catatan_katerer>\n${input.text ?? ""}\n</catatan_katerer>` },
+    { type: "text", text: `<catatan_katerer>\n${input.text ?? ""}\n</catatan_katerer>` },
   ];
-  // Streamed: a long list can take minutes, and the SDK refuses long non-streaming calls.
+  // Streamed: a long list can take minutes, and the SDK refuses long non-streaming calls. The SDK's timeout ends once
+  // headers arrive, so only this signal bounds the read; the route answers its abort as IMPORT_UNAVAILABLE.
+  const deadline = AbortSignal.timeout(READ_TIMEOUT_MS);
   const response = await client.messages.stream({
     model: "claude-haiku-5-5",
     max_tokens: 32000,
     thinking: { type: "adaptive" },
     output_config: { effort: "medium", format: { type: "json_schema", schema: outputSchema } },
+    system: instructions(packages, options.today, options.earliest),
     messages: [{ role: "user", content }],
-  }).finalMessage();
+  }, { signal: options.signal ? AbortSignal.any([deadline, options.signal]) : deadline }).finalMessage();
   if (response.stop_reason === "refusal") throw new Error("IMPORT_UNREADABLE");
   if (response.stop_reason === "max_tokens") throw new Error("IMPORT_TOO_LONG");
   const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
@@ -133,6 +141,8 @@ export async function extractImportRows(
   } catch {
     throw new Error("IMPORT_UNREADABLE");
   }
-  const rows = (parsed.rows ?? []).slice(0, 100).map((r) => review(r, packages, options.earliest));
+  // A photo or PDF may be the number's source and we cannot read those here, so then there is nothing to compare with.
+  const sourceDigits = input.images?.length || input.pdfs?.length ? null : [input.text ?? "", ...(input.sheets ?? [])].join("\n").replace(/\D/g, "");
+  const rows = (parsed.rows ?? []).slice(0, 100).map((r) => review(r, packages, options.earliest, sourceDigits));
   return { rows, needsReview: rows.filter((r) => r.needsReview).length };
 }

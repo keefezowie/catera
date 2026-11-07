@@ -21,6 +21,7 @@ import {
   Text,
   useBusy,
   useColors,
+  useConfirm,
   useToast,
   useTouchTarget,
   useUnsavedGuard,
@@ -122,19 +123,39 @@ export function PackageEditor({
     }
   }
 
+  // Chosen once, so pressing again after an answer that got lost sends the same payload and the server applies it once.
+  const slugSuffix = useRef(Date.now().toString(36).slice(-6));
+  const confirm = useConfirm();
+  const dayNames = days.filter(([d]) => form.weekdays.includes(d)).map(([, label]) => label);
+  const price = form.price ? Number(form.price) : null;
+  const summary = [price !== null ? `${currency(price, locale)} ${t("per porsi", "per portion")}` : "", dayNames.join(", ")]
+    .filter(Boolean)
+    .join(" · ");
+
   const [busy, save] = useBusy(async () => {
     const issues = packageIssues(form, t);
     setShown(issues);
     setGiziShown(nutritionIssues(form.nutrition, t));
     setAttempt((n) => n + 1);
     if (Object.keys(issues).length) return;
+    // A published package's terms are locked and the app cannot archive it.
+    const go = await confirm({
+      title: t("Terbitkan paket ini?", "Publish this package?"),
+      message: t(
+        `${summary}. Setelah terbit, paket tidak bisa diubah atau diarsipkan.`,
+        `${summary}. Once published, the package can't be changed or archived.`,
+      ),
+      cancelLabel: t("Batal", "Cancel"),
+      confirmLabel: t("Terbitkan", "Publish"),
+    });
+    if (!go) return;
     // Fixed before the save: the save itself makes the package read show a published package.
     const first = firstPublish === true;
     setError("");
     try {
       await command("package.save", {
         catererId,
-        slug: `${form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "paket"}-${Date.now().toString(36).slice(-6)}`,
+        slug: `${form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "paket"}-${slugSuffix.current}`,
         offer: quickOffer(form),
       });
       if (first) setPublished(true);
@@ -162,8 +183,6 @@ export function PackageEditor({
   }, [saved, toast, t]);
 
   if (published) {
-    const dayNames = days.filter(([d]) => form.weekdays.includes(d)).map(([, label]) => label);
-    const price = form.price ? Number(form.price) : null;
     // A kitchen Catera has not reviewed yet: the package is published but nobody sees it, so the next step is the review.
     const askReview = canAskReview(kitchenStatus);
     const footer = askReview ? (
@@ -183,9 +202,7 @@ export function PackageEditor({
               {form.name.trim()}
             </Text>
             <Text variant="caption" style={{ textAlign: "center", fontVariant: ["tabular-nums"] }}>
-              {[price !== null ? `${currency(price, locale)} ${t("per porsi", "per portion")}` : "", dayNames.join(", ")]
-                .filter(Boolean)
-                .join(" · ")}
+              {summary}
             </Text>
             {askReview ? (
               <Text style={{ textAlign: "center", marginTop: nativeLayout.space.sm }}>

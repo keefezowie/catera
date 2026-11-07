@@ -29,6 +29,7 @@ import {
 import { SignInFirst } from "../account/SignInFirst";
 import { EmptyArt } from "../discover/EmptyArt";
 import { FLOW_HREF, pushSheet } from "../nav";
+import { usePullToRefresh } from "../refresh";
 import { ListSkeleton } from "../skeletons";
 
 /** Plain status words shared by reports and support cases. */
@@ -78,6 +79,7 @@ function List({ flow }: { flow: boolean }) {
   const customer = useData("help:customer", () => runtime.api.customer());
   // Payment help is a bonus: if the feed fails the list still shows.
   const feed = useData("help:actions", () => runtime.api.customerActions(20));
+  const pull = usePullToRefresh(() => Promise.all([issues.reload(), customer.reload(), feed.reload()]));
 
   if ((!issues.data || !customer.data) && (issues.error || customer.error))
     return (
@@ -136,7 +138,7 @@ function List({ flow }: { flow: boolean }) {
   ) : null;
 
   return (
-    <Screen>
+    <Screen refreshControl={pull}>
       {/* The reports fade in from their skeleton as one block. */}
       <FadeSwap swapKey="ready" style={{ gap: 16 }}>
         {payments.map((p) => (

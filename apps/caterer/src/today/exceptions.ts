@@ -1,8 +1,6 @@
-/** delivery.status only moves forward one stage at a time; this walks a meal to "issue". */
-export function issueSteps(mealStatus: string): string[] {
-  const path = ["preparing", "out_for_delivery", "issue"];
-  const from = { scheduled: 0, preparing: 1, out_for_delivery: 2 }[mealStatus];
-  return from === undefined ? [] : path.slice(from);
+/** delivery.status takes "issue" straight from these stages, in one transaction and with one push to the customer. */
+export function canMarkIssue(mealStatus: string): boolean {
+  return ["scheduled", "preparing", "out_for_delivery"].includes(mealStatus);
 }
 
 /** HH.MM in Asia/Jakarta for "Terakhir diperbarui". */

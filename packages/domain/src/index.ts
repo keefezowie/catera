@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pointFitsArea } from "./address-point";
 import type {
   MealMenu,
   Nutrition,
@@ -14,6 +15,7 @@ export * from "./offer-editor";
 export * from "./photo";
 export * from "./pilot";
 export * from "./purchase-pricing";
+import { percentOf } from "./purchase-pricing";
 export * from "./purchase-commitment";
 export * from "./resource-phase";
 export * from "./customer-actions";
@@ -22,6 +24,7 @@ export * from "./saved-packages";
 export * from "./dates";
 export * from "./intl";
 export * from "./address-use";
+export * from "./address-point";
 export * from "./offer-schema";
 import type { MealType } from "./offer-schema";
 import { numberFormat } from "./intl";
@@ -45,6 +48,9 @@ export type Address = {
   city: string;
   instructions: string;
   version: number;
+  /** The customer's pin. Absent on older and imported addresses, which only have their written lines. */
+  lat?: number | null;
+  lng?: number | null;
 };
 export type Caterer = {
   id: string;
@@ -473,6 +479,13 @@ export const addressSchema = z.object({
   city: z.string().min(1),
   instructions: z.string().max(400).default(""),
   version: z.number().int().optional(),
+  lat: z.number().min(-11.5).max(6.5).optional(),
+  lng: z.number().min(94.5).max(141.5).optional(),
+}).superRefine((address, ctx) => {
+  if ((address.lat === undefined) !== (address.lng === undefined))
+    ctx.addIssue({ code: "custom", path: ["lat"], message: "A pin needs both coordinates" });
+  else if (address.lat !== undefined && !pointFitsArea({ lat: address.lat, lng: address.lng! }, address.area))
+    ctx.addIssue({ code: "custom", path: ["area"], message: "The pin is outside the chosen area" });
 });
 export const checkoutSchema = z.object({
   acceptedTerms: z.boolean().optional(),
@@ -531,7 +544,7 @@ export function price(
   const subtotal = trial
     ? (offer.trialPrice ?? offer.price) * portions
     : packageSubtotal(offer, portions);
-  const discount = Math.round((subtotal * percent) / 100);
+  const discount = percentOf(subtotal, percent);
   return {
     subtotal,
     discount,

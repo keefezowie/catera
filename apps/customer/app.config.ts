@@ -4,6 +4,9 @@ import type { ExpoConfig } from "expo/config";
  * build has no app links and those URLs keep opening in the browser. */
 const webHost = process.env.EXPO_PUBLIC_CATERA_WEB_HOST?.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 
+/** Google Maps key for the address pin, restricted to this app's package and bundle id. Without it the pin stays off. */
+const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY?.trim();
+
 const config: ExpoConfig = {
   name: "Catera",
   slug: "catera-customer",
@@ -38,7 +41,7 @@ const config: ExpoConfig = {
       backgroundColor: "#163D2E",
       monochromeImage: "../../packages/brand/assets/phase-f/icon-monochrome.png",
     },
-    permissions: ["POST_NOTIFICATIONS"],
+    permissions: ["POST_NOTIFICATIONS", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
     ...(webHost
       ? {
           intentFilters: [
@@ -58,6 +61,20 @@ const config: ExpoConfig = {
     "expo-secure-store",
     "expo-apple-authentication",
     ["expo-notifications", { color: "#163D2E" }],
+    // Asked only when the customer taps "my location" on the address map, and never in the background.
+    [
+      "expo-location",
+      {
+        locationWhenInUsePermission: "Catera memakai lokasimu untuk menandai titik alamat pengantaran.",
+        locationAlwaysAndWhenInUsePermission: false,
+        locationAlwaysPermission: false,
+        isAndroidBackgroundLocationEnabled: false,
+      },
+    ],
+    ["react-native-maps", { androidGoogleMapsApiKey: mapsKey ?? "", iosGoogleMapsApiKey: mapsKey ?? "" }],
+    // react-native-maps brings in WorkManager, which starts at launch with Room 2.5. R8's full mode reads Room's own keep
+    // rule as class-only and strips the database's constructor, so the release build crashes on open. Found 2026-11-07.
+    ["expo-build-properties", { android: { extraProguardRules: "-keep class * extends androidx.room.RoomDatabase { <init>(); }" } }],
     // One splash in both themes (the system draws it before the app's stored theme is known): the forest of the app icon with
     // the icon's mascot, a processed transparent derivative inside the Android 12+ circular safe zone. LaunchCover repeats it.
     [

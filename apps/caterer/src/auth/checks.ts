@@ -12,7 +12,7 @@ export const serverFallback = (t: T) => t(serverErrorLabel("id"), serverErrorLab
 
 /** A kitchen WhatsApp number, by the domain rule for the Indonesian numbers the server stores. */
 export const waCheck = (t: T) => (v: string) =>
-  !v.replace(/D/g, "")
+  !v.replace(/\D/g, "")
     ? t("Isi nomor WhatsApp dapur dulu.", "Enter the kitchen's WhatsApp number first.")
     : e164Indonesia(v)
       ? ""

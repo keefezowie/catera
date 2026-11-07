@@ -64,8 +64,8 @@ export async function withPlaceholder(url: string, bytes: Buffer) {
 /**
  * Validates, then re-encodes the image so nothing but pixels is stored: EXIF (GPS, device,
  * timestamps), XMP and comments are dropped, and the EXIF orientation is applied first so
- * the picture still stands the right way up. The same input always gives the same bytes,
- * which keeps an immutable retry of the same upload byte-identical.
+ * the picture still stands the right way up. The longer side stops at 1600 px. The same input
+ * always gives the same bytes, which keeps an immutable retry of the same upload byte-identical.
  */
 export async function cleanFoodImage(
   bytes: Buffer,
@@ -76,7 +76,9 @@ export async function cleanFoodImage(
     const image = sharp(bytes, {
       limitInputPixels: 40000000,
       failOn: "warning",
-    }).rotate();
+    })
+      .rotate()
+      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true });
     clean = await (ext === "png"
       ? image.png()
       : ext === "webp"

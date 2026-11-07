@@ -11,7 +11,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Reanimated from "react-native-reanimated";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { SessionCard } from "../src/today/SessionCard";
-import { issueSteps } from "../src/today/exceptions";
+import { canMarkIssue } from "../src/today/exceptions";
 import * as offline from "../src/today/offline";
 import * as Haptics from "expo-haptics";
 import { canvasDay, emptyDay, quietDay, report } from "./fixtures";
@@ -136,20 +136,16 @@ it("shares the route as WhatsApp-ready text", async () => {
   );
 });
 
-it("reports a failed delivery by stepping it to the issue status", async () => {
+it("reports a failed delivery with one call to the issue status", async () => {
   const runtime = runtimeWith(same(canvasDay()));
   await renderToday(runtime);
   await fireEvent.press(await stopMenu(3));
   await fireEvent.press(await screen.findByText("Gagal diantar"));
   await fireEvent.press(screen.getByText("Tandai gagal diantar"));
   await lastConfirm().press("Tandai gagal");
-  await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(1));
   const calls = (runtime.api.command as jest.Mock).mock.calls;
-  expect(calls.map((c) => [c[0], c[1].status, c[1].version])).toEqual([
-    ["delivery.status", "preparing", 3],
-    ["delivery.status", "out_for_delivery", 4],
-    ["delivery.status", "issue", 5],
-  ]);
+  expect(calls.map((c) => [c[0], c[1].status, c[1].version])).toEqual([["delivery.status", "issue", 3]]);
 });
 
 it("keeps showing the last loaded day when offline", async () => {
@@ -225,11 +221,13 @@ describe("the setup card in the dark theme", () => {
   });
 });
 
-describe("issueSteps", () => {
-  it("walks any open status forward to issue", () => {
-    expect(issueSteps("scheduled")).toEqual(["preparing", "out_for_delivery", "issue"]);
-    expect(issueSteps("out_for_delivery")).toEqual(["issue"]);
-    expect(issueSteps("delivered")).toEqual([]);
+describe("canMarkIssue", () => {
+  it("is true for a meal that is still open", () => {
+    expect(canMarkIssue("scheduled")).toBe(true);
+    expect(canMarkIssue("preparing")).toBe(true);
+    expect(canMarkIssue("out_for_delivery")).toBe(true);
+    expect(canMarkIssue("delivered")).toBe(false);
+    expect(canMarkIssue("issue")).toBe(false);
   });
 });
 

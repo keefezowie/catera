@@ -7,6 +7,22 @@ type Picked = { uri: string; mimeType?: string | null; fileSize?: number | null;
 /** A picked photo is cut to this long edge before it is sent: a dish tile needs no more, and a phone camera sends 12 MB. */
 const LONG_EDGE = 2048;
 
+/** A network step of the upload gives up after this long, as the API client does, so the photo spinner always ends. */
+const TIMEOUT_MS = 30_000;
+
+/** `fetch` plus reading its answer, within the timeout; on expiry it throws the code `errorLabel` already words. */
+async function timed<T>(url: string, init: RequestInit, answer: (response: Response) => T | Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    return await answer(await fetch(url, { ...init, signal: controller.signal }));
+  } catch (e) {
+    throw controller.signal.aborted ? Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }) : e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** The photo as it will be sent: a long edge past 2048 cut to 2048 (never enlarged), saved as a JPEG at 0.8. */
 async function shrink(photo: Picked): Promise<string> {
   const context = ImageManipulator.manipulate(photo.uri);
@@ -35,27 +51,31 @@ export async function uploadPhoto(runtime: MobileRuntime, picked: Picked, demo: 
     // "Unsupported FormDataPart implementation", so the picked file is sent as an expo-file-system File.
     const form = new FormData();
     form.append("file", new File(photo.uri) as unknown as Blob);
-    url = (await read(await fetch(`${runtime.apiBase}/api/uploads`, { method: "POST", headers: auth, body: form, credentials: "omit" }))).url;
+    url = (await timed(`${runtime.apiBase}/api/uploads`, { method: "POST", headers: auth, body: form, credentials: "omit" }, read)).url;
   } else {
     const bytes = await (await fetch(photo.uri)).blob();
-    const prepared = await read(
-      await fetch(`${runtime.apiBase}/api/uploads/prepare`, {
+    const prepared = await timed(
+      `${runtime.apiBase}/api/uploads/prepare`,
+      {
         method: "POST",
         headers: { ...auth, "Content-Type": "application/json" },
         credentials: "omit",
         body: JSON.stringify({ size: photo.fileSize || bytes.size, type }),
-      }),
+      },
+      read,
     );
-    const put = await fetch(prepared.url, { method: "PUT", headers: { "Content-Type": type }, body: bytes });
+    const put = await timed(prepared.url, { method: "PUT", headers: { "Content-Type": type }, body: bytes }, (response) => response);
     if (!put.ok) throw Object.assign(new Error("UPLOAD_EXPIRED"), { code: put.status === 413 ? "INVALID_SIZE" : "UPLOAD_EXPIRED" });
     url = (
-      await read(
-        await fetch(`${runtime.apiBase}/api/uploads/complete`, {
+      await timed(
+        `${runtime.apiBase}/api/uploads/complete`,
+        {
           method: "POST",
           headers: { ...auth, "Content-Type": "application/json" },
           credentials: "omit",
           body: JSON.stringify({ object: prepared.object }),
-        }),
+        },
+        read,
       )
     ).url;
   }

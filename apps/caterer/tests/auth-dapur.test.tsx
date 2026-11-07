@@ -32,7 +32,7 @@ function fakeSupabase(meta: Record<string, unknown> = {}) {
     auth: {
       signUp: jest.fn(async () => ({ data: { user: { identities: [{ id: "i" }] }, session: null }, error: null })),
       resend: jest.fn(async () => ({ error: null })),
-      getSession: jest.fn(async () => ({ data: { session: { access_token: "synthetic", user: { user_metadata: meta } } } })),
+      getSession: jest.fn(async () => ({ data: { session: { access_token: "synthetic", user: { email: "rina@example.com", user_metadata: meta } } } })),
       updateUser: jest.fn(async () => ({ data: {}, error: null })),
       signOut: jest.fn(async () => ({ error: null })),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
@@ -392,7 +392,7 @@ describe("A customer account registers a kitchen", () => {
 
   it("details kept from Daftar only ask for a confirmation, and signing in alone makes no kitchen", async () => {
     const runtime = signedInAs();
-    await holdKitchen(runtime, held);
+    await holdKitchen(runtime, held, "rina@example.com");
     await gate(runtime);
     expect(await screen.findByText("Buka dapur dengan data ini?")).toBeTruthy();
     expect(screen.getByText("Dapur Ani")).toBeTruthy();
@@ -405,7 +405,7 @@ describe("A customer account registers a kitchen", () => {
 
   it("Bukan sekarang lets the kept details go", async () => {
     const runtime = signedInAs();
-    await holdKitchen(runtime, held);
+    await holdKitchen(runtime, held, "rina@example.com");
     await gate(runtime);
     await press("Bukan sekarang");
     expect(await screen.findByRole("button", { name: "Daftarkan dapurmu" })).toBeTruthy();
@@ -416,7 +416,7 @@ describe("A customer account registers a kitchen", () => {
     const runtime = signedInAs();
     (runtime.api.me as jest.Mock).mockImplementation(async () => ({ actor: customer, demo: false }));
     (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("x"), { code: "OFFLINE" }));
-    await holdKitchen(runtime, held);
+    await holdKitchen(runtime, held, "rina@example.com");
     await gate(runtime);
     await press("Buka dapur");
     expect(await screen.findByTestId("form-error")).toBeTruthy();

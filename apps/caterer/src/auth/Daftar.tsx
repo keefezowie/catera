@@ -86,9 +86,11 @@ export function Daftar() {
         }
         // Supabase hides a registered address behind a user with no identities; say so instead of a link that never comes.
         if (["user_already_exists", "email_exists"].includes(error?.code || "") || data.user?.identities?.length === 0) {
-          await holdKitchen(runtime, kitchen);
-          const actor = await runtime.signInPassword(address, password, Crypto.randomUUID()).catch(() => null);
-          if (!actor) throw new Error("EMAIL_REGISTERED");
+          await holdKitchen(runtime, kitchen, address);
+          // Only a wrong password means "sudah punya akun"; a dropped connection or the rate limit say so themselves.
+          const actor = await runtime.signInPassword(address, password, Crypto.randomUUID()).catch((e: Error) => {
+            throw e.message === "INVALID_CREDENTIALS" ? new Error("EMAIL_REGISTERED") : e;
+          });
           await clearPending(runtime);
           await signedIn(actor);
           goToTab("index");

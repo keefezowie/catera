@@ -676,6 +676,9 @@ function Shell({
               <Link href="/brand">
                 {t("Identitas Catera", "Catera identity")}
               </Link>
+              <Link href="/syarat-dan-privasi">
+                {t("Syarat dan privasi", "Terms and privacy")}
+              </Link>
             </div>
             <p>Good Food on Repeat.</p>
           </footer>

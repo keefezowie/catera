@@ -27,6 +27,8 @@ const HEIGHT = 60;
 const GAP = 8;
 /** The card's distance from the screen's sides. */
 const SIDE = 16;
+/** The card's height is fixed, so its two lines stop growing here: at 1.5 they still fit it. */
+const LINE_CAP = 1.5;
 /** What a tab screen gives up at its foot while the bar shows: the bar and a gap on each side of it. */
 export const PAYMENT_BAR_ROOM = HEIGHT + 2 * GAP;
 /** iOS 26 has the system's bottom accessory: above the full tab bar, and beside it once it has shrunk. */
@@ -63,12 +65,22 @@ const clock = (ms: number) => {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 };
 
+/** The 1 s clock of a countdown. It lives in the leaf that draws the time, so the tabs around it don't redraw every second. */
+function useNow() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+  return now;
+}
+
 /**
- * The open checkouts from the action read, as the bar shows them now: a 1 s clock while one is open, so the countdown
- * runs and a hold that ends takes the bar away by itself. The read is asked again on return to the app and every 30 s
- * while a payment is open; any command (paying, Bayar's own checks) reloads it too.
+ * The open checkouts from the action read, as the bar shows them now: a hold that ends takes the bar away by itself
+ * (the soonest deadline is what changes it, so nothing re-renders before then). The read is asked again on return to
+ * the app and every 30 s while a payment is open; any command (paying, Bayar's own checks) reloads it too.
  */
-export function usePaymentBar(): { bar: Bar | null; now: number } {
+export function usePaymentBar(): { bar: Bar | null } {
   const { runtime, actor } = useMobile();
   const actorId = actor?.id;
   const feed = useData(`paybar:${actorId ?? ""}`, () =>
@@ -76,17 +88,19 @@ export function usePaymentBar(): { bar: Bar | null; now: number } {
   );
   const [now, setNow] = useState(() => Date.now());
   const bar = actorId ? paymentBar(feed.data?.items, new Date(now)) : null;
-  const open = !!bar;
+  const deadline = bar ? Date.parse(bar.deadline) : null;
   const reload = feed.reload;
   useEffect(() => {
-    if (!open) return;
-    const tick = setInterval(() => setNow(Date.now()), 1000);
+    if (deadline === null) return;
+    const ended = setInterval(() => {
+      if (Date.now() >= deadline) setNow(Date.now());
+    }, 1000);
     const ask = setInterval(() => void reload(), REFRESH_MS);
     return () => {
-      clearInterval(tick);
+      clearInterval(ended);
       clearInterval(ask);
     };
-  }, [open, reload]);
+  }, [deadline, reload]);
   useEffect(() => {
     if (!actorId) return;
     const sub = AppState.addEventListener("change", (s) => {
@@ -96,7 +110,7 @@ export function usePaymentBar(): { bar: Bar | null; now: number } {
     });
     return () => sub.remove();
   }, [actorId, reload]);
-  return { bar, now };
+  return { bar };
 }
 
 /** Which nudge of the last minutes this moment belongs to; null while none is due (a payment being checked, or time to spare). */
@@ -125,6 +139,12 @@ export function usePaymentVibration(bar: Bar | null, now: number) {
   useEffect(() => {
     if (beat !== null && AppState.currentState === "active") haptic.warning();
   }, [beat, haptic]);
+}
+
+/** The vibration on its own clock, drawing nothing: iOS draws the accessory twice, and this stays once. */
+export function PaymentVibration({ bar }: { bar: Bar }) {
+  usePaymentVibration(bar, useNow());
+  return null;
 }
 
 /** The words and the action of a bar, shared by the floating card and the iOS 26 accessory. */
@@ -163,7 +183,7 @@ function useBarCopy(bar: Bar, now: number) {
 }
 
 /** The bar's state for the accessory, which iOS draws twice (one per placement): both copies read this one value. */
-export const PaymentBarContext = createContext<{ bar: Bar; now: number } | null>(null);
+export const PaymentBarContext = createContext<Bar | null>(null);
 
 /**
  * The bar inside iOS 26's bottom accessory (canvas 4buPTjzp9cz2gadUBmRDaG). The system draws the glass capsule and moves
@@ -171,14 +191,15 @@ export const PaymentBarContext = createContext<{ bar: Bar; now: number } | null>
  * there is only room for the clock and the time.
  */
 export function PaymentAccessory() {
-  const value = use(PaymentBarContext);
+  const bar = use(PaymentBarContext);
   const placement = NativeTabs.BottomAccessory.usePlacement();
-  return value ? <AccessoryContent bar={value.bar} now={value.now} inline={placement === "inline"} /> : null;
+  return bar ? <AccessoryContent bar={bar} inline={placement === "inline"} /> : null;
 }
 
-function AccessoryContent({ bar, now, inline }: { bar: Bar; now: number; inline: boolean }) {
+function AccessoryContent({ bar, inline }: { bar: Bar; inline: boolean }) {
   const { t } = useMobile();
   const c = useColors();
+  const now = useNow();
   const { checking, warm, time, title, detail, countdown, label, open } = useBarCopy(bar, now);
   const nudge = useNudge(bar, now);
   // The system owns the glass, so the words carry the urgency, in the red that reads on this theme's glass.
@@ -213,9 +234,10 @@ function AccessoryContent({ bar, now, inline }: { bar: Bar; now: number; inline:
  * drops the countdown. Reduced motion keeps every state and drops the movement. Android draws it as a Material elevated card: no
  * border, the level 3 shadow, a ripple for the press and no chevron.
  */
-export function PaymentBarView({ bar, now, os = process.env.EXPO_OS }: { bar: Bar; now: number; os?: string }) {
+export function PaymentBarView({ bar, os = process.env.EXPO_OS }: { bar: Bar; os?: string }) {
   const android = os === "android";
   const c = useColors();
+  const now = useNow();
   const reduced = useReduced();
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
@@ -275,10 +297,10 @@ export function PaymentBarView({ bar, now, os = process.env.EXPO_OS }: { bar: Ba
             <Ionicons name="timer-outline" size={22} color={ink} />
           )}
           <FadeSwap swapKey={title} style={styles.text}>
-            <Text variant="bodyStrong" numberOfLines={1} style={{ color: warm ? urgentCard.ink : c.charcoal }}>
+            <Text variant="bodyStrong" numberOfLines={1} maxFontSizeMultiplier={LINE_CAP} style={{ color: warm ? urgentCard.ink : c.charcoal }}>
               {title}
             </Text>
-            <Text variant="meta" numberOfLines={1} style={warm ? [styles.figures, { color: urgentCard.soft }] : styles.figures}>
+            <Text variant="meta" numberOfLines={1} maxFontSizeMultiplier={LINE_CAP} style={warm ? [styles.figures, { color: urgentCard.soft }] : styles.figures}>
               {detail}
             </Text>
           </FadeSwap>

@@ -9,6 +9,7 @@ import { longDay } from "../schedule/dates";
 import { Row, SectionLabel } from "./Row";
 import { SignInFirst } from "./SignInFirst";
 import { openLink } from "../nav";
+import { usePullToRefresh } from "../refresh";
 import { ListSkeleton } from "../skeletons";
 
 /** The customer read carries each subscription's checkout_id; packages a caterer recorded
@@ -49,6 +50,7 @@ function History() {
   const c = useColors();
   const customer = useData("payments:customer", () => runtime.api.customer());
   const feed = useData("payments:actions", () => runtime.api.customerActions(20));
+  const pull = usePullToRefresh(() => Promise.all([customer.reload(), feed.reload()]));
 
   if (!customer.data)
     return customer.error ? (
@@ -73,7 +75,7 @@ function History() {
     .sort((a, b) => b.starts_on.localeCompare(a.starts_on));
 
   return (
-    <Screen>
+    <Screen refreshControl={pull}>
       <FadeSwap swapKey="ready" style={{ gap: 16 }}>
         {feed.error ? (
           <ReadError

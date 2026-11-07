@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { rpc } from "@catera/backend";
 import { dispatchPushes } from "@/lib/push-dispatch";
 import { jakartaDay } from "@catera/domain";
@@ -11,9 +12,12 @@ const jakartaHour = (now: Date) => (now.getUTCHours() + 7) % 24;
 
 /** The backstop: queue the timed reminders, then send what is due, including pushes whose send right after the command failed. */
 export async function GET(request: Request) {
+  const actual = Buffer.from(request.headers.get("authorization") ?? ""),
+    expected = Buffer.from("Bearer " + process.env.CRON_SECRET);
   if (
     !process.env.CRON_SECRET ||
-    request.headers.get("authorization") !== "Bearer " + process.env.CRON_SECRET
+    actual.length !== expected.length ||
+    !timingSafeEqual(actual, expected)
   )
     return new Response("Unauthorized", { status: 401 });
   const now = new Date();

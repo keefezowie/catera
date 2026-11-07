@@ -583,8 +583,9 @@ describe("the review list on the Dapur scale (spec 3.7)", () => {
     await fireEvent.press(await screen.findByRole("button", { name: "Tambah pelanggan" }));
     expect(router.push).toHaveBeenLastCalledWith("/impor-baris?n=2");
     await fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
+    // Mulai lagi asks first, in the confirm dialog (answered in import-dn-c and import-save).
     await fireEvent.press(screen.getByRole("button", { name: "Mulai lagi" }));
-    expect(await screen.findByLabelText("Tempel atau ketik daftar pelanggan")).toBeTruthy();
+    expect(router.push).toHaveBeenLastCalledWith(expect.objectContaining({ pathname: "/konfirmasi" }));
   });
 });
 

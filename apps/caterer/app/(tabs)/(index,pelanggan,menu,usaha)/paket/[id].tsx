@@ -2,6 +2,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
 import { FadeSwap, linkTitle, Screen, Text } from "@catera/mobile-ui";
 import { PackageDetail } from "../../../../src/business/PackageDetail";
+import { ReadError } from "../../../../src/ReadError";
 import { DetailSkeleton } from "../../../../src/skeletons";
 
 export default function EditPackageRoute() {
@@ -21,8 +22,10 @@ export default function EditPackageRoute() {
         <FadeSwap swapKey={loading ? "loading" : "other"} style={{ gap: 16 }}>
           {loading ? (
             <DetailSkeleton shape="package" label={t("Memuat paket", "Loading the package")} />
+          ) : ops.error ? (
+            <ReadError art message={ops.error} onRetry={() => void ops.reload()} />
           ) : (
-            <Text variant="caption">{ops.error || t("Paket ini tidak ditemukan.", "This package was not found.")}</Text>
+            <Text variant="caption">{t("Paket ini tidak ditemukan.", "This package was not found.")}</Text>
           )}
         </FadeSwap>
       </Screen>

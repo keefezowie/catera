@@ -1,3 +1,4 @@
+import { inflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
 import { z } from "zod";
 import { extractImportRows, rpc, type AssistantInput } from "@catera/backend";
@@ -45,21 +46,78 @@ const cell = (v: unknown) => {
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
 
+const inflatedLimit = 20 * 1024 * 1024;
+const textLimit = 140000;
+
+/**
+ * ExcelJS inflates every entry fully into memory, so a small zip must prove it stays small first. Each entry is really
+ * inflated against the budget, because the sizes a zip declares are the sender's to forge. Whatever JSZip could read
+ * differently from this walk (ZIP64, split archives, prepended bytes, gaps) is refused; real workbooks have none of it.
+ */
+function assertInflatesWithinLimit(zip: Buffer) {
+  try {
+    const end = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 5, 6]));
+    if (end < 0) throw new Error("IMPORT_UNREADABLE");
+    const start = zip.readUInt32LE(end + 16);
+    if (
+      zip.readUInt16LE(end + 4) !== 0 ||
+      zip.readUInt16LE(end + 6) !== 0 ||
+      zip.readUInt16LE(end + 8) === 0xffff ||
+      zip.readUInt16LE(end + 10) === 0xffff ||
+      start + zip.readUInt32LE(end + 12) !== end
+    )
+      throw new Error("IMPORT_UNREADABLE");
+    let at = start;
+    let spent = 0;
+    while (at < end) {
+      const method = zip.readUInt16LE(at + 10);
+      const compressed = zip.readUInt32LE(at + 20);
+      const local = zip.readUInt32LE(at + 42);
+      if (
+        zip.readUInt32LE(at) !== 0x02014b50 ||
+        (method !== 0 && method !== 8) ||
+        [compressed, zip.readUInt32LE(at + 24), local].includes(0xffffffff) ||
+        zip.readUInt32LE(local) !== 0x04034b50
+      )
+        throw new Error("IMPORT_UNREADABLE");
+      const data = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
+      const body = zip.subarray(data, data + compressed);
+      const size =
+        method === 8 && body.length
+          ? inflateRawSync(body, { maxOutputLength: inflatedLimit - spent + 1 }).length
+          : body.length;
+      // Charging the larger side too bounds the work of many entries that share one body and inflate to nothing.
+      spent += Math.max(size, body.length);
+      if (spent > inflatedLimit) throw new Error("IMPORT_TOO_LONG");
+      at += 46 + zip.readUInt16LE(at + 28) + zip.readUInt16LE(at + 30) + zip.readUInt16LE(at + 32);
+    }
+    if (at !== end) throw new Error("IMPORT_UNREADABLE");
+  } catch (error) {
+    const { code, message } = error as { code?: string; message?: string };
+    throw new Error(code === "ERR_BUFFER_TOO_LARGE" || message === "IMPORT_TOO_LONG" ? "IMPORT_TOO_LONG" : "IMPORT_UNREADABLE");
+  }
+}
+
 /** Spreadsheet cells become CSV text; formulas contribute only their saved results. */
 async function sheetText(sheet: { kind: "csv" | "xlsx"; data: string }) {
   const bytes = Buffer.from(sheet.data, "base64");
-  if (sheet.kind === "csv") return bytes.toString("utf8").slice(0, 140000);
+  if (sheet.kind === "csv") return bytes.toString("utf8").slice(0, textLimit);
+  assertInflatesWithinLimit(bytes);
   const book = new ExcelJS.Workbook();
   await book.xlsx.load(bytes as unknown as ArrayBuffer);
   const lines: string[] = [];
+  let length = 0;
   book.eachSheet((ws) => {
     lines.push(`# ${ws.name}`);
     ws.eachRow((row) => {
+      if (length > textLimit) return;
       const values = (row.values as unknown[]).slice(1);
-      lines.push(values.map(cell).join(","));
+      const line = values.map(cell).join(",");
+      length += line.length + 1;
+      lines.push(line);
     });
   });
-  return lines.join("\n").slice(0, 140000);
+  return lines.join("\n").slice(0, textLimit);
 }
 
 /** Owner-only: read messy customer notes into rows for import.preview. Nothing is saved here. */
@@ -91,7 +149,7 @@ export async function POST(request: Request) {
     const result = await extractImportRows(
       input,
       options.packages.map((p) => ({ id: p.id, name: p.name, meal: p.meal, days: p.days })),
-      { today: jakartaDay(new Date()), earliest: earliestImportStart(new Date()) },
+      { today: jakartaDay(new Date()), earliest: earliestImportStart(new Date()), signal: request.signal },
     );
     return Response.json({ data: result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

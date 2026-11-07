@@ -1,8 +1,7 @@
 import { webVariables } from "@catera/design-tokens";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
+import { WebAnalytics } from "@/components/web-analytics";
 import { webMotionVariables } from "@/lib/motion";
 import { publicOrigin } from "@/lib/public-url";
 import "./globals.css";
@@ -57,8 +56,7 @@ export default async function RootLayout({
     >
       <body>
         {children}
-        <Analytics />
-        <SpeedInsights />
+        <WebAnalytics />
       </body>
     </html>
   );

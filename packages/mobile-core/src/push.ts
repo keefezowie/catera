@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { useFocusEffect } from "expo-router";
-import { Notifications, pushAvailableNow, unregisterThisPhone } from "./notifications";
+import { Notifications, PUSH_OWNER, pushAvailableNow, unregisterThisPhone } from "./notifications";
 import { useMobile } from "./provider";
 
 /**
@@ -131,10 +131,10 @@ export function usePushSwitch(channelName: string): PushSwitch {
   const turnOff = useCallback(
     () =>
       change("off", async () => {
-        await unregisterThisPhone(command, key);
+        await unregisterThisPhone(command, key, runtime.storageKey(PUSH_OWNER), actor?.id);
         return "off";
       }),
-    [change, command, key],
+    [change, command, key, runtime, actor?.id],
   );
 
   return { state, turnOn, turnOff };

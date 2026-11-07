@@ -23,6 +23,8 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn(), MediaTypeOptions: { Images: "Images" } }));
+// "Terbitkan paket" asks first; these tests are about what goes out once the answer is yes.
+jest.mock("@catera/mobile-ui", () => ({ ...jest.requireActual("@catera/mobile-ui"), useConfirm: () => async () => true }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),

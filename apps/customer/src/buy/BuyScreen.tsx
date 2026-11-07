@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { router } from "expo-router";
 import {
+  addressPoint,
   currency,
   durationOptions,
   errorLabel,
@@ -25,7 +26,8 @@ import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { BuySummary, FieldGlyph, FieldRow, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { FOOTER_STACK_BELOW, footerFits, PAY_MIN_WIDTH } from "./metrics";
 import { useQuote, type BuyPayload } from "./useQuote";
-import { addressGlyph } from "../account/Addresses";
+import { addressFormHref, addressGlyph } from "../account/Addresses";
+import { mapsEnabled } from "../account/pin";
 import { useChoice } from "../choice";
 import { GLYPH_INSET, ListCard, SectionHeader } from "../layout";
 import { FLOW_HREF } from "../nav";
@@ -54,7 +56,7 @@ export function BuyScreen({
   trial?: boolean;
   initial?: BuyInitial;
 }) {
-  const { runtime, actor, ready, t, locale, command } = useMobile();
+  const { runtime, actor, ready, t, locale, command, invalidate } = useMobile();
   const styles = useStyles();
   // The amount and Bayar share a row while they fit; at large text on a narrow phone they stack.
   const narrow = useStackedLayout(FOOTER_STACK_BELOW);
@@ -140,6 +142,8 @@ export function BuyScreen({
   const maxQty = trial ? offer?.trialMax || 100 : 100;
   const lengths = offer ? durationOptions(offer) : [];
 
+  // A saved address from before pins is asked for one here. An address outside the book can't be edited, so it isn't.
+  const needsPin = mapsEnabled() && !!address && !addressPoint(address) && addresses.some((a) => a.id === address.id);
   // Nothing is "missing" until the customer's addresses and package have loaded.
   const blocked = !offer || (!customer.data && !customer.error)
     ? ""
@@ -147,7 +151,9 @@ export function BuyScreen({
       ? t("Tambahkan alamat pengantaran dulu.", "Add a delivery address first.")
       : !offer.areas.includes(address.area)
         ? t(`Alamat ini di luar jangkauan ${offer.caterer}. Pilih alamat lain.`, `This address is outside ${offer.caterer}'s area. Choose another.`)
-        : renew && ctx && !ctx.available && !ctx.pendingCheckoutId
+        : needsPin
+          ? t("Tandai titik lokasi alamat ini dulu.", "Mark this address's spot on the map first.")
+          : renew && ctx && !ctx.available && !ctx.pendingCheckoutId
           ? t("Paket ini belum bisa diperpanjang untuk jadwal berikutnya. Coba lagi nanti.", "This package can't be renewed for the next schedule yet. Try again later.")
           : !startDate || !purchaseStartAvailable(offer, startDate, now)
             ? t("Tanggal mulai sudah lewat batas pesan. Pilih tanggal lain.", "The start date is past the order cutoff. Choose another.")
@@ -210,14 +216,15 @@ export function BuyScreen({
     setBusy(true);
     setError("");
     try {
-      const created = await command<Checkout>("checkout.create", {
-        ...payload,
-        expectedQuote: quote.ready,
-        acceptedTerms: true,
-      });
+      // One reload for the whole purchase: when a start follows, the app catches up after it, not before and after.
+      const created = await command<Checkout>(
+        "checkout.create",
+        { ...payload, expectedQuote: quote.ready, acceptedTerms: true },
+        { refresh: !chosenMethod },
+      );
       // A start that fails is offered again on Bayar; the checkout already holds the days.
       if (chosenMethod)
-        await command("checkout.payment.start", { id: created.id, method: chosenMethod }).catch(() => undefined);
+        await command("checkout.payment.start", { id: created.id, method: chosenMethod }).catch(() => invalidate());
       router.replace(`/bayar/${encodeURIComponent(created.id)}` as never);
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
@@ -422,6 +429,15 @@ export function BuyScreen({
               </FieldRow>
             </ListCard>
             {blocked ? <FormError message={blocked} /> : null}
+            {needsPin && address ? (
+              <View style={{ alignItems: "flex-start" }}>
+                <Button
+                  variant="text"
+                  label={t("Tandai titik", "Mark the spot")}
+                  onPress={() => router.push(addressFormHref(true, address.id) as never)}
+                />
+              </View>
+            ) : null}
           </View>
         </View>
 

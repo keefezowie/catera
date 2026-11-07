@@ -30,7 +30,7 @@ import {
   Photo,
 } from "@catera/mobile-ui";
 import { signInSentence } from "../account/SignInFirst";
-import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
+import { catererPhoneOf, useCatererChat } from "../help/ChatKatering";
 import { packageHref } from "../hrefs";
 import { photoUri } from "../today/Plate";
 import { DaySkeleton } from "../skeletons";
@@ -124,6 +124,7 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
+  const openChat = useCatererChat();
   const state = useData(`day:${id}`, () => runtime.api.customer(`?deliveryId=${encodeURIComponent(id)}`));
   const d = state.data?.deliveries.find((x) => x.id === id);
 
@@ -158,7 +159,7 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
   const press: Record<DayAction["key"], (meal: "lunch" | "dinner") => void> = {
     change: () => pushSheet(`/ubah-hari/${id64}` as never),
     address: () => pushSheet(`/ubah-hari/${id64}?mode=address` as never),
-    chat: () => openCatererChat(catererPhoneOf(d)),
+    chat: () => openChat(catererPhoneOf(d)),
     report: (meal) => pushSheet(`/masalah/${id64}?meal=${meal}` as never),
     // The menu is a page of the tab under this sheet: the sheet closes and the page opens there (`closeSheetFor`), so it is
     // never opened behind a sheet that stays up.

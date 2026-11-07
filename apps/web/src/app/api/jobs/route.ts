@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import {
   submitEarnedPayout,
   reconcileEarnedPayouts,
@@ -18,9 +19,12 @@ export const maxDuration = 300;
 const system = <T = unknown>(action: string, payload: unknown = {}) =>
   rpc<T>(null, null, "catera_v1_system", { action, payload }, true);
 export async function GET(request: Request) {
+  const actual = Buffer.from(request.headers.get("authorization") ?? ""),
+    expected = Buffer.from("Bearer " + process.env.CRON_SECRET);
   if (
     !process.env.CRON_SECRET ||
-    request.headers.get("authorization") !== "Bearer " + process.env.CRON_SECRET
+    actual.length !== expected.length ||
+    !timingSafeEqual(actual, expected)
   )
     return new Response("Unauthorized", { status: 401 });
   await system("maintenance");
@@ -147,10 +151,18 @@ export async function GET(request: Request) {
       }
     }
   }
+  const health = await system<{ providerInboxStuck?: number }>("health");
+  if (health?.providerInboxStuck)
+    console.error(
+      JSON.stringify({
+        event: "catera.jobs.provider_inbox_stuck",
+        count: health.providerInboxStuck,
+      }),
+    );
   return Response.json({
     processed: done,
     reconciliation,
     dokuReconciliation,
-    health: await system("health"),
+    health,
   });
 }

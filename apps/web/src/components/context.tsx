@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 import { createApi } from "@catera/api-client";
-import { createBrowserClient } from "@supabase/ssr";
 import {
   errorLabel,
   resourcePhase,
@@ -213,25 +212,34 @@ export function Provider({
       !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
     )
       return;
-    const client = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-    );
-    const channel = client
-      .channel(`catera:${actor.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "catera_v1_events",
-          filter: `user_id=eq.${actor.id}`,
-        },
-        () => setRevision((v) => v + 1),
-      )
-      .subscribe();
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
+      key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    let live = true,
+      stop = () => {};
+    // Loaded here so signed-out visitors never download the Supabase client. If the chunk fails, the resume signal still refreshes.
+    import("@supabase/ssr").then(({ createBrowserClient }) => {
+      if (!live) return;
+      const client = createBrowserClient(url, key, {
+        cookieOptions: { secure: window.location.protocol === "https:" },
+      });
+      const channel = client
+        .channel(`catera:${actor.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "catera_v1_events",
+            filter: `user_id=eq.${actor.id}`,
+          },
+          () => setRevision((v) => v + 1),
+        )
+        .subscribe();
+      stop = () => void client.removeChannel(channel);
+    }, () => undefined);
     return () => {
-      void client.removeChannel(channel);
+      live = false;
+      stop();
     };
   }, [actor?.id, demo]);
   useEffect(() => {

@@ -251,8 +251,8 @@ describe("stop exceptions", () => {
     expect(within(sheet).getByText(/tidak dibayar. Hubungi/)).toBeTruthy();
     await fireEvent.press(within(sheet).getByText("Tandai gagal diantar"));
     await lastConfirm().press("Tandai gagal");
-    await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
-    expect((runtime.api.command as jest.Mock).mock.calls.map((c) => c[1].status)).toEqual(["preparing", "out_for_delivery", "issue"]);
+    await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(1));
+    expect((runtime.api.command as jest.Mock).mock.calls.map((c) => c[1].status)).toEqual(["issue"]);
     // Saved: the sheet closes and says so.
     expect(await screen.findByText("Ditandai gagal diantar")).toBeTruthy();
     await waitFor(() => expect(screen.queryByTestId("exception-sheet")).toBeNull());
@@ -261,6 +261,25 @@ describe("stop exceptions", () => {
     const saved = announce.mock.calls.findIndex(([message]) => message === "Ditandai gagal diantar");
     expect(saved).toBeGreaterThanOrEqual(0);
     expect((router.back as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(announce.mock.invocationCallOrder[saved]);
+  });
+
+  it.each([
+    ["a saved report", () => jest.fn(async () => ({}))],
+    ["a report that fails", () => jest.fn().mockRejectedValueOnce(new Error("jaringan"))],
+  ])("Gagal diantar reloads the day once for %s", async (_name, makeCommand) => {
+    const command = makeCommand();
+    const runtime = runtimeWith({ command });
+    await show(runtime, <ExceptionSheet id={dayOf(TODAY).deliveries[0].id} meal="lunch" date={TODAY} />);
+    const sheet = await stopSheet();
+    await act(async () => undefined);
+    const read = runtime.api.sellerOperations as jest.Mock;
+    read.mockClear();
+    await fireEvent.press(within(sheet).getByText("Tandai gagal diantar"));
+    await lastConfirm().press("Tandai gagal");
+    await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    await act(async () => undefined);
+    expect(read).toHaveBeenCalledTimes(1);
   });
 
   it("names each … for what it can do: both, report only, or move only on Besok", async () => {

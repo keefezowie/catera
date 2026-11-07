@@ -22,11 +22,12 @@ import { jakartaClock } from "../today/Plate";
 import { SignInFirst } from "./SignInFirst";
 import { EmptyArt } from "../discover/EmptyArt";
 import { openLink } from "../nav";
+import { usePullToRefresh } from "../refresh";
 import { ListSkeleton } from "../skeletons";
 
 /**
  * Notifikasi: the latest updates under Hari ini, Kemarin and Sebelumnya, each opening its screen. An unread update has a
- * dot and a bolder line. "Tandai semua dibaca" reads every unread one, in order, and shows only while one is unread.
+ * dot and a bolder line. "Tandai semua dibaca" reads every unread one, a few at once, and shows only while one is unread.
  * Push on this phone is Pengaturan's switch.
  */
 export function NotificationsScreen() {
@@ -43,6 +44,8 @@ export function NotificationsScreen() {
 
 type DayGroup = "today" | "yesterday" | "earlier";
 
+const READS_AT_ONCE = 5;
+
 /** Which heading an update sits under, by its Jakarta day. */
 function dayGroup(n: Notice, today: string): DayGroup {
   const day = jakartaDay(new Date(n.created_at));
@@ -55,6 +58,7 @@ function Updates() {
   const styles = useStyles();
   const toast = useToast();
   const customer = useData("notifications:customer", () => runtime.api.customer());
+  const pull = usePullToRefresh(customer.reload);
   // Updates read on this screen, so their dots go at once and do not wait for the refresh.
   const [readHere, setReadHere] = useState<ReadonlySet<string>>(new Set());
   const notes = customer.data?.notifications ?? [];
@@ -62,39 +66,36 @@ function Updates() {
   const unreadNotes = notes.filter(unread);
   const markRead = (id: string) => setReadHere((now) => new Set(now).add(id));
 
-  // A second tap while the first is marking the update read would push its screen twice.
-  const opening = useRef(false);
-  async function open(n: Notice) {
-    if (opening.current) return;
-    opening.current = true;
-    try {
-      // Marking read is a courtesy; the update itself still opens if it fails.
-      if (unread(n)) {
-        await command("notification.read", { id: n.id })
-          .then(() => markRead(n.id))
-          .catch(() => undefined);
-      }
-      openLink(customerLink(n.href));
-    } finally {
-      opening.current = false;
+  // A double tap on a row would push its screen twice. Only for a moment, so the row still opens after coming back.
+  const lastOpen = useRef({ id: "", at: 0 });
+  function open(n: Notice) {
+    const at = Date.now();
+    if (lastOpen.current.id === n.id && at - lastOpen.current.at < 1000) return;
+    lastOpen.current = { id: n.id, at };
+    // Marking read is a courtesy: the update opens at once, and never waits on it or minds if it fails.
+    if (unread(n)) {
+      markRead(n.id);
+      void command("notification.read", { id: n.id }).catch(() => undefined);
     }
+    openLink(customerLink(n.href));
   }
 
-  // One pass at a time: a second tap while the reads run sends nothing. There is no bulk read, so each unread update is
-  // read in order; a failure stops the pass and the refresh shows what is still unread. Each read is sent quietly and
-  // the app reloads once for the whole pass (this screen with it), not once per update.
+  // One pass at a time: a second tap while the reads run sends nothing. There is no bulk read, so unread updates are
+  // read a few at once; a batch with a failure ends the pass and the refresh shows what is still unread. Each read is
+  // sent quietly and the app reloads once for the whole pass (this screen with it), not once per update.
   const [marking, markAll] = useBusy(async () => {
     let sent = 0;
-    try {
-      for (const n of unreadNotes) {
-        await command("notification.read", { id: n.id }, { refresh: false });
-        markRead(n.id);
-        sent += 1;
-      }
-    } catch {
-      // The rows that stayed unread keep their dots, and the action stays to try again.
-      toast.show({ message: t("Belum semua ditandai dibaca. Coba lagi.", "Not all marked as read. Try again."), tone: "error" });
+    let failed = false;
+    for (let i = 0; i < unreadNotes.length && !failed; i += READS_AT_ONCE) {
+      const batch = unreadNotes.slice(i, i + READS_AT_ONCE);
+      const results = await Promise.allSettled(
+        batch.map((n) => command("notification.read", { id: n.id }, { refresh: false }).then(() => markRead(n.id))),
+      );
+      sent += results.filter((r) => r.status === "fulfilled").length;
+      failed = results.some((r) => r.status === "rejected");
     }
+    // The rows that stayed unread keep their dots, and the action stays to try again.
+    if (failed) toast.show({ message: t("Belum semua ditandai dibaca. Coba lagi.", "Not all marked as read. Try again."), tone: "error" });
     if (sent) invalidate();
     else await customer.reload();
   });
@@ -109,7 +110,7 @@ function Updates() {
     .filter((g) => g.notes.length > 0);
 
   return (
-    <Screen>
+    <Screen refreshControl={customer.data ? pull : undefined}>
       {/* The updates fade in from their skeleton as one block. */}
       <FadeSwap swapKey={customer.data ? "ready" : customer.error ? "error" : "loading"}>
         {!customer.data ? (
@@ -145,7 +146,7 @@ function Updates() {
                       testID="notification-row"
                       accessibilityRole="button"
                       accessibilityLabel={`${fresh ? `${t("Belum dibaca", "Unread")}, ` : ""}${n.body}, ${when}`}
-                      onPress={() => void open(n)}
+                      onPress={() => open(n)}
                       style={[styles.row, i > 0 && styles.divider]}
                     >
                       <View

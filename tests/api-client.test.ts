@@ -123,3 +123,52 @@ it("sends cookies for the web session by default, and none for a client that ask
   expect(fetchMock.mock.calls[1][1]?.credentials).toBe("omit");
   expect((fetchMock.mock.calls[1][1]?.headers as Record<string, string>).Authorization).toBe("Bearer t");
 });
+
+it("escapes every id and date in the path, so a deep link cannot leave its route", async () => {
+  fetchMock.mockImplementation(async () => Response.json({ data: {} }));
+  const api = createApi("https://catera.example");
+  const id = "../me";
+  const e = "..%2Fme";
+  const calls: [() => Promise<unknown>, string][] = [
+    [() => api.deliveryAvailability(id, "a", "b"), `availability/${e}?from=a&to=b`],
+    [() => api.seller(id, "d/1"), `seller/${e}?date=d%2F1`],
+    [() => api.sellerOperations(id, "d/1"), `seller/${e}?date=d%2F1`],
+    [() => api.sellerOperations(id), `seller/${e}`],
+    [() => api.sellerAttention(id), `seller-attention/${e}?scope=all&limit=20`],
+    [() => api.sellerCalendar(id, {}), `seller-calendar/${e}?`],
+    [() => api.sellerImportOptions(id), `seller-import-options/${e}`],
+    [() => api.renewalContext(id), `renewal-context/${e}?cycles=1`],
+    [() => api.sellerCustomers(id, "?offset=2"), `seller-customers/${e}?offset=2`],
+    [() => api.pilot(id, "a", "b"), `pilot/${e}?from=a&to=b`],
+    [() => api.settlement(id), `seller-settlement/${e}`],
+    [() => api.settlementReport(id, 7), `seller-settlement-report/${e}?days=7`],
+    [() => api.settlementHistory(id, "orders" as never), `seller-settlement-history/${e}?kind=orders`],
+    [() => api.settlementPayout(id, "p"), `seller-settlement-payout/${e}?payoutId=p`],
+    [() => api.checkout(id), `checkouts/${e}`],
+  ];
+  for (const [call, path] of calls) {
+    await call();
+    expect(String(fetchMock.mock.lastCall?.[0])).toBe("https://catera.example/api/v1/" + path);
+  }
+});
+
+it("reports the HTTP status of a server error and of a non-JSON gateway page", async () => {
+  fetchMock.mockResolvedValueOnce(Response.json({ error: { code: "CAPACITY" } }, { status: 409 }));
+  await expect(createApi("https://catera.example").me()).rejects.toMatchObject({ code: "CAPACITY", status: 409 });
+  fetchMock.mockResolvedValueOnce(new Response("<html>Bad gateway</html>", { status: 502 }));
+  await expect(createApi("https://catera.example").me()).rejects.toMatchObject({ code: "INVALID_API_RESPONSE", status: 502 });
+});
+
+it("lets a network failure through as the TypeError that OFFLINE detection reads", async () => {
+  fetchMock.mockRejectedValueOnce(new TypeError("Network request failed"));
+  await expect(createApi("https://catera.example").me()).rejects.toBeInstanceOf(TypeError);
+});
+
+it("fails an empty API URL as NOT_CONFIGURED, and keeps a left-out one on the same origin", async () => {
+  await expect(createApi("").me()).rejects.toMatchObject({ code: "NOT_CONFIGURED" });
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(vi.getTimerCount()).toBe(0);
+  fetchMock.mockResolvedValueOnce(Response.json({ data: { actor: null, demo: false } }));
+  await createApi().me();
+  expect(String(fetchMock.mock.calls[0][0])).toBe("/api/v1/me");
+});

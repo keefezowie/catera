@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
-import { areaOptions, type Address } from "@catera/domain";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Pressable, View, type TextInputInstance } from "react-native";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+import { addressPoint, AREA_CITY, areaAtPoint, areaOptions, pointFitsArea, type Address, type GeoPoint } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
@@ -23,9 +25,13 @@ import { FilterChip } from "../discover/FilterChip";
 import { addressFormHref } from "./Addresses";
 import { useAddressRemoval } from "./addressRemoval";
 import { failureText } from "./failure";
+import { mapsEnabled, takePin } from "./pin";
 
-/** `other`: the label is the customer's own words (Lainnya), typed in the label field, not one of the preset chips. */
-type Draft = { label: string; other: boolean; line: string; area: string; city: string; instructions: string };
+/**
+ * `other`: the label is the customer's own words (Lainnya), typed in the label field, not one of the preset chips.
+ * `pin`: the customer's point on the map; `area` and a new address's `city` follow it, and the customer writes the rest.
+ */
+type Draft = { label: string; other: boolean; line: string; area: string; city: string; instructions: string; pin: GeoPoint | null };
 
 /** The label chips before Lainnya, as [Indonesian, English]; a label in either language picks its chip. */
 const PRESET_LABELS: [string, string][] = [
@@ -40,7 +46,9 @@ const isPreset = (label: string) => PRESET_LABELS.some((p) => p.includes(label.t
  */
 const typedChange = (d: Draft, start: Draft) =>
   (["line", "city", "instructions"] as const).some((k) => d[k].trim() !== start[k].trim()) ||
-  (d.other && d.label.trim() !== start.label.trim());
+  (d.other && d.label.trim() !== start.label.trim()) ||
+  d.pin?.lat !== start.pin?.lat ||
+  d.pin?.lng !== start.pin?.lng;
 
 /**
  * Addresses typed and not saved, per person and address ("baru" for a new one), in memory only. Android's bottom sheet
@@ -53,10 +61,62 @@ const blank = (t: (id: string, en: string) => string, a?: Address | null): Draft
   label: a?.label ?? t("Rumah", "Home"),
   other: !!a && !isPreset(a.label),
   line: a?.line ?? "",
-  area: a?.area ?? "Jakarta Selatan",
-  city: a?.city ?? "Jakarta",
+  // With pins on, a new address starts with neither: its pin names them, so a default can't slip through unread.
+  area: a?.area ?? (mapsEnabled() ? "" : "Jakarta Selatan"),
+  city: a?.city ?? (mapsEnabled() ? "" : "Jakarta"),
   instructions: a?.instructions ?? "",
+  pin: addressPoint(a),
 });
+
+/** The form's map section: the call to mark the spot, or a still picture of the marked spot with a way to change it. */
+function PinSection({ pin, area, onOpen }: { pin: GeoPoint | null; area: string; onOpen: () => void }) {
+  const { t } = useMobile();
+  const c = useColors();
+  if (!pin)
+    return (
+      <Pressable
+        testID="address-pin-open"
+        accessibilityRole="button"
+        onPress={onOpen}
+        style={{ minHeight: 72, padding: 12, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: c.fieldBorder, borderRadius: 12, borderCurve: "continuous", backgroundColor: c.sage }}
+      >
+        <Ionicons name="location-outline" size={26} color={c.forest} />
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyStrong">{t("Tandai lokasi di peta", "Mark the spot on the map")}</Text>
+          <Text variant="meta">{t("Kurir diarahkan ke titik ini.", "The driver is sent to this spot.")}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={c.muted} />
+      </Pressable>
+    );
+  const region = { latitude: pin.lat, longitude: pin.lng, latitudeDelta: 0.003, longitudeDelta: 0.003 };
+  return (
+    <View testID="address-pin-set" style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.surface }}>
+      <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: 116 }}>
+        <MapView
+          key={`${pin.lat},${pin.lng}`}
+          provider={PROVIDER_GOOGLE}
+          liteMode
+          scrollEnabled={false}
+          zoomEnabled={false}
+          rotateEnabled={false}
+          pitchEnabled={false}
+          toolbarEnabled={false}
+          initialRegion={region}
+          style={{ flex: 1 }}
+        />
+        <View style={{ position: "absolute", left: 0, right: 0, top: "50%", marginTop: -36, alignItems: "center" }}>
+          <Ionicons name="location" size={36} color={c.forest} />
+        </View>
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingLeft: 12, paddingRight: 4 }}>
+        <Text variant="meta" style={{ flex: 1 }}>
+          {[t("Titik sudah ditandai", "Pin marked"), areaAtPoint(pin) ?? area].filter(Boolean).join(" · ")}
+        </Text>
+        <Button variant="text" label={t("Ubah titik", "Change pin")} onPress={onOpen} />
+      </View>
+    </View>
+  );
+}
 
 /** The sheet's frame: the title row over the scrolling form, in one FadeSwap so the form fades in as one block. */
 function Frame({ title, swapKey, children, footer }: { title: string; swapKey: string; children: ReactNode; footer?: ReactNode }) {
@@ -169,6 +229,8 @@ function Form({
   const [saved, setSaved] = useState(false);
   const [removed, setRemoved] = useState(false);
   const closed = useRef(false);
+  const lineRef = useRef<TextInputInstance>(null);
+  const instructionsRef = useRef<TextInputInstance>(null);
   const typed = typedChange(draft, start);
   // "Tambah alamat baru" while deleting: the new form takes this one's place (the guard still asks about typing here).
   const removal = useAddressRemoval(addressFormHref(flow), () => router.replace(addressFormHref(flow) as never));
@@ -212,12 +274,38 @@ function Form({
       else drafts.delete(draftKey);
       return next;
     });
-  const areas = !areaOptions.includes(draft.area) ? [draft.area, ...areaOptions] : areaOptions;
+  const areas = draft.area && !areaOptions.includes(draft.area) ? [draft.area, ...areaOptions] : areaOptions;
+
+  // The map hands its point back when it closes; the area follows, and an empty city takes the area's.
+  useFocusEffect(
+    useCallback(() => {
+      const pin = takePin(draftKey);
+      if (!pin) return;
+      setDraft((d) => {
+        const area = areaAtPoint(pin) ?? d.area;
+        const next = { ...d, pin, area, city: d.city.trim() ? d.city : (AREA_CITY[area] ?? "") };
+        if (typedChange(next, start)) drafts.set(draftKey, next);
+        return next;
+      });
+    }, [draftKey, start]),
+  );
+
+  const maps = mapsEnabled();
+  const openMap = () =>
+    router.push({
+      pathname: "/alamat-peta",
+      params: { key: draftKey, area: draft.area, ...(draft.pin ? { lat: String(draft.pin.lat), lng: String(draft.pin.lng) } : {}) },
+    } as never);
+  // The pin wins: a chip that disagrees with it holds the save and says which way to fix it.
+  const pinArea = draft.pin ? areaAtPoint(draft.pin) : null;
+  const areaConflict = !!draft.pin && !!draft.area && !pointFitsArea(draft.pin, draft.area);
 
   // What still keeps the button off, in the order of the form: [Indonesian, English].
   const missing: [string, string][] = [];
+  if (maps && !draft.pin) missing.push(["titik lokasi", "map pin"]);
   if (!draft.label.trim()) missing.push(["label", "label"]);
   if (draft.line.trim().length < 5) missing.push(["jalan", "street"]);
+  if (!draft.area) missing.push(["area", "area"]);
   if (!draft.city.trim()) missing.push(["kota", "city"]);
 
   const missingText = t(
@@ -237,6 +325,7 @@ function Form({
         area: draft.area,
         city: draft.city,
         instructions: draft.instructions,
+        ...(draft.pin ? { lat: draft.pin.lat, lng: draft.pin.lng } : {}),
       });
       drafts.delete(draftKey);
       setSaved(true);
@@ -264,12 +353,18 @@ function Form({
             label={t("Simpan alamat", "Save address")}
             accessibilityHint={missing.length ? missingText : undefined}
             busy={busy}
-            disabled={missing.length > 0 || removing}
+            disabled={missing.length > 0 || areaConflict || removing}
             onPress={() => void save()}
           />
         </>
       }
     >
+      {maps ? (
+        <>
+          <Text variant="label">{t("Titik lokasi", "Map pin")}</Text>
+          <PinSection pin={draft.pin} area={draft.area} onOpen={openMap} />
+        </>
+      ) : null}
       <Text variant="label">{t("Simpan sebagai", "Save as")}</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {PRESET_LABELS.map(([id, en]) => {
@@ -293,9 +388,19 @@ function Form({
         />
       </View>
       {draft.other ? (
-        <Field label={t("Label alamat", "Address label")} value={draft.label} onChangeText={(label) => set({ label })} maxLength={60} />
+        <Field
+          label={t("Label alamat", "Address label")}
+          value={draft.label}
+          onChangeText={(label) => set({ label })}
+          maxLength={60}
+          autoComplete="off"
+          returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => lineRef.current?.focus()}
+        />
       ) : null}
       <Field
+        inputRef={lineRef}
         label={t("Jalan, nomor, detail", "Street, number, details")}
         hint={
           draft.line.trim().length > 0 && draft.line.trim().length < 5
@@ -315,8 +420,28 @@ function Form({
           <FilterChip key={area} label={area} selected={draft.area === area} onPress={() => set({ area })} />
         ))}
       </View>
-      <Field label={t("Kota", "City")} value={draft.city} onChangeText={(city) => set({ city })} maxLength={80} />
+      {areaConflict ? (
+        <FormError
+          message={
+            pinArea
+              ? t(`Titik di peta ada di ${pinArea}. Pilih area itu, atau ubah titiknya.`, `The pin is in ${pinArea}. Choose that area, or change the pin.`)
+              : t("Titik di peta tidak ada di area ini. Pilih area lain, atau ubah titiknya.", "The pin isn't in this area. Choose another, or change the pin.")
+          }
+        />
+      ) : null}
       <Field
+        label={t("Kota", "City")}
+        value={draft.city}
+        onChangeText={(city) => set({ city })}
+        maxLength={80}
+        autoComplete="postal-address-locality"
+        textContentType="addressCity"
+        returnKeyType="next"
+        submitBehavior="submit"
+        onSubmitEditing={() => instructionsRef.current?.focus()}
+      />
+      <Field
+        inputRef={instructionsRef}
         label={t("Petunjuk pengantaran", "Delivery instructions")}
         hint={t("Contoh: pagar hitam, titip satpam", "For example: black gate, leave it with security")}
         value={draft.instructions}

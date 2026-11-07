@@ -1418,6 +1418,11 @@ td strong {
 .page-heading h1 {
   max-width: 24ch;
 }
+.page-heading h2 {
+  max-width: 24ch;
+  font-size: clamp(28px, 3vw, 42px);
+  letter-spacing: -0.035em;
+}
 .lead {
   margin-top: 14px;
   font-size: 16px;
@@ -3722,7 +3727,8 @@ td strong {
     margin-bottom: 24px;
     gap: 17px;
   }
-  .page-heading h1 {
+  .page-heading h1,
+  .page-heading h2 {
     font-size: 29px;
     line-height: 1.25;
   }

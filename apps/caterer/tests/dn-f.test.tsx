@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import { nativeThemes } from "@catera/design-tokens";
@@ -61,6 +61,11 @@ const show = async (runtime: MobileRuntime, ui: React.ReactNode, { dark = false 
   );
 };
 afterEach(() => jest.restoreAllMocks());
+/** A person's pull on the screen's scroll root. */
+const pullDown = () =>
+  act(async () => {
+    only(hostsOf("RCTScrollView").filter((n) => n.props.refreshControl != null)).props.refreshControl.props.onRefresh();
+  });
 
 const ops = { caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [], datedMenus: [] };
 const settlement = {
@@ -118,7 +123,7 @@ describe("Usaha", () => {
     expect(sty(meta).fontVariant).toContain("tabular-nums");
   });
 
-  it("a failed refresh with packages on screen toasts, and the packages stay", async () => {
+  it("a failed background reload stays quiet; a failed pull toasts, and the packages stay", async () => {
     let fail = false;
     const read = jest.fn(async () => {
       if (fail) throw down();
@@ -131,6 +136,9 @@ describe("Usaha", () => {
     await act(async () => {
       await fireEvent.press(screen.getByRole("button", { name: "bump" }));
     });
+    await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(2));
+    expect(screen.queryByText(REFRESH)).toBeNull();
+    await pullDown();
     expect(await screen.findByText(REFRESH)).toBeTruthy();
     expect(screen.getByText("Paket 1")).toBeTruthy();
   });
@@ -180,18 +188,24 @@ describe("Pelanggan", () => {
     expect(hostsOf("RCTScrollView").some((n) => n.props.refreshControl != null)).toBe(true);
   });
 
-  it("a failed refresh with customers on screen toasts, and the rows stay", async () => {
+  it("a failed background reload stays quiet; a failed pull toasts, and the rows stay", async () => {
     let fail = false;
+    let reads = 0;
     const runtime = crm(async () => {
+      reads += 1;
       if (fail) throw down();
       return { customers: [cust(1)], total: 1, packages: [] };
     });
     await show(runtime, <CustomerList />);
     await screen.findByText("Pelanggan 1");
+    const before = reads;
     fail = true;
     await act(async () => {
       await fireEvent.press(screen.getByRole("button", { name: "bump" }));
     });
+    await waitFor(() => expect(reads).toBeGreaterThan(before));
+    expect(screen.queryByText(REFRESH)).toBeNull();
+    await pullDown();
     expect(await screen.findByText(REFRESH)).toBeTruthy();
     expect(screen.getByText("Pelanggan 1")).toBeTruthy();
   });

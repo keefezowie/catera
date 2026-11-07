@@ -50,6 +50,20 @@ it("rejects empty, forged, truncated and unsupported image bytes", async () => {
     .toBuffer();
   await expect(validateFoodImage(gif)).rejects.toThrow("INVALID_TYPE");
 });
+it("stops the longer side at 1600 px, keeping the shape, and never enlarges", async () => {
+  const { cleanFoodImage } = await import("../apps/web/src/lib/food-upload");
+  const image = (width: number, height: number) =>
+    sharp({ create: { width, height, channels: 3, background: "#ee8855" } })
+      .jpeg()
+      .toBuffer();
+  const size = async (bytes: Buffer) => {
+    const meta = await sharp((await cleanFoodImage(bytes)).bytes).metadata();
+    return [meta.width, meta.height];
+  };
+  expect(await size(await image(3200, 1600))).toEqual([1600, 800]);
+  expect(await size(await image(1200, 2400))).toEqual([800, 1600]);
+  expect(await size(await image(40, 20))).toEqual([40, 20]);
+});
 it("re-encodes uploads without EXIF, GPS or comments, upright and repeatable", async () => {
   const { cleanFoodImage } = await import("../apps/web/src/lib/food-upload");
   for (const format of ["jpeg", "png", "webp"] as const) {

@@ -7,7 +7,8 @@ import {
   PurchasePriceBreakdown,
   PurchaseSchedule,
 } from "./purchase-price-breakdown";
-import { durationOptions, purchaseStartAvailable } from "@catera/domain";
+import { addressPoint, durationOptions, purchaseStartAvailable } from "@catera/domain";
+import { webMapsKey } from "./address-pin";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { Disclosure } from "./disclosure";
@@ -89,7 +90,7 @@ export function CheckoutPage({ id }: { id: string }) {
   }, [availability.loading]);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
+    const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
   const startAvailable = !!p && purchaseStartAvailable(p, date, now);
@@ -179,8 +180,10 @@ export function CheckoutPage({ id }: { id: string }) {
     directional: true,
     ready: restored && !!state.data,
   });
+  // A saved address from before pins is asked for one here, once this deployment has a map.
+  const addressNeedsPin = !!webMapsKey() && !!selectedAddress && !addressPoint(selectedAddress);
   const addressAvailable =
-    !!selectedAddress && !!p?.areas.includes(selectedAddress.area);
+    !!selectedAddress && !!p?.areas.includes(selectedAddress.area) && !addressNeedsPin;
   const addressMessage = !state.data?.addresses.length
     ? t(
         "Tambahkan alamat supaya kami bisa cek area pengantaran.",
@@ -191,6 +194,11 @@ export function CheckoutPage({ id }: { id: string }) {
           "Pilih alamat pengantaran yang tersimpan untuk melanjutkan.",
           "Choose a saved delivery address to continue.",
         )
+      : addressNeedsPin
+        ? t(
+            "Alamat ini belum punya titik di peta. Ubah alamatnya dan tandai titiknya dulu.",
+            "This address has no map pin yet. Edit it and mark the spot first.",
+          )
       : !addressAvailable
         ? t(
             "Alamat ini di luar area pengantaran katering. Pilih atau tambahkan alamat lain.",
@@ -304,7 +312,7 @@ export function CheckoutPage({ id }: { id: string }) {
               <h2>{p.name}</h2>
               <p>
                 {trial
-                  ? t("Trial 1 hari", "1-day trial")
+                  ? t("Coba 1 hari", "1-day trial")
                   : commitment.deliveryDays +
                     " " +
                     t("hari pengantaran", "delivery days")}{" "}
@@ -439,7 +447,8 @@ export function CheckoutPage({ id }: { id: string }) {
                       <p key={subscription.id}>
                         <strong>{subscription.snapshot.offer.name}</strong>
                         <br />
-                        {formatPeriodDate(subscription.starts_on)} sampai{" "}
+                        {formatPeriodDate(subscription.starts_on)}{" "}
+                        {t("sampai", "to")}{" "}
                         {formatPeriodDate(subscription.ends_on)}
                         <br />
                         <Link
@@ -466,8 +475,14 @@ export function CheckoutPage({ id }: { id: string }) {
                     "Portions stay fixed throughout the package. Every portion gets the same menu.",
                   )}
                 </p>
-                <div className="portion-control">
-                  <strong>{t("Porsi setiap hari", "Portions per day")}</strong>
+                <div
+                  className="portion-control"
+                  role="group"
+                  aria-labelledby="checkout-portions-label"
+                >
+                  <strong id="checkout-portions-label">
+                    {t("Porsi setiap hari", "Portions per day")}
+                  </strong>
                   <div>
                     <Button
                       type="button"
@@ -478,7 +493,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     >
                       <Minus size={16} />
                     </Button>
-                    <strong>{portions}</strong>
+                    <strong aria-live="polite">{portions}</strong>
                     <Button
                       type="button"
                       className="icon-button"
@@ -722,10 +737,21 @@ export function CheckoutPage({ id }: { id: string }) {
                       onChange={(e) => setAcceptedTerms(e.target.checked)}
                       aria-describedby="checkout-terms-reminder"
                     />
-                    {t(
-                      "Saya menyetujui Syarat & Ketentuan pembelian, termasuk jadwal, alamat, harga, dan aturan paket yang ditampilkan.",
-                      "I accept the purchase Terms & Conditions, including the displayed schedule, address, price, and package rules.",
-                    )}
+                    <span>
+                      {t("Saya menyetujui ", "I accept the purchase ")}
+                      <a
+                        href="/syarat-dan-privasi#syarat"
+                        target="_blank"
+                        rel="noopener"
+                        style={{ textDecoration: "underline" }}
+                      >
+                        {t("Syarat & Ketentuan", "Terms & Conditions")}
+                      </a>
+                      {t(
+                        " pembelian, termasuk jadwal, alamat, harga, dan aturan paket yang ditampilkan.",
+                        ", including the displayed schedule, address, price, and package rules.",
+                      )}
+                    </span>
                   </label>
                   <p
                     id="checkout-terms-reminder"

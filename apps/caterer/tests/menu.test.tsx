@@ -358,7 +358,7 @@ describe("menu day with an unknown package", () => {
 });
 
 describe("menu loading and sharing states", () => {
-  async function runtimeFor(menuMonth: jest.Mock, sellerOperations?: jest.Mock) {
+  async function runtimeFor(menuMonth: jest.Mock, sellerOperations?: jest.Mock, command?: jest.Mock) {
     const { createMobileRuntime, MobileProvider: BaseProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
     const MobileProvider = scaled(BaseProvider);
     const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
@@ -385,6 +385,7 @@ describe("menu loading and sharing states", () => {
           ],
         })),
       menuMonth,
+      ...(command ? { command } : {}),
     } as unknown as typeof runtime.api;
     return await render(
       <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
@@ -471,6 +472,45 @@ describe("menu loading and sharing states", () => {
       await runtimeFor(jest.fn(async () => ({ dates: lastWeek, categories: [] })));
       await waitFor(() => expect(disabled("Salin minggu lalu")).toBe(false));
       expect(screen.queryByText("Minggu lalu belum ada menu untuk disalin")).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("Salin minggu lalu reloads once for the whole copy, also when it stops part-way", async () => {
+    jest.useFakeTimers({
+      now: new Date("2026-10-08T05:00:00Z"),
+      doNotFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate", "clearImmediate", "nextTick", "queueMicrotask", "performance"],
+    });
+    try {
+      // Two last-week days with different dishes make two batches; this week is empty and can still change.
+      const filled = (date: string, name: string) => ({
+        date,
+        version: 1,
+        editable: false,
+        details: { name: "Makan Siang", description: "", image: "", meal: "lunch", composition, items: [item("x", "g-lauk", "main", name)] },
+      });
+      const dates = [
+        filled("2026-09-28", "Ayam"),
+        filled("2026-09-29", "Ikan"),
+        ...["2026-10-05", "2026-10-06"].map((date) => ({ date, version: 1, editable: true, details: null })),
+      ];
+      const sellerOperations = jest.fn(async () => ({
+        caterer: { id: "k-1", name: "Dapur" },
+        dishes: [],
+        datedMenus: [],
+        offers: [{ id: "p-1", name: "Rumahan", status: "published", meal: "lunch", weekdays: [1, 2, 3, 4, 5], contentRevision: 2, menus: [{ meal: "lunch", name: "Makan Siang", description: "", image: "", composition }] }],
+      }));
+      const command = jest.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("jaringan"));
+      await runtimeFor(jest.fn(async () => ({ dates, categories: [] })), sellerOperations, command);
+      await waitFor(() => expect(disabled("Salin minggu lalu")).toBe(false));
+      await act(async () => undefined);
+      sellerOperations.mockClear();
+      await fireEvent.press(screen.getByRole("button", { name: "Salin minggu lalu" }));
+      await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(sellerOperations).toHaveBeenCalledTimes(1));
+      await act(async () => undefined);
+      expect(sellerOperations).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
     }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { durationOptionsSchema } from "./purchase-pricing";
-import { menuSchema, nutritionSchema, contentsIssues } from "./contents";
+import { foodImage, menuSchema, nutritionSchema, contentsIssues } from "./contents";
 
 export const mealTypes = ["lunch", "dinner", "both"] as const;
 export type MealType = (typeof mealTypes)[number];
@@ -25,12 +25,12 @@ export const offerSchema = z
     tiers: z.array(
       z.object({
         min: z.number().int().min(1),
-        percent: z.number().min(0).max(90),
+        percent: z.number().min(0).max(90).multipleOf(0.01),
       }),
     ),
     windows: z.object({ lunch: z.string().min(3), dinner: z.string().min(3) }),
     tags: z.array(z.string().max(40)),
-    image: z.string().max(500),
+    image: foodImage(z.string().max(500)),
     packageType: z.enum(["ala_carte", "nasi_box"]).nullable().optional(),
     menuSelectionMode: z.enum(["caterer", "customer"]).optional(),
     menus: z.array(menuSchema).max(2),

@@ -233,21 +233,28 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
     setFailedIds([]);
     const paths: Record<string, string> = {};
     const notSent: Stop[] = [];
+    const queue: Stop[] = [];
     for (const stop of stops) {
-      const photo = photos[stop.deliveryId]!;
-      if (photo.path) {
-        paths[stop.deliveryId] = photo.path;
-        continue;
-      }
-      try {
-        const path = await uploadProof(runtime, photo.uri, stop.deliveryId, meal);
-        paths[stop.deliveryId] = path;
-        // Kept, so a retry sends only the photos that did not go.
-        setPhotos((p) => ({ ...p, [stop.deliveryId]: { ...photo, path } }));
-      } catch {
-        notSent.push(stop);
-      }
+      const path = photos[stop.deliveryId]!.path;
+      if (path) paths[stop.deliveryId] = path;
+      else queue.push(stop);
     }
+    // Three senders share the queue: a courier with many stops waits for the slowest few, not the sum of all.
+    const sender = async () => {
+      for (let stop = queue.shift(); stop; stop = queue.shift()) {
+        const photo = photos[stop.deliveryId]!;
+        try {
+          const path = await uploadProof(runtime, photo.uri, stop.deliveryId, meal);
+          paths[stop.deliveryId] = path;
+          // Kept, so a retry sends only the photos that did not go; a photo retaken meanwhile stays, still to be sent.
+          const id = stop.deliveryId;
+          setPhotos((p) => (p[id]?.uri === photo.uri ? { ...p, [id]: { ...photo, path } } : p));
+        } catch {
+          notSent.push(stop);
+        }
+      }
+    };
+    await Promise.all([sender(), sender(), sender()]);
     if (notSent.length) {
       setFailedIds(notSent.map((s) => s.deliveryId));
       fail(

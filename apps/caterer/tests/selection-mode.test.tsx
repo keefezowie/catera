@@ -259,6 +259,39 @@ describe("Sampai (n): the proof-photo sheet", () => {
     expect((proof.uploadProof as jest.Mock).mock.calls.map((c) => c[2]).sort()).toEqual(sent.fulfillmentIds.slice().sort());
   });
 
+  it("sends the photos three at a time and marks every stop with its own path", async () => {
+    const command = jest.fn(async () => ({ moved: 4 }));
+    const day = dayWith([out, out, out, out]);
+    await renderToday(runtimeFor(() => day, { command }));
+    await pilih();
+    const names = [/Bu Sari/, /Keluarga Hartono/, /Kost Damai/, /Kantor PT Sinar Rasa/];
+    for (const name of names) await fireEvent.press(stopBox(name));
+    await fireEvent.press(screen.getByRole("button", { name: "Sampai (4)" }));
+    await screen.findByText("Foto bukti sampai");
+    for (const [i, name] of names.entries()) {
+      shot(`file:///${i}.jpg`);
+      await fireEvent.press(sheet().getByLabelText(new RegExp(`^Ambil foto: ${name.source}`)));
+      await act(async () => undefined);
+      await waitFor(() => expect(sheet().getAllByText("Foto siap")).toHaveLength(i + 1));
+    }
+    const pending: (() => void)[] = [];
+    (proof.uploadProof as jest.Mock).mockClear();
+    (proof.uploadProof as jest.Mock).mockImplementation(
+      (_r: unknown, _u: string, id: string) => new Promise((resolve) => pending.push(() => resolve(`k-1/${id}/lunch/ok.jpg`))),
+    );
+    await fireEvent.press(sheet().getByRole("button", { name: "Sampai (4)" }));
+    await waitFor(() => expect(proof.uploadProof).toHaveBeenCalledTimes(3));
+    await act(async () => undefined);
+    expect(proof.uploadProof).toHaveBeenCalledTimes(3);
+    await act(async () => pending[0]());
+    await waitFor(() => expect(proof.uploadProof).toHaveBeenCalledTimes(4));
+    await act(async () => pending.slice(1).forEach((go) => go()));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("delivery.arrive", expect.anything(), expect.any(String)));
+    const sent = (command.mock.calls[0] as unknown[])[1] as { fulfillmentIds: string[]; photos: Record<string, string> };
+    for (const id of sent.fulfillmentIds) expect(sent.photos[id]).toBe(`k-1/${id}/lunch/ok.jpg`);
+    expect(sent.fulfillmentIds).toHaveLength(4);
+  });
+
   it("a failed photo upload keeps the other photos and shows FormError", async () => {
     const command = jest.fn(async () => ({ moved: 2 }));
     const day = await openProof(command);

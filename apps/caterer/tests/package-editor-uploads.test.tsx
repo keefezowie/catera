@@ -11,7 +11,7 @@ import { findAll, oneImage } from "./host-queries";
 import { lastGuard, resetSheets, unsavedGuard } from "./sheet-host";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
-jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
+jest.mock("@catera/mobile-ui", () => ({ ...require("./sheet-host").mobileUiModule(), useConfirm: () => async () => true }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
 jest.mock("expo-image-manipulator", () => ({ ImageManipulator: { manipulate: jest.fn() }, SaveFormat: { JPEG: "jpeg" } }));
 // The empty form is not a publishable one; these tests are about the screen around the save, not the rules.

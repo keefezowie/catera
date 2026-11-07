@@ -14,28 +14,25 @@ import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import type * as NotificationTypes from "expo-notifications";
 import Constants from "expo-constants";
-import { Notifications, pushAvailableNow, unregisterThisPhone } from "./notifications";
+import { Notifications, PUSH_OWNER, pushAvailableNow, releasePreviousAccount, unregisterThisPhone } from "./notifications";
 import { router } from "expo-router";
+import { ApiError } from "@catera/api-client";
 import { errorLabel, type Actor, type Locale, type UsageName } from "@catera/domain";
-import type { MobileRuntime } from "./runtime";
+import { settleWithin, type MobileRuntime } from "./runtime";
 import { createOpenCounter, sendUsage } from "./usage";
 
 /** How long sign-out waits for this phone's push token to come off the account before it signs out anyway. */
 const RELEASE_PUSH_MS = 3000;
 
-/** Waits for `work` to settle, at most `ms`; its outcome, a rejection included, is ignored. */
-function settleWithin(work: Promise<unknown>, ms: number): Promise<void> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  return Promise.race([
-    work.then(
-      () => undefined,
-      () => undefined,
-    ),
-    new Promise<void>((resolve) => {
-      timer = setTimeout(resolve, ms);
-    }),
-  ]).finally(() => clearTimeout(timer));
-}
+/** How long a command whose outcome is unknown keeps its request id for a retry. */
+const RETRY_ID_MS = 2 * 60 * 1000;
+
+/**
+ * The server answered and refused, so nothing was applied and a later try is a new intent. Everything else (no signal,
+ * a timeout, an unreadable answer) may have committed, and the retry must carry the same id to apply it once.
+ */
+const refused = (e: unknown) =>
+  e instanceof ApiError && !["REQUEST_TIMEOUT", "INVALID_API_RESPONSE", "REQUEST_FAILED"].includes(e.code);
 
 Notifications?.setNotificationHandler({
   handleNotification: async () => ({
@@ -57,8 +54,6 @@ export type MobileContextValue = {
   ready: boolean;
   /** The stored actor, token and locale have been read from the phone (or the read failed). */
   booted: boolean;
-  /** A `me()` is in flight. */
-  refreshing: boolean;
   error: string;
   locale: Locale;
   t: (id: string, en: string) => string;
@@ -85,6 +80,8 @@ export type MobileContextValue = {
   signedIn: (actor: Actor) => Promise<void>;
   logout: () => Promise<void>;
   enablePush: (channelName: string) => Promise<void>;
+  /** `useData`'s shared reads. `epoch` moves after every command and sign-out: a read begun before it serves no one after. */
+  reads: { epoch: number; inFlight: Map<string, Promise<unknown>> };
 };
 
 const Context = createContext<MobileContextValue>(null!);
@@ -140,7 +137,6 @@ export function MobileProvider({
     [demo, setDemo] = useState(false),
     [ready, setReady] = useState(false),
     [booted, setBooted] = useState(false),
-    [refreshing, setRefreshing] = useState(false),
     [errorCode, setErrorCode] = useState(""),
     [locale, setLocaleState] = useState<Locale>("id"),
     [revision, setRevision] = useState(0),
@@ -155,7 +151,8 @@ export function MobileProvider({
     lastResume.current = now;
     setResumed((n) => n + 1);
   }, []);
-  const requests = useRef(new Map<string, string>());
+  const requests = useRef(new Map<string, { id: string; at: number }>());
+  const reads = useRef<MobileContextValue["reads"]>({ epoch: 0, inFlight: new Map() }).current;
   const sessionGeneration = useRef(0);
   const refreshGeneration = useRef(0);
   const lastNotification = useRef("");
@@ -191,7 +188,6 @@ export function MobileProvider({
     const current = () =>
       session === sessionGeneration.current && request === refreshGeneration.current;
     inFlight.current += 1;
-    setRefreshing(true);
     try {
       if (!runtime.apiBase) throw new Error("NOT_CONFIGURED");
       const me = await runtime.api.me();
@@ -206,6 +202,12 @@ export function MobileProvider({
         void SecureStore.setItemAsync(runtime.storageKey("actor"), JSON.stringify(me.actor)).catch(() => {});
         // The open is counted only now: an account painted from the phone at boot is not yet confirmed by the server.
         void countOpen(me.actor);
+        if (pushAvailableNow())
+          void releasePreviousAccount(
+            (action, payload) => runtime.api.command(action, payload, Crypto.randomUUID()),
+            runtime.storageKey,
+            me.actor.id,
+          ).catch(() => undefined);
       } else signedOutLocally();
       setErrorCode("");
       // Screens painted from the stored actor already read for this account; only a different answer reloads them.
@@ -222,18 +224,17 @@ export function MobileProvider({
         signedOutLocally();
       } else {
         // Offline: reopen the last account, but only while this device still holds a session.
-        const [saved, token] = await Promise.all([
+        const [saved, held] = await Promise.all([
           SecureStore.getItemAsync(runtime.storageKey("actor")).catch(() => null),
-          runtime.token().catch(() => null),
+          runtime.hasSession().catch(() => false),
         ]);
         if (!current()) return;
-        const stored = token ? parseActor(saved) : null;
+        const stored = held ? parseActor(saved) : null;
         if (stored) setActor((a) => a ?? stored);
       }
       setErrorCode(code || "NETWORK");
     } finally {
       inFlight.current -= 1;
-      if (inFlight.current === 0) setRefreshing(false);
       if (current()) setReady(true);
     }
   }, [runtime, signedOutLocally, countOpen]);
@@ -241,17 +242,28 @@ export function MobileProvider({
   const command = useCallback(
     async <T,>(action: string, payload: unknown, options?: { refresh?: boolean }): Promise<T> => {
       const generation = sessionGeneration.current;
-      // Retrying the same command reuses its request id, so the server applies it once.
       const key = generation + action + JSON.stringify(payload),
-        id = requests.current.get(key) || Crypto.randomUUID();
-      requests.current.set(key, id);
-      const result = await runtime.api.command<T>(action, payload, id);
+        now = Date.now();
+      for (const [k, kept] of requests.current) if (now - kept.at > RETRY_ID_MS) requests.current.delete(k);
+      // Retrying the same command reuses its request id, so the server applies it once.
+      const id = requests.current.get(key)?.id ?? Crypto.randomUUID();
+      requests.current.set(key, { id, at: now });
+      let result: T;
+      try {
+        result = await runtime.api.command<T>(action, payload, id);
+      } catch (e) {
+        if (refused(e)) requests.current.delete(key);
+        else requests.current.set(key, { id, at: Date.now() });
+        throw e;
+      } finally {
+        reads.epoch += 1;
+      }
       requests.current.delete(key);
       if (generation !== sessionGeneration.current) throw new Error("UNAUTHORIZED");
       if (options?.refresh !== false) setRevision((r) => r + 1);
       return result;
     },
-    [runtime],
+    [runtime, reads],
   );
   const invalidate = useCallback(() => setRevision((r) => r + 1), []);
 
@@ -260,6 +272,7 @@ export function MobileProvider({
       if (event === "SIGNED_OUT") {
         signedOutLocally();
         sessionGeneration.current += 1;
+        reads.epoch += 1;
         requests.current.clear();
         bootActor.current = null;
         setActor(null);
@@ -269,21 +282,21 @@ export function MobileProvider({
         setTimeout(() => void refresh(), 0);
     });
     return () => auth?.data.subscription.unsubscribe();
-  }, [runtime, refresh, signedOutLocally]);
+  }, [runtime, refresh, signedOutLocally, reads]);
 
   useEffect(() => {
     let live = true;
     const session = sessionGeneration.current;
-    // Local reads only: the stored account, its token and the language. With an account and a token the app paints
-    // at once from what the phone holds; me() below confirms or replaces it.
+    // Local reads only: the stored account, whether a session is held and the language. With an account and a session
+    // the app paints at once from what the phone holds, however old its token; me() below confirms or replaces it.
     void Promise.all([
       SecureStore.getItemAsync(runtime.storageKey("actor")).catch(() => null),
-      runtime.token().catch(() => null),
+      runtime.hasSession().catch(() => false),
       SecureStore.getItemAsync(runtime.storageKey("locale")).catch(() => null),
-    ]).then(([saved, token, storedLocale]) => {
+    ]).then(([saved, held, storedLocale]) => {
       if (!live) return;
       setLocaleState((l) => (storedLocale === "en" ? "en" : storedLocale === "id" ? "id" : l));
-      const stored = token ? parseActor(saved) : null;
+      const stored = held ? parseActor(saved) : null;
       if (stored && !answered.current && session === sessionGeneration.current) {
         bootActor.current = stored;
         setActor((a) => a ?? stored);
@@ -363,11 +376,14 @@ export function MobileProvider({
     };
   }, [runtime, actor?.id, demo]);
 
-  async function signedIn(next: Actor) {
-    bootActor.current = null;
-    setActor(next);
-    await refresh();
-  }
+  const signedIn = useCallback(
+    async (next: Actor) => {
+      bootActor.current = null;
+      setActor(next);
+      await refresh();
+    },
+    [refresh],
+  );
 
   /**
    * Signs this phone out: Pengaturan's Keluar in both apps and Dapur's customer-account gate. First, while the session
@@ -376,13 +392,17 @@ export function MobileProvider({
    * skipped in a build without push (Expo Go), bounded by `RELEASE_PUSH_MS`, and every failure (offline, a token read
    * that never answers, a refusal) is ignored, so it can delay sign-out by at most that long and never stop it.
    */
-  async function logout() {
+  const logout = useCallback(async () => {
     const leaving = actorRef.current;
     if (leaving && pushAvailableNow()) {
       const send = (action: string, payload: unknown) => runtime.api.command(action, payload, Crypto.randomUUID());
-      await settleWithin(unregisterThisPhone(send, runtime.storageKey(`push.${leaving.id}`)), RELEASE_PUSH_MS);
+      await settleWithin(
+        unregisterThisPhone(send, runtime.storageKey(`push.${leaving.id}`), runtime.storageKey(PUSH_OWNER), leaving.id),
+        RELEASE_PUSH_MS,
+      );
     }
     sessionGeneration.current += 1;
+    reads.epoch += 1;
     requests.current.clear();
     bootActor.current = null;
     await SecureStore.deleteItemAsync(runtime.storageKey("actor"));
@@ -392,74 +412,101 @@ export function MobileProvider({
     await runtime.signOut();
     setActor(null);
     setRevision((r) => r + 1);
-  }
+  }, [runtime, reads]);
 
-  function setLocale(v: Locale) {
-    setLocaleState(v);
-    void SecureStore.setItemAsync(runtime.storageKey("locale"), v);
-  }
-
-  async function enablePush(channelName: string) {
-    const t = translator(locale);
-    if (!Notifications)
-      throw new Error(
-        t(
-          "Notifikasi hanya tersedia di aplikasi yang dipasang.",
-          "Notifications are only available in the installed app.",
-        ),
-      );
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-    if (!projectId)
-      throw new Error(
-        t(
-          "Notifikasi belum bisa dipakai di versi aplikasi ini.",
-          "Notifications aren't available in this version of the app.",
-        ),
-      );
-    // Channels exist on Android only; Jest compiles EXPO_OS to null, so "not iOS" keeps the test path.
-    if (process.env.EXPO_OS !== "ios")
-      await Notifications.setNotificationChannelAsync("default", {
-        name: channelName,
-        importance: Notifications.AndroidImportance.DEFAULT,
-      });
-    const permission = await Notifications.requestPermissionsAsync();
-    if (permission.status !== "granted")
-      throw new Error(
-        t(
-          "Izin notifikasi belum diberikan. Ubah dari pengaturan perangkat.",
-          "Notification permission was not granted. Change it in device settings.",
-        ),
-      );
-    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
-    await command("device.register", { token: data });
-  }
-
-  return (
-    <Context.Provider
-      value={{
-        runtime,
-        actor,
-        demo,
-        ready,
-        booted,
-        refreshing,
-        error: sessionError(errorCode, locale),
-        locale,
-        t: translator(locale),
-        setLocale,
-        revision,
-        resumed,
-        refresh,
-        command,
-        invalidate,
-        signedIn,
-        logout,
-        enablePush,
-      }}
-    >
-      {children}
-    </Context.Provider>
+  const setLocale = useCallback(
+    (v: Locale) => {
+      setLocaleState(v);
+      void SecureStore.setItemAsync(runtime.storageKey("locale"), v);
+    },
+    [runtime],
   );
+
+  const t = useMemo(() => translator(locale), [locale]);
+
+  const enablePush = useCallback(
+    async (channelName: string) => {
+      if (!Notifications)
+        throw new Error(
+          t(
+            "Notifikasi hanya tersedia di aplikasi yang dipasang.",
+            "Notifications are only available in the installed app.",
+          ),
+        );
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      if (!projectId)
+        throw new Error(
+          t(
+            "Notifikasi belum bisa dipakai di versi aplikasi ini.",
+            "Notifications aren't available in this version of the app.",
+          ),
+        );
+      // Channels exist on Android only; Jest compiles EXPO_OS to null, so "not iOS" keeps the test path.
+      if (process.env.EXPO_OS !== "ios")
+        await Notifications.setNotificationChannelAsync("default", {
+          name: channelName,
+          importance: Notifications.AndroidImportance.DEFAULT,
+        });
+      const permission = await Notifications.requestPermissionsAsync();
+      if (permission.status !== "granted")
+        throw new Error(
+          t(
+            "Izin notifikasi belum diberikan. Ubah dari pengaturan perangkat.",
+            "Notification permission was not granted. Change it in device settings.",
+          ),
+        );
+      const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+      await command("device.register", { token: data });
+      const owner = actorRef.current?.id;
+      if (owner) await SecureStore.setItemAsync(runtime.storageKey(PUSH_OWNER), owner).catch(() => undefined);
+    },
+    [runtime, t, command],
+  );
+
+  const value = useMemo<MobileContextValue>(
+    () => ({
+      runtime,
+      actor,
+      demo,
+      ready,
+      booted,
+      error: sessionError(errorCode, locale),
+      locale,
+      t,
+      setLocale,
+      revision,
+      resumed,
+      refresh,
+      command,
+      invalidate,
+      signedIn,
+      logout,
+      enablePush,
+      reads,
+    }),
+    [
+      runtime,
+      actor,
+      demo,
+      ready,
+      booted,
+      errorCode,
+      locale,
+      t,
+      setLocale,
+      revision,
+      resumed,
+      refresh,
+      command,
+      invalidate,
+      signedIn,
+      logout,
+      enablePush,
+      reads,
+    ],
+  );
+
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
 export const useMobile = () => use(Context);

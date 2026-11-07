@@ -31,7 +31,7 @@ import {
   useHaptic,
   useToast,
 } from "@catera/mobile-ui";
-import { issueSteps } from "./exceptions";
+import { canMarkIssue } from "./exceptions";
 import { pushAfterClose, type SheetEvents } from "./handoff";
 import { ReadError } from "../ReadError";
 
@@ -50,11 +50,10 @@ export const mealStatus = (d: SellerOperationsState["deliveries"][number] | unde
   d?.meals.find((m) => m.meal === meal)?.status ?? "scheduled";
 
 /**
- * Whether "Gagal diantar" would send anything: delivery.status walks a meal forward to "issue", so a meal that is
- * already delivered or failed has no steps and cannot be reported here.
+ * Whether "Gagal diantar" would send anything: a meal that is already delivered or failed cannot be reported here.
  */
 export const canReportFailed = (d: SellerOperationsState["deliveries"][number] | undefined, meal: KitchenMeal) =>
-  !!d && issueSteps(mealStatus(d, meal)).length > 0;
+  !!d && canMarkIssue(mealStatus(d, meal));
 
 /** The stop's sheet, over Hari ini: `/atur-antaran/{delivery}?meal=…&date=…`. */
 export const stopHref = (deliveryId: string, meal: KitchenMeal, date: string) =>
@@ -218,7 +217,7 @@ function OptionRow({
  * (`MoveSheet`), which needs the room.
  */
 export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMeal; date: string }) {
-  const { runtime, actor, t, locale, command } = useMobile();
+  const { runtime, actor, t, locale, command, invalidate } = useMobile();
   const toast = useToast();
   const confirm = useConfirm();
   const asking = useRef(false);
@@ -256,19 +255,14 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
 
   const [busy, save] = useBusy(async () => {
     if (!delivery) return;
-    const steps = issueSteps(mealStatus(delivery, meal));
     // Never close as if saved when nothing would be sent.
-    if (!canFail || !steps.length) {
+    if (!canFail) {
       setFailure((f) => ({ message: nothing, key: (f?.key ?? 0) + 1 }));
       return;
     }
     setFailure(null);
     try {
-      let version = delivery.version;
-      for (const next of steps) {
-        await command("delivery.status", { id: delivery.id, version, meal, status: next });
-        version += 1;
-      }
+      await command("delivery.status", { id: delivery.id, version: delivery.version, meal, status: "issue" }, { refresh: false });
       setSaved(true);
     } catch (e) {
       setFailure((f) => ({
@@ -277,6 +271,9 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
           t("Laporan belum tersimpan. Coba lagi.", "Couldn't save the report. Try again."),
         key: (f?.key ?? 0) + 1,
       }));
+    } finally {
+      // After a failure this also gives the retry the delivery's true status and version.
+      invalidate();
     }
   });
 

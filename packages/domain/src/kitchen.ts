@@ -1,3 +1,4 @@
+import { addressPoint } from "./address-point";
 import { parsedWindowStart } from "./windows";
 import type { DeliveryIssue, DeliveryMeal, Locale } from "./index";
 import { mealJourney, type Journey, type JourneyStage } from "./journey";
@@ -29,6 +30,8 @@ export type Stop = {
   portions: number;
   packageName: string;
   mapsUrl: string;
+  /** Whether `mapsUrl` goes to the customer's pin; without one it searches the written address. */
+  pinned?: boolean;
   /** Where this stop's meal is: stops leave in subsets, so one session can hold several stages. */
   stage: JourneyStage;
   /** When the kitchen marked this stop Sampai (or, closed without that mark, when it was confirmed). */
@@ -199,8 +202,10 @@ export function sessionStart(state: SellerOperationsState, meal: KitchenMeal): s
   return `${String(Math.floor(first / 60)).padStart(2, "0")}.${String(first % 60).padStart(2, "0")}`;
 }
 
-function mapsUrl(line: string, area: string, city: string) {
-  const query = [line, area, city].filter(Boolean).join(", ");
+/** The customer's pin when the address has one, so the driver lands on that exact spot; else the written address. */
+function mapsUrl(address: SellerDelivery["address"]) {
+  const pin = addressPoint(address);
+  const query = pin ? `${pin.lat},${pin.lng}` : [address.line, address.area, address.city].filter(Boolean).join(", ");
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
@@ -224,7 +229,8 @@ export function deliveryRoute(state: SellerOperationsState, meal: KitchenMeal): 
         note: d.address.instructions,
         portions: d.portions,
         packageName: d.offer.name,
-        mapsUrl: mapsUrl(d.address.line, d.address.area, d.address.city),
+        mapsUrl: mapsUrl(d.address),
+        pinned: addressPoint(d.address) !== null,
         stage: journey.stage,
         arrivedAt: journey.arrivedAt,
       };

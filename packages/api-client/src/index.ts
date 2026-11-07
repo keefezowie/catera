@@ -35,12 +35,18 @@ export class ApiError extends Error {
   constructor(
     public code: string,
     public requestId?: string,
+    /** The HTTP status, when a response arrived. */
+    public status?: number,
   ) {
     super(code);
   }
 }
+/**
+ * `base` left out means same origin (the web). An empty one is a native build with no API URL: it fails as
+ * NOT_CONFIGURED, since a relative fetch on a phone would throw the TypeError that reads as being offline.
+ */
 export function createApi(
-  base = "",
+  base?: string,
   token?: () => Promise<string | null>,
   {
     timeoutMs = 30_000,
@@ -57,6 +63,7 @@ export function createApi(
   } = {},
 ) {
   async function request<T>(path: string, body?: unknown): Promise<T> {
+    if (base === "") throw new ApiError("NOT_CONFIGURED");
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     const timeout = new Promise<never>((_, reject) => {
@@ -73,7 +80,7 @@ export function createApi(
           // and never send a late write after the caller has already timed out.
           const access = await token?.();
           if (controller.signal.aborted) throw new ApiError("REQUEST_TIMEOUT");
-          const response = await fetch(base + "/api/v1/" + path, {
+          const response = await fetch((base ?? "") + "/api/v1/" + path, {
             method: body ? "POST" : "GET",
             credentials,
             signal: controller.signal,
@@ -87,15 +94,16 @@ export function createApi(
           try {
             result = await response.json();
           } catch {
-            throw new ApiError("INVALID_API_RESPONSE");
+            throw new ApiError("INVALID_API_RESPONSE", undefined, response.status);
           }
           if (!response.ok)
             throw new ApiError(
               result?.error?.code || "REQUEST_FAILED",
               result?.error?.requestId,
+              response.status,
             );
           if (!result || typeof result !== "object" || !("data" in result))
-            throw new ApiError("INVALID_API_RESPONSE");
+            throw new ApiError("INVALID_API_RESPONSE", undefined, response.status);
           return result.data as T;
         })(),
       ]);
@@ -123,13 +131,13 @@ export function createApi(
       ),
     deliveryAvailability: (id: string, from: string, to: string) =>
       request<DeliveryAvailability[]>(
-        "availability/" + id + "?" + new URLSearchParams({ from, to }),
+        "availability/" + encodeURIComponent(id) + "?" + new URLSearchParams({ from, to }),
       ),
     seller: (id: string, date: string) =>
-      request<SellerState>("seller/" + id + "?date=" + date),
+      request<SellerState>("seller/" + encodeURIComponent(id) + "?date=" + encodeURIComponent(date)),
     sellerOperations: (id: string, date?: string) =>
       request<SellerOperationsState>(
-        "seller/" + id + (date ? "?date=" + date : ""),
+        "seller/" + encodeURIComponent(id) + (date ? "?date=" + encodeURIComponent(date) : ""),
       ),
     sellerAttention: (
       id: string,
@@ -143,7 +151,7 @@ export function createApi(
     ) =>
       request<SellerAttentionPage>(
         "seller-attention/" +
-          id +
+          encodeURIComponent(id) +
           "?" +
           new URLSearchParams({
             scope: params.scope ?? "all",
@@ -155,10 +163,10 @@ export function createApi(
       ),
     sellerCalendar: (id: string, params: Record<string, string>) =>
       request<SellerCalendar>(
-        "seller-calendar/" + id + "?" + new URLSearchParams(params),
+        "seller-calendar/" + encodeURIComponent(id) + "?" + new URLSearchParams(params),
       ),
     sellerImportOptions: (id: string) =>
-      request<SellerImportOptions>("seller-import-options/" + id),
+      request<SellerImportOptions>("seller-import-options/" + encodeURIComponent(id)),
     menuMonth: (
       packageId: string,
       revision: number,
@@ -189,7 +197,7 @@ export function createApi(
     renewalContext: (id: string, packageId?: string, cycles = 1) =>
       request<RenewalContext>(
         "renewal-context/" +
-          id +
+          encodeURIComponent(id) +
           "?" +
           new URLSearchParams({
             cycles: String(cycles),
@@ -197,16 +205,16 @@ export function createApi(
           }),
       ),
     sellerCustomers: (id: string, query = "") =>
-      request<SellerCustomersState>("seller-customers/" + id + query),
+      request<SellerCustomersState>("seller-customers/" + encodeURIComponent(id) + query),
     pilot: (id: string, from: string, to: string) =>
       request<PilotState>(
-        "pilot/" + id + "?" + new URLSearchParams({ from, to }),
+        "pilot/" + encodeURIComponent(id) + "?" + new URLSearchParams({ from, to }),
       ),
     settlement: (id: string) =>
-      request<SettlementResponse>("seller-settlement/" + id),
+      request<SettlementResponse>("seller-settlement/" + encodeURIComponent(id)),
     settlementReport: (id: string, days: 7 | 30) =>
       request<SettlementReport | SettlementReportingUnavailable>(
-        "seller-settlement-report/" + id + "?days=" + days,
+        "seller-settlement-report/" + encodeURIComponent(id) + "?days=" + days,
       ),
     settlementHistory: (
       id: string,
@@ -215,7 +223,7 @@ export function createApi(
     ) =>
       request<SettlementPage | SettlementReportingUnavailable>(
         "seller-settlement-history/" +
-          id +
+          encodeURIComponent(id) +
           "?" +
           new URLSearchParams({
             kind,
@@ -229,14 +237,14 @@ export function createApi(
     ) =>
       request<SettlementPayout | SettlementReportingUnavailable>(
         "seller-settlement-payout/" +
-          id +
+          encodeURIComponent(id) +
           "?" +
           new URLSearchParams({
             payoutId,
             ...(cursor ? { cursor: JSON.stringify(cursor) } : {}),
           }),
       ),
-    checkout: (id: string) => request<Checkout>("checkouts/" + id),
+    checkout: (id: string) => request<Checkout>("checkouts/" + encodeURIComponent(id)),
     command: <T = Record<string, unknown>>(
       action: string,
       payload: unknown,

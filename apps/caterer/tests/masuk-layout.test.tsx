@@ -106,6 +106,18 @@ describe("Dapur Masuk layout", () => {
     expect(flatStyle(screen.getByTestId("screen-footer")).marginBottom ?? 0).toBe(0);
   });
 
+  it("gives the Daftar and Gabung lines' room to the fields while the keyboard is up", async () => {
+    const kb = keyboard();
+    await renderMasuk();
+    await screen.findByRole("button", { name: "Gabung ke dapur" });
+    await kb.show(300);
+    expect(screen.queryByRole("button", { name: "Daftar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Gabung ke dapur" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Masuk" })).toBeTruthy();
+    await kb.hide();
+    expect(screen.getByRole("button", { name: "Gabung ke dapur" })).toBeTruthy();
+  });
+
   it("has one heading, Masuk, under the waving mascot, and no method tabs", async () => {
     await renderMasuk();
     expect(await screen.findByTestId("mascot-melambai", { includeHiddenElements: true })).toBeTruthy();

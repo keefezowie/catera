@@ -400,6 +400,8 @@ describe("notification switch", () => {
   });
 
   it("a failed turn-on returns the switch to off, says so once and never shows the code", async () => {
+    // Past the one-time release for phones from older builds, so the refusal below is the turn-on's.
+    store().set("catera.push.unmarked-released", "1");
     const runtime = runtimeWith();
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });

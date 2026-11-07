@@ -33,7 +33,8 @@ import { StatusBand } from "./StatusBand";
 import { barTone, cardEdge, cardEdgeWidth, themedStyles, useColors } from "./theme";
 import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
 import { ScreenHeaderContext, screenInsetBehavior } from "./screenInsets";
-import { insideTabs, useScreenBottomEdge, useTabOverlay, useToastAnchor } from "./toastAnchor";
+import { androidTabBarHeight, insideTabs, useScreenBottomEdge, useTabOverlay, useToastAnchor } from "./toastAnchor";
+import { useKeyboard } from "./useKeyboard";
 import { MoodFill } from "./MoodFill";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
@@ -118,6 +119,8 @@ export function Text({
   accessibilityLiveRegion?: "none" | "polite" | "assertive";
   /** Lets the user copy the text; set it on data and error messages. */
   selectable?: boolean;
+  /** Stops the text growing past this multiple under a large system font size. */
+  maxFontSizeMultiplier?: number;
 }) {
   const palette = useColors();
   const { fontScale } = useWindowDimensions();
@@ -516,8 +519,6 @@ export function Screen({
   onScroll,
   refreshControl,
   list,
-  extraBottom = 0,
-  footerLift = 0,
   scrollRef,
 }: {
   children: ReactNode;
@@ -553,10 +554,6 @@ export function Screen({
    * its own body, so `children` is unused.
    */
   list?: (root: { scrollProps: ScrollViewProps; header: ReactNode }) => ReactElement;
-  /** Room under the content, for the Android keyboard that draws over an edge-to-edge window (AuthScreen). */
-  extraBottom?: number;
-  /** Room under the pinned `footer`, for the same keyboard: the footer rises by this much (AuthScreen with a footer). Android only. */
-  footerLift?: number;
   /** The screen's own ScrollView, for a wrapper that scrolls it. */
   scrollRef?: Ref<ScrollViewInstance>;
 }) {
@@ -582,6 +579,17 @@ export function Screen({
   const bottomInset = scaled && !ios && !footer && !insideTabs(navigation as never) ? insets.bottom : 0;
   // Something floating over the tab bar (the payment bar) would cover the last content, so the scroll ends above it.
   const tabOverlay = useTabOverlay();
+  // The Android keyboard draws over the edge-to-edge window without resizing it, so its room is paid here: the footer
+  // rises by it (the scroll view above shrinks), and without a footer the content pads by it. The reported height stops
+  // at the navigation bar. Inside the tabs the screen ends above the bar, which stays under the keyboard, so that part
+  // of the keyboard covers no page. Elsewhere the v2 screen already pays the inset; classic does not, so it is added.
+  const { up: keyboardUp, height: keyboardHeight } = useKeyboard();
+  const { fontScale } = useWindowDimensions();
+  const keyboardRoom = ios || !keyboardUp
+    ? 0
+    : insideTabs(navigation as never)
+      ? Math.max(0, keyboardHeight - androidTabBarHeight(fontScale))
+      : keyboardHeight + (scaled ? 0 : insets.bottom);
   const contentTitle = !ios && nativeTitle ? nativeTitle : null;
   const lineEnd = useRef(NO_LINE);
   const [titleInBar, setTitleInBar] = useState(false);
@@ -656,7 +664,7 @@ export function Screen({
     contentInsetAdjustmentBehavior: screenInsetBehavior({ header: !!header, bleed }),
     automaticallyAdjustKeyboardInsets: ios,
     // Over the band behind the page (below), the page keeps its own ground, so only a pull shows the band.
-    contentContainerStyle: { paddingBottom: 32 + bottomInset + extraBottom + tabOverlay, ...(pullBand ? { flexGrow: 1, backgroundColor: palette.canvas } : null) },
+    contentContainerStyle: { paddingBottom: 32 + bottomInset + (footer ? 0 : keyboardRoom) + tabOverlay, ...(pullBand ? { flexGrow: 1, backgroundColor: palette.canvas } : null) },
     keyboardShouldPersistTaps: "handled",
     onScroll: handleScroll,
     scrollEventThrottle: handleScroll ? 16 : undefined,
@@ -710,7 +718,7 @@ export function Screen({
             {body}
           </>
         )}
-        {footer ? <ScreenFooter lift={footerLift}>{footer}</ScreenFooter> : null}
+        {footer ? <ScreenFooter lift={keyboardRoom}>{footer}</ScreenFooter> : null}
       </KeyboardAvoidingView>
       {/* Last, so it paints above the scrolled page; the demo strip already covers the inset when it is shown. */}
       {header && !topOwned ? <StatusBand plain={plainHeader} /> : null}

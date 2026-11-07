@@ -9,7 +9,7 @@ import { packageState } from "../src/business/kitchen";
 import { resetSheets } from "./sheet-host";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
-jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
+jest.mock("@catera/mobile-ui", () => ({ ...require("./sheet-host").mobileUiModule(), useConfirm: () => async () => true }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
 jest.mock("expo-image-manipulator", () => ({ ImageManipulator: { manipulate: jest.fn() }, SaveFormat: { JPEG: "jpeg" } }));
 jest.mock("../src/business/package", () => ({
