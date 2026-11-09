@@ -45,7 +45,7 @@ for (const state of [
       pending: "Awaiting payment",
       failed: "Payment time expired",
       expired: "Payment time expired",
-      payment_exception: "Payment received, booking under review",
+      payment_exception: "Payment received, order being checked",
       paid: "Payment successful",
       refunded: "Payment refunded",
       partially_refunded: "Payment partially refunded",
@@ -103,7 +103,7 @@ const countdownCases: {
     state: "payment_exception",
     title: [
       "Pembayaran diterima, jadwal sedang dicek",
-      "Payment received, booking under review",
+      "Payment received, order being checked",
     ],
     countdown: false,
     paymentUrl: true,
@@ -233,7 +233,7 @@ for (const locale of ["id", "en"] as const)
           page.getByRole("status").filter({
             hasText: t(
               "Pembayaranmu sudah masuk. Kami sedang mengonfirmasi jadwalmu. Jangan bayar lagi.",
-              "Payment was received. We are confirming the delivery schedule. Do not make another payment.",
+              "Your payment arrived. We are confirming your schedule. Do not pay again.",
             ),
           }),
         ).toBeVisible();

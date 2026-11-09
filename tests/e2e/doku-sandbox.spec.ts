@@ -94,7 +94,9 @@ test("DOKU webhooks reject unsigned input and gated payout contract", async ({
   const payment = await request.post("/api/webhooks/doku/payment", {
     data: { order: { invoice_number: "synthetic" } },
   });
-  expect(payment.status()).toBe(401);
+  // Signed verification needs the DOKU sandbox secret (playwright.doku.config.ts server).
+  // Without it the route cannot verify anything and fails closed with 503, never 2xx.
+  expect(payment.status()).toBe(process.env.DOKU_SECRET_KEY ? 401 : 503);
   const payout = await request.post("/api/webhooks/doku/payout", {
     data: { partnerReferenceNo: "synthetic" },
   });
