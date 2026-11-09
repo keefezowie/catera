@@ -206,9 +206,12 @@ export function CheckoutPage({ id }: { id: string }) {
           )
         : "";
   useEffect(() => {
-    if (restored && !address && state.data?.addresses[0])
-      setAddress(state.data.addresses[0].id);
-  }, [state.data, address, restored]);
+    // Prefer a saved address this package delivers to; fall back to the first one.
+    const addresses = state.data?.addresses ?? [];
+    const first =
+      addresses.find((a) => p?.areas.includes(a.area)) ?? addresses[0];
+    if (restored && !address && p && first) setAddress(first.id);
+  }, [state.data, address, restored, p]);
   useEffect(() => {
     setQuote(null);
     setAcceptedTerms(false);
