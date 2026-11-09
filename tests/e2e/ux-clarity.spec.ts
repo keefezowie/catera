@@ -205,7 +205,10 @@ for (const locale of ["id", "en"] as const) {
       );
       expect(
         await page
-          .locator(".home-page > section")
+          // Home now splits into a delivery column and a package column; order is document order.
+          .locator(
+            ".home-page > section, .home-delivery-column > section, .home-package-column > section",
+          )
           .evaluateAll((nodes) => nodes.map((el) => el.className)),
       ).toEqual([
         "customer-actions review",

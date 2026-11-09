@@ -152,9 +152,8 @@ async function operationsSpacing(page: Page) {
     const readiness = element
       .querySelector(":scope > .seller-readiness")!
       .getBoundingClientRect();
-    const context = element
-      .querySelector(":scope > .ops-context")!
-      .getBoundingClientRect();
+    // The landscape layout dropped the separate .ops-context row; the
+    // verification notice now follows readiness directly.
     const notice = element
       .querySelector(":scope > .notice")!
       .getBoundingClientRect();
@@ -163,12 +162,8 @@ async function operationsSpacing(page: Page) {
       .getBoundingClientRect();
     return [
       {
-        label: "Readiness and operational context",
-        gap: context.top - readiness.bottom,
-      },
-      {
-        label: "Operational context and verification notice",
-        gap: notice.top - context.bottom,
+        label: "Readiness and verification notice",
+        gap: notice.top - readiness.bottom,
       },
       {
         label: "Verification notice and order filters",
@@ -318,14 +313,17 @@ for (const locale of ["id", "en"] as const) {
         });
         await test.step("checkout package disclosure preserves padded content", async () => {
           await page.goto("/checkout/20000000-0000-4000-8000-000000000001");
-          const disclosure = page.locator(".checkout-package-details");
+          // The checkout skeleton renders an inert copy first.
+          const disclosure = page.locator(
+            ".checkout-package-details:not([inert])",
+          );
           await expect(disclosure).toBeVisible();
           await keyboardDisclosure(page, disclosure);
         });
         await test.step("seller help panel keeps the steps and explanations separate", async () => {
           await login(page, "owner");
           await page.goto("/seller/transactions");
-          const disclosure = page.locator(".settlement-help");
+          const disclosure = page.locator(".settlement-help:not([inert])");
           await expect(disclosure).toBeVisible();
           await keyboardDisclosure(page, disclosure);
         });
@@ -376,7 +374,7 @@ test("nested flow keeps its default rhythm inside a compact disclosure", async (
   await page.setViewportSize({ width: 390, height: 900 });
   await login(page, "owner");
   await page.goto("/seller/transactions");
-  const disclosure = page.locator(".settlement-help");
+  const disclosure = page.locator(".settlement-help:not([inert])");
   await expect(disclosure).toBeVisible();
   await disclosure.locator(":scope > summary").focus();
   await page.keyboard.press("Enter");
