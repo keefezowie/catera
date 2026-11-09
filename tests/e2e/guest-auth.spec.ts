@@ -38,7 +38,8 @@ test("guests browse and compare without mobile navigation; login and logout upda
     .locator(".compare-floating")
     .getByRole("link", { name: "Bandingkan" })
     .click();
-  await expect(page).toHaveURL(/\/compare$/);
+  // Comparison carries a return path back to the discovery section.
+  await expect(page).toHaveURL(/\/compare(\?next=[^&]+)?$/);
   await expect(page.locator(".mobile-bottom")).toHaveCount(0);
   await page.goto("/login?next=" + encodeURIComponent("/compare"));
   await expect(page.locator(".mobile-bottom")).toHaveCount(0);
@@ -192,7 +193,7 @@ test("guest login keeps sign-in accessible without navigation clearance", async 
     await page.goto("/login");
     await expect(page.locator(".mobile-bottom")).toHaveCount(0);
     await expect(
-      page.getByRole("link", { name: "Daftar", exact: true }),
+      page.locator("#main").getByRole("link", { name: "Daftar", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Jelajah sebagai pelanggan" }),
