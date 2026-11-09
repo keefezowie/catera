@@ -171,15 +171,18 @@ test("past seller menu dates are disabled for pointer and keyboard", async ({
     .getByRole("button", { name: "Previous month", exact: true })
     .click();
   await expect(page.locator("button.menu-day").first()).toBeDisabled();
-  expect(
-    await page
-      .locator("button.menu-day")
-      .evaluateAll(
-        (buttons) =>
-          buttons.length > 0 &&
-          buttons.every((b) => (b as HTMLButtonElement).disabled),
-      ),
-  ).toBe(true);
+  // The previous month's grid replaces the current one a render after the click.
+  await expect
+    .poll(() =>
+      page
+        .locator("button.menu-day")
+        .evaluateAll(
+          (buttons) =>
+            buttons.length > 0 &&
+            buttons.every((b) => (b as HTMLButtonElement).disabled),
+        ),
+    )
+    .toBe(true);
   await page
     .getByRole("button", { name: "Previous month", exact: true })
     .focus();
