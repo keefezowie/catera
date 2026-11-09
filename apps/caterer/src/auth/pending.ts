@@ -94,12 +94,18 @@ export async function clearPendingSetup(runtime: MobileRuntime) {
 /** Gabung's code, kept on this phone when the person signs in with an account they already have ("Masuk dulu"). */
 const heldInviteKey = (runtime: MobileRuntime) => runtime.storageKey("auth.invite");
 export const holdInvite = (runtime: MobileRuntime, code: string) =>
-  code.trim() ? SecureStore.setItemAsync(heldInviteKey(runtime), code.trim()).catch(() => undefined) : Promise.resolve();
+  code.trim() ? SecureStore.setItemAsync(heldInviteKey(runtime), JSON.stringify({ code: code.trim(), at: Date.now() })).catch(() => undefined) : Promise.resolve();
 /** The held code, once: RoleGate fills its invite field with it. */
 export async function takeHeldInvite(runtime: MobileRuntime): Promise<string> {
-  const code = await SecureStore.getItemAsync(heldInviteKey(runtime)).catch(() => null);
-  if (code) await SecureStore.deleteItemAsync(heldInviteKey(runtime)).catch(() => undefined);
-  return code ?? "";
+  const raw = await SecureStore.getItemAsync(heldInviteKey(runtime)).catch(() => null);
+  if (!raw) return "";
+  await SecureStore.deleteItemAsync(heldInviteKey(runtime)).catch(() => undefined);
+  try {
+    const held = JSON.parse(raw) as { code?: string; at?: number };
+    return held.code && Date.now() - (held.at ?? 0) < 15 * 60_000 ? held.code : "";
+  } catch {
+    return "";
+  }
 }
 
 /** Lets go of both, so nothing typed for one account waits on this phone for the next. */
