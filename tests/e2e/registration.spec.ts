@@ -157,7 +157,7 @@ test("recovery request and rejected reset show actionable states", async ({
     .getByRole("button", { name: "Simpan kata sandi", exact: true })
     .click();
   await expect(page.locator(".login-form").getByRole("alert")).toContainText(
-    "kedaluwarsa",
+    "sudah tidak berlaku",
   );
   await expect(
     page.getByRole("link", {
