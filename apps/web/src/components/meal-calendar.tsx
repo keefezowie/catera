@@ -584,7 +584,7 @@ export function MealCalendar() {
           <div className="coverage-summary" aria-live="polite">
             <span>
               {t("Minggu terpilih", "Selected week")} ·{" "}
-              {format(week, { day: "numeric", month: "short" })} sampai{" "}
+              {format(week, { day: "numeric", month: "short" })} {t("sampai", "to")}{" "}
               {format(addDays(week, 6), {
                 day: "numeric",
                 month: "short",
