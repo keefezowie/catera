@@ -274,12 +274,12 @@ test("expired and uncertain payments never expose old instructions or hosted fal
   );
   await page.goto(`/payment/${id}`);
   await expect(
-    page.getByText(/Kami sedang memeriksa pembayaran/),
+    page.getByText(/Kami sedang mengecek pembayaran/),
   ).toBeVisible();
   await expect(page.locator('a[href*="doku.com"]')).toHaveCount(0);
   expiry = new Date(Date.now() - 1000).toISOString();
   await page.reload();
-  await expect(page.getByText(/Batas pembayaran telah lewat/)).toBeVisible();
+  await expect(page.getByText(/Batas pembayaran sudah lewat/)).toBeVisible();
   await expect(page.getByRole("img", { name: /QRIS/ })).toHaveCount(0);
 });
 test("visible-page polling pauses in background and refreshes immediately on return", async ({
@@ -314,7 +314,7 @@ test("visible-page polling pauses in background and refreshes immediately on ret
   await page.clock.install();
   await page.goto(`/payment/${id}`);
   await expect(
-    page.getByText(/Kami sedang memeriksa pembayaran/),
+    page.getByText(/Kami sedang mengecek pembayaran/),
   ).toBeVisible();
   const initial = reads;
   await page.clock.runFor(5500);
