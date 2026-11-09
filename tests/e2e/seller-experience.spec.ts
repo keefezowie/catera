@@ -250,6 +250,8 @@ test("owner bank review and account help remain separate from settlement dispatc
   expect(setup.dispatchEnabled).toBe(false);
   const helpDetails =
     "Synthetic account deletion assistance only " + Date.now();
+  // Settings shows account help as a compact disclosure; open it first.
+  await page.locator("#help summary").filter({ hasText: "Send request" }).click();
   await choose(page, "Request type", "Request account deletion");
   await page
     .locator("#help")
