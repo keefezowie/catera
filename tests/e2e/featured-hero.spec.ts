@@ -98,7 +98,8 @@ test("desktop and mobile spacing, stable height, swipe, long names and reduced m
     await page.evaluate(() => window.scrollTo(0, 0));
     const header = await page.locator(".site-header").boundingBox();
     const hero = await page.locator(".featured-hero").boundingBox();
-    expect(hero!.y - header!.y - header!.height).toBe(width === 390 ? 20 : 32);
+    // Wide screens use the tighter landscape rhythm (landscape.css, 1100px and up).
+    expect(hero!.y - header!.y - header!.height).toBe(width === 390 ? 20 : 24);
     await page.screenshot({
       path: `output/featured-hero/${width}.png`,
       fullPage: true,

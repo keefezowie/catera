@@ -368,6 +368,8 @@ test("filter entrances are limited to visible results and never replay on typing
       () =>
         (window as typeof window & { motionTargets: string[] }).motionTargets,
     );
+  // Let the route's own heading entrance finish first; it is not a typing replay.
+  await page.waitForFunction(() => document.getAnimations().length === 0);
   await reset();
   await search.pressSequentially("Ayam");
   expect(await targets()).toEqual([]);
@@ -389,8 +391,9 @@ test("filter entrances are limited to visible results and never replay on typing
     .locator(".catalog-controls")
     .getByRole("button", { name: "Lunch", exact: true })
     .click();
+  // The entrance starts on the render after the filter commits.
+  await expect.poll(async () => (await targets()).length).toBeGreaterThan(0);
   const animated = await targets();
-  expect(animated.length).toBeGreaterThan(0);
   expect(animated.every((name) => name.includes("package-card"))).toBe(true);
   expect(animated.length).toBeLessThan(
     await page.locator(".package-card").count(),
@@ -465,7 +468,8 @@ test("seller calendar cancels an active smooth scroll when reduced motion change
 }) => {
   await login(page, "owner");
   await page.goto("/seller/schedule");
-  const strip = page.locator(".coverage-strip");
+  // Patch the loaded strip, not the loading skeleton's placeholder strip.
+  const strip = page.locator('.coverage-strip[aria-busy="false"]');
   await expect(strip).toBeVisible();
   await page.exposeFunction("onCalendarScroll", () =>
     page.emulateMedia({ reducedMotion: "reduce" }),
