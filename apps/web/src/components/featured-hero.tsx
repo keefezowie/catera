@@ -166,6 +166,7 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
                   {offer.days} {t("hari pengantaran", "delivery days")} ·{" "}
                   {mealLabel(offer.meal, locale)} ·{" "}
                   {currency(packageSubtotal(offer), locale)}
+                  <span className="featured-commitment-separator"> · </span>
                   <span>
                     {t(
                       "Untuk 1 porsi · pengantaran termasuk · biaya layanan saat checkout",

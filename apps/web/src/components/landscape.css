@@ -72,6 +72,9 @@
     margin: 0 0 8px;
     font-size: 13px;
   }
+  .featured-commitment > .featured-commitment-separator {
+    display: none;
+  }
   .featured-commitment > span {
     display: block;
     font-size: 12px;
