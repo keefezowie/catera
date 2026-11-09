@@ -81,7 +81,10 @@ for (const locale of ["id", "en"] as const) {
       ]) {
         const link = navigation.locator(`a[href="${href}"]`);
         await expect(link).toBeVisible();
-        expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        // The account nav can re-render once after load; measure the settled element.
+        await expect
+          .poll(async () => (await link.boundingBox())?.height ?? 0)
+          .toBeGreaterThanOrEqual(44);
       }
       const catererEntry = navigation.getByRole("button", {
         name: t("Dapur", "Caterer workspace"),
@@ -282,6 +285,8 @@ for (const locale of ["id", "en"] as const) {
       ).toBeVisible();
       const operations = page.locator(".seller-operations");
       await expect(operations.getByRole("heading", { level: 1 })).toBeVisible();
+      // The loading skeleton shares these classes until the read settles.
+      await expect(operations.locator(".page-heading")).toHaveCount(1);
       await expect(operations.locator(".page-heading")).toHaveCSS(
         "opacity",
         "1",
