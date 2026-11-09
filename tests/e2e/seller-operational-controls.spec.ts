@@ -175,14 +175,19 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
     name: "Lihat masalah",
     exact: true,
   });
-  if ((page.viewportSize()?.width || 0) >= 1100) await expandIssues.click();
-  await queue
+  const wide = (page.viewportSize()?.width || 0) >= 1100;
+  if (wide) await expandIssues.click();
+  // On wide screens the full queue and its filters live in the drawer; the page behind is inert.
+  const issues = wide
+    ? page.getByRole("dialog", { name: /^Perlu perhatian/ })
+    : queue;
+  await issues
     .getByRole("button", { name: "Filter masalah", exact: true })
     .click();
-  await queue
+  await issues
     .getByRole("button", { name: "Semua tanggal", exact: true })
     .click();
-  await queue.getByRole("combobox", { name: "Waktu makan masalah" }).click();
+  await issues.getByRole("combobox", { name: "Waktu makan masalah" }).click();
   await page
     .getByRole("option", { name: "Siang + malam", exact: true })
     .click();
@@ -193,10 +198,10 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
       )
     ).json()
   ).data;
-  await expect(queue.getByRole("heading")).toContainText(
+  await expect(issues.getByRole("heading").first()).toContainText(
     "(" + attention.total + ")",
   );
-  await expect(queue).toContainText("Seluruh tanggal");
+  await expect(issues).toContainText("Seluruh tanggal");
   await page.screenshot({
     path: "output/ui-sweep/support-badge.png",
     fullPage: true,
