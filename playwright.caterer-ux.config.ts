@@ -6,6 +6,7 @@ if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(baseURL)) {
 }
 export default defineConfig({
   ...base,
+  testIgnore: [],
   testMatch: [
     "caterer-ux.spec.ts",
     "beta-attention.spec.ts",
