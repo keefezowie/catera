@@ -428,3 +428,15 @@
     bottom: calc(12px + var(--mobile-bottom-clearance));
   }
 }
+/* Signed in, the header also holds notifications and the profile menu; below 400px the
+   Saved label would push them past the viewport. The label stays as the accessible name. */
+@media (max-width: 400px) {
+  .header-actions:has(.profile-menu-wrap) .saved-entry span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
