@@ -48,7 +48,11 @@ for (const locale of ["id", "en"] as const) {
   }) => {
     await openAs(page, baseURL, "owner", locale, "/seller/customers");
     const workspace = page.locator(".seller-customers");
-    await expect(workspace.locator(".customer-row").first()).toBeVisible();
+    // The loading skeleton reuses .customer-row inside an aria-busy .skeleton-screen; count loaded rows only.
+    const loadedRows = workspace.locator(
+      ".customer-row:not(.skeleton-screen .customer-row)",
+    );
+    await expect(loadedRows.first()).toBeVisible();
     let hold: "followup" | "search" | "" = "followup";
     let requested = 0;
     let release = () => {};
@@ -80,7 +84,7 @@ for (const locale of ["id", "en"] as const) {
       await followup.focus();
       await page.keyboard.press("Enter");
       await expect.poll(() => requested).toBe(1);
-      await expect(workspace.locator(".customer-row")).toHaveCount(0);
+      await expect(loadedRows).toHaveCount(0);
       await expect(workspace.locator(".customer-search")).toBeVisible();
       await expect(followup).toBeFocused();
       expect(await filterNode!.evaluate((node) => node.isConnected)).toBe(true);
@@ -88,7 +92,7 @@ for (const locale of ["id", "en"] as const) {
       release();
       await expect(workspace.getByRole("alert")).toBeVisible();
       await expect(followup).toBeFocused();
-      await expect(workspace.locator(".customer-row")).toHaveCount(0);
+      await expect(loadedRows).toHaveCount(0);
 
       const all = workspace.getByRole("button", {
         name: locale === "id" ? "Semua pelanggan" : "All customers",
@@ -96,7 +100,7 @@ for (const locale of ["id", "en"] as const) {
       });
       await all.focus();
       await page.keyboard.press("Enter");
-      await expect(workspace.locator(".customer-row").first()).toBeVisible();
+      await expect(loadedRows.first()).toBeVisible();
       await expect(workspace.getByRole("alert")).toHaveCount(0);
       await expect(all).toBeFocused();
 
@@ -106,12 +110,12 @@ for (const locale of ["id", "en"] as const) {
       hold = "search";
       await search.press("Enter");
       await expect.poll(() => requested).toBe(2);
-      await expect(workspace.locator(".customer-row")).toHaveCount(0);
+      await expect(loadedRows).toHaveCount(0);
       await expect(search).toBeFocused();
       expect(await searchNode!.evaluate((node) => node.isConnected)).toBe(true);
       hold = "";
       release();
-      await expect(workspace.locator(".customer-row").first()).toBeVisible();
+      await expect(loadedRows.first()).toBeVisible();
       await expect(search).toBeFocused();
       await expect(search).toHaveValue("Nadia");
     } finally {
