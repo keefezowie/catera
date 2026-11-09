@@ -4,6 +4,7 @@ export {
   getDemoDatabase,
   createDemoDatabase,
   localRpc,
+  deleteAuthUser,
 } from "./database";
 export { DEMO_ACTORS } from "./seed";
 export {

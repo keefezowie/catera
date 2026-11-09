@@ -29,6 +29,7 @@ import {
   attachPayment,
   assertEarnedCollection,
   DEMO_ACTORS,
+  deleteAuthUser,
 } from "@catera/backend";
 import {
   addressSchema,
@@ -747,6 +748,10 @@ export async function POST(request: Request, context: Context) {
         payload: command.payload,
         request_id: command.requestId,
       });
+      // The database erase has committed (or a retry answered it); the Auth user goes second. If this fails the admin
+      // runs account.erase on the same deletion request again: the database answers the finished erase and this reruns.
+      if (command.action === "account.erase")
+        await deleteAuthUser((result as { userId: string }).userId);
       if (["seller.create", "invite.accept"].includes(command.action)) {
         const actor = await rpc<Actor>(s.id, s.token, "catera_v1_read", {
           resource: "actor",

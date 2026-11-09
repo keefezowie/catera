@@ -746,6 +746,18 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261107120000_address_pin.sql"), "utf8") + "\ncommit;");
   }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('public.catera_v1_read_no_payurl_base(text,jsonb)') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261109100000_seller_no_payment_url.sql"), "utf8") + "\ncommit;");
+  }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('public.catera_v1_command_erase_base(text,jsonb,uuid)') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261109110000_account_erase.sql"), "utf8") + "\ncommit;");
+  }
   // Synthetic renewal, payment and kitchen-loop states for the demo customer, after everything else, only on a demo
   // database seeded just now (`r`: no v1 schema before). Demo storage only: never run against hosted data.
   await applyDemoStates(db, { seeded: !r.rows[0].exists, root: projectRoot(), folder: inMemory ? null : folder });
@@ -842,4 +854,18 @@ export async function rpc<T>(
       hint: error.hint,
     });
   return data as T;
+}
+/**
+ * The step after account.erase commits: remove the Supabase Auth user, so the phone can no longer sign in and the
+ * auth record goes. Already gone counts as done; account.erase answers a retry, so a failure here can be repeated.
+ * The demo has no Auth users.
+ */
+export async function deleteAuthUser(userId: string): Promise<void> {
+  if (demoEnabled()) return;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) throw new Error("NOT_CONFIGURED");
+  if (url.includes("otmanljypltxkwjcebni")) throw new Error("PILOT_DATABASE_PROTECTED");
+  const { error } = await hostedClient(url, key, null).auth.admin.deleteUser(userId);
+  if (error && error.status !== 404) throw new Error("AUTH_DELETE_FAILED");
 }

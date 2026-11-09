@@ -396,7 +396,8 @@ try {
     customer: DEMO_ACTORS.customer,
     catererId: CATERER_IDS[0],
   });
-  // Checked after the security audit's layers too: they rename catera_v1_command and catera_v1_read again.
+  await (await import("./postgres-account-erase.mjs")).verifyAccountErase(pool, cmd, evidence);
+  // Checked after the security audit's and account erase's layers too: they rename catera_v1_command and catera_v1_read again.
   const selfQualified = (await pool.query(`select p.proname,e from pg_proc p join pg_namespace n on n.oid=p.pronamespace,
     unnest(array['catera_v1_command','catera_v1_read','catera_v1_system']) e
     where n.nspname='public' and p.proname<>e and p.prosrc ~ ('\\m'||e||'\\.')`)).rows;

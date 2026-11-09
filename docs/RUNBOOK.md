@@ -328,3 +328,24 @@ With the keys set, a new address needs a pin, and a saved address without one is
 Area boundaries in `packages/domain/src/area-bounds.ts` come from OpenStreetMap under the ODbL: keep the attribution, and add a new area's boundary whenever `areaOptions` grows. "Bandung" is Kota Bandung only, plus a 1.5 km margin.
 
 Still to check: the privacy text must name precise location before launch (the terms page is a placeholder), and Google's terms on storing coordinates need a read: Catera stores the point the customer confirmed on the map, not a geocoding result.
+
+## 19. Account erase (November 9, 2026)
+
+A customer asks for deletion from the app (`accountRequest.create`, kind `deletion`). A platform admin answers it with `account.erase` (`POST /api/v1/commands`, payload `{ "id": "<account request id>" }`, aal2 session) from `supabase/migrations/20261109110000_account_erase.sql`. One transaction, under the customer's checkout lock:
+
+- Refuses `ACTIVE_ORDERS` while the customer has an active subscription, an unpaid or exception checkout, a refund not yet `succeeded`/`failed`, or a payout on their orders that has not finished. Refuses `STAFF_ACCOUNT` for kitchen staff: closing a kitchen is a separate process.
+- Deletes push tokens and their tickets, saved packages, notifications, pending outbox jobs for them and their command receipts.
+- Blanks the profile (`Pengguna terhapus`, no phone), every address (archived, no pin), the kitchens' customer records, delivery-day and production-sheet copies of the address, the address in subscription snapshots and checkout quotes, and the text of their messages (both sides of their conversations), reviews, help requests and complaints.
+- Keeps checkouts, payments, refunds, allocations, settlement and payout rows, without identity, for tax bookkeeping. Writes one `account.erase` audit row and closes the request.
+
+After the commit the API deletes the Supabase Auth user (`deleteAuthUser`, needs `SUPABASE_SECRET_KEY`). If that step fails, run `account.erase` on the same request again: the database answers the finished erase and the Auth delete runs again. The web admin's account-request list has no erase button yet, so the admin calls the command directly. Do not mark a deletion request resolved first: `account.erase` then answers `CONFLICT`.
+
+Not erased: kitchen import files and drafts (`v1.imports`, `v1.import_drafts`) that the kitchen uploaded with the customer's name, and delivery proof photos in storage. Review them by hand when a request names a kitchen that imported the customer.
+
+Order: apply the migration after `20261109100000_seller_no_payment_url.sql`, deploy web, then answer deletion requests. `tests/postgres-account-erase.mjs` (in `npm run test:postgres`) covers it.
+
+Owner actions before answering real requests:
+
+1. **Counsel: UU PDP timing.** Confirm the response deadline for a deletion request under UU 27/2022 and how a request refused with `ACTIVE_ORDERS` is answered (the customer is told when it can proceed).
+2. **Counsel: tax retention.** Confirm the retention period and wording for keeping identity-free transaction, refund and payout rows.
+3. **Privacy text.** `/syarat-dan-privasi` (still the section 15 placeholder) must describe this: what is deleted, what is kept for tax and for how long, and the active-order condition.
