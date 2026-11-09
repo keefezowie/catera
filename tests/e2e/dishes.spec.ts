@@ -248,6 +248,7 @@ test("owner can upload a validated package photo", async ({ page }) => {
   ).toBeVisible();
   await expect(page.locator(".photo-thumbnail img")).toHaveAttribute(
     "src",
-    /^\/api\/uploads\?file=[0-9a-f-]{36}\.png$/,
+    // Uploads carry a thumbhash placeholder in the fragment.
+    /^\/api\/uploads\?file=[0-9a-f-]{36}\.png(#th=[A-Za-z0-9+/=]+)?$/,
   );
 });

@@ -230,7 +230,7 @@ for (const locale of ["id", "en"] as const) {
       await expect(input(page, "price")).toHaveValue("");
       await expect(
         editor(page).locator(".package-price-summary strong"),
-      ).toHaveText("—");
+      ).toHaveText("-");
       await assertLayout(page);
       await page.screenshot({
         path: `output/playwright/caterer-setup/blank-price-${locale}-${width}.png`,

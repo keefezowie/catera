@@ -171,7 +171,7 @@ for (const locale of ["id", "en"] as const) {
           .click();
         const notice = page.locator("section.claim > .notice[role=status]");
         await expect(notice).toContainText(
-          t("perlu memeriksa", "needs to check"),
+          t("perlu mengecek", "needs to check"),
         );
         await containedText(notice);
         await page.screenshot({

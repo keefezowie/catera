@@ -13,9 +13,13 @@ test("onboarding returns existing operators and preserves invalid application fi
   for (const role of ["owner", "staff"]) {
     await page.request.post("/api/v1/auth/demo", { data: { role } });
     await page.goto("/seller/onboarding");
+    // Entering Dapur switches the workspace cookie first, so it is a button, not a link.
     await expect(
-      page.getByRole("link", { name: "Return to your workspace", exact: true }),
-    ).toHaveAttribute("href", "/seller");
+      page.getByRole("button", {
+        name: "Return to your workspace",
+        exact: true,
+      }),
+    ).toBeEnabled();
     await expect(
       page.getByText("Set up your first package", { exact: true }),
     ).toHaveCount(0);
