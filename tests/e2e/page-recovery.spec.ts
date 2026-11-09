@@ -12,7 +12,7 @@ test.beforeEach(async ({ page, baseURL }) => {
 });
 
 async function usableRecoveryLayout(page: Page, action: Locator) {
-  const main = page.locator("main.error-page");
+  const main = page.locator(".error-page");
   await expect(main).toBeVisible();
   const heading = await main.locator("h1").boundingBox();
   expect(
@@ -52,7 +52,7 @@ async function keyboardAction(page: Page, action: Locator) {
   // A failed route can leave the document's previous focus position behind;
   // Next's development fault indicator also has controls. Traverse with the
   // keyboard rather than assuming the first Tab always starts at the retry.
-  for (let step = 0; step < 4; step++) {
+  for (let step = 0; step < 12; step++) {
     await page.keyboard.press("Tab");
     if (await action.evaluate((element) => element === document.activeElement))
       break;
@@ -88,7 +88,12 @@ for (const locale of ["id", "en"] as const) {
           exact: true,
         }),
       ).toBeVisible();
-      const home = page.getByRole("link", {
+      await expect(
+        page.getByRole("main"),
+        "One main landmark inside the shell",
+      ).toHaveCount(1);
+      // Header and footer also link to discovery; the recovery action is the one in the page body.
+      const home = page.locator("#main .error-page").getByRole("link", {
         name: t("Jelajah katering", "Explore caterers"),
         exact: true,
       });
@@ -153,10 +158,10 @@ for (const locale of ["id", "en"] as const) {
       await expect(page.locator("main.error-page")).toContainText(
         t(
           "Datamu tetap tersimpan. Coba lagi.",
-          "Your data is still saved. Please try once more.",
+          "Your data is still saved. Try again.",
         ),
       );
-      const retry = page.getByRole("button", {
+      const retry = page.locator("main.error-page").getByRole("button", {
         name: t("Coba lagi", "Try again"),
         exact: true,
       });

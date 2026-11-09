@@ -6,11 +6,11 @@ export default function NotFound() {
   const [english, setEnglish] = useState(false);
   useEffect(() => setEnglish(document.documentElement.lang === "en"), []);
   return (
-    <main className="error-page">
+    <section className="error-page">
       <h1>{english ? "Page not found." : "Halaman tidak ditemukan."}</h1>
       <Link href="/" className="button">
         {english ? "Explore caterers" : "Jelajah katering"}
       </Link>
-    </main>
+    </section>
   );
 }
