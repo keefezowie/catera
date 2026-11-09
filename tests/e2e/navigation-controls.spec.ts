@@ -20,7 +20,8 @@ test("marketplace section links preserve state and dropdowns work by keyboard an
     .locator(".desktop-nav")
     .getByRole("link", { name: "Cara berlangganan" })
     .click();
-  await expect(page).toHaveURL(/\/#how-it-works$/);
+  // Discovery keeps its list/feed mode in the query; the section link only changes the hash.
+  await expect(page).toHaveURL(/\/(\?view=\w+)?#how-it-works$/);
   await expect(page.locator("#how-it-works")).toBeInViewport();
   await expect(page.locator(".desktop-nav a[aria-current]")).toHaveText(
     "Cara berlangganan",
