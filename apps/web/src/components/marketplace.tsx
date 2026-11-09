@@ -305,6 +305,13 @@ export function Catalog({ caterer }: { caterer?: string }) {
     readCatalogQuery(params);
   const [filters, setFilters] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
+  // The field keeps its own text: the URL catches up a render later, and binding the
+  // input to it straight away dropped characters typed in between. Outside edits
+  // (filter chips, back/forward) still land while the field is not being typed in.
+  const [searchDraft, setSearchDraft] = useState(search);
+  useEffect(() => {
+    if (document.activeElement !== searchInput.current) setSearchDraft(search);
+  }, [search]);
   const filterButton = useRef<HTMLButtonElement>(null);
   const results = useRef<HTMLDivElement>(null);
   // Typing and locale updates remain immediate; committed selections orient the results.
@@ -328,6 +335,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
     );
   }
   function reset() {
+    setSearchDraft("");
     update({ ...catalogDefaults, sort });
     searchInput.current?.focus({ preventScroll: true });
   }
@@ -489,15 +497,19 @@ export function Catalog({ caterer }: { caterer?: string }) {
                 "Search packages, meals, or caterers…",
               )}
               aria-label={t("Cari katering", "Search caterers")}
-              value={search}
-              onChange={(e) => update({ search: e.target.value })}
+              value={searchDraft}
+              onChange={(e) => {
+                setSearchDraft(e.target.value);
+                update({ search: e.target.value });
+              }}
             />
-            {search && (
+            {searchDraft && (
               <Button
                 type="button"
                 variant="icon"
                 aria-label={t("Hapus pencarian", "Clear search")}
                 onClick={() => {
+                  setSearchDraft("");
                   update({ search: "" });
                   searchInput.current?.focus();
                 }}
