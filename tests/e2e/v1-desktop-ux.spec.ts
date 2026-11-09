@@ -90,6 +90,10 @@ for (const [width, height] of sizes)
           .locator(".ops-order-table tbody tr:not(.ops-group-heading)")
           .first();
         await expect(row).toBeVisible();
+        // The attention card fills in after the orders; measure once it has its items.
+        await expect(
+          page.locator(".seller-attention .attention-item").first(),
+        ).toBeVisible();
         const before = (await row.boundingBox())!;
         await page
           .getByRole("button", {
