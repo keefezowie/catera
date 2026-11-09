@@ -10,6 +10,13 @@ import {
 import { mkdir } from "node:fs/promises";
 
 const evidence = "output/playwright/uiux/verified";
+// The demo package delivers Monday to Friday; a fixed offset can land on a weekend.
+function weekdayAfter(days: number) {
+  let day = addDays(localDay(), days);
+  while ([0, 6].includes(new Date(`${day}T12:00:00Z`).getUTCDay()))
+    day = addDays(day, 1);
+  return day;
+}
 async function accessible(page: Page) {
   expect(
     await page.evaluate(
@@ -146,7 +153,7 @@ for (const width of [320, 360, 390, 430, 768, 1280, 1440])
       const state = (await (await page.request.get("/api/v1/customer")).json())
         .data;
       await page.goto(
-        `/checkout/20000000-0000-4000-8000-000000000001?startDate=${addDays(localDay(), 90)}`,
+        `/checkout/20000000-0000-4000-8000-000000000001?startDate=${weekdayAfter(90)}`,
       );
       const summary = page.getByRole("complementary", {
         name: t("Ringkasan paket", "Package summary"),
@@ -176,8 +183,17 @@ for (const width of [320, 360, 390, 430, 768, 1280, 1440])
           exact: true,
         }),
       ).toBeFocused();
+      // Checkout preselects the first saved address the package delivers to.
+      const offer: Offer = (
+        await (await page.request.get("/api/v1/catalog?limit=100")).json()
+      ).data.items.find(
+        (o: Offer) => o.id === "20000000-0000-4000-8000-000000000001",
+      );
+      const destination = state.addresses.find((a: { area: string }) =>
+        offer.areas.includes(a.area),
+      );
       await expect(page.locator(".checkout-address")).toContainText(
-        state.addresses[0].line,
+        destination.line,
       );
       await expect(summary.locator(".total-row")).toContainText(
         currency(quote.total, locale),
