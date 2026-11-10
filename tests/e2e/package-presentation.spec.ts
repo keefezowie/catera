@@ -60,7 +60,8 @@ test.beforeAll(async ({ request }) => {
       dish(
         "broken",
         "Pelengkap foto gagal",
-        "/missing-dish-photo.png",
+        // Only Catera-hosted photo paths are accepted; this upload does not exist.
+        "/api/uploads?file=missing-dish-photo.png",
         "custom",
       ),
     ],
@@ -293,7 +294,7 @@ test("seller pricing and card preview stay aligned without persisting a total", 
   });
   const priceSummary = page.locator(".package-price-summary");
   await duration.fill("");
-  await expect(priceSummary.locator("strong")).toHaveText("—");
+  await expect(priceSummary.locator("strong")).toHaveText("-");
   await duration.fill("7");
   await page
     .getByLabel("Harga per porsi / hari (pengantaran termasuk)", {
