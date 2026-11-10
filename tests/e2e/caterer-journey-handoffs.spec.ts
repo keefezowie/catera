@@ -199,7 +199,24 @@ test("notification read failures recover inside seller navigation", async ({
 test("saved production and print preserve whole-day scope with an empty table filter", async ({
   page,
 }) => {
-  const date = addDays(localDay(), -1);
+  // The demo's own route today carries lunch and dinner stops; the expected totals come from the server's day,
+  // not from the isolated seller-operations fixture.
+  const date = (await (await page.request.get(`/api/v1/seller/${cid}`)).json())
+    .data.operationalDate as string;
+  const day = (
+    await (await page.request.get(`/api/v1/seller/${cid}?date=${date}`)).json()
+  ).data;
+  const stops = (day.deliveries as any[]).filter(
+    (delivery) => delivery.status !== "cancelled",
+  );
+  const meals = stops.flatMap((delivery) =>
+    (delivery.meals as any[])
+      .filter((meal) => meal.status !== "cancelled")
+      .map((meal) => ({ meal: meal.meal, portions: delivery.portions })),
+  );
+  expect(meals.some((item) => item.meal === "lunch")).toBe(true);
+  expect(meals.some((item) => item.meal === "dinner")).toBe(true);
+  const portions = meals.reduce((sum, item) => sum + item.portions, 0);
   const saved = await command(page, "production.freeze", {
     catererId: cid,
     date,
@@ -210,16 +227,17 @@ test("saved production and print preserve whole-day scope with an empty table fi
   await expect(
     page.locator(".ops-orders-panel").getByText("No orders", { exact: true }),
   ).toBeVisible();
-  const production = page.locator(".ops-production");
-  await expect(production).toContainText("12 meal portions");
+  const production = page.locator("#production.ops-production");
+  await expect(production).toContainText(
+    `whole day · ${portions} meal portion${portions === 1 ? "" : "s"}`,
+  );
   await expect(
     production.getByRole("link", { name: /Download CSV/ }),
   ).toHaveAttribute("href", "/api/manifests/" + saved.id);
   const csv = await (
     await page.request.get("/api/manifests/" + saved.id)
   ).text();
-  expect(csv).toContain("Jalan Sintetis Kantor 2");
-  expect(csv).toContain("Jalan Sintetis Rumah 1");
+  for (const stop of stops) expect(csv).toContain(stop.address.line);
   expect(csv).toContain("Dinner");
   expect(csv).toContain("Lunch");
   await page.emulateMedia({ media: "print" });
