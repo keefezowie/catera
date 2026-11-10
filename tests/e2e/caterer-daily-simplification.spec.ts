@@ -300,26 +300,44 @@ for (const locale of ["id", "en"] as const) {
       .getByRole("tab", { name: new RegExp(copy(locale, "^Malam", "^Dinner")) })
       .click();
     await expect(queue.getByRole("heading")).toContainText("(21)");
-    await queue
+    // At 1100px and up the card shows the top issue only; the full queue and its filters open in a drawer.
+    const openDrawer = queue.getByRole("button", {
+      name: copy(locale, "Lihat masalah", "View issues"),
+      exact: true,
+    });
+    const drawer = page.getByRole("dialog", {
+      name: new RegExp(copy(locale, "^Perlu perhatian", "^Needs attention")),
+    });
+    await expect(
+      queue.getByRole("button", {
+        name: new RegExp(
+          copy(locale, "^Lihat semua masalah", "^View all issues"),
+        ),
+      }),
+    ).toBeHidden();
+    await openDrawer.click();
+    await expect(drawer.getByRole("heading").first()).toContainText("(21)");
+    await expect(drawer.locator(".attention-item")).toHaveCount(3);
+    await drawer
       .getByRole("button", {
         name: new RegExp(
           copy(locale, "^Lihat semua masalah", "^View all issues"),
         ),
       })
       .click();
-    await expect(queue.locator(".attention-item")).toHaveCount(20);
-    await queue
+    await expect(drawer.locator(".attention-item")).toHaveCount(20);
+    await drawer
       .getByRole("button", {
         name: copy(locale, "Muat masalah berikutnya", "Load more issues"),
       })
       .click();
-    await expect(queue.locator(".attention-item")).toHaveCount(21);
-    await queue
+    await expect(drawer.locator(".attention-item")).toHaveCount(21);
+    await drawer
       .getByRole("button", {
         name: copy(locale, "Filter masalah", "Filter issues"),
       })
       .click();
-    await queue
+    await drawer
       .getByRole("button", {
         name: copy(locale, "Tanggal tertentu", "Specific date"),
         exact: true,
@@ -327,11 +345,15 @@ for (const locale of ["id", "en"] as const) {
       .click();
     await choose(
       page,
-      queue.getByRole("combobox", {
+      drawer.getByRole("combobox", {
         name: copy(locale, "Waktu makan masalah", "Issue meal"),
       }),
       copy(locale, "Malam", "Dinner"),
     );
+    await expect(drawer.locator(".attention-scope-summary")).toContainText(day);
+    // Closing the drawer keeps the narrowed scope and returns focus to the card.
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
     await expect(queue.locator(".attention-scope-summary")).toContainText(day);
     await page
       .getByRole("button", {
@@ -347,14 +369,15 @@ for (const locale of ["id", "en"] as const) {
     );
     expect(requests.at(-1)!.searchParams.get("date")).toBe(day);
     fail = true;
-    await queue
+    await openDrawer.click();
+    await drawer
       .getByRole("button", {
         name: copy(locale, "Semua tanggal", "All dates"),
         exact: true,
       })
       .click();
-    await expect(queue.getByRole("alert")).toBeVisible();
-    await expect(queue.locator(".quiet-empty")).toHaveCount(0);
+    await expect(drawer.getByRole("alert")).toBeVisible();
+    await expect(drawer.locator(".quiet-empty")).toHaveCount(0);
   });
 
   test(`empty menus lead to setup while invalid links recover ${locale}`, async ({
