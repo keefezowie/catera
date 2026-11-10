@@ -99,6 +99,12 @@
   max-width: 66ch;
 }
 
+/* Fields fill the form instead of sizing to their value, so a long selection
+   (or 200% text) ellipsizes inside the column rather than widening the page. */
+.settingsContent :global(.form) > :global(.field) {
+  align-self: stretch;
+}
+
 .settingsContent :global(.form) > :global(.button) {
   justify-self: start;
   width: auto;

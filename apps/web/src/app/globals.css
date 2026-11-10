@@ -771,7 +771,7 @@ td strong {
   text-align: left;
   cursor: pointer;
 }
-.select-trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-trigger > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-trigger > svg { flex-shrink: 0; }
 .select-trigger:hover { border-color: var(--forest); }
 .select-trigger:focus-visible, .select-trigger[data-state="open"] { outline: 2px solid var(--focus); outline-offset: 3px; }
