@@ -633,6 +633,10 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         payment_exception: "Pembayaran perlu ditinjau",
       }[status] || status;
 export const errors: Record<string, string> = {
+  ACTIVE_ORDERS:
+    "Akun ini masih punya langganan aktif, pembayaran, pengembalian dana atau pencairan yang belum selesai. Selesaikan dulu, lalu hapus.",
+  STAFF_ACCOUNT:
+    "Akun ini masih terdaftar di sebuah dapur. Lepas dari dapur itu dulu, lalu hapus.",
   PAYMENT_UNAVAILABLE:
     "Pembayaran sedang tidak tersedia. Coba lagi nanti.",
   PAYMENT_METHOD_LOCKED:
@@ -727,6 +731,10 @@ export const errors: Record<string, string> = {
     "Tanggal ini sudah ada pesanan. Selesaikan pesanan sebelum menutupnya.",
 };
 const errorsEn: Record<string, string> = {
+  ACTIVE_ORDERS:
+    "This account still has an active subscription or an unfinished payment, refund or payout. Finish those first, then erase.",
+  STAFF_ACCOUNT:
+    "This account still belongs to a kitchen. Remove it from that kitchen first, then erase.",
   PAYMENT_UNAVAILABLE:
     "Payments aren't available right now. Try again later.",
   PAYMENT_METHOD_LOCKED:

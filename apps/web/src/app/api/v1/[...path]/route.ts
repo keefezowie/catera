@@ -172,6 +172,8 @@ const codes = [
   "PILOT_DATABASE_PROTECTED",
   "PAYMENT_HOLD_TOO_SHORT",
   "PAYMENT_CUSTOMER_INCOMPLETE",
+  "ACTIVE_ORDERS",
+  "STAFF_ACCOUNT",
 ];
 function failure(e: unknown) {
   const msg = e instanceof Error ? e.message : "";

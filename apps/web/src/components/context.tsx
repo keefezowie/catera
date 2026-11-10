@@ -19,6 +19,7 @@ import {
 } from "@catera/domain";
 export const api = createApi();
 const actionMessages: Record<string, [string, string]> = {
+  "account.erase": ["Akun dihapus.", "Account erased."],
   "packageOption.save": [
     "Pilihan paket diperbarui.",
     "Package options updated.",

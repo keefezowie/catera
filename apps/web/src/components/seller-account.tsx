@@ -347,6 +347,22 @@ export function AccountHelp({
               </p>
             </ActionForm>
           )}
+          {admin && r.status === "open" && r.kind === "deletion" && (
+            <ActionForm
+              submit={t("Hapus akun ini", "Erase this account")}
+              onSubmit={async () => {
+                await perform("account.erase", { id: r.id });
+              }}
+            >
+              <label className="checkbox">
+                <Checkbox required />
+                {t(
+                  "Saya sudah memeriksa pemilik akun. Nama, nomor, alamat dan pesan dihapus permanen; catatan pembayaran disimpan tanpa identitas.",
+                  "I have verified the account owner. Name, phone, addresses and messages are erased for good; payment records are kept without identity.",
+                )}
+              </label>
+            </ActionForm>
+          )}
         </article>
       ))}
       {state.data?.length === 0 && (
