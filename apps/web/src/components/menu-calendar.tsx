@@ -24,6 +24,7 @@ import {
   type LibraryDish,
   type Subscription,
   type CustomerMenuMonth,
+  zoneLabel,
 } from "@catera/domain";
 import { api, useApp, useResource, useWorkspaceDraft } from "./context";
 import { useJourneyQuery, useDiscardChanges } from "./journey-state";
@@ -1085,7 +1086,7 @@ export function MenuCalendar({
                         ).format(new Date(d.cutoffAt)),
                       )
                       .join(" · ")}{" "}
-                    ({subscription.snapshot.offer.timezone})
+                    {zoneLabel(subscription.snapshot.offer.timezone)}
                   </p>
                 )}
                 <h2 ref={editorHeading} tabIndex={-1}>

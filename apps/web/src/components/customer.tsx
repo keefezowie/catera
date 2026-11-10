@@ -61,6 +61,7 @@ import {
   type Locale,
   addressPoint,
   pointFitsArea,
+  zoneLabel,
 } from "@catera/domain";
 import { AddressPin, webMapsKey } from "./address-pin";
 import { useApp, useResource, api, useWorkspaceDraft } from "./context";
@@ -699,7 +700,7 @@ function SubscriptionDetail({
           [t("Porsi tetap", "Fixed portions"), s.portions],
           [
             t("Mulai / selesai", "Start / end"),
-            s.starts_on + " sampai " + s.ends_on,
+            `${dateLabel(s.starts_on, locale)} – ${dateLabel(s.ends_on, locale)}`,
           ],
           [
             t("Nilai pembelian", "Purchase total"),
@@ -890,8 +891,7 @@ export function DeliveryPage({ id }: { id: string }) {
   const cutoff = new Date(d.cutoff_at).toLocaleString(
     locale === "id" ? "id-ID" : "en-GB",
     {
-      dateStyle: "full",
-      timeStyle: "short",
+      weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
       timeZone: d.offer.timezone,
     },
   );
@@ -918,8 +918,8 @@ export function DeliveryPage({ id }: { id: string }) {
                 )
               : Date.parse(d.cutoff_at) <= now
                 ? t(
-                    `Batas perubahan sudah lewat: ${cutoff} (${d.offer.timezone}). Hubungi katering untuk bantuan.`,
-                    `Changes closed at ${cutoff} (${d.offer.timezone}). Contact your caterer for help.`,
+                    `Batas perubahan sudah lewat: ${cutoff} ${zoneLabel(d.offer.timezone)}. Hubungi katering untuk bantuan.`,
+                    `Changes closed at ${cutoff} ${zoneLabel(d.offer.timezone)}. Contact your caterer for help.`,
                   )
                 : d.status !== "scheduled"
                   ? t(
@@ -943,7 +943,7 @@ export function DeliveryPage({ id }: { id: string }) {
             ),
             [
               t("Batas perubahan", "Change cutoff"),
-              `${cutoff} (${d.offer.timezone})`,
+              `${cutoff} ${zoneLabel(d.offer.timezone)}`,
             ],
           ]}
         />

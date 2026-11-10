@@ -80,6 +80,7 @@ export function Notifications({ seller = false }: { seller?: boolean }) {
               <small>
                 {new Date(n.created_at).toLocaleString(
                   locale === "id" ? "id-ID" : "en-GB",
+                  { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
                 )}
               </small>
             </Link>

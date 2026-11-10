@@ -197,6 +197,13 @@ export default async function Page({
           "/" + path.join("/") + (query.size ? "?" + query.toString() : ""),
         ),
     );
+  // These pages show one record. Without its id they asked the API for "undefined"; send people to the list instead.
+  if (!path[1]) {
+    if (path[0] === "deliveries") redirect("/calendar");
+    if (path[0] === "payment" || path[0] === "renew") redirect("/subscriptions");
+    if (path[0] === "packages" || path[0] === "caterers") redirect("/#packages");
+    if (path[0] === "claim") notFound();
+  }
   if (path[0] === "admin" && s.actor?.role !== "platform_admin") notFound();
   // The database answers admin reads only for a TOTP-verified session, so Admin opens after that step.
   if (path[0] === "admin" && !demoEnabled()) {

@@ -996,7 +996,7 @@ export function PackagePage({
                 ],
                 [
                   t("Batas perubahan", "Change cutoff"),
-                  p.cutoff.slice(0, 5) +
+                  (locale === "id" ? p.cutoff.slice(0, 5).replace(":", ".") : p.cutoff.slice(0, 5)) +
                     " · " +
                     t("sehari sebelum pengantaran", "the day before delivery"),
                 ],
@@ -1490,7 +1490,7 @@ export function CatererPage({ slug }: { slug: string }) {
   const list = offers.filter((p) => p.catererSlug === slug);
   const p = list[0];
   if (!p)
-    return <Empty title={t("Katering tidak ditemukan", "Caterer not found")} />;
+    return <Empty title={t("Katering tidak ditemukan", "Caterer not found")} href="/" label={t("Jelajah katering", "Browse caterers")} />;
   return (
     <div className="content">
       <section className="caterer-cover">

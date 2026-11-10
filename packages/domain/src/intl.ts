@@ -28,3 +28,9 @@ export function dateTimeFormat(locale: string, options?: Intl.DateTimeFormatOpti
 export function collator(locale: string, options?: Intl.CollatorOptions): Intl.Collator {
   return cached(collators, locale, options, () => new Intl.Collator(locale, options));
 }
+
+const zoneLabels: Record<string, string> = { "Asia/Jakarta": "WIB", "Asia/Pontianak": "WIB", "Asia/Makassar": "WITA", "Asia/Jayapura": "WIT" };
+/** The name people use for an Indonesian timezone ("WIB"); other zones keep their IANA name. */
+export function zoneLabel(timezone: string): string {
+  return zoneLabels[timezone] ?? timezone;
+}
