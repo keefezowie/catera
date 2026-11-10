@@ -32,6 +32,11 @@ for (const locale of ["id", "en"] as const) {
         return route.fulfill({ json: { data: { code } } });
       });
       await page.goto("/seller/settings");
+      // Settings shows account help as a compact disclosure; open it so its form is laid out.
+      await page
+        .locator("#help summary")
+        .filter({ hasText: locale === "id" ? "Kirim permintaan" : "Send request" })
+        .click();
       await page
         .getByRole("button", {
           name: locale === "id" ? "Buat undangan staf" : "Create staff invite",
