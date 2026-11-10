@@ -246,7 +246,7 @@ test("tablet calendar previews use workspace width and the library restores focu
   await expect(readOnly.locator(".menu-day-heading svg")).toBeVisible();
   await readOnly.click();
   await expect(
-    page.getByText("Menu tanggal ini hanya dapat dilihat.", { exact: true }),
+    page.getByText("Menu tanggal ini hanya bisa dilihat.", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Simpan menu", exact: true }),
