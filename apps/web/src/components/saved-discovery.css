@@ -124,7 +124,7 @@
   .header-actions:has(.saved-entry) {
     gap: 5px;
   }
-  .header-actions:has(.saved-entry) .button.small {
+  .header-actions:has(.saved-entry) .button.secondary.small {
     display: none;
   }
   .header-inner:has(.saved-entry) .brand {
