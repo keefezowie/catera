@@ -58,35 +58,42 @@ async function endContentIsReachable(
 ) {
   // Always test the document end: a fixed bar can obscure a control there even
   // though the same control would be reachable in the middle of a long page.
+  // Content that streams in after the first scroll lengthens the page, so the scroll, the clearance and the hit test
+  // are taken together and retried until the page end holds still.
+  await expect(page.locator("main .skeleton-screen")).toHaveCount(0);
   await expect
-    .poll(async () => {
-      await page.evaluate(() =>
-        scrollTo({
-          top: document.documentElement.scrollHeight,
-          behavior: "instant",
-        }),
-      );
-      const box = await content.boundingBox();
-      const top = await bars.evaluateAll((elements) =>
-        Math.min(
-          ...elements.map((element) => element.getBoundingClientRect().top),
-        ),
-      );
-      return Boolean(box && box.y + box.height <= top - 4);
-    })
-    .toBe(true);
-  const blocked = await content.evaluate((element) => {
-    const box = element.getBoundingClientRect();
-    const top = document.elementFromPoint(
-      box.left + box.width / 2,
-      box.top + box.height / 2,
-    );
-    return !top || !element.contains(top);
-  });
-  expect(
-    blocked,
-    "The final content must remain reachable above fixed bottom bars",
-  ).toBe(false);
+    .poll(
+      async () => {
+        await page.evaluate(() =>
+          scrollTo({
+            top: document.documentElement.scrollHeight,
+            behavior: "instant",
+          }),
+        );
+        const box = await content.boundingBox();
+        const top = await bars.evaluateAll((elements) =>
+          Math.min(
+            ...elements.map((element) => element.getBoundingClientRect().top),
+          ),
+        );
+        if (!box || box.y + box.height > top - 4)
+          return "content sits under the fixed bar";
+        const blocked = await content.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const top = document.elementFromPoint(
+            box.left + box.width / 2,
+            box.top + box.height / 2,
+          );
+          return !top || !element.contains(top);
+        });
+        return blocked ? "content is covered" : "reachable";
+      },
+      {
+        message:
+          "The final content must remain reachable above fixed bottom bars",
+      },
+    )
+    .toBe("reachable");
 }
 
 for (const locale of ["id", "en"] as const) {
