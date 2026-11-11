@@ -74,7 +74,20 @@ for (const width of [320, 360, 390, 430, 768, 1280, 1440])
       const photo = (await page.locator(".detail-hero").boundingBox())!;
       expect(photo.height).toBeLessThanOrEqual(photo.width * 0.8 + 1);
       if (width <= 1000)
-        await expect(page.locator(".mobile-purchase-summary")).toBeVisible();
+        // The buy bar stands in for the booking panel: it shows unless the panel's top edge is already on screen,
+        // which depends on how long the first matching package's page is.
+        await expect
+          .poll(async () => {
+            const top = await page
+              .locator("#package-booking")
+              .evaluate((panel) => panel.getBoundingClientRect().top);
+            const panelOnScreen = top >= 0 && top <= 900;
+            const bar = await page
+              .locator(".mobile-purchase-summary")
+              .isVisible();
+            return bar !== panelOnScreen;
+          })
+          .toBe(true);
       await page.goBack();
       await expect(search).toHaveValue("Ayam");
       await expect(cards.locator("h3")).toHaveText(names);

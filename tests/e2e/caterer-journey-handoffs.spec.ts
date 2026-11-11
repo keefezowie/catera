@@ -199,21 +199,34 @@ test("notification read failures recover inside seller navigation", async ({
 test("saved production and print preserve whole-day scope with an empty table filter", async ({
   page,
 }) => {
-  // The demo's own route today carries lunch and dinner stops; the expected totals come from the server's day,
-  // not from the isolated seller-operations fixture.
-  const date = (await (await page.request.get(`/api/v1/seller/${cid}`)).json())
+  // The expected totals come from the server's own days, not from the isolated seller-operations fixture: the
+  // nearest day whose route carries both lunch and dinner (a new demo has one today; a stored demo, on its first day).
+  const today = (await (await page.request.get(`/api/v1/seller/${cid}`)).json())
     .data.operationalDate as string;
-  const day = (
-    await (await page.request.get(`/api/v1/seller/${cid}?date=${date}`)).json()
-  ).data;
-  const stops = (day.deliveries as any[]).filter(
-    (delivery) => delivery.status !== "cancelled",
-  );
-  const meals = stops.flatMap((delivery) =>
-    (delivery.meals as any[])
-      .filter((meal) => meal.status !== "cancelled")
-      .map((meal) => ({ meal: meal.meal, portions: delivery.portions })),
-  );
+  let date = "";
+  let stops: any[] = [];
+  let meals: { meal: string; portions: number }[] = [];
+  for (const delta of [0, -1, -2, -3, -4, -5, -6, -7, 1, 2, 3]) {
+    date = addDays(today, delta);
+    const day = (
+      await (
+        await page.request.get(`/api/v1/seller/${cid}?date=${date}`)
+      ).json()
+    ).data;
+    stops = (day.deliveries as any[]).filter(
+      (delivery) => delivery.status !== "cancelled",
+    );
+    meals = stops.flatMap((delivery) =>
+      (delivery.meals as any[])
+        .filter((meal) => meal.status !== "cancelled")
+        .map((meal) => ({ meal: meal.meal, portions: delivery.portions })),
+    );
+    if (
+      meals.some((item) => item.meal === "lunch") &&
+      meals.some((item) => item.meal === "dinner")
+    )
+      break;
+  }
   expect(meals.some((item) => item.meal === "lunch")).toBe(true);
   expect(meals.some((item) => item.meal === "dinner")).toBe(true);
   const portions = meals.reduce((sum, item) => sum + item.portions, 0);

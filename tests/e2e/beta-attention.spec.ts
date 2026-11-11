@@ -57,7 +57,7 @@ test("fallback follow-up records seller action and disappears only after server 
   });
   await page.goto("/seller");
   const attention = page.getByRole("region", { name: "Needs attention" });
-  await expect(attention).toContainText("Asia/Makassar");
+  await expect(attention).toContainText("WITA");
   await attention
     .getByRole("button", { name: "Dishes planned & customer informed" })
     .click();

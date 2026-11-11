@@ -2,6 +2,7 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import {
   addDays,
+  shortDate,
   type SellerState,
   type SellerAttentionItem,
 } from "@catera/domain";
@@ -294,8 +295,9 @@ for (const locale of ["id", "en"] as const) {
     expect(requests[0].searchParams.get("scope")).toBe("all");
     expect(requests[0].searchParams.has("meal")).toBe(false);
     expect(requests[0].searchParams.has("date")).toBe(false);
-    await expect(queue).toContainText(addDays(day, -1));
-    await expect(queue).toContainText(addDays(day, 1));
+    // Issue rows write their service day out ("Rab 7 Okt"); the scope summary keeps the date it was given.
+    await expect(queue).toContainText(shortDate(addDays(day, -1), locale));
+    await expect(queue).toContainText(shortDate(addDays(day, 1), locale));
     await page
       .getByRole("tab", { name: new RegExp(copy(locale, "^Malam", "^Dinner")) })
       .click();
@@ -420,7 +422,8 @@ for (const locale of ["id", "en"] as const) {
   }) => {
     await login(page, baseURL!, locale);
     await page.goto("/seller/transactions?tab=payouts");
-    const bank = page.locator("#payout");
+    // The streamed copy outside main carries its own #payout while the page swaps in.
+    const bank = page.locator("#main #payout");
     await expect(bank.getByRole("heading")).toBeVisible();
     await expect(bank.locator(".payout-state")).toHaveCount(0);
     await expect(page.locator(".settlement-summary")).toBeVisible();

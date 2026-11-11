@@ -105,7 +105,7 @@ for (const [width, height] of sizes)
         await expect(drawer).toContainText(items[1].context);
         await expect(drawer).toContainText("00000002");
         await expect(drawer).toContainText("Recipient 2");
-        await expect(drawer).toContainText("Asia/Jakarta");
+        await expect(drawer).toContainText("WIB");
         expect(Math.abs((await row.boundingBox())!.y - before.y)).toBeLessThan(
           2,
         );
@@ -293,7 +293,7 @@ for (const [width, height] of sizes)
       ).toBeFocused();
     });
 
-    test(`final delivery requires receipt acknowledgement and resets after conflict: ${suffix}`, async ({
+    test(`arrival requires a photo for each order and resets after conflict: ${suffix}`, async ({
       page,
       context,
       baseURL,
@@ -308,7 +308,14 @@ for (const [width, height] of sizes)
       const deliveries = state.deliveries.map((d) => ({
         ...d,
         status: "out_for_delivery",
-        meals: d.meals.map((m) => ({ ...m, status: "out_for_delivery" })),
+        meals: d.meals.map((m) => ({
+          ...m,
+          status: "out_for_delivery",
+          arrived_at: null,
+          arrived_photo: null,
+          confirmed_at: null,
+          confirmed_by: null,
+        })),
       }));
       let failedRead = false;
       await page.route(`**/api/v1/seller/${cid}*`, (r) =>
@@ -321,9 +328,19 @@ for (const [width, height] of sizes)
               json: { data: { ...state, today: date, deliveries } },
             }),
       );
+      // Synthetic upload: no file reaches storage and no delivery changes.
+      let uploads = 0;
+      await page.route("**/api/uploads/proof", (r) => {
+        uploads++;
+        return r.fulfill({
+          json: { data: { path: "proofs/synthetic-arrival.png" } },
+        });
+      });
       let commands = 0;
+      let action = "";
       await page.route("**/api/v1/commands", async (r) => {
         commands++;
+        action = r.request().postDataJSON().action;
         await new Promise((resolve) => setTimeout(resolve, 650));
         failedRead = true;
         return r.fulfill({
@@ -333,35 +350,51 @@ for (const [width, height] of sizes)
       });
       await page.goto(`/seller?date=${date}&meal=lunch`);
       await page.locator(".order-next").first().click();
-      const dialog = page.getByRole("dialog", {
-        name: t("Konfirmasi makanan diterima", "Confirm meals received"),
-      });
+      const title = t("Tandai sampai dengan foto", "Mark arrived with a photo");
+      const dialog = page.getByRole("dialog", { name: title });
       const confirm = dialog.getByRole("button", {
-        name: t("Tandai diterima", "Mark received"),
-        exact: true,
+        name: new RegExp(t("^Tandai sampai · 1$", "^Mark arrived · 1$")),
       });
+      const photo = dialog.locator('.proof-photo input[type="file"]');
       await expect(
-        dialog.getByRole("heading", {
-          name: t("Konfirmasi makanan diterima", "Confirm meals received"),
-        }),
+        dialog.getByRole("heading", { name: title }),
       ).toBeFocused();
+      await expect(photo).toHaveCount(1);
       await expect(confirm).toBeDisabled();
+      await expect(confirm).toHaveAccessibleDescription(
+        t(
+          "Tambahkan satu foto untuk setiap pesanan sebelum menandai sampai.",
+          "Add one photo for each order before marking it as arrived.",
+        ),
+      );
       if (width === 390) {
         const header = await dialog.getByRole("heading").boundingBox();
         const panel = await dialog.boundingBox();
         expect(header!.y - panel!.y).toBeGreaterThanOrEqual(16);
         expect(await dialog.evaluate((element) => element.scrollTop)).toBe(0);
       }
-      await expect(dialog).toContainText(
-        t("seluruh waktu makannya selesai", "all its meals are complete"),
+      await expect(dialog.locator(".receipt-consequence")).toContainText(
+        t("pelanggan mengonfirmasi sendiri", "who confirms it"),
       );
       expect(commands).toBe(0);
-      await dialog.getByRole("checkbox").check();
+      await photo.setInputFiles({
+        name: "synthetic-arrival.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      });
+      await expect(dialog.locator(".proof-photo > span")).toHaveText(
+        t("Foto sampai", "Arrival photo"),
+      );
       await confirm.click();
       await expect(dialog).toHaveAttribute("aria-busy", "true");
       await expect(dialog.getByRole("heading")).toBeFocused();
       await expect(dialog).toHaveCount(0);
+      expect(uploads).toBe(1);
       expect(commands).toBe(1);
+      expect(action).toBe("delivery.arrive");
       await expect(
         page.locator(".ops-orders-panel .notice.error"),
       ).toBeFocused();
@@ -371,7 +404,13 @@ for (const [width, height] of sizes)
         .getByRole("button")
         .click();
       await page.locator(".order-next").first().click();
+      // A new review starts without the earlier photo.
       await expect(confirm).toBeDisabled();
-      await expect(dialog.getByRole("checkbox")).not.toBeChecked();
+      await expect(dialog.locator(".proof-photo > span")).toHaveText(
+        t("Foto sampai (belum ada)", "Arrival photo (missing)"),
+      );
+      expect(await photo.evaluate((input: HTMLInputElement) => input.value)).toBe(
+        "",
+      );
     });
   }

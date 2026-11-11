@@ -104,7 +104,7 @@ for (const locale of ["id", "en"] as const) {
         await expect(deadlines.locator(".ops-deadline-list")).toContainText(
           t("Belum lewat", "Not yet passed"),
         );
-        await expect(deadlines).toContainText("Asia/Jakarta");
+        await expect(deadlines).toContainText("WIB");
         await expect(deadlines).toContainText(
           t("tidak mengunci", "do not lock"),
         );
