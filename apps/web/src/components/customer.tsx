@@ -701,7 +701,7 @@ function SubscriptionDetail({
           [t("Porsi tetap", "Fixed portions"), s.portions],
           [
             t("Mulai / selesai", "Start / end"),
-            `${dateLabel(s.starts_on, locale)} – ${dateLabel(s.ends_on, locale)}`,
+            dateLabel(s.starts_on, locale) + t(" sampai ", " to ") + dateLabel(s.ends_on, locale),
           ],
           [
             t("Nilai pembelian", "Purchase total"),
