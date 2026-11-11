@@ -393,7 +393,8 @@ for (const locale of ["id", "en"] as const) {
       }),
     );
     await page.goto("/seller/menus");
-    const workspace = page.locator(".menu-workspace");
+    // The streamed skeleton copy outside main carries its own .menu-workspace while the page swaps in.
+    const workspace = page.locator("#main .menu-workspace");
     const create = workspace.getByRole("link", {
       name: copy(locale, "Buat paket pertama", "Create your first package"),
     });

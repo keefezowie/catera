@@ -206,7 +206,11 @@ test("saved production and print preserve whole-day scope with an empty table fi
   let date = "";
   let stops: any[] = [];
   let meals: { meal: string; portions: number }[] = [];
-  for (const delta of [0, -1, -2, -3, -4, -5, -6, -7, 1, 2, 3]) {
+  // Today first, then back two weeks (a stored demo keeps its both-meal route on the day it was seeded), then ahead.
+  for (const delta of [
+    ...Array.from({ length: 15 }, (_, i) => -i),
+    ...Array.from({ length: 7 }, (_, i) => i + 1),
+  ]) {
     date = addDays(today, delta);
     const day = (
       await (
