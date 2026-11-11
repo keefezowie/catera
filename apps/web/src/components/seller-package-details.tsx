@@ -4,6 +4,7 @@ import {
   mealLabel,
   packageSubtotal,
   type SellerOffer,
+  zoneLabel,
 } from "@catera/domain";
 import { useApp } from "./context";
 import { PackageContents } from "./package-contents";
@@ -89,7 +90,7 @@ export function SellerPackageDetails({ offer: o }: { offer: SellerOffer }) {
             <div key={meal}>
               <dt>{mealLabel(meal, locale)}</dt>
               <dd>
-                {o.windows[meal]} · {o.timezone}
+                {o.windows[meal]} · {zoneLabel(o.timezone)}
               </dd>
             </div>
           ),
@@ -102,7 +103,7 @@ export function SellerPackageDetails({ offer: o }: { offer: SellerOffer }) {
             )}
           </dt>
           <dd>
-            {o.cutoff} · {o.timezone}
+            {o.cutoff} · {zoneLabel(o.timezone)}
           </dd>
         </div>
       </dl>

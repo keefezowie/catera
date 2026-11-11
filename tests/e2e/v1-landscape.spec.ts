@@ -425,17 +425,15 @@ for (const locale of ["en", "id"]) {
 }
 
 for (const width of [1280, 1440]) {
-  test(`first catalog result price is readable above the fold at ${width}`, async ({
+  test(`first catalog result starts above the fold at ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: width === 1280 ? 800 : 900 });
     await page.goto("/");
-    const price = page.locator(".package-card-v2 .card-price > strong").first();
-    await expect(price).toBeVisible();
-    const bounds = (await price.boundingBox())!;
-    expect(bounds.y + bounds.height).toBeLessThanOrEqual(
-      width === 1280 ? 800 : 900,
-    );
+    // Food-led cards put the photo first, so the price sits under it; the fold must still show the first result.
+    const card = page.locator(".package-card-v2").first();
+    await expect(card).toBeVisible();
+    expect((await card.boundingBox())!.y).toBeLessThan(width === 1280 ? 800 : 900);
   });
 }
 

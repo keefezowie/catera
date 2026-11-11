@@ -81,7 +81,7 @@ test("all package modes expose commercial terms; confirmed lifecycle persists on
         await page.goto(`/seller/packages?package=${offer.id}`);
         const dialog = page.getByRole("dialog");
         await expect(dialog).toContainText("Operating days & capacity");
-        await expect(dialog).toContainText("Asia/Jakarta");
+        await expect(dialog).toContainText("WIB");
         await expect(
           dialog.locator("dt").filter({ hasText: /^Lunch$/ }),
         ).toHaveCount(meal === "dinner" ? 0 : 1);

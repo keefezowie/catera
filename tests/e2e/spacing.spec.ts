@@ -171,11 +171,14 @@ async function operationsSpacing(page: Page) {
       },
     ];
   });
+  // From 1100px the desktop workspace tightens its sections to 8px so the first order stays above the fold
+  // (landscape.css, docs/WEB-SPACING.md); below that the flow gap is 16px.
+  const minimum = (page.viewportSize()?.width ?? 0) >= 1100 ? 8 : 16;
   for (const { label, gap } of gaps)
     expect(
       gap,
       `${label} retain distinct section spacing`,
-    ).toBeGreaterThanOrEqual(16);
+    ).toBeGreaterThanOrEqual(minimum);
 }
 
 for (const locale of ["id", "en"] as const) {

@@ -25,7 +25,8 @@ patterns for forms rather than adding flow to every wrapper.
 Seller Today and Schedule use flow for their top-level sections, including
 conditional loading and verification notices. The same gap separates a notice
 from the following filters without individual margin patches. Existing section
-margins are cleared at this group boundary to avoid double spacing.
+margins are cleared at this group boundary to avoid double spacing. From 1100px wide
+the workspace tightens this gap to 8px so the first order stays above the fold.
 
 Use `Disclosure` for expandable content. It supplies a padded summary, a 12px
 separation before content, and a 12px flow between body blocks. The panel variant

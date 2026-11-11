@@ -1042,7 +1042,7 @@ function SupportBody() {
   const { t } = useApp();
   return (
     <>
-      <div className="workspace-tabs">
+      <div className="workspace-tabs" aria-hidden="true">
         <button type="button" tabIndex={-1} aria-selected="true">
           <MessageCircle size={19} />
           {t("Pesan", "Messages")} <Sk w="1.4em" />
@@ -1396,7 +1396,7 @@ function SettlementBody({
         />
       </section>
       <section className="panel settlement-history">
-        <div className="settlement-tabs">
+        <div className="settlement-tabs" aria-hidden="true">
           {tabs.map((item) => (
             <button
               type="button"
