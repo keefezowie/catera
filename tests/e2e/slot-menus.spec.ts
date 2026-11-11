@@ -696,7 +696,7 @@ test("package wizard publishes composition only and customers buy before dated m
   await expect(
     page
       .locator(".package-contents")
-      .getByText(/Menu belum ditentukan/)
+      .getByText(/Menu belum diisi/)
       .first(),
   ).toBeVisible();
 });
@@ -780,6 +780,12 @@ test("mixed dates start empty, reject a wrong category and confirm slot and date
     .getByRole("button", { name: "Ganti hidangan", exact: true })
     .click();
   await lib.getByLabel("Cari hidangan", { exact: true }).fill(f.soup.name);
+  // Drag only once the replacement dialog has left and the library shows the one soup row at rest.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(lib.locator(".menu-library-row")).toHaveCount(1);
+  await expect(page.locator(".menu-slot").first()).toContainText(
+    f.chicken.name,
+  );
   await dragDish(
     page,
     lib
