@@ -27,12 +27,12 @@ with nutrient_values as (
  select p.id,metric.key,(metric.value#>>'{}')::numeric as minimum,(metric.value#>>'{}')::numeric as maximum
  from v1.packages p
  cross join lateral jsonb_array_elements(coalesce(p.offer->'menus','[]')) menu
- cross join lateral jsonb_each(coalesce(menu->'nutrition','{}')) metric
+ cross join lateral jsonb_each(case when jsonb_typeof(menu->'nutrition')='object' then menu->'nutrition' else '{}' end) metric
  where not(p.offer ? 'nutrition') and jsonb_typeof(metric.value)='number'
  union all
  select p.id,metric.key,(metric.value#>>'{}')::numeric,(metric.value#>>'{}')::numeric
  from v1.packages p join v1.menus m on m.package_id=p.id and m.content_revision=coalesce((p.offer->>'contentRevision')::int,0)
- cross join lateral jsonb_each(coalesce(m.details->'nutrition','{}')) metric
+ cross join lateral jsonb_each(case when jsonb_typeof(m.details->'nutrition')='object' then m.details->'nutrition' else '{}' end) metric
  where not(p.offer ? 'nutrition') and jsonb_typeof(metric.value)='number'
 ), nutrient_bounds as (
  select id,key,min(minimum) minimum,max(maximum) maximum from nutrient_values group by id,key

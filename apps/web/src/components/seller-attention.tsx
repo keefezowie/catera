@@ -93,7 +93,7 @@ export function NeedsAttention({
 
   // Server text that is a bare calendar date reads as one: "Rab 25 Nov", not 2026-11-25.
   const day = (value?: string | null) =>
-    value && /^d{4}-d{2}-d{2}$/.test(value) ? shortDate(value, locale) : value;
+    value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? shortDate(value, locale) : value;
   const labels: Record<SellerAttentionItem["kind"], [string, string]> = {
     production_changed: [
       t("Daftar produksi sudah berubah", "Production list has changed"),
