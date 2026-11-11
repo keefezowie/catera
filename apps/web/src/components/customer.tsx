@@ -93,6 +93,7 @@ import {
   SupportSkeleton,
 } from "./skeletons-customer";
 import { EmbeddedMessagesSkeleton } from "./skeletons-dapur";
+import { AccountHelp } from "./seller-account";
 const dateLabel = (d: string, locale: Locale = "id") =>
   new Date(d + "T12:00:00").toLocaleDateString(
     locale === "id" ? "id-ID" : "en-GB",
@@ -1802,6 +1803,7 @@ export function Account({ view }: { view: string }) {
                   </Select>
                 </div>
               </section>
+              <AccountHelp compact />
               <div className="account-session">
                 <Button
                   variant="text"
