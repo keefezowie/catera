@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   addDays,
   localDay,
+  zoneLabel,
   type CustomerState,
   type SellerOperationsState,
 } from "@catera/domain";
@@ -53,9 +54,18 @@ for (const [width, height] of [
       r.fulfill({ json: { data: { ...state, today: date } } }),
     );
     await page.goto(`/seller?date=${date}&meal=lunch`);
+    // The loading skeleton holds its own order rows; measure the loaded action.
+    await expect(page.locator("main .skeleton-screen")).toHaveCount(0);
     const action = page.locator(".order-next").first();
     await expect(action).toBeVisible();
-    const box = (await action.boundingBox())!;
+    // The row re-renders while the attention card finishes loading; read the box once it is attached.
+    let box = { y: 0, height: 0 };
+    await expect
+      .poll(async () => {
+        box = (await action.boundingBox()) || box;
+        return box.height;
+      })
+      .toBeGreaterThan(0);
     expect(box.y).toBeGreaterThan(0);
     expect(box.y + box.height).toBeLessThanOrEqual(height);
     expect(
@@ -118,14 +128,14 @@ test("delivery cutoff closes change controls while the page stays open and expla
     "Changes closed at",
   );
   await expect(page.locator(".delivery-management-summary")).toContainText(
-    delivery.offer.timezone,
+    zoneLabel(delivery.offer.timezone),
   );
   await expect(
     page.getByRole("link", { name: "Contact caterer", exact: true }),
   ).toBeVisible();
 });
 
-test("marking an order delivered requires review and a conflict preserves recovery", async ({
+test("marking an order arrived requires a photo review and a conflict preserves recovery", async ({
   page,
 }) => {
   await login(page, "owner");
@@ -137,14 +147,28 @@ test("marking an order delivered requires review and a conflict preserves recove
     meals: delivery.meals.map((meal) => ({
       ...meal,
       status: "out_for_delivery",
+      arrived_at: null,
+      arrived_photo: null,
+      confirmed_at: null,
+      confirmed_by: null,
     })),
   }));
   await page.route(`**/api/v1/seller/${catererId}*`, (route) =>
     route.fulfill({ json: { data: { ...state, today: date, deliveries } } }),
   );
+  // Synthetic upload: no file reaches storage and no delivery changes.
+  let uploads = 0;
+  await page.route("**/api/uploads/proof", (route) => {
+    uploads++;
+    return route.fulfill({
+      json: { data: { path: "proofs/synthetic-arrival.png" } },
+    });
+  });
   let mutations = 0;
+  let payload: { photos?: Record<string, string> } = {};
   await page.route("**/api/v1/commands", async (route) => {
     mutations++;
+    payload = route.request().postDataJSON().payload;
     await route.fulfill({
       status: 409,
       json: {
@@ -154,30 +178,40 @@ test("marking an order delivered requires review and a conflict preserves recove
   });
 
   await page.goto(`/seller?date=${date}&meal=lunch`);
+  await expect(page.locator("main .skeleton-screen")).toHaveCount(0);
   await page.locator(".order-next").first().click();
-  await expect(
-    page.getByRole("dialog", { name: "Confirm meals received" }),
-  ).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "Mark arrived with a photo" });
+  await expect(dialog).toBeVisible();
   expect(mutations).toBe(0);
-  await expect(page.locator(".bulk-confirmation")).toContainText("Delivered");
+  await expect(page.locator(".bulk-confirmation")).toContainText(
+    "Marked arrived",
+  );
   await expect(page.locator(".confirmation-orders")).toContainText(
     deliveries[0].customer.name,
   );
   await expect(page.locator(".confirmation-orders")).toContainText(
     deliveries[0].offer.name,
   );
-  await page.getByRole("dialog").getByRole("checkbox").check();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Mark received", exact: true })
-    .click();
+  const confirm = dialog.getByRole("button", { name: /^Mark arrived · 1$/ });
+  await expect(confirm).toBeDisabled();
+  await dialog.locator('.proof-photo input[type="file"]').setInputFiles({
+    name: "synthetic-arrival.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "base64",
+    ),
+  });
+  await confirm.click();
   await expect(page.locator(".ops-orders-panel [role=alert]")).toContainText(
     "This batch made no changes",
   );
+  expect(uploads).toBe(1);
   expect(mutations).toBe(1);
-  await expect(
-    page.getByRole("dialog", { name: "Confirm meals received" }),
-  ).toHaveCount(0);
+  expect(Object.values(payload.photos || {})).toEqual([
+    "proofs/synthetic-arrival.png",
+  ]);
+  await expect(dialog).toHaveCount(0);
   await expect(
     page
       .locator(".ops-orders-panel [role=alert]")
@@ -295,19 +329,23 @@ for (const locale of ["en", "id"]) {
       await (await page.request.get("/api/v1/customer")).json()
     ).data;
     const delivery = customer.deliveries.find((d) => d.status === "scheduled")!;
-    let reads = 0;
+    // The delivery stays changeable through every read until the change is sent, however often the page reads it;
+    // only the reads after the conflict show the newer truth.
+    let commands = 0;
+    let readsAfterConflict = 0;
     await page.route("**/api/v1/customer?deliveryId=*", async (route) => {
-      reads++;
+      const before = commands === 0;
+      if (!before) readsAfterConflict++;
       const current = {
         ...delivery,
-        canChange: reads === 1,
-        status: reads === 1 ? "scheduled" : "delivered",
+        canChange: before,
+        status: before ? "scheduled" : "delivered",
         cutoff_at: new Date(Date.now() + 3600000).toISOString(),
-        version: delivery.version + (reads === 1 ? 0 : 1),
+        version: delivery.version + (before ? 0 : 1),
         offer: { ...delivery.offer, flexible: true },
         meals: delivery.meals.map((m) => ({
           ...m,
-          status: reads === 1 ? "scheduled" : "delivered",
+          status: before ? "scheduled" : "delivered",
         })),
       };
       await route.fulfill({
@@ -328,7 +366,6 @@ for (const locale of ["en", "id"]) {
         },
       }),
     );
-    let commands = 0;
     await page.route("**/api/v1/commands", (route) => {
       commands++;
       return route.fulfill({
@@ -360,7 +397,7 @@ for (const locale of ["en", "id"]) {
         exact: true,
       })
       .click();
-    await expect.poll(() => reads).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => readsAfterConflict).toBeGreaterThanOrEqual(1);
     await expect(
       page.getByRole("dialog").getByRole("alert").first(),
     ).toContainText(locale === "en" ? "Arrived" : "Sampai");
