@@ -234,8 +234,15 @@ test("responsive calendar and picker, keyboard, atomic multi-date selection and 
       fullPage: true,
       animations: "disabled",
     });
-    await page.locator("button.menu-day").first().focus();
-    await page.keyboard.press("Enter");
+    // The calendar moves focus to its month heading when it finishes loading; open the day by keyboard after that.
+    await expect(page.locator("main .skeleton-screen")).toHaveCount(0);
+    await expect(async () => {
+      await page.locator("button.menu-day").first().focus();
+      await page.keyboard.press("Enter");
+      await expect(page.locator(".menu-slot-select").first()).toBeVisible({
+        timeout: 3000,
+      });
+    }).toPass({ timeout: 20000 });
     await selectDish(page, 0, f.names[0]);
     await selectDish(page, 1, f.names[1]);
     await page.evaluate(() => window.scrollTo(0, 0));
