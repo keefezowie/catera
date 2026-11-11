@@ -32,7 +32,9 @@ for (const locale of ["id", "en"])
       for (const path of ["transactions", "settings"]) {
         await page.goto(`/seller/${path}`);
         if (path === "transactions") await page.getByRole("tab", { name: /^(Pencairan|Payouts)$/ }).click();
-        await expect(page.locator("#payout")).toBeVisible();
+        // The loading skeleton and the streamed copy outside main carry their own #payout; check the loaded one.
+        await expect(page.locator("main .skeleton-screen")).toHaveCount(0);
+        await expect(page.locator("#main #payout")).toBeVisible();
         await expect(
           page.getByText(/Datanya tidak ditemukan|We couldn't find that/),
         ).toHaveCount(0);
@@ -240,9 +242,11 @@ test("seller package modes, inline schedule filters, and subscription-only custo
   await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   const customer = (await (await page.request.get("/api/v1/customer")).json())
     .data;
+  // A new address without a map pin: the stored one reads back null coordinates, which a save does not accept.
   const destination = {
-    ...customer.addresses[0],
-    id: undefined,
+    area: customer.addresses[0].area,
+    city: customer.addresses[0].city,
+    instructions: customer.addresses[0].instructions,
     label: "Kantor UI",
     line: `Jalan Kantor UI ${stamp}`,
   };
