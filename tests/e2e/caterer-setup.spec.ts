@@ -306,6 +306,10 @@ for (const locale of ["id", "en"] as const) {
         name: copy(locale, "Tentang makananmu", "About your food"),
         exact: true,
       });
+      // The address preview gains the site origin once the form is interactive; typing earlier is lost to hydration.
+      await expect(slug).toHaveAccessibleDescription(
+        new RegExp("^" + baseURL + "/caterers/"),
+      );
       await name.fill("Synthetic Dapur Pertama");
       await expect(slug).toHaveValue("synthetic-dapur-pertama");
       await name.fill("Synthetic Dapur Kedua");
