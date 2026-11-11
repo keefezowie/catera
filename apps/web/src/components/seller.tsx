@@ -17,7 +17,7 @@ import { SellerOperations } from "./seller-operations";
 import { SellerReadiness } from "./seller-readiness";
 import { PackageContents } from "./package-contents";
 import { type MealMenu, type PackageType } from "@catera/domain";
-import { salesHistory } from "@catera/domain";
+import { salesHistory, zoneLabel } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { PhotoUpload } from "./photo-upload";
 import { CompositionEditor, compositionDraft } from "./composition-editor";
@@ -1566,7 +1566,7 @@ function OfferEditor({
                       "Batas perubahan tanggal adalah",
                       "The date-change cutoff is",
                     )}{" "}
-                    {caterer.cutoff.slice(0, 5)} {caterer.timezone}{" "}
+                    {caterer.cutoff.slice(0, 5)} {zoneLabel(caterer.timezone)}{" "}
                     {t(
                       "sehari sebelum pengantaran. Jam pengantaran mengikuti zona waktu katering.",
                       "on the day before delivery. Delivery windows use the caterer's timezone.",
@@ -1894,7 +1894,7 @@ function OfferEditor({
                       value.windows[meal as "lunch" | "dinner"],
                   )
                   .join(" · ")}{" "}
-                · {caterer.timezone}
+                · {zoneLabel(caterer.timezone)}
               </p>
               <p>
                 {value.flexible
@@ -2524,7 +2524,7 @@ function SellerProfile({ state: s }: { state: SellerState }) {
         <p>{s.caterer.description}</p>
         <p>{s.caterer.area.join(", ")}</p>
         <p>
-          {s.caterer.cutoff} · {s.caterer.timezone}
+          {s.caterer.cutoff} · {zoneLabel(s.caterer.timezone)}
         </p>
         <Status status={s.caterer.status} />
         <p>{s.caterer.review_note}</p>
@@ -2622,7 +2622,7 @@ function SellerProfile({ state: s }: { state: SellerState }) {
               onValueChange={(cutoff) => setProfile({ ...profile, cutoff })}
             />
           </Field>
-          <p>{s.caterer.timezone}</p>
+          <p>{zoneLabel(s.caterer.timezone)}</p>
           {dirty && (
             <Button
               type="button"

@@ -34,6 +34,7 @@ import {
   operationalGroups,
   type SellerOperationsState,
   type SellerDelivery,
+  zoneLabel,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { useJourneyQuery } from "./journey-state";
@@ -358,7 +359,7 @@ function OperationsPage({
               ? t("Hari ini", "Today")
               : t("Operasional", "Operations")
         }
-        description={formatDate(date) + " · " + s.caterer.timezone}
+        description={formatDate(date) + " · " + zoneLabel(s.caterer.timezone)}
       >
         <Link
           className="button secondary"
@@ -903,7 +904,7 @@ function OperationsPage({
                 {deadlines.length === 1 && (
                   <>
                     {" "}
-                    · {formatDeadline(deadlines[0].at)} · {s.caterer.timezone}
+                    · {formatDeadline(deadlines[0].at)} · {zoneLabel(s.caterer.timezone)}
                   </>
                 )}
               </span>
@@ -931,7 +932,7 @@ function OperationsPage({
                 <span>
                   <strong>{formatDeadline(d.at)}</strong>
                   <small>
-                    {s.caterer.timezone} · {d.orders}{" "}
+                    {zoneLabel(s.caterer.timezone)} · {d.orders}{" "}
                     {t("pesanan", d.orders === 1 ? "order" : "orders")}
                   </small>
                 </span>

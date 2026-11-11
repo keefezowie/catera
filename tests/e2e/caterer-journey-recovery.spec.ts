@@ -49,6 +49,13 @@ for (const locale of ["id", "en"])
       await expect(page.locator("main .error-notice:visible")).toHaveCount(0);
     }
     await page.goto("/seller/transactions");
+    // The loading skeleton holds the same summary and an inert refresh button; the first read must finish first.
+    const refresh = page.getByRole("button", {
+      name: locale === "id" ? "Perbarui saldo" : "Refresh balances",
+      exact: true,
+    });
+    await expect(refresh).toBeEnabled();
+    await expect(page.locator("main .skeleton-screen")).toHaveCount(0);
     await expect(page.locator(".settlement-summary")).toBeVisible();
     const previous = await page.locator(".settlement-summary").textContent();
     await page.route("**/api/v1/seller-settlement/**", (route) =>
@@ -57,12 +64,7 @@ for (const locale of ["id", "en"])
         json: { error: { code: "REQUEST_FAILED" } },
       }),
     );
-    await page
-      .getByRole("button", {
-        name: locale === "id" ? "Perbarui saldo" : "Refresh balances",
-        exact: true,
-      })
-      .click();
+    await refresh.click();
     await expect(
       page.locator(".settlement-screen .error-notice"),
     ).toBeVisible();
@@ -290,7 +292,11 @@ test("verification states are truthful and rejected profile saves preserve data"
       }),
     );
     await page.goto("/seller/profile");
-    await expect(page.locator(".verification-help")).toContainText(text);
+    // The profile skeleton renders its own verification panel while the page streams in.
+    await expect(page.locator("main .skeleton-screen")).toHaveCount(0);
+    await expect(page.locator(".verification-help:visible")).toContainText(
+      text,
+    );
     await page.unrouteAll();
   }
   await page
@@ -338,6 +344,9 @@ test("200 percent reflow retains usable controls", async ({
   ]) {
     await page.goto("/seller" + path);
     await expect(page.locator("main h1")).toBeVisible();
+    // Zoom and audit the loaded page, not its loading skeleton.
+    await expect(page.locator("main .mascot-loading:visible")).toHaveCount(0);
+    await expect(page.locator("main .skeleton-screen")).toHaveCount(0);
     await page
       .locator("body")
       .evaluate((element) => (element.style.zoom = "2"));

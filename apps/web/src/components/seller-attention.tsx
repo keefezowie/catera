@@ -7,6 +7,8 @@ import {
   type SellerAttentionItem,
   type SellerAttentionPage,
   type SupportCase,
+  shortDate,
+  zoneLabel,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { ActionForm, Dialog, Field, ErrorNotice } from "./ui";
@@ -89,6 +91,9 @@ export function NeedsAttention({
     if (!loadedMore.current) setNextCursor(state.data.nextCursor);
   }, [state.data]);
 
+  // Server text that is a bare calendar date reads as one: "Rab 25 Nov", not 2026-11-25.
+  const day = (value?: string | null) =>
+    value && /^d{4}-d{2}-d{2}$/.test(value) ? shortDate(value, locale) : value;
   const labels: Record<SellerAttentionItem["kind"], [string, string]> = {
     production_changed: [
       t("Daftar produksi sudah berubah", "Production list has changed"),
@@ -166,7 +171,7 @@ export function NeedsAttention({
             ? t(`Mulai ${scopeDate}`, `From ${scopeDate}`)
             : t("Seluruh tanggal", "All dates")}
         {` · ${mealScope ? mealLabel(mealScope, locale) : t("siang + malam", "lunch + dinner")}`}
-        {state.data?.timezone ? ` · ${state.data.timezone}` : ""}
+        {state.data?.timezone ? ` · ${zoneLabel(state.data.timezone)}` : ""}
       </p>
       <Button
         type="button"
@@ -253,14 +258,14 @@ export function NeedsAttention({
                   onClick={() => setDesktopExpanded(false)}
                 >
                   <span>
-                    <strong>{item.context || labels[item.kind][0]}</strong>
+                    <strong>{day(item.context) || labels[item.kind][0]}</strong>
                     <small className="attention-kind">
                       {labels[item.kind][0]}
                     </small>
                     <small>
                       {[
                         customers.get(item.id),
-                        item.serviceDate,
+                        day(item.serviceDate),
                         item.meal ? mealLabel(item.meal, locale) : null,
                         item.packageName,
                       ]
@@ -286,7 +291,7 @@ export function NeedsAttention({
                             },
                           )}
                         </time>{" "}
-                        · {state.data?.timezone || "Asia/Jakarta"}
+                        · {zoneLabel(state.data?.timezone || "Asia/Jakarta")}
                       </span>
                     </small>
                     {(item.kind === "choice_deadline" ||
@@ -297,7 +302,7 @@ export function NeedsAttention({
                           locale === "id" ? "id-ID" : "en-GB",
                           { timeZone: state.data!.timezone },
                         )}{" "}
-                        · {state.data!.timezone}
+                        · {zoneLabel(state.data!.timezone)}
                       </small>
                     )}
                     <small>
