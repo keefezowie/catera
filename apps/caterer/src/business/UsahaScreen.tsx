@@ -199,7 +199,7 @@ export function UsahaScreen() {
                       // A draft with no price yet shows only its state: no stand-in for a value the read does not hold.
                       const state = packageState(o.status, ops.data?.caterer.status, t);
                       const detail = o.price === null ? state : `${currency(o.price, locale)} · ${state}`;
-                      const meta = o.price === null ? state : `${currency(o.price, locale)} / ${t("makan", "meal")} · ${state}`;
+                      const meta = o.price === null ? state : `${currency(o.price, locale)} / ${o.meal === "both" ? t("hari", "day") : t("makan", "meal")} · ${state}`;
                       const image = o.image ? photoUri(o.image, runtime.apiBase) : undefined;
                       return (
                         <View key={o.id} style={{ flexDirection: "row", alignItems: "center", gap: nativeLayout.space.sm }}>

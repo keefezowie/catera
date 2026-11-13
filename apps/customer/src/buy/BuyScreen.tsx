@@ -434,7 +434,11 @@ export function BuyScreen({
                 <Button
                   variant="text"
                   label={t("Tandai titik", "Mark the spot")}
-                  onPress={() => router.push(addressFormHref(true, address.id) as never)}
+                  onPress={() => {
+                    // Saving an address reorders the list; keep the one being marked as this purchase's address.
+                    setAddressId(address.id);
+                    router.push(addressFormHref(true, address.id) as never);
+                  }}
                 />
               </View>
             ) : null}
