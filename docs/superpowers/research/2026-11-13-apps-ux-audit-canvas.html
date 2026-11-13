@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catera apps: UX audit design drafts</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#173D2F;--sage:#E1EBDB;--cream:#FFF8EC;--ink:#1F2A24;--muted:#66706A;--line:#E3E6DF;--field:#F1F2EE;--sun:#E8862E;--bg:#F5F4EF}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.45}
+header{padding:32px 24px 8px;max-width:1180px;margin:auto}
+h1{font-size:28px;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:70ch}
+main{max-width:1180px;margin:auto;padding:8px 24px 64px}
+section{margin-top:40px;border-top:1px solid var(--line);padding-top:24px}
+h2{font-size:20px;margin:0 0 4px}
+.why{color:var(--muted);margin:0 0 18px;max-width:75ch}
+.row{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+figure{margin:0;width:300px}
+figcaption{font-size:13px;color:var(--muted);margin-top:10px}
+figcaption b{color:var(--ink)}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:99px;margin-bottom:8px}
+.now{background:#ECE7DC;color:#6B5B3A}.new{background:var(--forest);color:#fff}
+.phone{width:300px;height:620px;border-radius:34px;background:#fff;border:8px solid #1c1c1c;overflow:hidden;position:relative;display:flex;flex-direction:column;font-size:13px}
+.top{background:var(--sage);padding:26px 16px 16px;border-radius:0 0 22px 22px}
+.top h3{margin:0;font-size:22px;letter-spacing:-.02em}
+.top small{color:var(--muted)}
+.body{flex:1;padding:14px 16px;overflow:hidden}
+.tabs{display:flex;justify-content:space-around;padding:10px 0 14px;background:#EEEDEA;font-size:10px;color:var(--muted)}
+.tabs span{display:flex;flex-direction:column;align-items:center;gap:3px}
+.tabs i{width:34px;height:18px;border-radius:9px;display:block;background:#d9d8d3}
+.tabs .on{color:var(--forest);font-weight:700}.tabs .on i{background:#B9CDB8}
+.btn{display:flex;align-items:center;justify-content:center;height:44px;border-radius:22px;background:var(--forest);color:#fff;font-weight:600;font-size:14px}
+.btn.ghost{background:#fff;color:var(--forest);border:1.5px solid var(--line)}
+.btn.off{background:#CBD3C6;color:#5d665f}
+.btn.sm{height:34px;padding:0 14px;font-size:12px;display:inline-flex}
+.card{border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px;background:#fff}
+.li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border-bottom:0}
+.ic{width:34px;height:34px;border-radius:50%;background:var(--field);flex:none;display:grid;place-items:center;font-size:15px}
+.li div{flex:1;min-width:0}.li small,.m{color:var(--muted);font-size:11.5px;display:block}
+.act{color:var(--forest);font-weight:700;font-size:12.5px;white-space:nowrap}
+.err{color:#A12B22;border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0}
+.note{background:var(--cream);border:1px solid #F1E3C8;border-radius:14px;padding:10px 12px}
+.chip{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:14px;border:1px solid var(--line);font-size:11.5px;font-weight:600;margin-right:5px;background:#fff}
+.chip.on{background:var(--forest);color:#fff;border-color:var(--forest)}
+.day{flex:1;border:1.5px solid #9DB09B;border-radius:10px;text-align:center;padding:5px 0;font-size:11px;background:#fff}
+.day b{display:block;font-size:14px}.day.on{background:var(--forest);color:#fff;border-color:var(--forest)}
+.day.lock{border-style:dashed;color:var(--muted);background:transparent}
+.foot{padding:10px 16px 14px;border-top:1px solid var(--line)}
+.art{height:120px;border-radius:18px;background:var(--sage);display:grid;place-items:center;font-size:54px;margin-bottom:14px}
+.search{height:40px;border-radius:20px;background:var(--field);display:flex;align-items:center;padding:0 14px;color:var(--muted);margin-bottom:10px}
+.bar{height:6px;border-radius:3px;background:var(--field);overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--forest)}
+.sum{display:flex;gap:14px;font-size:11.5px;color:var(--muted)}.sum b{color:var(--ink);font-size:16px;display:block}
+ul.pts{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+<h1>Catera apps: UX audit design drafts</h1>
+<p>Drafts for review before any code. Each pair shows what the emulator shows today (13 Nov 2026) next to the proposed change. Wireframe fidelity: real copy, approved palette, placeholder icons. Artwork and final spacing follow DESIGN.md at build time.</p>
+</header>
+<main>
+
+<section>
+<h2>1. Customer · Beli: the map pin is a step, not an error</h2>
+<p class="why">Today the first thing a buyer with an older address sees is a red error, a dash for the total and a dead Bayar button, before they have done anything wrong. The pin becomes part of the address row, the price shows straight away, and the button says what to do next.</p>
+<div class="row">
+<figure><span class="tag now">Today</span>
+<div class="phone"><div class="body" style="padding-top:28px"><h3 style="margin:0 0 10px;font-size:22px">Beli</h3>
+<div class="card"><div class="li"><span class="ic">📅</span><div><small>Mulai</small><b>Senin 16 Nov</b></div><span class="act">Ubah tanggal</span></div>
+<div class="li"><span class="ic">🍴</span><div><b>Porsi per hari</b></div><span>− 1 +</span></div>
+<div class="li"><span class="ic">📍</span><div><small>Diantar ke</small><b>Rumah</b><small>Jl. Contoh No. 12, Kebayoran Baru</small></div><span class="act">Ganti alamat</span></div></div>
+<div class="err">⛔ Tandai titik lokasi alamat ini dulu.</div><span class="act">Tandai titik</span>
+<h3 style="font-size:16px;margin:18px 0 8px">Bayar dengan</h3><div class="card" style="border:1.5px solid var(--forest)">Pilih cara bayar di halaman berikutnya.</div></div>
+<div class="foot"><small class="m">Tandai titik lokasi alamat ini dulu.</small><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><div><small class="m">Total</small><b>–</b></div><span class="btn off" style="width:150px">Bayar</span></div></div></div>
+<figcaption>Red error on arrival, no price, and a selected-looking "Bayar dengan" card that does nothing.</figcaption></figure>
+
+<figure><span class="tag new">Proposed</span>
+<div class="phone"><div class="body" style="padding-top:28px"><h3 style="margin:0 0 10px;font-size:22px">Beli</h3>
+<div class="card"><div class="li"><span class="ic">📅</span><div><small>Mulai</small><b>Senin 16 Nov</b></div><span class="act">Ubah tanggal</span></div>
+<div class="li"><span class="ic">🍴</span><div><b>Porsi per hari</b></div><span>− 1 +</span></div>
+<div class="li" style="border-bottom:0"><span class="ic">📍</span><div><small>Diantar ke</small><b>Rumah</b><small>Jl. Contoh No. 12, Kebayoran Baru</small></div><span class="act">Ganti alamat</span></div>
+<div class="note" style="display:flex;align-items:center;gap:10px"><div style="flex:1"><b>Tandai titik di peta</b><small class="m">Sekali saja, supaya kurir sampai di pintu yang benar.</small></div><span class="btn sm">Tandai</span></div></div>
+<h3 style="font-size:16px;margin:16px 0 8px">Rincian</h3>
+<div class="card"><div style="display:flex;justify-content:space-between"><span>10 hari × 1 porsi</span><b>Rp 650.000</b></div><div style="display:flex;justify-content:space-between;margin-top:6px"><span>Biaya layanan</span><span>Rp 2.500</span></div></div>
+<small class="m">Cara bayar dipilih di langkah berikutnya.</small></div>
+<div class="foot"><div style="display:flex;justify-content:space-between;align-items:center"><div><small class="m">Total</small><b style="font-size:16px">Rp 652.500</b></div><span class="btn" style="width:170px">Tandai titik dulu</span></div></div></div>
+<figcaption><b>Change:</b> cream setup note inside the address card, price always visible, the footer button leads to the missing step, and the fake payment card becomes one line of text.</figcaption></figure>
+</div></section>
+
+<section>
+<h2>2. Customer · Jadwal and Akun before sign-in</h2>
+<p class="why">Two of four tabs are a sentence and a button on a blank page. A guest should see what they would get and have a second way forward.</p>
+<div class="row">
+<figure><span class="tag now">Today</span>
+<div class="phone"><div class="top"><h3>Jadwal</h3><small>Masuk dulu untuk melihat paket dan jadwal pengantaranmu.</small></div><div class="body"><span class="btn">Masuk</span></div>
+<div class="tabs"><span><i></i>Beranda</span><span class="on"><i></i>Jadwal</span><span><i></i>Jelajah</span><span><i></i>Akun</span></div></div>
+<figcaption>Empty page; no hint of what the tab does; no route for someone without an account.</figcaption></figure>
+<figure><span class="tag new">Proposed</span>
+<div class="phone"><div class="top"><h3>Jadwal</h3></div><div class="body"><div class="art">🍱</div>
+<b style="font-size:16px">Semua jadwal makanmu di sini</b>
+<ul class="pts"><li>Lihat menu tiap hari antar</li><li>Pindah tanggal sebelum jam 17.00</li><li>Kabar saat makanan dimasak dan diantar</li></ul>
+<div style="height:16px"></div><span class="btn">Masuk atau daftar</span><div style="height:8px"></div><span class="btn ghost">Lihat paket dulu</span></div>
+<div class="tabs"><span><i></i>Beranda</span><span class="on"><i></i>Jadwal</span><span><i></i>Jelajah</span><span><i></i>Akun</span></div></div>
+<figcaption><b>Change:</b> existing mascot artwork, three concrete benefits, one primary and one way back to browsing. Akun gets the same pattern with its own three lines.</figcaption></figure>
+</div></section>
+
+<section>
+<h2>3. Customer · Bayar: one main action</h2>
+<p class="why">The pay page has two full-width forest buttons ("Bayar" at the top, "Sudah bayar? Cek status" at the bottom) and a large blank middle. The order summary is missing at the moment of paying.</p>
+<div class="row">
+<figure><span class="tag now">Today</span>
+<div class="phone"><div class="body" style="padding-top:28px;text-align:center"><h3 style="text-align:left;font-size:22px;margin:0 0 14px">Bayar</h3><small class="m">Total</small><b style="font-size:24px">Rp 652.500</b><small class="m" style="margin:4px 0 12px"><b>Bayar dalam 14:55</b></small><span class="btn">Bayar (demo)</span><div class="card" style="text-align:left;margin-top:10px;background:var(--field)">Jadwalmu kami tahan 15 menit. Lewat dari itu, kami cek ulang dulu.</div><span class="act">Bantuan pembayaran</span></div>
+<div class="foot"><span class="btn">Sudah bayar? Cek status</span></div></div>
+<figcaption>Two primaries compete; nothing says what is being paid for.</figcaption></figure>
+<figure><span class="tag new">Proposed</span>
+<div class="phone"><div class="body" style="padding-top:28px"><h3 style="font-size:22px;margin:0 0 12px">Bayar</h3>
+<div class="card" style="display:flex;gap:10px;align-items:center"><span class="ic" style="border-radius:10px;width:44px;height:44px">🍛</span><div><b>Rantang Nusantara</b><small class="m">10 hari · mulai Senin 16 Nov · Rumah</small></div></div>
+<div style="text-align:center;margin:14px 0"><small class="m">Total</small><b style="font-size:26px">Rp 652.500</b><div><span class="chip" style="margin-top:6px;border-color:#F1D3B0;background:var(--cream)">⏱ Jadwal ditahan 14:55</span></div></div>
+<span class="btn">Bayar sekarang</span><div style="height:8px"></div><span class="btn ghost">Sudah bayar? Cek status</span>
+<p style="text-align:center;margin-top:14px"><span class="act">Bantuan pembayaran</span></p></div></div>
+<figcaption><b>Change:</b> order summary on top, countdown as a chip with its reason, one primary, status check demoted to secondary.</figcaption></figure>
+</div></section>
+
+<section>
+<h2>4. Dapur · Menu opens on the next day you can still fill</h2>
+<p class="why">The Menu tab opens on today, which is locked, so the owner lands on "Sudah tidak bisa diubah" and two disabled buttons. Filling menus is the kitchen's main weekly job; the tab should start where work is possible and show how much is left.</p>
+<div class="row">
+<figure><span class="tag now">Today</span>
+<div class="phone"><div class="top"><small>Minggu ini</small><h3 style="text-align:center;font-size:18px">‹ 9–13 Nov ›</h3><div style="display:flex;gap:5px;margin-top:8px"><span class="day">Sen<b>9</b></span><span class="day">Sel<b>10</b></span><span class="day">Rab<b>11</b></span><span class="day">Kam<b>12</b></span><span class="day on">Jum<b>13</b></span></div></div>
+<div class="body"><span class="chip on">Ayam Panggang Harian</span><span class="chip">Rantang…</span><div style="display:flex;gap:8px;margin:10px 0"><span class="btn ghost off" style="flex:1;background:#fff">Salin minggu lalu</span><span class="btn ghost off" style="flex:1;background:#fff">Bagikan menu</span></div><small class="m">Minggu lalu belum ada menu untuk disalin</small><small class="m">Belum ada menu untuk dibagikan</small><h3 style="font-size:17px;margin:16px 0 6px">Jumat 13 Nov</h3><small class="m">Sudah tidak bisa diubah</small></div>
+<div class="tabs"><span><i></i>Hari ini</span><span><i></i>Pelanggan</span><span class="on"><i></i>Menu</span><span><i></i>Usaha</span></div></div>
+<figcaption>Lands on a locked day; two disabled buttons with apologies; no sense of progress.</figcaption></figure>
+<figure><span class="tag new">Proposed</span>
+<div class="phone"><div class="top"><small>Minggu depan</small><h3 style="text-align:center;font-size:18px">‹ 16–20 Nov ›</h3><div style="display:flex;gap:5px;margin-top:8px"><span class="day on">Sen<b>16</b></span><span class="day">Sel<b>17 •</b></span><span class="day">Rab<b>18 •</b></span><span class="day">Kam<b>19</b></span><span class="day">Jum<b>20</b></span></div>
+<div class="bar"><i style="width:40%"></i></div><small>2 dari 5 hari terisi · tutup Minggu 17.00</small></div>
+<div class="body"><span class="chip on">Ayam Panggang Harian</span><span class="chip">Rantang…</span>
+<h3 style="font-size:17px;margin:14px 0 8px">Senin 16 Nov</h3>
+<div class="card" style="border-style:dashed;text-align:center;padding:18px 12px"><b>Menu belum diisi</b><small class="m" style="margin:4px 0 12px">7 porsi sudah dipesan untuk hari ini.</small><span class="btn">Isi menu</span><div style="height:8px"></div><span class="act">Salin dari Rabu 18 Nov</span></div>
+<small class="m">Hari yang sudah lewat tetap bisa dilihat dengan ‹.</small></div>
+<div class="tabs"><span><i></i>Hari ini</span><span><i></i>Pelanggan</span><span class="on"><i></i>Menu</span><span><i></i>Usaha</span></div></div>
+<figcaption><b>Change:</b> opens on the first editable day, week progress with the cutoff, one clear "Isi menu" with a copy shortcut, and unavailable actions are hidden instead of disabled. Locked days show the served menu read-only.</figcaption></figure>
+</div></section>
+
+<section>
+<h2>5. Dapur · Pelanggan: find people and act on renewals</h2>
+<p class="why">Every row says "Berakhir hari ini" under the Aktif chip, with no search and no action until the detail page. Renewal is the kitchen's revenue moment, so it moves onto the list.</p>
+<div class="row">
+<figure><span class="tag now">Today</span>
+<div class="phone"><div class="body" style="padding-top:28px"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:22px">Pelanggan</h3><span class="act">+ Impor pelanggan</span></div><div style="margin:12px 0"><span class="chip on">Aktif · 6</span><span class="chip">Segera berakhir · 6</span><span class="chip">Selesai · 0</span></div>
+<div class="card"><div class="li"><div><b>Budi Contoh</b><small>Rantang Nusantara · Berakhir hari ini · Jakarta Pusat</small></div></div><div class="li"><div><b>Dimas Contoh</b><small>Rantang Nusantara · Berakhir hari ini · Jakarta Pusat</small></div></div><div class="li"><div><b>Maya Contoh</b><small>Rantang Nusantara · Berakhir hari ini · Jakarta Selatan</small></div></div><div class="li"><div><b>Nadia Putri</b><small>Rantang Nusantara · Berakhir hari ini · +2 paket lain</small></div></div></div></div>
+<div class="tabs"><span><i></i>Hari ini</span><span class="on"><i></i>Pelanggan</span><span><i></i>Menu</span><span><i></i>Usaha</span></div></div>
+<figcaption>No search, no initials, same people counted in two chips, renewal two taps away.</figcaption></figure>
+<figure><span class="tag new">Proposed</span>
+<div class="phone"><div class="body" style="padding-top:28px"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:22px">Pelanggan</h3><span class="act">+ Impor</span></div>
+<div class="search" style="margin-top:12px">🔍 Cari nama atau area</div>
+<div style="margin-bottom:10px"><span class="chip on">Perlu diperpanjang · 6</span><span class="chip">Aktif · 0</span><span class="chip">Selesai</span></div>
+<div class="note" style="margin-bottom:10px;display:flex;align-items:center;gap:8px"><div style="flex:1"><b>6 paket berakhir hari ini</b><small class="m">Kirim tautan perpanjang lewat WhatsApp.</small></div><span class="btn sm">Kirim semua</span></div>
+<div class="card"><div class="li"><span class="ic">BC</span><div><b>Budi Contoh</b><small>Rantang Nusantara · Jakarta Pusat</small></div><span class="act">Kirim tautan</span></div><div class="li"><span class="ic">DC</span><div><b>Dimas Contoh</b><small>Rantang Nusantara · Jakarta Pusat</small></div><span class="act">Kirim tautan</span></div><div class="li"><span class="ic">MC</span><div><b>Maya Contoh</b><small>Rantang Nusantara · Jakarta Selatan</small></div><span class="act" style="color:var(--muted)">Terkirim ✓</span></div></div></div>
+<div class="tabs"><span><i></i>Hari ini</span><span class="on"><i></i>Pelanggan</span><span><i></i>Menu</span><span><i></i>Usaha</span></div></div>
+<figcaption><b>Change:</b> search, initials, chips that do not overlap (ending people leave Aktif), a renewal banner with a bulk action, and a per-row "Kirim tautan" that records when it was sent.</figcaption></figure>
+</div></section>
+
+<section>
+<h2>6. Dapur · Hari ini: give the cooking list the screen</h2>
+<p class="why">The summary card, the shopping link and the pinned "Mulai masak" button leave room for barely one row of the cooking list, which is the reason the screen exists.</p>
+<div class="row">
+<figure><span class="tag now">Today</span>
+<div class="phone"><div class="top"><small>Dapur Senja · Hari ini</small><h3 style="font-size:19px">Jumat 13 Nov</h3><div style="display:flex;gap:4px;margin:8px 0"><span class="day">9</span><span class="day">10</span><span class="day">11</span><span class="day">12</span><span class="day on">13</span><span class="day">14</span><span class="day">15</span></div><div class="card" style="margin:0"><div class="sum"><span>porsi<b>7</b></span><span>paket<b>1</b></span><span>alamat<b>6</b></span></div><small class="m">Antar 17.00</small></div></div>
+<div class="body"><div class="card">🧺 <b>Belanja 7 hari</b><small class="m">Porsi per menu, Jumat 13 Nov sampai Kamis 19 Nov</small></div><b style="font-size:16px">Daftar masak</b><div class="li"><b>7</b><div>Nasi putih</div><span class="ic" style="background:#fff;border:1.5px solid var(--forest)"></span></div></div>
+<div class="foot"><span class="btn">Mulai masak</span></div>
+<div class="tabs"><span class="on"><i></i>Hari ini</span><span><i></i>Pelanggan</span><span><i></i>Menu</span><span><i></i>Usaha</span></div></div>
+<figcaption>One cooking row visible above the fold.</figcaption></figure>
+<figure><span class="tag new">Proposed</span>
+<div class="phone"><div class="top" style="padding-bottom:12px"><small>Dapur Senja · Hari ini</small><h3 style="font-size:19px">Jumat 13 Nov</h3><div style="display:flex;gap:4px;margin:8px 0 6px"><span class="day">9</span><span class="day">10</span><span class="day">11</span><span class="day">12</span><span class="day on">13</span><span class="day">14</span><span class="day">15</span></div><small><b>7 porsi</b> · 1 paket · 6 alamat · antar 17.00</small></div>
+<div class="body"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:16px">Daftar masak</b><span class="act">🧺 Belanja</span></div>
+<div class="li"><b>7</b><div>Nasi putih</div><span class="ic" style="background:#fff;border:1.5px solid var(--forest)"></span></div><div class="li"><b>7</b><div>Ikan kembung balado</div><span class="ic" style="background:#fff;border:1.5px solid var(--forest)"></span></div><div class="li"><b>7</b><div>Tumis kangkung</div><span class="ic" style="background:#fff;border:1.5px solid var(--forest)"></span></div><div class="li"><b>7</b><div>Acar timun</div><span class="ic" style="background:#fff;border:1.5px solid var(--forest)"></span></div>
+<b style="font-size:16px;display:block;margin-top:12px">Urutan antar</b><div class="li"><span class="ic">1</span><div><b>Budi Contoh</b><small>Jl. Contoh Kenanga 21</small></div></div></div>
+<div class="foot"><span class="btn">Mulai masak</span></div>
+<div class="tabs"><span class="on"><i></i>Hari ini</span><span><i></i>Pelanggan</span><span><i></i>Menu</span><span><i></i>Usaha</span></div></div>
+<figcaption><b>Change:</b> the three-number card becomes one line in the header, shopping becomes a link beside the heading, and four cooking rows plus the start of the route fit above the button.</figcaption></figure>
+</div></section>
+
+</main>
+</body>
+</html>
