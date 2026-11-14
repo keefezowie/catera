@@ -445,7 +445,7 @@ function ancestor(node: Node, test: (n: Node) => boolean): Node | null {
 describe("Menu", () => {
   it("while the week loads the header and controls are live and the day card is a skeleton", async () => {
     await renderWith(runtimeWith(owner, { sellerOperations: jest.fn(async () => menuOps()), menuMonth: jest.fn(never) }), withDapurScale(<MenuWeek />));
-    expect(await screen.findByRole("button", { name: "Bagikan menu" })).toBeTruthy();
+    expect(await screen.findByTestId("menu-package-chips")).toBeTruthy();
     expect(skeletonNames()).toEqual(["Memuat menu"]);
     // Only the day card waits: the package chips and buttons are real, so they are not drawn twice.
     expect(screen.queryByTestId("menu-skeleton-share", { includeHiddenElements: true })).toBeNull();
@@ -536,14 +536,14 @@ describe("Menu", () => {
     await renderWith(runtimeWith(owner, { sellerOperations: ops.fn, menuMonth: month.fn }), withDapurScale(<MenuWeek />));
     const day = await screen.findByTestId("menu-skeleton-day", { includeHiddenElements: true });
     await act(async () => ops.answer(menuOps()));
-    expect(await screen.findByRole("button", { name: "Bagikan menu" })).toBeTruthy();
+    expect(await screen.findByTestId("menu-package-chips")).toBeTruthy();
     // The day card still waits for its week in the very skeleton it started with (the same mounted view, not a new
     // one): it was not redrawn, so it did not fade with the controls.
     expect(skeletonNames()).toEqual(["Memuat menu"]);
     expect(screen.getByTestId("menu-skeleton-day", { includeHiddenElements: true })).toBe(day);
     // Two blocks entered: the header's day strip and the controls under it.
     expect(timing.mock.calls.filter(fadeIn)).toHaveLength(2);
-    await act(async () => month.answer({ dates: [], categories: [] }));
+    await act(async () => month.answer({ dates: [{ date: "2026-10-08", version: 0, editable: true, details: null }], categories: [] }));
     await waitFor(() => expect(skeletonNames()).toEqual([]));
     expect(screen.getByTestId("menu-day-2026-10-08").props.accessibilityLabel).toMatch(/menu belum diisi$/);
     // The day card's one swap.

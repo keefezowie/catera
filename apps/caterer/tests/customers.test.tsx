@@ -117,15 +117,15 @@ describe("rules", () => {
   });
 });
 
-it("filters to customers whose package ends within three days", async () => {
+it("opens on Perlu diperpanjang, the customers whose package ends within three days", async () => {
   await wrap(runtimeWith("approved", true), <CustomerList />);
-  await fireEvent.press(await screen.findByText("Segera berakhir · 1"));
+  expect(await screen.findByText("Perlu diperpanjang · 1")).toBeTruthy();
   expect(screen.getByText("Andre Kusuma")).toBeTruthy();
   expect(screen.queryByText("Dewi Saraswati")).toBeNull();
   expect(screen.queryByText("Bayu Tri")).toBeNull();
 });
 
-it("counts ending customers as active", async () => {
+it("keeps ending customers out of Aktif: the chips do not overlap", async () => {
   // The package ends on 9 Oct, so today is pinned to 8 Oct: one delivery left, end date still ahead.
   jest.useFakeTimers({
     now: new Date("2026-10-08T03:00:00Z"),
@@ -137,12 +137,12 @@ it("counts ending customers as active", async () => {
     ],
   });
   try {
-    // One customer with a single delivery left is both on a running package and about to end.
+    // One customer with a single delivery left is about to end: she is counted once, under Perlu diperpanjang.
     await wrap(runtimeWith("approved", true, [customer("c-09", "Rina Maharani", [sub(1)])]), <CustomerList />);
-    expect(await screen.findByText("Aktif · 1")).toBeTruthy();
-    expect(screen.getByText("Segera berakhir · 1")).toBeTruthy();
+    expect(await screen.findByText("Perlu diperpanjang · 1")).toBeTruthy();
+    expect(screen.getByText("Aktif · 0")).toBeTruthy();
     expect(screen.getByText("Selesai · 0")).toBeTruthy();
-    // The Aktif list shows her, with the end wording kept on her row's meta line.
+    // The list shows her, with the end wording kept on her row's meta line.
     expect(screen.getByText("Rina Maharani")).toBeTruthy();
     expect(screen.getByText(/Berakhir besok/)).toBeTruthy();
   } finally {
@@ -150,12 +150,76 @@ it("counts ending customers as active", async () => {
   }
 });
 
-it("lists ending and active customers together under Aktif, without the ended ones", async () => {
+it("lists ending and active customers apart, without the ended ones", async () => {
   await wrap(runtimeWith("approved", true), <CustomerList />);
-  expect(await screen.findByText("Aktif · 2")).toBeTruthy();
+  expect(await screen.findByText("Aktif · 1")).toBeTruthy();
   expect(screen.getByText("Andre Kusuma")).toBeTruthy();
+  expect(screen.queryByText("Dewi Saraswati")).toBeNull();
+  await fireEvent.press(screen.getByText("Aktif · 1"));
   expect(screen.getByText("Dewi Saraswati")).toBeTruthy();
+  expect(screen.queryByText("Andre Kusuma")).toBeNull();
   expect(screen.queryByText("Bayu Tri")).toBeNull();
+});
+
+describe("Pelanggan search, initials and renewal links", () => {
+  const search = () => screen.getByLabelText("Cari nama atau area");
+
+  it("searches the loaded list by name or area, and says when nothing matches", async () => {
+    await wrap(runtimeWith("approved", true, [
+      customer("c-01", "Andre Kusuma", [sub(2)]),
+      customer("c-02", "Sari Wulandari", [sub(2)], { address: { line: "Jl. Kenanga", area: "Menteng" } }),
+    ]), <CustomerList />);
+    await screen.findByText("Andre Kusuma");
+    await fireEvent.changeText(search(), "menteng");
+    expect(screen.queryByText("Andre Kusuma")).toBeNull();
+    expect(screen.getByText("Sari Wulandari")).toBeTruthy();
+    await fireEvent.changeText(search(), "andre");
+    expect(screen.getByText("Andre Kusuma")).toBeTruthy();
+    expect(screen.queryByText("Sari Wulandari")).toBeNull();
+    await fireEvent.changeText(search(), "zzz");
+    expect(screen.getByText("Tidak ada pelanggan yang cocok.")).toBeTruthy();
+  });
+
+  it("draws initials ahead of each name", async () => {
+    await wrap(runtimeWith("approved", true), <CustomerList />);
+    await screen.findByText("Andre Kusuma");
+    expect(screen.getByText("AK", { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it("opens on Aktif when nobody needs renewing", async () => {
+    await wrap(runtimeWith("approved", true, [customer("c-02", "Dewi Saraswati", [sub(12)])]), <CustomerList />);
+    expect(await screen.findByText("Dewi Saraswati")).toBeTruthy();
+    expect(screen.getByText("Perlu diperpanjang · 0")).toBeTruthy();
+    expect(screen.queryByTestId("pelanggan-renewal-note")).toBeNull();
+  });
+
+  it("shows the renewal note and sends the renewal link from the row, ticking it for this visit", async () => {
+    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true as never);
+    const today = jakartaDay(new Date());
+    const runtime = runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [{ ...sub(1), ends_on: today }])]);
+    await wrap(runtime, <CustomerList />);
+    expect(await screen.findByText("1 paket berakhir hari ini")).toBeTruthy();
+    expect(screen.getByText("Kirim tautan perpanjang lewat WhatsApp.")).toBeTruthy();
+    const send = await screen.findByRole("button", { name: "Kirim tautan Andre Kusuma" });
+    await waitFor(() => expect(send.props.accessibilityState.disabled).toBe(false));
+    await fireEvent.press(send);
+    await waitFor(() => expect(runtime.api.command).toHaveBeenCalled());
+    expect((runtime.api.command as jest.Mock).mock.calls[0][0]).toBe("customer.invite");
+    expect(await screen.findByText("Terkirim")).toBeTruthy();
+    expect(open).toHaveBeenCalledWith(expect.stringContaining("wa.me"));
+    open.mockRestore();
+  });
+
+  it("sends nobody to WhatsApp when payments are off: it opens the setup instead", async () => {
+    const today = jakartaDay(new Date());
+    const runtime = runtimeWith("submitted", false, [customer("c-01", "Andre Kusuma", [{ ...sub(1), ends_on: today }])]);
+    await wrap(runtime, <CustomerList />);
+    const send = await screen.findByRole("button", { name: "Kirim tautan Andre Kusuma" });
+    await waitFor(() => expect(send.props.accessibilityState.disabled).toBe(false));
+    await fireEvent.press(send);
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/aktifkan"));
+    expect(runtime.api.command).not.toHaveBeenCalled();
+  });
 });
 
 it("sends an account-less customer a claim link on WhatsApp", async () => {
@@ -368,7 +432,6 @@ describe("customers with more than one package", () => {
 
   it("labels a package whose last day is today as ending today in the list", async () => {
     await wrap(withMulti(runtimeWith("approved", true)), <CustomerList />);
-    await fireEvent.press(await screen.findByText(/Segera berakhir/));
     expect(await screen.findByText(/Berakhir hari ini/)).toBeTruthy();
     expect(screen.queryByText(/Berakhir besok/)).toBeNull();
     expect(screen.getByText(/\+1 paket lain/)).toBeTruthy();
@@ -384,7 +447,6 @@ describe("customers with more than one package", () => {
       packages: [],
     }));
     const list = await wrap(runtime, <CustomerList />);
-    await fireEvent.press(await screen.findByText(/Segera berakhir/));
     expect(await screen.findByText(/sisa 1 hari/)).toBeTruthy();
     expect(screen.queryByText(/Berakhir/)).toBeNull();
     await list.unmount();
@@ -401,7 +463,6 @@ describe("customers with more than one package", () => {
       packages: [],
     }));
     await wrap(runtime, <CustomerList />);
-    await fireEvent.press(await screen.findByText(/Segera berakhir/));
     expect(await screen.findByText(/Berakhir besok/)).toBeTruthy();
   });
 });
@@ -428,7 +489,7 @@ describe("Pelanggan loading and error states", () => {
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     failing = false;
     await fireEvent.press(retry);
-    expect(await screen.findByText("Aktif · 2")).toBeTruthy();
+    expect(await screen.findByText("Perlu diperpanjang · 1")).toBeTruthy();
     expect(screen.queryByLabelText("Memuat pelanggan")).toBeNull();
   });
 
@@ -453,7 +514,7 @@ describe("Pelanggan row feedback", () => {
   it("customer rows dim on press and still open the record", async () => {
     await wrap(runtimeWith("approved", true), <CustomerList />);
     await screen.findByText("Andre Kusuma");
-    const row = () => screen.getByRole("button", { name: /Andre Kusuma/ });
+    const row = () => screen.getByRole("button", { name: /^Andre Kusuma/ });
     expect(StyleSheet.flatten(row().props.style)?.opacity ?? 1).toBe(1);
     await fireEvent(row(), "responderGrant", touch);
     expect(StyleSheet.flatten(row().props.style).opacity).toBe(0.7);
@@ -533,13 +594,13 @@ describe("Pelanggan on the Dapur scale", () => {
   describe("filter chips", () => {
     it("sit in a 48 frame, one row that scrolls sideways, with the 7 hit slop inside it; the counts are in the labels", async () => {
       await dapur(runtimeWith("approved", true), <CustomerList />);
-      expect(await screen.findByText("Aktif · 2")).toBeTruthy();
+      expect(await screen.findByText("Aktif · 1")).toBeTruthy();
       const frame = screen.getByTestId("pelanggan-chips-frame");
       expect(sty(frame).height).toBe(48);
       const scroll = screen.getByTestId("pelanggan-chips");
       expect(scroll.props.horizontal).toBe(true);
       expect(sty(scroll).height).toBeGreaterThanOrEqual(48);
-      for (const name of [/^Aktif/, /^Segera berakhir/, /^Selesai/]) {
+      for (const name of [/^Perlu diperpanjang/, /^Aktif/, /^Selesai/]) {
         const chip = screen.getByRole("button", { name });
         expect(chip.props.hitSlop).toEqual({ top: 7, bottom: 7 });
         expect(sty(chip).minHeight).toBe(34);
@@ -555,20 +616,20 @@ describe("Pelanggan on the Dapur scale", () => {
       expect(screen.queryByText(/· \d/)).toBeNull();
       await first.unmount();
       await dapur(runtimeWith("approved", true), <CustomerList />);
-      await screen.findByText("Aktif · 2");
+      await screen.findByText("Aktif · 1");
       expect(screen.getByTestId("pelanggan-chips").props.horizontal).toBe(true);
       expect(sty(screen.getByTestId("pelanggan-chips")).flexWrap).toBeUndefined();
     });
 
     it("each filter shows its own customers, with the counts from the loaded list", async () => {
       await dapur(runtimeWith("approved", true), <CustomerList />);
-      expect(await screen.findByText("Aktif · 2")).toBeTruthy();
-      expect(screen.getByText("Segera berakhir · 1")).toBeTruthy();
+      expect(await screen.findByText("Aktif · 1")).toBeTruthy();
+      expect(screen.getByText("Perlu diperpanjang · 1")).toBeTruthy();
       expect(screen.getByText("Selesai · 1")).toBeTruthy();
       await fireEvent.press(screen.getByRole("button", { name: /^Selesai/ }));
       expect(screen.getByText("Bayu Tri")).toBeTruthy();
       expect(screen.queryByText("Andre Kusuma")).toBeNull();
-      await fireEvent.press(screen.getByRole("button", { name: /^Segera berakhir/ }));
+      await fireEvent.press(screen.getByRole("button", { name: /^Perlu diperpanjang/ }));
       expect(screen.getByText("Andre Kusuma")).toBeTruthy();
       expect(screen.queryByText("Dewi Saraswati")).toBeNull();
     });
@@ -603,11 +664,13 @@ describe("Pelanggan on the Dapur scale", () => {
         ]),
         <CustomerList />,
       );
-      await screen.findByText("Andre Kusuma");
+      await screen.findByText("Sari Wulandari");
+      await fireEvent.press(screen.getByRole("button", { name: /^Aktif/ }));
       const meta = screen.getByText("Makan Siang Rumahan · sisa 9 hari · Setiabudi");
       expect(sty(meta)).toMatchObject({ fontSize: 13, lineHeight: 18 });
       expect(meta.props.numberOfLines).toBe(1);
       // The package ending first leads, and "+n paket lain" stays.
+      await fireEvent.press(screen.getByRole("button", { name: /^Perlu diperpanjang/ }));
       expect(screen.getByText("Makan Siang Rumahan · Berakhir hari ini · +1 paket lain · Setiabudi")).toBeTruthy();
     });
 

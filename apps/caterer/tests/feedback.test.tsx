@@ -371,16 +371,19 @@ describe("Pelanggan", () => {
   it("a filter change swaps the rows: no exit, no move and no entrance", async () => {
     const list = [customer("c-01", "Andre Kusuma"), customer("c-02", "Bu Ani", 2)];
     await wrap(runtimeWith({ sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })) }), <CustomerList />);
-    await screen.findByText("Andre Kusuma");
+    await screen.findByText("Bu Ani");
     await act(async () => {});
     const blocks = () => blocksOf();
     const ani = () => screen.getAllByTestId("customer-row").find((r) => within(r).queryByText("Bu Ani"))!;
     // Each row sits in a block that skips its children's entrances and exits when it is swapped.
     for (const b of blocks()) expect(b.props).toMatchObject({ skipEntering: true, skipExiting: true });
     const before = ani();
-    // Bu Ani is about to end, so she is under Aktif and under Segera berakhir: the filter remounts her row in a new
-    // block instead of moving it, and Andre's row leaves with the old block, without its own exit.
-    await fireEvent.press(screen.getByRole("button", { name: /^Segera berakhir/ }));
+    // Bu Ani is about to end, so the list opens on Perlu diperpanjang with her alone. Switching to Aktif swaps in Andre
+    // and back again remounts her row in a new block instead of moving it; nobody exits or enters on their own.
+    await fireEvent.press(screen.getByRole("button", { name: /^Aktif/ }));
+    expect(screen.queryByText("Bu Ani")).toBeNull();
+    expect(screen.getByText("Andre Kusuma")).toBeTruthy();
+    await fireEvent.press(screen.getByRole("button", { name: /^Perlu diperpanjang/ }));
     expect(screen.queryByText("Andre Kusuma")).toBeNull();
     expect(ani()).not.toBe(before);
     for (const b of blocks()) expect(b.props).toMatchObject({ skipEntering: true, skipExiting: true });

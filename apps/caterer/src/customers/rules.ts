@@ -60,3 +60,18 @@ export function activeEndLabel(
   const end = endLabel(s.ends_on, today, t, locale);
   return withRemaining ? `${end} · ${left}` : end;
 }
+
+/** Up to two capital letters from a name: "Budi Contoh" is "BC", "Maya" is "M". */
+export function initials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return words
+    .slice(0, 2)
+    .map((w) => Array.from(w)[0].toUpperCase())
+    .join("");
+}
+
+/** Whether a customer matches what was typed in the search field: their name or delivery area. */
+export function matchesQuery(c: Pick<SellerCustomer, "name" | "address">, query: string) {
+  const q = query.trim().toLowerCase();
+  return !q || c.name.toLowerCase().includes(q) || (c.address.area ?? "").toLowerCase().includes(q);
+}

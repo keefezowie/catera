@@ -22,6 +22,7 @@ import {
 import { useActionPairStacked } from "../layout/useActionPairStacked";
 import { activeSubscriptions, customerStatus, renewalAction } from "./rules";
 import { usePayments } from "./usePayments";
+import { sendRenewalLink } from "./renewal";
 import { loadCustomer } from "./load";
 import { ReadError } from "../ReadError";
 import { DetailSkeleton } from "../skeletons";
@@ -79,17 +80,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
     setWhich(s.id);
     setFailure(null);
     try {
-      const followup = renewalAction(c) === "followup";
-      const result = followup
-        ? await command<{ path: string }>("customer.followup", { catererId, subscriptionId: s.id, kind: "prepared" })
-        : await command<{ path: string }>("customer.invite", { catererId, customerRecordId: c.id });
-      const message = followup
-        ? t("Paket kateringmu hampir selesai. Perpanjang di sini:", "Your catering package is nearly finished. Renew here:")
-        : t(
-            "Paket kateringmu hampir selesai. Buat akun Catera lalu perpanjang di sini:",
-            "Your catering package is nearly finished. Create your Catera account and renew here:",
-          );
-      await Linking.openURL(whatsappUrl(`${message} ${runtime.apiBase}${result.path}`, c.phone!));
+      await sendRenewalLink({ command, runtime, t }, catererId, c, s);
     } catch (e) {
       setFailure((f) => ({
         subscription: s.id,
