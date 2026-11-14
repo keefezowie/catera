@@ -328,10 +328,11 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     );
 
   const total = currency(c.quote.total, locale);
-  const days = c.quote.dates.length;
+  const dates = c.quote.dates ?? [];
+  const days = dates.length;
   const summaryLine = [
-    t(`${days} hari`, plural(days, "day")),
-    c.quote.dates[0] ? t(`mulai ${shortDate(c.quote.dates[0], locale)}`, `starts ${shortDate(c.quote.dates[0], locale)}`) : "",
+    days ? t(`${days} hari`, plural(days, "day")) : "",
+    dates[0] ? t(`mulai ${shortDate(dates[0], locale)}`, `starts ${shortDate(dates[0], locale)}`) : "",
     c.quote.address?.label ?? "",
   ]
     .filter(Boolean)

@@ -946,11 +946,15 @@ describe("Bayar", () => {
     const runtime = server({ checkout: pendingCheckout() });
     const first = await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
-    expect(screen.getByText("Bayar dalam 15:00")).toBeTruthy();
+    expect(screen.getByText("Jadwal ditahan 15:00")).toBeTruthy();
     expect(screen.getAllByText(totalOf()).length).toBeGreaterThan(0);
-    expect(
-      screen.getByText("Jadwalmu kami tahan 15 menit. Lewat dari itu, kami cek ulang dulu."),
-    ).toBeTruthy();
+    // The order summary sits on top: the package, its length and start, the address.
+    const summary = screen.getByTestId("bayar-summary");
+    expect(within(summary).getByText(/^Makan Siang Rumahan/)).toBeTruthy();
+    expect(within(summary).getByText(/ hari · mulai .+ · /)).toBeTruthy();
+    // One pay-side action; the status check is the secondary button.
+    expect(screen.getByRole("button", { name: "Sudah bayar? Cek status" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bantuan pembayaran" })).toBeTruthy();
     await first.unmount();
 
     await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
