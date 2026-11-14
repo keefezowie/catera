@@ -210,6 +210,19 @@ describe("Pelanggan search, initials and renewal links", () => {
     open.mockRestore();
   });
 
+  it("the renewal note counts the rows a search leaves, and goes when none are left", async () => {
+    const today = jakartaDay(new Date());
+    await wrap(runtimeWith("approved", true, [
+      customer("c-01", "Andre Kusuma", [{ ...sub(1), ends_on: today }]),
+      customer("c-02", "Sari Wulandari", [{ ...sub(1), ends_on: today }]),
+    ]), <CustomerList />);
+    expect(await screen.findByText("2 paket berakhir hari ini")).toBeTruthy();
+    await fireEvent.changeText(search(), "andre");
+    expect(screen.getByText("1 paket berakhir hari ini")).toBeTruthy();
+    await fireEvent.changeText(search(), "zzz");
+    expect(screen.queryByTestId("pelanggan-renewal-note")).toBeNull();
+  });
+
   it("sends nobody to WhatsApp when payments are off: it opens the setup instead", async () => {
     const today = jakartaDay(new Date());
     const runtime = runtimeWith("submitted", false, [customer("c-01", "Andre Kusuma", [{ ...sub(1), ends_on: today }])]);
@@ -731,9 +744,9 @@ describe("Pelanggan on the Dapur scale", () => {
       expect(within(block).getAllByTestId("list-card-separator")).toHaveLength(4);
     });
 
-    it("an attention status reads Segera berakhir, a finished package Selesai", async () => {
+    it("an attention status reads Perlu diperpanjang, as the list chip does, a finished package Selesai", async () => {
       const first = await open([record([{ ...running, remaining: 2 }])]);
-      expect(await screen.findByText(/^Segera berakhir · Pelangganmu/)).toBeTruthy();
+      expect(await screen.findByText(/^Perlu diperpanjang · Pelangganmu/)).toBeTruthy();
       await first.unmount();
       await open([record([{ ...sub(0, "completed"), starts_on: "2026-09-01", ends_on: "2026-09-12" }])]);
       expect(await screen.findByText(/^Selesai · Pelangganmu/)).toBeTruthy();

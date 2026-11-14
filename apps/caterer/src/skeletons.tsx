@@ -205,7 +205,7 @@ export function ListSkeleton({
   rows: number;
   label: string;
   bare?: boolean;
-  /** A row of filter chips over the rows (Pelanggan's Aktif, Segera berakhir, Selesai). */
+  /** A row of filter chips over the rows (Pelanggan's Perlu diperpanjang, Aktif, Selesai). */
   chips?: number;
   shape?: "default" | "customer";
   gap?: number;

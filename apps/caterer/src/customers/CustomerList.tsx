@@ -129,10 +129,11 @@ export function CustomerList() {
   const shown = customers.filter((c) => inFilter(c, filter) && matchesQuery(c, query));
   const labels: Record<CustomerStatus, string> = {
     active: t("Aktif", "Active"),
-    ending: t("Perlu diperpanjang", "To renew"),
+    ending: t("Perlu diperpanjang", "Needs renewal"),
     ended: t("Selesai", "Ended"),
   };
-  const endingList = customers.filter((c) => inFilter(c, "ending"));
+  // The banner counts the rows under it, so a search narrows it with them.
+  const endingList = filter === "ending" ? shown : [];
   // The renewal link, as the customer's page sends it. A tick lasts for this visit only: the app keeps no record of a send.
   const payments = usePayments().data;
   const [sent, setSent] = useState<Record<string, boolean>>({});

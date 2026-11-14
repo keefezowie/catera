@@ -118,7 +118,8 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const action = renewalAction(c);
   const status = {
     active: t("Aktif", "Active"),
-    ending: t("Segera berakhir", "Ending soon"),
+    // The list's chip says the same.
+    ending: t("Perlu diperpanjang", "Needs renewal"),
     ended: t("Selesai", "Ended"),
   }[customerStatus(c)];
   const origin =
