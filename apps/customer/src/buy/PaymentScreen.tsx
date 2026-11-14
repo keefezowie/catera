@@ -4,8 +4,10 @@ import { router, useFocusEffect } from "expo-router";
 import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
-import { VA_CHANNELS, currency, directChannelKind, errorLabel, paidSummary, paymentMethodInfo, type Checkout, type CustomerState, type DirectPaymentMethod, type VaBank } from "@catera/domain";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { VA_CHANNELS, currency, directChannelKind, errorLabel, paidSummary, paymentMethodInfo, shortDate, type Checkout, type CustomerState, type DirectPaymentMethod, type VaBank } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
+import { nativeLayout } from "@catera/design-tokens";
 import { Button, Card, FadeSwap, fontFor, FormError, Screen, Text, themedStyles, useBusy, useColors, useHaptic, useToast } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FLOW_HREF, goToTab } from "../nav";
@@ -326,6 +328,14 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     );
 
   const total = currency(c.quote.total, locale);
+  const days = c.quote.dates.length;
+  const summaryLine = [
+    t(`${days} hari`, plural(days, "day")),
+    c.quote.dates[0] ? t(`mulai ${shortDate(c.quote.dates[0], locale)}`, `starts ${shortDate(c.quote.dates[0], locale)}`) : "",
+    c.quote.address?.label ?? "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const payment = c.payment;
   const instructions = direct ? payment?.instructions : null;
@@ -360,6 +370,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       nativeTitle={title}
       footer={
         <Button
+          variant="secondary"
           label={t("Sudah bayar? Cek status", "Paid? Check status")}
           busy={waiting === "check"}
           onPress={() => {
@@ -373,15 +384,23 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         {demo || c.provider_environment === "sandbox" ? (
           <Text variant="caption">{t("Sandbox · pembayaran uji", "Sandbox · test payment")}</Text>
         ) : null}
+        {/* What is being paid for, at the moment of paying. */}
+        <Card testID="bayar-summary" style={{ gap: 2 }}>
+          <Text variant="bodyStrong">{c.quote.offer.name}</Text>
+          <Text variant="meta">{summaryLine}</Text>
+        </Card>
         <View style={styles.total}>
           <Text variant="caption">Total</Text>
           <Text variant="title" selectable style={[{ fontSize: 32, color: palette.charcoal }, tabular]}>
             {total}
           </Text>
           {deadline > 0 ? (
-            <Text style={[{ color: palette.charcoal, fontFamily: fontFor("700") }, tabular]}>
-              {t(`Bayar dalam ${clock(deadline)}`, `Pay within ${clock(deadline)}`)}
-            </Text>
+            <View testID="bayar-hold" style={styles.hold}>
+              <Ionicons name="timer-outline" size={16} color={palette.charcoal} accessible={false} />
+              <Text variant="meta" style={[{ color: palette.charcoal, fontFamily: fontFor("700") }, tabular]}>
+                {t(`Jadwal ditahan ${clock(deadline)}`, `Schedule held ${clock(deadline)}`)}
+              </Text>
+            </View>
           ) : null}
         </View>
 
@@ -500,14 +519,6 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
           </View>
         ) : null}
 
-        <Card tone="sage">
-          <Text>
-            {t(
-              "Jadwalmu kami tahan 15 menit. Lewat dari itu, kami cek ulang dulu.",
-              "We're holding your schedule for 15 minutes. After that, we recheck it.",
-            )}
-          </Text>
-        </Card>
         {help}
       </FadeSwap>
     </Screen>
@@ -516,6 +527,17 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
 
 const useStyles = themedStyles((c) => ({
   total: { alignItems: "center", gap: 4 },
+  hold: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: nativeLayout.space.xs,
+    marginTop: nativeLayout.space.xs,
+    paddingHorizontal: nativeLayout.space.md,
+    minHeight: 28,
+    borderRadius: 14,
+    borderCurve: "continuous",
+    backgroundColor: c.sage,
+  },
   va: { fontSize: 26, fontFamily: fontFor("800"), color: c.charcoal, fontVariant: ["tabular-nums"], letterSpacing: 1 },
   step: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   stepNo: {

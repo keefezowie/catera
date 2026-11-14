@@ -1204,7 +1204,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       await fireEvent.press(screen.getByRole("button", { name: "Isi menu" }));
       expect(require("expo-router").router.push).toHaveBeenCalledWith("/menu/2026-10-08?pkg=p-1&meal=lunch");
       await fireEvent.press(screen.getByRole("button", { name: "Salin dari Jumat 9 Okt" }));
-      await waitFor(() => expect(command).toHaveBeenCalledWith("menu.saveBatch", expect.objectContaining({ dates: [{ date: "2026-10-08", version: 2 }], meal: "lunch" })));
+      await waitFor(() => expect(command).toHaveBeenCalledWith("menu.saveBatch", expect.objectContaining({ dates: [{ date: "2026-10-08", version: 2 }], meal: "lunch" }), expect.anything()));
     });
 
     it("a helper sees the unfilled day with no buttons", async () => {
