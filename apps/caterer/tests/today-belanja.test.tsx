@@ -139,6 +139,9 @@ describe("Hari ini's Belanja link and entry row", () => {
     expect(within(heading).getByTestId("belanja-link")).toBeTruthy();
     expect(within(heading).getByRole("button", { name: "Bagikan" })).toBeTruthy();
     expect(within(heading).getByRole("button", { name: "Cetak" })).toBeTruthy();
+    // No card between the header and Daftar masak, so no 24 spacer either: the list starts at the body's own top.
+    expect(screen.queryByTestId("today-day-spacer")).toBeNull();
+    expect(screen.getByTestId("today-day").children[0]).toBe(screen.getByTestId("session-card"));
     // At least one 48 target.
     expect(flat(link).minHeight).toBeGreaterThanOrEqual(48);
     await fireEvent.press(link);
@@ -188,6 +191,8 @@ describe("Hari ini's Belanja link and entry row", () => {
     const [row, done] = positions("belanja-entry", "done-card");
     expect(row).toBeGreaterThan(-1);
     expect(row).toBeLessThan(done);
+    // The card keeps its 24 to the day under it.
+    expect(screen.getByTestId("today-day-spacer")).toBeTruthy();
     expect(screen.queryByTestId("belanja-link")).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: `Belanja 7 hari, Porsi per menu, ${range("id")}` }));
     expect(router.push).toHaveBeenCalledWith("/belanja");

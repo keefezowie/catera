@@ -553,6 +553,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     }
   }
 
+  const belanjaCard = !(loading || (ops && !done && session && cookingListShown(session)));
   return (
     <Screen
       refreshControl={
@@ -691,10 +692,11 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           </View>
         </FadeSwap>
         {/* While the cooking list shows, Belanja 7 hari is a link in its heading; on any other day it keeps its card. */}
-        {loading || (ops && !done && session && cookingListShown(session)) ? null : <BelanjaEntry />}
+        {belanjaCard ? <BelanjaEntry /> : null}
         <FadeSwap swapKey={dayKey}>
           <View testID="today-day" style={{ gap: SECTION_GAP }}>
-            <View style={{ height: 0 }} />
+            {/* The 24 under the Belanja card; with no card the day starts at the body's own top, right under the header. */}
+            {belanjaCard ? <View testID="today-day-spacer" style={{ height: 0 }} /> : null}
             {loading ? <TodaySkeleton /> : null}
             {ops && done ? (
               <DoneCard ops={ops} onTomorrow={() => setPicked(jakartaDay(new Date(), 1))} />
