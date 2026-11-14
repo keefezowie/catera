@@ -391,6 +391,8 @@ describe("session cards", () => {
   });
 
   it("words the empty state for tomorrow", async () => {
+    // A Thursday: on a real Sunday, tomorrow is in next week's row and not in the strip.
+    pinToday();
     await renderToday(runtimeWith(async () => quietDay()));
     await screen.findByText("Tidak ada yang dimasak hari ini");
     await fireEvent.press(dayTab(1));
@@ -867,6 +869,7 @@ describe("attention cards", () => {
 });
 
 describe("the live slot", () => {
+  afterEach(() => jest.useRealTimers());
   const box = (n: { props: { style?: unknown } }) => StyleSheet.flatten(n.props.style as never) as Record<string, unknown>;
   const item = (id: string, kind: string, context: string, href = "/seller/support") => ({
     id, kind, priority: 1, at_time: "2026-10-08T05:40:00Z", context, href,
@@ -936,6 +939,8 @@ describe("the live slot", () => {
   });
 
   it("is left out when nothing waits, and on Besok even when reports do", async () => {
+    // A Thursday, so Besok is in the strip whatever day the suite runs.
+    pinToday();
     const first = await renderToday(runtimeWith(same(canvasDay())));
     await screen.findByTestId("session-card");
     expect(screen.queryByTestId("live-slot")).toBeNull();
