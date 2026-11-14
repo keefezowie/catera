@@ -216,7 +216,13 @@ export function MenuWeek() {
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const offers = (ops.data?.offers ?? []).filter((o) => o.status === "published");
   const [packageId, setPackageId] = useState("");
-  const [week, setWeek] = useState(0);
+  const [week, setWeekState] = useState(0);
+  // The tab opens on the first week with a day that can still be edited; once settled (or the owner steps), it stays put.
+  const settled = useRef(false);
+  const setWeek = (update: (w: number) => number) => {
+    settled.current = true;
+    setWeekState(update);
+  };
   const [picked, setPicked] = useState("");
   const offer = offers.find((o) => o.id === packageId) ?? offers[0];
   // The mood picks the meal for a package that serves both; a single-meal package keeps its own, whatever the mood.
@@ -232,6 +238,12 @@ export function MenuWeek() {
   const previous = useData(`menu-week:${offer?.id}:${meal}:${lastWeekDates[0]}`, () =>
     offer ? loadMenus(runtime, offer, meal, lastWeekDates) : Promise.resolve([]),
   );
+  useEffect(() => {
+    if (settled.current || !offer || !dates.length || !days.data || days.data.length !== dates.length) return;
+    settled.current = true;
+    // This week and the rest of it are locked: start on next week.
+    if (!days.data.some((d) => d.editable)) setWeekState(1);
+  }, [offer, dates.length, days.data]);
   const pull = usePullToRefresh(() => Promise.all([ops.reload(), days.reload(), previous.reload()]));
   // A message and a number that rises with every failure, so an identical failure is announced again.
   const [errorState, setErrorState] = useState({ message: "", key: 0 });
@@ -267,15 +279,16 @@ export function MenuWeek() {
   const hasMenu = (days.data ?? []).some((d) => d.details?.items?.length);
   const lastWeekEmpty = !!previous.data && !previous.data.some((d) => d.details?.items?.length);
   // A failed read of last week does not block copying: the copy reads it again and reports its own error.
-  const lastWeekPending = !previous.data && !previous.error;
   const copyNote = (copied: number, skipped: number) =>
     skipped
       ? t(`${copied} hari disalin · ${skipped} dilewati karena sudah lewat atau sudah diisi`, `${plural(copied, "day")} copied · ${skipped} skipped (past or already filled)`)
       : t(`${copied} hari disalin`, `${plural(copied, "day")} copied`);
 
-  // The day on the card: the one tapped, else today, else the next delivery day of the week.
-  const selectedDate = dates.includes(picked) ? picked : (dates.find((d) => d >= today) ?? dates[0] ?? "");
+  // The day on the card: the one tapped, else the first day that can still be edited, else the next delivery day.
   const byDate = new Map((days.data ?? []).map((d) => [d.date, d] as const));
+  const selectedDate = dates.includes(picked)
+    ? picked
+    : (dates.find((d) => byDate.get(d)?.editable) ?? dates.find((d) => d >= today) ?? dates[0] ?? "");
   latestDays.current = byDate;
   const selected = byDate.get(selectedDate);
   // The fresh week has landed once the saved dish carries the photo, or the day's version has moved on. A failed
@@ -326,6 +339,26 @@ export function MenuWeek() {
     } finally {
       // One reload for the whole copy; after a stop part-way the week still shows what the server holds.
       invalidate();
+    }
+  });
+
+  // An unfilled day can borrow the dishes of a filled day of the same week.
+  const [copyingDay, copyFromDay] = useBusy(async (source: MenuDay, target: MenuDay) => {
+    if (!offer || !source.details) return;
+    setError("");
+    setNote("");
+    try {
+      const { meal: _meal, source: _source, ...details } = source.details;
+      await command("menu.saveBatch", {
+        catererId,
+        packageId: offer.id,
+        contentRevision: offer.contentRevision ?? 0,
+        meal,
+        dates: [{ date: target.date, version: target.version }],
+        details,
+      });
+    } catch (e) {
+      setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Menu belum tersalin. Coba lagi.", "Couldn't copy the menu. Try again."));
     }
   });
 
@@ -442,8 +475,12 @@ export function MenuWeek() {
   const onlyMeal = offer?.meal !== "both" ? offer?.meal : undefined;
   // One row for any package: the tiles share the row's width, whatever the day count (7 at 412dp are about 51 wide, at 360dp about 44).
   const tileWidth = (stripWidth - STRIP_GAP * (dates.length - 1)) / Math.max(1, dates.length);
-  const hasNotes =
-    (canEdit && weekLoaded && (lastWeekPending || lastWeekEmpty)) || (weekLoaded && !hasMenu) || !!note || !!error;
+  // Actions that cannot act are not drawn: copy needs a filled day last week, share needs a filled day this week.
+  const showCopy = canEdit && weekLoaded && (previous.data ? !lastWeekEmpty : !!previous.error);
+  const showShare = weekLoaded && hasMenu;
+  const hasNotes = !!note || !!error;
+  const filledCount = dates.filter((d) => byDate.get(d)?.details?.items?.length).length;
+  const copySource = (days.data ?? []).find((d) => d.date !== selectedDate && d.details?.items?.length);
 
   return (
     <Screen
@@ -552,6 +589,11 @@ export function MenuWeek() {
                 </View>
               )}
             </FadeSwap>
+            {weekReady && dates.length ? (
+              <Text variant="meta" testID="menu-progress" style={{ color: m.headerMeta, marginTop: -4 }}>
+                {t(`${filledCount} dari ${dates.length} hari terisi`, `${filledCount} of ${dates.length} days filled`)}
+              </Text>
+            ) : null}
             {onlyMeal ? (
               // 8 under the strip on the board; the wrapper's 12 gap is pulled in by 4.
               <Text variant="meta" style={{ color: m.headerMeta, marginTop: -4 }}>
@@ -585,24 +627,19 @@ export function MenuWeek() {
               ))}
             </ScrollView>
             </View>
-            <View testID="menu-actions" style={{ flexDirection: canEdit && stacked ? "column" : "row", gap: 8 }}>
-              {canEdit ? (
-                <Button style={canEdit && stacked ? undefined : { flex: 1 }} variant="secondary" busy={busy} disabled={!weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
-              ) : null}
-              <Button style={canEdit && stacked ? undefined : { flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
-            </View>
+            {showCopy || showShare ? (
+              <View testID="menu-actions" style={{ flexDirection: canEdit && stacked ? "column" : "row", gap: 8 }}>
+                {showCopy ? (
+                  <Button style={stacked ? undefined : { flex: 1 }} variant="secondary" busy={busy} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
+                ) : null}
+                {showShare ? (
+                  <Button style={canEdit && stacked ? undefined : { flex: 1 }} variant="secondary" label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
+                ) : null}
+              </View>
+            ) : null}
             {hasNotes ? (
               // Under the buttons, the captions and the copy result: 8 below them on the board, 4 apart.
               <View style={{ gap: 4, marginTop: -4 }}>
-                {canEdit && weekLoaded && lastWeekPending ? (
-                  <Text variant="meta">{t("Memuat minggu lalu…", "Loading last week…")}</Text>
-                ) : null}
-                {canEdit && weekLoaded && lastWeekEmpty ? (
-                  <Text variant="meta">{t("Minggu lalu belum ada menu untuk disalin", "Last week has no menu to copy")}</Text>
-                ) : null}
-                {weekLoaded && !hasMenu ? (
-                  <Text variant="meta">{t("Belum ada menu untuk dibagikan", "No menu to share yet")}</Text>
-                ) : null}
                 {note ? <Text variant="meta">{note}</Text> : null}
                 {error ? <FormError message={error} failureKey={errorState.key} /> : null}
               </View>
@@ -617,11 +654,12 @@ export function MenuWeek() {
         {selected ? (
           <View testID="menu-day">
             <SectionHeader
-              // An owner's day header is 48 whether or not the day can still be edited (a closed day has no "Ubah menu").
+              // An owner's day header is 48 whether or not the day can still be edited (a closed or empty day has no "Ubah menu";
+              // an empty one has "Isi menu" on its card).
               reserveAction={canEdit}
               title={shortDate(selected.date, locale)}
               action={
-                canEdit && selected.editable ? (
+                canEdit && selected.editable && items.length ? (
                   <PressableScale
                     accessibilityRole="button"
                     accessibilityLabel={t("Ubah menu", "Edit menu")}
@@ -661,15 +699,41 @@ export function MenuWeek() {
                   ) : null;
                 })}
               </View>
-            ) : past || !selected.editable ? (
+            ) : selected.editable && !past ? (
+              // An editable day with nothing yet is a to-do: a dashed card with the way to fill it.
+              <View
+                testID="menu-empty-day"
+                style={{
+                  gap: 12,
+                  padding: 16,
+                  borderWidth: 1.5,
+                  borderStyle: "dashed",
+                  borderColor: c.controlRing,
+                  borderRadius: nativeLayout.radius.card,
+                  borderCurve: "continuous",
+                }}
+              >
+                <Text style={{ color: c.charcoal, fontFamily: fontFor("700") }}>{t("Menu belum diisi", "Menu not filled yet")}</Text>
+                {canEdit ? (
+                  <Button label={t("Isi menu", "Fill menu")} onPress={() => pushScreen(`/menu/${selected.date}?pkg=${offer.id}&meal=${meal}`)} />
+                ) : null}
+                {canEdit && copySource ? (
+                  <Button
+                    variant="secondary"
+                    busy={copyingDay}
+                    label={t(`Salin dari ${shortDate(copySource.date, locale)}`, `Copy from ${shortDate(copySource.date, locale)}`)}
+                    onPress={() => void copyFromDay(copySource, selected)}
+                  />
+                ) : null}
+              </View>
+            ) : (
               // An empty day nobody can fill any more: past, or past its change cutoff. It is not a to-do, so it is muted.
               <Text variant="meta">
-                {past ? t("Lewat", "Past") : t("Sudah tidak bisa diubah", "Can't be changed anymore")}
-              </Text>
-            ) : (
-              // A status, not an error: bold charcoal, never a bare danger caption (spec 5.2).
-              <Text style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
-                {t("Belum diisi", "Not filled")}
+                {past
+                  ? t("Lewat", "Past")
+                  : selected.date === today
+                    ? t("Hari ini sudah lewat batas ubah", "Today is past the change cutoff")
+                    : t("Sudah lewat batas ubah", "Past the change cutoff")}
               </Text>
             )}
             {photoError ? (

@@ -249,7 +249,7 @@ describe("menu reads", () => {
     afterEach(() => jest.useRealTimers());
 
     it("shows localized dates, never raw ones", async () => {
-      const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
+      const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [{ date: "2026-10-08", version: 0, editable: true, details: null }], categories: [] })));
       await render(wrap(<MenuWeek />));
       expect(await screen.findByText("5–9 Okt")).toBeTruthy();
       // Today is selected, so its card carries the full date; every strip button names its day.
@@ -272,18 +272,48 @@ describe("menu reads", () => {
       // Friday is open to fill: a to-do with its action.
       await screen.findByText("5–9 Okt");
       await fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
-      expect(await screen.findByText("Belum diisi")).toBeTruthy();
+      expect(await screen.findByText("Menu belum diisi")).toBeTruthy();
       // A status, not an error: bold charcoal, never a bare danger caption.
-      expect(StyleSheet.flatten(screen.getByText("Belum diisi").props.style)).toMatchObject({
+      expect(StyleSheet.flatten(screen.getByText("Menu belum diisi").props.style)).toMatchObject({
         color: nativeThemes.light.charcoal,
         fontFamily: "Jakarta-Bold",
       });
-      expect(screen.getByRole("button", { name: "Ubah menu" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Isi menu" })).toBeTruthy();
       // Monday is behind us: it says so and offers no editor.
       await fireEvent.press(screen.getByTestId("menu-day-2026-10-05"));
       expect(StyleSheet.flatten(screen.getByText("Lewat").props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
-      expect(screen.queryByText("Belum diisi")).toBeNull();
-      expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
+      expect(screen.queryByText("Menu belum diisi")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Isi menu" })).toBeNull();
+    });
+
+    it("opens on next week when this week has no day left to edit", async () => {
+      const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [{ date: "2026-10-13", version: 0, editable: true, details: null }], categories: [] })));
+      await render(wrap(<MenuWeek />));
+      expect(await screen.findByText("12–16 Okt")).toBeTruthy();
+      expect(screen.getByText("Minggu depan")).toBeTruthy();
+      expect(await screen.findByText("Selasa 13 Okt")).toBeTruthy();
+      expect(screen.getByText("0 dari 5 hari terisi")).toBeTruthy();
+    });
+
+    it("opens on the first editable day, shows week progress, and offers to copy from a filled day", async () => {
+      const menu = { name: "Makan Siang", description: "", image: "", meal: "lunch", composition, items: [item("x", "g-lauk", "main", "Ayam")] };
+      const { wrap, MenuWeek } = setup(
+        jest.fn(async () => ({
+          dates: [
+            { date: "2026-10-08", version: 0, editable: false, details: null },
+            { date: "2026-10-09", version: 1, editable: true, details: menu },
+            { date: "2026-10-12", version: 0, editable: true, details: null },
+          ],
+          categories: [],
+        })),
+      );
+      await render(wrap(<MenuWeek />));
+      expect(await screen.findByText("Jumat 9 Okt")).toBeTruthy();
+      expect(screen.getByText("1 dari 5 hari terisi")).toBeTruthy();
+      // The empty editable day is Monday of next week: step there, where nothing is filled so no copy shortcut shows.
+      await fireEvent.press(screen.getByRole("button", { name: "Minggu berikutnya" }));
+      expect(await screen.findByText("Menu belum diisi")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^Salin dari/ })).toBeNull();
     });
   });
 
@@ -393,15 +423,12 @@ describe("menu loading and sharing states", () => {
       </MobileProvider>,
     );
   }
-  const disabled = (name: string) => screen.getByRole("button", { name }).props.accessibilityState.disabled;
 
   it("Menu actions wait for data", async () => {
     await runtimeFor(jest.fn(() => new Promise(() => undefined)));
-    await screen.findByRole("button", { name: "Bagikan menu" });
-    expect(screen.getByLabelText("Memuat menu")).toBeTruthy();
-    expect(disabled("Salin minggu lalu")).toBe(true);
-    expect(disabled("Bagikan menu")).toBe(true);
-    expect(screen.queryByText("Belum ada menu untuk dibagikan")).toBeNull();
+    expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Salin minggu lalu" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Bagikan menu" })).toBeNull();
   });
 
   it("shows the menu skeleton while the packages load, with no actions", async () => {
@@ -411,20 +438,25 @@ describe("menu loading and sharing states", () => {
     expect(screen.queryByRole("button", { name: "Salin minggu lalu" })).toBeNull();
   });
 
-  it("Bagikan menu disabled when nothing to share", async () => {
-    await runtimeFor(jest.fn(async () => ({ dates: [], categories: [] })));
-    expect(await screen.findByText("Belum ada menu untuk dibagikan")).toBeTruthy();
-    expect(disabled("Bagikan menu")).toBe(true);
-  });
-
-  it("Salin minggu lalu is disabled with a reason when last week has no menu", async () => {
-    await runtimeFor(jest.fn(async () => ({ dates: [], categories: [] })));
-    expect(await screen.findByText("Minggu lalu belum ada menu untuk disalin")).toBeTruthy();
-    expect(disabled("Salin minggu lalu")).toBe(true);
+  it("hides Bagikan menu and Salin minggu lalu, with no apology text, when there is nothing to act on", async () => {
+    jest.useFakeTimers({
+      now: new Date("2026-10-08T05:00:00Z"),
+      doNotFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate", "clearImmediate", "nextTick", "queueMicrotask", "performance"],
+    });
+    try {
+    await runtimeFor(jest.fn(async () => ({ dates: [{ date: "2026-10-08", version: 0, editable: true, details: null }], categories: [] })));
+    await screen.findByText("Menu belum diisi");
+    expect(screen.queryByRole("button", { name: "Bagikan menu" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Salin minggu lalu" })).toBeNull();
+    expect(screen.queryByTestId("menu-actions")).toBeNull();
+    expect(screen.queryByText(/belum ada menu/i)).toBeNull();
     expect(screen.queryByText(/hari disalin/)).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
-  it("says it is loading last week while Salin minggu lalu waits for it", async () => {
+  it("keeps Salin minggu lalu out of sight while last week is being read", async () => {
     // Fake only the clock: this week is in November and last week in October, so the two reads can be told apart.
     jest.useFakeTimers({
       now: new Date("2026-11-04T05:00:00Z"),
@@ -434,13 +466,16 @@ describe("menu loading and sharing states", () => {
       let release: (value: { dates: never[]; categories: never[] }) => void = () => undefined;
       const lastWeek = new Promise<{ dates: never[]; categories: never[] }>((resolve) => (release = resolve));
       const menuMonth = jest.fn((_offer: string, _rev: number, month: string) =>
-        month === "2026-11-01" ? Promise.resolve({ dates: [], categories: [] }) : lastWeek,
+        month === "2026-11-01"
+          ? Promise.resolve({ dates: [{ date: "2026-11-04", version: 0, editable: true, details: null }], categories: [] })
+          : lastWeek,
       );
       await runtimeFor(menuMonth as unknown as jest.Mock);
-      expect(await screen.findByText("Memuat minggu lalu…")).toBeTruthy();
-      expect(disabled("Salin minggu lalu")).toBe(true);
+      await screen.findByText("Menu belum diisi");
+      // Hidden, not disabled, while last week is still being read; it stays hidden when last week turns out empty.
+      expect(screen.queryByRole("button", { name: "Salin minggu lalu" })).toBeNull();
       await act(async () => release({ dates: [], categories: [] }));
-      await waitFor(() => expect(screen.queryByText("Memuat minggu lalu…")).toBeNull());
+      expect(screen.queryByRole("button", { name: "Salin minggu lalu" })).toBeNull();
     } finally {
       jest.useRealTimers();
     }
@@ -469,9 +504,9 @@ describe("menu loading and sharing states", () => {
           },
         }),
       );
-      await runtimeFor(jest.fn(async () => ({ dates: lastWeek, categories: [] })));
-      await waitFor(() => expect(disabled("Salin minggu lalu")).toBe(false));
-      expect(screen.queryByText("Minggu lalu belum ada menu untuk disalin")).toBeNull();
+      const thisWeek = { date: "2026-10-08", version: 0, editable: true, details: null };
+      await runtimeFor(jest.fn(async () => ({ dates: [...lastWeek, thisWeek], categories: [] })));
+      expect(await screen.findByRole("button", { name: "Salin minggu lalu" })).toBeTruthy();
     } finally {
       jest.useRealTimers();
     }
@@ -503,7 +538,7 @@ describe("menu loading and sharing states", () => {
       }));
       const command = jest.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("jaringan"));
       await runtimeFor(jest.fn(async () => ({ dates, categories: [] })), sellerOperations, command);
-      await waitFor(() => expect(disabled("Salin minggu lalu")).toBe(false));
+      await screen.findByRole("button", { name: "Salin minggu lalu" });
       await act(async () => undefined);
       sellerOperations.mockClear();
       await fireEvent.press(screen.getByRole("button", { name: "Salin minggu lalu" }));
@@ -535,8 +570,7 @@ describe("menu loading and sharing states", () => {
       };
     });
     await runtimeFor(jest.fn(async () => ({ dates, categories: [] })));
-    await waitFor(() => expect(disabled("Bagikan menu")).toBe(false));
-    expect(screen.queryByText("Belum ada menu untuk dibagikan")).toBeNull();
+    expect(await screen.findByRole("button", { name: "Bagikan menu" })).toBeTruthy();
   });
 });
 
@@ -649,7 +683,8 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
   async function mount({
     offers = [offerOf()],
-    dates = [] as unknown[],
+    // Today (Thursday 8 Oct) is open to fill unless a test says otherwise, so the tab opens on this week.
+    dates = [{ date: "2026-10-08", version: 0, editable: true, details: null }] as unknown[],
     role = "owner",
     launch = NOW,
     unread = false,
@@ -976,6 +1011,8 @@ describe("Menu week header, strip, day card and photo prompt", () => {
   });
 
   describe("controls", () => {
+    // A filled day this week (Bagikan menu) and one last week (Salin minggu lalu).
+    const both = () => [filled("2026-10-01"), filled("2026-10-08")];
     const twoOffers = () => [offerOf(), offerOf({ id: "p-2", name: "Rantang Nusantara" })];
 
     it("holds the package chips in a 48 frame that scrolls sideways, each chip 34 with a 7 slop", async () => {
@@ -993,7 +1030,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("an owner has Salin minggu lalu and Bagikan menu side by side, two 50 secondary buttons", async () => {
-      await mount();
+      await mount({ dates: both() });
       await screen.findByText("5–9 Okt");
       const row = screen.getByTestId("menu-actions");
       expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: "row", gap: 8 });
@@ -1005,7 +1042,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("stacks Salin minggu lalu over Bagikan menu below 400 effective width (360dp at font scale 1.3), each on its own line", async () => {
       mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
       try {
-        await mount();
+        await mount({ dates: both() });
         await screen.findByText("5–9 Okt");
         const row = screen.getByTestId("menu-actions");
         expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: "column", gap: 8 });
@@ -1023,7 +1060,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("keeps the pair side by side from 400 effective width (412dp at font scale 1.0), the same rule the customer's pair uses", async () => {
       mockWindow = { width: 412, height: 860, scale: 3, fontScale: 1 };
       try {
-        await mount();
+        await mount({ dates: both() });
         await screen.findByText("5–9 Okt");
         expect(StyleSheet.flatten(screen.getByTestId("menu-actions").props.style).flexDirection).toBe("row");
         for (const b of within(screen.getByTestId("menu-actions")).getAllByRole("button")) expect(StyleSheet.flatten(b.props.style).flex).toBe(1);
@@ -1035,7 +1072,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("a helper's lone Bagikan menu keeps its full-width row even where an owner's pair stacks", async () => {
       mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
       try {
-        await mount({ role: "staff" });
+        await mount({ role: "staff", dates: both() });
         await screen.findByText("5–9 Okt");
         expect(StyleSheet.flatten(screen.getByTestId("menu-actions").props.style).flexDirection).toBe("row");
         expect(StyleSheet.flatten(within(screen.getByTestId("menu-actions")).getByRole("button").props.style).flex).toBe(1);
@@ -1045,7 +1082,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("a helper has Bagikan menu alone, across the full width", async () => {
-      await mount({ role: "staff" });
+      await mount({ role: "staff", dates: both() });
       await screen.findByText("5–9 Okt");
       const buttons = within(screen.getByTestId("menu-actions")).getAllByRole("button");
       expect(buttons.map((b) => b.props.accessibilityLabel)).toEqual(["Bagikan menu"]);
@@ -1119,8 +1156,10 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
     it("calls an empty day past its change cutoff closed, in muted ink with no action", async () => {
       // Today in production: the cutoff was yesterday, so nothing can be filled and nothing is asked of the caterer.
-      await mount({ dates: [{ date: "2026-10-08", version: 0, editable: false, details: null }] });
-      const label = await screen.findByText("Sudah tidak bisa diubah");
+      // Friday is still open, so the tab opens on this week; Thursday is the closed day under test.
+      await mount({ dates: [{ date: "2026-10-08", version: 0, editable: false, details: null }, { date: "2026-10-09", version: 0, editable: true, details: null }] });
+      await fireEvent.press(await screen.findByTestId("menu-day-2026-10-08"));
+      const label = await screen.findByText("Hari ini sudah lewat batas ubah");
       expect(StyleSheet.flatten(label.props.style)).toMatchObject({ color: nativeThemes.light.muted, fontSize: 13, lineHeight: 18 });
       expect(screen.queryByText("Belum diisi")).toBeNull();
       expect(screen.queryByText("Lewat")).toBeNull();
@@ -1158,8 +1197,26 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(within(screen.getByTestId("menu-dish-i-ayam")).queryByRole("button")).toBeNull();
     });
 
+    it("an empty editable day offers Isi menu and, with a filled day this week, Salin dari that day", async () => {
+      const { command } = await mount({ dates: [{ date: "2026-10-08", version: 2, editable: true, details: null }, filled("2026-10-09")] });
+      expect(await screen.findByText("Menu belum diisi")).toBeTruthy();
+      expect(screen.getByText("1 dari 5 hari terisi")).toBeTruthy();
+      await fireEvent.press(screen.getByRole("button", { name: "Isi menu" }));
+      expect(require("expo-router").router.push).toHaveBeenCalledWith("/menu/2026-10-08?pkg=p-1&meal=lunch");
+      await fireEvent.press(screen.getByRole("button", { name: "Salin dari Jumat 9 Okt" }));
+      await waitFor(() => expect(command).toHaveBeenCalledWith("menu.saveBatch", expect.objectContaining({ dates: [{ date: "2026-10-08", version: 2 }], meal: "lunch" })));
+    });
+
+    it("a helper sees the unfilled day with no buttons", async () => {
+      await mount({ role: "staff", dates: [{ date: "2026-10-08", version: 2, editable: true, details: null }, filled("2026-10-09")] });
+      expect(await screen.findByText("Menu belum diisi")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Isi menu" })).toBeNull();
+      expect(screen.queryByRole("button", { name: /^Salin dari/ })).toBeNull();
+    });
+
     it("an owner sees the same utensils tile, not the camera action, on a day that can no longer change", async () => {
-      await mount({ dates: [filled("2026-10-08", dishes, false)] });
+      await mount({ dates: [filled("2026-10-08", dishes, false), { date: "2026-10-09", version: 0, editable: true, details: null }] });
+      await fireEvent.press(await screen.findByTestId("menu-day-2026-10-08"));
       await screen.findByText("Nasi putih");
       expect(screen.getByTestId("menu-photo-tile-i-ayam-not-set", { includeHiddenElements: true })).toBeTruthy();
       expect(screen.queryByRole("button", { name: /^Tambah foto/ })).toBeNull();
@@ -1503,7 +1560,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
 
     it("has no preview for a day without a menu", async () => {
       await mount({ dates: [{ date: "2026-10-08", version: 0, editable: true, details: null }] });
-      await screen.findByText("Belum diisi");
+      await screen.findByText("Menu belum diisi");
       expect(screen.queryByTestId("story-cover")).toBeNull();
       expect(screen.queryByText("Tampilan di aplikasi pelanggan")).toBeNull();
     });
