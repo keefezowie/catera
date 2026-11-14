@@ -70,7 +70,19 @@ export function Akun() {
     );
   if (!actor)
     return (
-      <SignInFirst title={t("Akun", "Account")} next="/akun" headerTestID="akun-header">
+      <SignInFirst
+        title={t("Akun", "Account")}
+        next="/akun"
+        headerTestID="akun-header"
+        pitch={{
+          title: t("Akunmu menyimpan semuanya", "Your account keeps it all"),
+          lines: [
+            { icon: "receipt-outline", text: t("Paket aktif, riwayat bayar dan perpanjangan", "Active plans, payment history and renewals") },
+            { icon: "location-outline", text: t("Alamat antar tersimpan, tinggal pilih", "Saved delivery addresses, just pick one") },
+            { icon: "chatbubble-ellipses-outline", text: t("Bantuan dan laporan masalah dalam satu tempat", "Help and problem reports in one place") },
+          ],
+        }}
+      >
         {/* Language and theme live in Pengaturan, which needs no account. */}
         <ListCard inset={BARE_GLYPH_INSET}>
           <SettingsEntry />

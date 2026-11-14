@@ -77,7 +77,22 @@ export function Jadwal() {
       </Screen>
     );
   }
-  if (!actor) return <SignInFirst title={t("Jadwal", "Schedule")} next="/jadwal" headerTestID="jadwal-header" />;
+  if (!actor)
+    return (
+      <SignInFirst
+        title={t("Jadwal", "Schedule")}
+        next="/jadwal"
+        headerTestID="jadwal-header"
+        pitch={{
+          title: t("Semua jadwal makanmu di sini", "All your meal schedule, here"),
+          lines: [
+            { icon: "restaurant-outline", text: t("Lihat menu tiap hari antar", "See the menu for every delivery day") },
+            { icon: "calendar-outline", text: t("Pindah tanggal sebelum jam 17.00", "Move a date before 17:00") },
+            { icon: "notifications-outline", text: t("Kabar saat makanan dimasak dan diantar", "Updates when your food is cooked and on its way") },
+          ],
+        }}
+      />
+    );
   return <SignedInJadwal key={actor.id} />;
 }
 

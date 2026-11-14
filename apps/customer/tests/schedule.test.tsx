@@ -14,7 +14,7 @@ import { Jadwal } from "../src/schedule/Jadwal";
 import { ChangeDaySheet } from "../src/schedule/ChangeDaySheet";
 import { DayScreen } from "../src/schedule/DayScreen";
 import { customerLink } from "../src/links";
-import { closeSheetFor } from "../src/nav";
+import { closeSheetFor, goToTab } from "../src/nav";
 import { SHEET_FOCUS_FALLBACK_MS, SHEET_FOCUS_SETTLE_MS } from "@catera/mobile-ui";
 import { ACTION_CIRCLE, DAY_ACTION_GAP, DAY_ACTIONS_PAD, DAY_GAP, DAY_MEAL_GAP } from "../src/schedule/dayMetrics";
 import { delivery, offer, subscription } from "./fixtures";
@@ -27,7 +27,7 @@ jest.mock("expo-router", () => ({
 }));
 // The day sheet closes itself and opens a page of the tab under it through the navigation helper; without a navigator
 // that helper has nothing to act on, so these tests read what it was asked to open.
-jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), closeSheetFor: jest.fn() }));
+jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), closeSheetFor: jest.fn(), goToTab: jest.fn() }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -1869,7 +1869,7 @@ describe("signed out", () => {
     const runtime = runtimeWith(stateOf([]));
     (runtime.api.me as jest.Mock).mockResolvedValue({ actor: null, demo: false });
     await renderWith(runtime, <Jadwal />);
-    await fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Masuk atau daftar" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/jadwal" } });
     expect(runtime.api.customer).not.toHaveBeenCalled();
   });
@@ -1878,5 +1878,19 @@ describe("signed out", () => {
 describe("legacy calendar links", () => {
   it("opens Jadwal from the old /calendar href", async () => {
     expect(customerLink("/calendar")).toBe("/jadwal");
+  });
+});
+
+describe("signed-out Jadwal pitch", () => {
+  it("shows the benefits, and a way to Jelajah without signing in", async () => {
+    const runtime = runtimeWith(stateOf([]));
+    (runtime.api.me as jest.Mock).mockResolvedValue({ actor: null, demo: false });
+    await renderWith(runtime, <Jadwal />);
+    expect(await screen.findByText("Semua jadwal makanmu di sini")).toBeTruthy();
+    for (const line of ["Lihat menu tiap hari antar", "Pindah tanggal sebelum jam 17.00", "Kabar saat makanan dimasak dan diantar"])
+      expect(screen.getByText(line)).toBeTruthy();
+    expect(screen.getByTestId("mascot-melambai", { includeHiddenElements: true })).toBeTruthy();
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat paket dulu" }));
+    expect(goToTab).toHaveBeenCalledWith("jelajah");
   });
 });

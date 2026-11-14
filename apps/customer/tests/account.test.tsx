@@ -395,13 +395,13 @@ describe("Akun", () => {
         <BahasaSheet />
       </>,
     );
-    await fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Masuk atau daftar" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/akun" } });
     expect(screen.getAllByRole("button", { name: /^Pengaturan/ })).toHaveLength(1);
     await fireEvent.press(screen.getByRole("button", { name: /^Pengaturan/ }));
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
     await fireEvent.press(screen.getByRole("radio", { name: "English" }));
-    expect(await screen.findByRole("button", { name: "Sign in" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Sign in or sign up" })).toBeTruthy();
   });
 
   // Tampilan moved from Akun to Pengaturan's sheet (Phase F); signed out reaches it through Pengaturan too.
@@ -1192,7 +1192,7 @@ describe("Akun mood header", () => {
     expect(flat(within(header).getByText("Akun")).color).toBe("#2E2E2E");
     // The settings gear is gone: Pengaturan is its row below the sign-in button.
     expect(within(header).queryByRole("button")).toBeNull();
-    expect(screen.getByRole("button", { name: "Masuk" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Masuk atau daftar" })).toBeTruthy();
   });
 });
 
@@ -1283,5 +1283,17 @@ describe("Simpan alamat says what is missing", () => {
     expect(screen.queryByText(/^Isi dulu:/)).toBeNull();
     expect(screen.queryByText(/minimal 5 karakter/)).toBeNull();
     expect(screen.getByRole("button", { name: "Simpan alamat" })).not.toBeDisabled();
+  });
+});
+
+describe("signed-out Akun pitch", () => {
+  it("names what the account holds, keeps Pengaturan and offers Jelajah", async () => {
+    await renderWith(runtimeWith({}, { actor: null }), <Akun />);
+    expect(await screen.findByText("Akunmu menyimpan semuanya")).toBeTruthy();
+    expect(screen.getByText("Paket aktif, riwayat bayar dan perpanjangan")).toBeTruthy();
+    expect(screen.getByText("Alamat antar tersimpan, tinggal pilih")).toBeTruthy();
+    expect(screen.getByText("Bantuan dan laporan masalah dalam satu tempat")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Lihat paket dulu" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Pengaturan/ })).toBeTruthy();
   });
 });

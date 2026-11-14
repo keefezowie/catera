@@ -162,7 +162,7 @@ describe("Pengaturan entry", () => {
 
   it("signed-out Akun keeps the Pengaturan entry", async () => {
     await renderWith(runtimeWith({ actor: null }), <Akun />);
-    expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Masuk atau daftar" })).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /^Pengaturan/ })).toHaveLength(1);
     expect(screen.queryByRole("tab", { name: "English" })).toBeNull();
   });

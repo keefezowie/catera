@@ -320,7 +320,7 @@ describe("states", () => {
   it("signed out shows the sign-in prompt, never a skeleton", async () => {
     const runtime = runtimeWith({ me: jest.fn(async () => ({ actor: null, demo: false })), customer: jest.fn() });
     await renderWith(runtime, <Jadwal />);
-    expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Masuk atau daftar" })).toBeTruthy();
     expect(screen.queryByRole("progressbar")).toBeNull();
     expect(screen.queryByTestId("jadwal-skeleton-cell")).toBeNull();
     expect(runtime.api.customer).not.toHaveBeenCalled();
