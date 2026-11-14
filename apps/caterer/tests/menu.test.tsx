@@ -281,9 +281,27 @@ describe("menu reads", () => {
       expect(screen.getByRole("button", { name: "Isi menu" })).toBeTruthy();
       // Monday is behind us: it says so and offers no editor.
       await fireEvent.press(screen.getByTestId("menu-day-2026-10-05"));
-      expect(StyleSheet.flatten(screen.getByText("Lewat").props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+      expect(StyleSheet.flatten(screen.getByText("Tanggal ini sudah lewat batas ubah").props.style)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+      expect(screen.queryByText("Lewat")).toBeNull();
       expect(screen.queryByText("Menu belum diisi")).toBeNull();
       expect(screen.queryByRole("button", { name: "Isi menu" })).toBeNull();
+      // Friday is still open, so the week shows its progress.
+      expect(screen.getByTestId("menu-progress")).toBeTruthy();
+    });
+
+    it("a week with every day locked says why on the empty day and shows no fill progress", async () => {
+      const { wrap, MenuWeek } = setup(
+        jest.fn(async () => ({ dates: [{ date: "2026-10-05", version: 0, editable: false, details: null }], categories: [] })),
+      );
+      await render(wrap(<MenuWeek />));
+      // Nothing left to edit this week: the tab opens on next week, where nothing is open either.
+      await screen.findByText("12–16 Okt");
+      await fireEvent.press(screen.getByRole("button", { name: "Minggu sebelumnya" }));
+      await screen.findByText("5–9 Okt");
+      await fireEvent.press(screen.getByTestId("menu-day-2026-10-05"));
+      expect(await screen.findByText("Tanggal ini sudah lewat batas ubah")).toBeTruthy();
+      expect(screen.queryByTestId("menu-progress")).toBeNull();
+      expect(screen.queryByText(/hari terisi/)).toBeNull();
     });
 
     it("opens on next week when this week has no day left to edit", async () => {

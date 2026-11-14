@@ -480,6 +480,8 @@ export function MenuWeek() {
   const showShare = weekLoaded && hasMenu;
   const hasNotes = !!note || !!error;
   const filledCount = dates.filter((d) => byDate.get(d)?.details?.items?.length).length;
+  // A week nobody can change any more asks nothing of the caterer, so it has no fill progress.
+  const weekLocked = dates.every((d) => !byDate.get(d)?.editable);
   const copySource = (days.data ?? []).find((d) => d.date !== selectedDate && d.details?.items?.length);
 
   return (
@@ -589,7 +591,7 @@ export function MenuWeek() {
                 </View>
               )}
             </FadeSwap>
-            {weekReady && dates.length ? (
+            {weekReady && dates.length && !weekLocked ? (
               <Text variant="meta" testID="menu-progress" style={{ color: m.headerMeta, marginTop: -4 }}>
                 {t(`${filledCount} dari ${dates.length} hari terisi`, `${filledCount} of ${plural(dates.length, "day")} filled`)}
               </Text>
@@ -729,11 +731,9 @@ export function MenuWeek() {
             ) : (
               // An empty day nobody can fill any more: past, or past its change cutoff. It is not a to-do, so it is muted.
               <Text variant="meta">
-                {past
-                  ? t("Lewat", "Past")
-                  : selected.date === today
-                    ? t("Hari ini sudah lewat batas ubah", "Today is past the change cutoff")
-                    : t("Sudah lewat batas ubah", "Past the change cutoff")}
+                {selected.date === today
+                  ? t("Hari ini sudah lewat batas ubah", "Today is past the change cutoff")
+                  : t("Tanggal ini sudah lewat batas ubah", "This date is past the change cutoff")}
               </Text>
             )}
             {photoError ? (
