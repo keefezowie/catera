@@ -123,6 +123,13 @@ export function PayWith({
         ) : null}
       </View>
     ) : null;
+  // Before the method is chosen on the next page there is nothing to pick here: one muted line, not a selected-looking card.
+  if (section && availability && availability.mode !== "direct")
+    return (
+      <Text variant="meta" testID="buy-pay-with">
+        {t("Cara bayar dipilih di langkah berikutnya.", "You choose how to pay in the next step.")}
+      </Text>
+    );
   return (
     <View testID={section ? "buy-pay-with" : undefined} style={{ gap: section ? 0 : 8 }}>
       {section ? <SectionHeader title={t("Bayar dengan", "Pay with")} /> : <Text variant="label">{t("Bayar dengan", "Pay with")}</Text>}

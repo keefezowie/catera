@@ -513,10 +513,34 @@ describe("Beli / Perpanjang", () => {
     expect(reads()).toBe(before + 1);
   });
 
+  it("an address with no pin shows a calm note, the price, and a footer button that leads to the pin step", async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY = "test-key";
+    try {
+      const runtime = server();
+      await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+      const note = await screen.findByTestId("buy-pin-note");
+      expect(within(note).getByText("Sekali saja, supaya kurir sampai di pintu yang benar.")).toBeTruthy();
+      // No red error, and the quote was asked for without any pin.
+      expect(screen.queryByText("Tandai titik lokasi alamat ini dulu.")).toBeNull();
+      await waitFor(() => expect(runtime.api.quote).toHaveBeenCalled());
+      expect(await screen.findByText("Rincian")).toBeTruthy();
+      const button = await screen.findByRole("button", { name: "Tandai titik dulu" });
+      expect(button).toBeEnabled();
+      expect(screen.queryByRole("button", { name: PAY })).toBeNull();
+      await fireEvent.press(button);
+      expect(router.push).toHaveBeenCalledWith("/pembelian/alamat-form?id=a-1");
+      expect(commands(runtime)).toEqual([]);
+      await fireEvent.press(within(note).getByRole("button", { name: "Tandai titik di peta" }));
+      expect(router.push).toHaveBeenCalledTimes(2);
+    } finally {
+      delete process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+    }
+  });
+
   it("payment card makes no security claim", async () => {
     await wrap(server({ mode: "hosted" }), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
-    expect(screen.getByText("Pilih cara bayar di halaman berikutnya.")).toBeTruthy();
+    expect(screen.getByText("Cara bayar dipilih di langkah berikutnya.")).toBeTruthy();
     expect(screen.queryByText(/\baman\b/i)).toBeNull();
     expect(screen.queryByText(/secure/i)).toBeNull();
   });

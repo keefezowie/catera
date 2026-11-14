@@ -21,7 +21,7 @@ import {
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
-import { Button, FadeSwap, RollingNumber, fontFor, FormError, Screen, Stepper, Text, themedStyles, useBusy, useScreenMargin, useStackedLayout } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, RollingNumber, fontFor, FormError, Screen, Stepper, Text, themedStyles, useBusy, useScreenMargin, useStackedLayout } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { BuySummary, FieldGlyph, FieldRow, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { FOOTER_STACK_BELOW, footerFits, PAY_MIN_WIDTH } from "./metrics";
@@ -151,9 +151,7 @@ export function BuyScreen({
       ? t("Tambahkan alamat pengantaran dulu.", "Add a delivery address first.")
       : !offer.areas.includes(address.area)
         ? t(`Alamat ini di luar jangkauan ${offer.caterer}. Pilih alamat lain.`, `This address is outside ${offer.caterer}'s area. Choose another.`)
-        : needsPin
-          ? t("Tandai titik lokasi alamat ini dulu.", "Mark this address's spot on the map first.")
-          : renew && ctx && !ctx.available && !ctx.pendingCheckoutId
+        : renew && ctx && !ctx.available && !ctx.pendingCheckoutId
           ? t("Paket ini belum bisa diperpanjang untuk jadwal berikutnya. Coba lagi nanti.", "This package can't be renewed for the next schedule yet. Try again later.")
           : !startDate || !purchaseStartAvailable(offer, startDate, now)
             ? t("Tanggal mulai sudah lewat batas pesan. Pilih tanggal lain.", "The start date is past the order cutoff. Choose another.")
@@ -274,7 +272,10 @@ export function BuyScreen({
   const loadingRead = (r: { data: unknown; error?: unknown }) => !r.data && !r.error;
   const waiting =
     quote.pending || loadingRead(customer) || loadingRead(methods) || (renew && loadingRead(context));
-  const disabled = !quote.ready || !payable || !!pendingCheckout || (renew && !context.data);
+  // The price does not depend on the pin, so a missing pin is a step before paying, not a reason to hide the price.
+  // Everything else in order and only the pin missing: the footer button leads to that step.
+  const pinStep = needsPin && !blocked && !pendingCheckout;
+  const disabled = !pinStep && (!quote.ready || !payable || !!pendingCheckout || (renew && !context.data));
   // A Bayar that cannot be pressed says why, one line above it, the first reason that holds (deep pages R1). A read that
   // failed already shows its Retry on the page, so the footer then says nothing rather than claim it is still counting.
   const why =
@@ -295,12 +296,20 @@ export function BuyScreen({
                 // Every other reason holds; a direct payment with no method left to pay by is the one that remains.
                 (!payable ? t("Pembayaran belum tersedia. Coba lagi nanti.", "Payment isn't available yet. Try again later.") : "");
   const amountText = shown ? currency(shown.total, locale) : quote.pending ? t("Menghitung…", "Calculating…") : "-";
-  const payLabel = quote.ready
+  const payLabel = pinStep
+    ? t("Tandai titik dulu", "Mark the spot first")
+    : quote.ready
     ? t(`Bayar ${currency(quote.ready.total, locale)}`, `Pay ${currency(quote.ready.total, locale)}`)
     : t("Bayar", "Pay");
   // The amount and Bayar share a row while both fit whole; otherwise they stack.
   const stacked =
     narrow || !footerFits(amountText, payLabel, Math.min(windowWidth, PAGE_MAX_WIDTH) - margin * 2, fontScale);
+  function markSpot() {
+    if (!address) return;
+    // Saving an address reorders the list; keep the one being marked as this purchase's address.
+    setAddressId(address.id);
+    router.push(addressFormHref(true, address.id) as never);
+  }
   const footer = (
     <View style={{ gap: nativeLayout.groupGap }}>
       {error ? <FormError message={error} failureKey={failures} /> : null}
@@ -329,7 +338,7 @@ export function BuyScreen({
           accessibilityHint={why || undefined}
           busy={busy}
           disabled={disabled}
-          onPress={() => void submit()}
+          onPress={() => (pinStep ? markSpot() : void submit())}
           style={stacked ? styles.payStacked : styles.pay}
         />
       </View>
@@ -430,17 +439,20 @@ export function BuyScreen({
             </ListCard>
             {blocked ? <FormError message={blocked} /> : null}
             {needsPin && address ? (
-              <View style={{ alignItems: "flex-start" }}>
+              <Card tone="attention" testID="buy-pin-note" style={styles.pinNote}>
+                <View style={styles.pinText}>
+                  <Text variant="bodyStrong">{t("Tandai titik di peta", "Mark the spot on the map")}</Text>
+                  <Text variant="meta">
+                    {t("Sekali saja, supaya kurir sampai di pintu yang benar.", "Just once, so the courier reaches the right door.")}
+                  </Text>
+                </View>
                 <Button
-                  variant="text"
-                  label={t("Tandai titik", "Mark the spot")}
-                  onPress={() => {
-                    // Saving an address reorders the list; keep the one being marked as this purchase's address.
-                    setAddressId(address.id);
-                    router.push(addressFormHref(true, address.id) as never);
-                  }}
+                  variant="secondary"
+                  label={t("Tandai", "Mark")}
+                  accessibilityLabel={t("Tandai titik di peta", "Mark the spot on the map")}
+                  onPress={markSpot}
                 />
-              </View>
+              </Card>
             ) : null}
           </View>
         </View>
@@ -485,6 +497,8 @@ const useStyles = themedStyles(() => ({
   footerStacked: { flexDirection: "column", alignItems: "stretch" },
   total: { flex: 1, minWidth: 0 },
   amount: { fontFamily: fontFor("800"), fontVariant: ["tabular-nums"] },
+  pinNote: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md },
+  pinText: { flex: 1, minWidth: 0 },
   pay: { minWidth: PAY_MIN_WIDTH },
   payStacked: { alignSelf: "stretch" },
 }));
