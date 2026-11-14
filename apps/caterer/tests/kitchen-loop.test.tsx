@@ -513,7 +513,7 @@ describe("a meal whose rows all failed", () => {
   });
 });
 
-describe("the delivery time on the count card", () => {
+describe("the delivery time on the summary line", () => {
   it("ignores the window of a row that failed", async () => {
     const day = kitchenDay([{ status: "issue" }, scheduled]);
     day.deliveries = day.deliveries.map((d, i) => ({
@@ -522,8 +522,8 @@ describe("the delivery time on the count card", () => {
     })) as typeof day.deliveries;
     await renderToday(runtimeWith(async () => day));
     const card = await screen.findByTestId("session-count");
-    expect(within(card).getByText("Antar 11.30")).toBeTruthy();
-    expect(within(card).queryByText("Antar 09.00")).toBeNull();
+    expect(within(card).getByText(/ · antar 11\.30$/)).toBeTruthy();
+    expect(within(card).queryByText(/antar 09\.00/)).toBeNull();
   });
 });
 
@@ -1120,7 +1120,7 @@ describe("Hari ini on the Dapur scale", () => {
   };
 
   describe("the header", () => {
-    it("runs the meta row, the title, the week strip and the figure strip with its Antar line", async () => {
+    it("runs the meta row, the title, the week strip and the one summary line with its antar part", async () => {
       const day = kitchenDay([scheduled]);
       for (const d of day.deliveries) {
         const windows = { lunch: "10.30–12.00", dinner: "18.00–19.30" };
@@ -1135,12 +1135,9 @@ describe("Hari ini on the Dapur scale", () => {
       expect(before(header, row, date)).toBe(true);
       expect(before(header, date, week)).toBe(true);
       expect(before(header, week, strip)).toBe(true);
-      // Porsi leads, then paket and alamat, with "Antar" as the strip's own line.
-      const cell = (i: number) => within(strip).getByTestId(`session-figures-cell-${i}`);
-      expect(cell(0).props.accessibilityLabel).toBe("34 porsi");
-      expect(cell(1).props.accessibilityLabel).toBe("2 paket");
-      expect(cell(2).props.accessibilityLabel).toBe("4 alamat");
-      expect(within(strip).getByText("Antar 10.30")).toBeTruthy();
+      // Porsi leads, then paket and alamat, and when the first window opens, all in one line.
+      expect(strip.props.children).toBe("34 porsi · 2 paket · 4 alamat · antar 10.30");
+      expect(strip.props.accessibilityLabel).toBe("34 porsi, 2 paket, 4 alamat, antar 10.30");
       // The mascot is not in the header (it stays on the done and empty cards), and no hero fill is drawn behind it.
       expect(within(header).queryByTestId(/^mascot-/, hidden)).toBeNull();
       expect(within(header).queryByTestId("session-count-fill-siang", hidden)).toBeNull();
@@ -1190,9 +1187,8 @@ describe("Hari ini on the Dapur scale", () => {
       store().set(runtime.storageKey("locale"), "en");
       await renderToday(runtime);
       const strip = await screen.findByTestId("session-figures");
-      await waitFor(() => expect(within(strip).getByTestId("session-figures-cell-0").props.accessibilityLabel).toBe("34 portions"));
-      expect(within(strip).getByTestId("session-figures-cell-1").props.accessibilityLabel).toBe("2 packages");
-      expect(within(strip).getByTestId("session-figures-cell-2").props.accessibilityLabel).toBe("4 addresses");
+      await waitFor(() => expect(strip.props.accessibilityLabel).toBe("34 portions, 2 packages, 4 addresses"));
+      expect(strip.props.children).toBe("34 portions · 2 packages · 4 addresses");
     });
   });
 

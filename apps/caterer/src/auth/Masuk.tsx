@@ -151,7 +151,12 @@ export function Masuk() {
         </StepFooter>
       }
     >
-      <AuthHeading title={t("Masuk", "Sign in")} subtitle={t("Masuk dengan email dan kata sandi, atau akun Google dan Apple-mu.", "Sign in with your email and password, or your Google or Apple account.")} />
+      <AuthHeading title={t("Masuk", "Sign in")} subtitle={
+          // The sentence names only the providers drawn below it: Apple is offered on iOS alone.
+          apple
+            ? t("Masuk dengan email dan kata sandi, atau akun Google dan Apple-mu.", "Sign in with your email and password, or your Google or Apple account.")
+            : t("Masuk dengan email dan kata sandi, atau akun Google-mu.", "Sign in with your email and password, or your Google account.")
+        } />
       <View testID="masuk-fields" style={{ gap: nativeLayout.space.lg }}>
         <Field
           {...authFields.email}

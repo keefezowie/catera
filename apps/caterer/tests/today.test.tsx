@@ -110,18 +110,17 @@ const stopMenu = async (n: number) =>
 
 it("shows the lunch cooking total for the day", async () => {
   await renderToday(runtimeWith(same(canvasDay())));
-  expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
+  expect(within(await screen.findByTestId("session-count")).getByText(/^34 porsi/)).toBeTruthy();
   expect(screen.getByText("Makan Siang Rumahan")).toBeTruthy();
-  // The count is the strip's lead figure, once: no second large number, and the old 40 "number" style is gone.
+  // The count is the header's one summary line, once: no large figure, and the old 40 "number" style is gone.
   expect(screen.getByText("Per paket")).toBeTruthy();
-  expect(screen.getAllByText("34")).toHaveLength(1);
-  // RollingNumber keeps an invisible "0" (to measure a digit) beside the figure; only visible text counts.
+  expect(screen.getAllByText(/^34 porsi/)).toHaveLength(1);
   const lead = (size: number) =>
     findInScreen((n) => {
       const style = n.type === "Text" ? StyleSheet.flatten(n.props.style) : undefined;
       return style?.fontSize === size && style.opacity !== 0;
     });
-  expect(lead(32)).toHaveLength(1);
+  expect(lead(32)).toHaveLength(0);
   expect(lead(40)).toHaveLength(0);
   expect(screen.queryByText("Makan siang")).toBeNull();
 });
@@ -158,7 +157,7 @@ it("keeps showing the last loaded day when offline", async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
   );
-  expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
+  expect(within(await screen.findByTestId("session-count")).getByText(/^34 porsi/)).toBeTruthy();
   expect(screen.getByText(/Ini data terakhir yang tersimpan/)).toBeTruthy();
 });
 
@@ -379,7 +378,7 @@ describe("session cards", () => {
     } as unknown as typeof base;
     await renderToday(runtimeWith(async () => day));
     expect(await screen.findByTestId("session-card")).toBeTruthy();
-    expect(within(screen.getByTestId("session-count")).getByTestId("session-figures-cell-0").props.accessibilityLabel).toBe("1 porsi");
+    expect(within(screen.getByTestId("session-count")).getByTestId("session-figures").props.accessibilityLabel).toMatch(/^1 porsi, 1 paket, 1 alamat/);
     expect(screen.getByText("Nadia Putri")).toBeTruthy();
     expect(screen.getByText("Bagikan rute ke WhatsApp")).toBeTruthy();
     expect(screen.queryByText("Makan malam")).toBeNull();
@@ -534,52 +533,32 @@ describe("Hari ini by mood", () => {
     spring.mockRestore();
   });
 
-  describe("the figure strip", () => {
-    it("is the theme's surface under the date, leading with the mood's portions", async () => {
+  describe("the summary line", () => {
+    it("is one line of ink under the date, leading with the mood's portions", async () => {
       await renderMood(runtimeWith(async () => timedDay()));
       const card = await screen.findByTestId("session-count");
-      const strip = within(card).getByTestId("session-figures");
-      const number = within(strip).getByText("34");
-      // The lead figure is the 32/40 tabular variant, in the ink.
-      expect(StyleSheet.flatten(number.props.style)).toMatchObject({
-        fontSize: 32,
-        lineHeight: 40,
-        fontVariant: expect.arrayContaining(["tabular-nums"]),
-        color: nativeThemes.light.charcoal,
-      });
-      expect(within(strip).getByText("porsi")).toBeTruthy();
-      expect(within(strip).getByText("paket")).toBeTruthy();
-      expect(within(strip).getByText("alamat")).toBeTruthy();
+      const line = within(card).getByTestId("session-figures");
       // The earliest of the lunch windows: Paket Hemat opens at 10.30.
-      expect(within(strip).getByText("Antar 10.30")).toBeTruthy();
-      // One card on the header: the theme's surface (which is the hero surface of both moods), radius 16, no hero fill.
-      expect(flat("session-figures")).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderRadius: 16, borderCurve: "continuous" });
+      expect(line.props.children).toMatch(/^34 porsi · \d+ paket · \d+ alamat · antar 10\.30$/);
+      expect(line.props.accessibilityLabel).toMatch(/^34 porsi, \d+ paket, \d+ alamat, antar 10\.30$/);
+      expect(flat("session-figures")).toMatchObject({ color: nativeMood.light.siang.headerText, fontVariant: expect.arrayContaining(["tabular-nums"]) });
+      // No card of its own on the header any more.
+      expect(flat("session-figures").backgroundColor).toBeUndefined();
       expect(screen.queryByTestId("session-count-fill-siang", { includeHiddenElements: true })).toBeNull();
     });
 
-    it("needs no fill that fades: the strip is the same surface in Siang and Malam while the header's own fill fades", async () => {
+    it("follows the mood to the dinner session", async () => {
       jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
       await renderMood(runtimeWith(async () => toDinner(timedDay())));
       await screen.findByTestId("session-count");
-      expect(nativeMood.light.siang.hero).toBe(nativeThemes.light.surface);
-      expect(nativeMood.light.malam.hero).toBe(nativeThemes.light.surface);
       expect(flat("mood-fill-malam").opacity).toBe(0);
-      expect(flat("session-figures").backgroundColor).toBe(nativeThemes.light.surface);
       await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
-      expect(await within(screen.getByTestId("session-count")).findByText("23")).toBeTruthy();
+      expect(await within(screen.getByTestId("session-count")).findByText(/^23 porsi/)).toBeTruthy();
       expect(flat("mood-fill-malam").opacity).toBe(1);
-      expect(flat("session-figures").backgroundColor).toBe(nativeThemes.light.surface);
+      expect(screen.getByTestId("session-figures").props.children).toMatch(/ · antar 17\.45$/);
       await fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
-      expect(await within(screen.getByTestId("session-count")).findByText("11")).toBeTruthy();
+      expect(await within(screen.getByTestId("session-count")).findByText(/^11 porsi/)).toBeTruthy();
       expect(flat("mood-fill-malam").opacity).toBe(0);
-    });
-
-    it("follows the mood to the dinner session", async () => {
-      await renderMood(runtimeWith(async () => toDinner(timedDay())), MALAM_NOW);
-      const card = await screen.findByTestId("session-count");
-      expect(within(card).getByText("23")).toBeTruthy();
-      expect(within(card).getByTestId("session-figures-cell-2").props.accessibilityLabel).toBe("1 alamat");
-      expect(within(card).getByText("Antar 17.45")).toBeTruthy();
     });
 
     it("is worded in English", async () => {
@@ -587,10 +566,7 @@ describe("Hari ini by mood", () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
       await renderMood(runtime);
       const card = await screen.findByTestId("session-count");
-      expect(await within(card).findByText("portions")).toBeTruthy();
-      expect(within(card).getByText("packages")).toBeTruthy();
-      expect(within(card).getByText("addresses")).toBeTruthy();
-      expect(within(card).getByText("Delivery 10.30")).toBeTruthy();
+      expect(await within(card).findByText(/^34 portions · \d+ packages? · \d+ addresses? · delivery 10\.30$/)).toBeTruthy();
     });
   });
 
@@ -616,7 +592,7 @@ describe("Hari ini by mood", () => {
       expect(await screen.findByTestId("session-card")).toBeTruthy();
       expect(tabsSelected()).toEqual([true, false]);
       expect(screen.queryByText("Tidak ada pengantaran makan malam")).toBeNull();
-      expect(within(screen.getByTestId("session-count")).getByText("34")).toBeTruthy();
+      expect(within(screen.getByTestId("session-count")).getByText(/^34 porsi/)).toBeTruthy();
     });
 
     it("in Siang with only dinner work offers the dinner session", async () => {
@@ -720,7 +696,7 @@ it("Today error offers Coba lagi", async () => {
   const retry = await screen.findByRole("button", { name: "Coba lagi" });
   failing = false;
   await fireEvent.press(retry);
-  expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
+  expect(within(await screen.findByTestId("session-count")).getByText(/^34 porsi/)).toBeTruthy();
 });
 
 it("new kitchen card makes no time claim", async () => {
@@ -1012,7 +988,7 @@ describe("the compact rantang track and the regular one", () => {
 });
 
 describe("dark Malam", () => {
-  it("draws the figure strip on the dark surface and the batch progress on the dark mood, in Malam", async () => {
+  it("draws the summary line and the batch progress on the dark mood, in Malam", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const day = canvasDay();
     for (const d of day.deliveries)
@@ -1027,9 +1003,8 @@ describe("dark Malam", () => {
       </ThemeProvider>,
     );
     const strip = await screen.findByTestId("session-figures");
-    expect(StyleSheet.flatten(strip.props.style).backgroundColor).toBe(nativeThemes.dark.surface);
-    expect(nativeMood.dark.malam.hero).toBe(nativeThemes.dark.surface);
-    expect(StyleSheet.flatten(within(strip).getByText("34").props.style).color).toBe(nativeThemes.dark.charcoal);
+    expect(StyleSheet.flatten(strip.props.style).color).toBe(nativeMood.dark.malam.headerText);
+    expect(strip.props.children).toMatch(/^34 porsi/);
     const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
     const ink = nativeMood.dark.malam;
     expect(flatOf("batch-progress-track").backgroundColor).toBe(nativeThemes.dark.line);

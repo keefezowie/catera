@@ -9,6 +9,7 @@ import {
 } from "@catera/domain";
 import { useMobile, plural } from "@catera/mobile-core";
 import { DecorativeIcon, KeyValueRow, ListCard, RollingNumber, SectionHeader, Text, useColors } from "@catera/mobile-ui";
+import { BelanjaLink } from "./BelanjaLink";
 import { CookingList } from "./CookingList";
 import { ActionPair, IconAction, SECTION_GAP, SUMMARY_HEIGHT, TextAction } from "./rows";
 import type { Ticks } from "./ticks";
@@ -46,6 +47,10 @@ function recapLines(recap: CookingRecap, title: string, unfilledLines: string[])
   ].join("\n");
 }
 
+/** Whether the session still shows its cooking list (before departure); Belanja 7 hari then rides in that list's heading. */
+export const cookingListShown = (session: KitchenSession) =>
+  !["out_for_delivery", "arrived", "delivered"].includes(session.journey.stage);
+
 /**
  * One meal session of the day, as sections down the page (spec 3.1). Before departure: "Daftar masak" (the checklist, with
  * the lines about menus nobody has filled in directly under it) and "Per paket", then the delivery order. Once the meal is
@@ -80,7 +85,7 @@ export function SessionCard({
   const { t, actor } = useMobile();
   const c = useColors();
   const { recap, stops } = session;
-  const departed = ["out_for_delivery", "arrived", "delivered"].includes(session.journey.stage);
+  const departed = !cookingListShown(session);
   const onTheRoad = session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0;
   const missing = unfilledByPackage(recap.unfilled);
   // The shared and printed recap is written in Indonesian, like the rest of its text.
@@ -119,6 +124,7 @@ export function SessionCard({
             ticks={ticks}
             actions={
               <ActionPair>
+                <BelanjaLink />
                 <IconAction
                   icon="share-outline"
                   flush

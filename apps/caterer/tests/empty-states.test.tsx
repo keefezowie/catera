@@ -375,10 +375,10 @@ describe("the header holds no cooking mascot", () => {
     }
   });
 
-  it("keeps the strip the same size before, during and after cooking, and adds the progress under it once cooking began", async () => {
-    // A 360dp phone at the default text size, where the strip has the least room in one row.
+  it("keeps the summary line the same before, during and after cooking, and adds the progress under it once cooking began", async () => {
+    // A 360dp phone at the default text size, where the line has the least room.
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
-    // A lunch window the caterer set, so the strip carries "Antar 11.30" in every stage.
+    // A lunch window the caterer set, so the line carries "antar 11.30" in every stage.
     const windowed = (status: string): SellerOperationsState => {
       const ops = day(status);
       ops.deliveries = ops.deliveries.map(
@@ -393,8 +393,7 @@ describe("the header holds no cooking mascot", () => {
       const shape = {
         card: StyleSheet.flatten(card.props.style),
         strip: flat("session-figures"),
-        subline: within(card).queryByText("Antar 11.30", hidden) !== null,
-        grid: within(card).queryByTestId("session-figures-grid", hidden) !== null,
+        subline: within(card).queryByText(/ · antar 11\.30$/, hidden) !== null,
         progress: within(card).queryByTestId("batch-progress", hidden) !== null,
       };
       await screen.unmount();
@@ -409,17 +408,15 @@ describe("the header holds no cooking mascot", () => {
     expect(stripDuring).toEqual(stripBefore);
     expect(stripAfter).toEqual(stripBefore);
     expect([before.progress, during.progress, after.progress]).toEqual([false, true, true]);
-    expect(before).toMatchObject({ subline: true, grid: false });
+    expect(before).toMatchObject({ subline: true });
   });
 
-  it("stacks the figures as a 2-column grid on a 360dp phone at font scale 1.3, the lead across both", async () => {
+  it("lets the summary line wrap on a 360dp phone at font scale 1.3, never clipping it", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     await render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
-    const card = await screen.findByTestId("session-count");
-    const grid = await within(card).findByTestId("session-figures-grid", hidden);
-    expect(StyleSheet.flatten(within(grid).getByTestId("session-figures-cell-0", hidden).props.style).width).toBe("100%");
-    // The primary label of the strip's lead is whole: one line of the label and the number, no clipping.
-    expect(within(card).getByText("porsi", hidden).props.numberOfLines).toBeUndefined();
+    const line = await screen.findByTestId("session-figures", hidden);
+    expect(line.props.numberOfLines).toBeUndefined();
+    expect(line.props.children).toMatch(/^\d+ porsi · \d+ paket · \d+ alamat/);
   });
 
   it("gives the screen reader the batch progress as one image whose label carries the legend", async () => {

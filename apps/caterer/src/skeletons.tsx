@@ -23,12 +23,11 @@ function Line({ width, block, line, onMood, testID }: { width: DimensionValue; b
 }
 
 /**
- * The header's figures while the day loads: the porsi, paket and alamat strip (label and value lines, then the "Antar"
- * subline's room, in the strip's own 12 16 padding), 12dp under the date like the loaded strip, so the header keeps its
- * height when the figures replace it. The batch progress under the strip is not reserved: it shows only once a row has
- * left Terjadwal, which a loading day cannot say. The blocks take the mood's toggle track, which stands off the header
- * fill in Siang and Malam, light and dark (the strip's surface is not drawn: in light Malam it is nearly the header's
- * colour). The body's `TodaySkeleton` names the wait, so this one is hidden from screen readers.
+ * The header's figures while the day loads: the one summary line ("7 porsi · 1 paket · 6 alamat · antar 17.00"), 12dp under
+ * the date like the loaded line, so the header keeps its height when the figures replace it. The batch progress under the
+ * line is not reserved: it shows only once a row has left Terjadwal, which a loading day cannot say. The block takes the
+ * mood's toggle track, which stands off the header fill in Siang and Malam, light and dark. The body's `TodaySkeleton`
+ * names the wait, so this one is hidden from screen readers.
  */
 export function TodayCountSkeleton() {
   return (
@@ -39,22 +38,7 @@ export function TodayCountSkeleton() {
       style={{ gap: FIGURE_GAP, marginTop: FIGURE_TOP }}
     >
       <SkeletonGroup label="">
-        <View>
-          {/* The strip: three cells (the 13 label line over the 40 figure), then the room of the "Antar" subline (6 and an
-              18 line), inside 12 16. Most kitchens have a window, so the header does not grow when the figures land. */}
-          <View testID="today-count-strip" style={{ gap: 6, paddingVertical: 12, paddingHorizontal: 16 }}>
-            <View style={{ flexDirection: "row", gap: 16 }}>
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={{ flex: 1 }}>
-                  <Line width={i ? 40 : 32} block={10} line={18} onMood testID={`today-count-block-label-${i}`} />
-                  {/* The 32/40 lead figure, then the 20/26 siblings in the same 40 line. */}
-                  <Line width={i ? 32 : 56} block={i ? 20 : 32} line={40} onMood testID={i ? `today-count-block-value-${i}` : "today-count-block-number"} />
-                </View>
-              ))}
-            </View>
-            <Line width={96} block={10} line={18} onMood testID="today-count-block-subline" />
-          </View>
-        </View>
+        <Line width={220} block={14} line={22} onMood testID="today-count-block-line" />
       </SkeletonGroup>
     </View>
   );

@@ -104,7 +104,9 @@ describe("Dapur Masuk, email only", () => {
     await screen.findByLabelText("Email");
     expect(screen.queryByRole("tab")).toBeNull();
     expect(screen.queryByLabelText("Nomor WhatsApp")).toBeNull();
-    expect(screen.getByText("Masuk dengan email dan kata sandi, atau akun Google dan Apple-mu.")).toBeTruthy();
+    // Android offers Google alone, so the sentence names Google alone.
+    expect(screen.getByText("Masuk dengan email dan kata sandi, atau akun Google-mu.")).toBeTruthy();
+    expect(screen.queryByText(/Apple/)).toBeNull();
     expect(screen.getByText("Belum punya dapur?")).toBeTruthy();
     await press("Daftar");
     expect(router.push).toHaveBeenCalledWith("/daftar");

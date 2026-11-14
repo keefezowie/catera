@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react-native";
+import { fireEvent, screen, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import { router } from "expo-router";
@@ -107,8 +107,8 @@ function renderToday(runtime: MobileRuntime, { date, now = SIANG_NOW }: { date?:
 }
 
 /** A glyph by its Ionicons name (the icon draws nothing in Jest, so it is found by its props). */
-const glyph = (name: string) => {
-  const found = iconsIn(screen.getByTestId("belanja-entry")).find((i) => i.name === name)!;
+const glyph = (name: string, within: string = "belanja-entry") => {
+  const found = iconsIn(screen.getByTestId(within)).find((i) => i.name === name)!;
   return { color: found.color as string, size: found.size as number };
 };
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
@@ -127,26 +127,28 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe("Hari ini's Belanja entry row", () => {
-  it("Hari ini's entry row navigates to belanja", async () => {
+describe("Hari ini's Belanja link and entry row", () => {
+  it("is a link beside the Daftar masak heading that navigates to belanja", async () => {
     await renderToday(runtimeWith());
-    const row = await screen.findByRole("button", { name: `Belanja 7 hari, Porsi per menu, ${range("id")}` });
-    expect(screen.getByText("Belanja 7 hari")).toBeTruthy();
-    expect(screen.getByText(`Porsi per menu, ${range("id")}`)).toBeTruthy();
-    expect(glyph("basket-outline")).toBeTruthy();
-    expect(glyph("chevron-forward")).toBeTruthy();
+    const link = await screen.findByRole("button", { name: `Belanja 7 hari, Porsi per menu, ${range("id")}` });
+    expect(within(link).getByText("Belanja")).toBeTruthy();
+    expect(glyph("basket-outline", "belanja-link")).toBeTruthy();
+    // The session carries it in the heading of its cooking list: no card of its own, and Bagikan and Cetak stay.
+    expect(screen.queryByTestId("belanja-entry")).toBeNull();
+    const heading = within(screen.getByTestId("cooking-list")).getByTestId("section-header");
+    expect(within(heading).getByTestId("belanja-link")).toBeTruthy();
+    expect(within(heading).getByRole("button", { name: "Bagikan" })).toBeTruthy();
+    expect(within(heading).getByRole("button", { name: "Cetak" })).toBeTruthy();
     // At least one 48 target.
-    expect(flat(screen.getByTestId("belanja-entry-row")).minHeight).toBeGreaterThanOrEqual(48);
-    await fireEvent.press(row);
+    expect(flat(link).minHeight).toBeGreaterThanOrEqual(48);
+    await fireEvent.press(link);
     expect(router.push).toHaveBeenCalledWith("/belanja");
   });
 
   it("shows on a future day of the strip, and for a helper, with the same seven-day range", async () => {
     await renderToday(runtimeWith("staff"), { date: "2026-10-12" });
-    await screen.findByText("Belanja 7 hari");
-    // The range is the recap's (from today), not the selected day's.
-    expect(screen.getByText(`Porsi per menu, ${range("id")}`)).toBeTruthy();
-    await fireEvent.press(screen.getByTestId("belanja-entry-row"));
+    const link = await screen.findByRole("button", { name: `Belanja 7 hari, Porsi per menu, ${range("id")}` });
+    await fireEvent.press(link);
     expect(router.push).toHaveBeenCalledWith("/belanja");
   });
 
@@ -154,11 +156,11 @@ describe("Hari ini's Belanja entry row", () => {
     const runtime = runtimeWith();
     store().set(runtime.storageKey("locale"), "en");
     await renderToday(runtime);
-    expect(await screen.findByText("Shopping, 7 days")).toBeTruthy();
-    expect(screen.getByText(`Portions per dish, ${range("en")}`)).toBeTruthy();
+    const link = await screen.findByRole("button", { name: `Shopping, 7 days, Portions per dish, ${range("en")}` });
+    expect(within(link).getByText("Shopping")).toBeTruthy();
   });
 
-  it("comes after the read errors and the live slot, and before the session (the body order)", async () => {
+  it("sits in the cooking list's heading, after the read errors and the live slot", async () => {
     const runtime = runtimeWith();
     (runtime.api.sellerAttention as jest.Mock).mockResolvedValue({
       items: [{ id: "a-2", kind: "support", priority: 1, at_time: "2026-10-08T02:41:00Z", context: "Tanya tagihan", href: "/seller/support?case=c-1" }],
@@ -171,14 +173,14 @@ describe("Hari ini's Belanja entry row", () => {
     await screen.findByTestId("attention-a-2");
     await screen.findByTestId("session-card");
     const errorId = "text:Laporan pelanggan belum bisa dimuat.";
-    const [error, live, row, session] = positions(errorId, "live-card", "belanja-entry", "session-card");
+    const [error, live, session, link] = positions(errorId, "live-card", "session-card", "belanja-link");
     expect(live).toBeGreaterThan(-1);
     expect(error).toBeLessThan(live);
-    expect(live).toBeLessThan(row);
-    expect(row).toBeLessThan(session);
+    expect(live).toBeLessThan(session);
+    expect(session).toBeLessThan(link);
   });
 
-  it("comes before Semua beres on a finished day", async () => {
+  it("keeps the entry card before Semua beres on a finished day, where there is no cooking list", async () => {
     const runtime = runtimeWith();
     (runtime.api.sellerOperations as jest.Mock).mockImplementation(async (_id: string, date: string) => dayFor(date, true));
     await renderToday(runtime);
@@ -186,6 +188,9 @@ describe("Hari ini's Belanja entry row", () => {
     const [row, done] = positions("belanja-entry", "done-card");
     expect(row).toBeGreaterThan(-1);
     expect(row).toBeLessThan(done);
+    expect(screen.queryByTestId("belanja-link")).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: `Belanja 7 hari, Porsi per menu, ${range("id")}` }));
+    expect(router.push).toHaveBeenCalledWith("/belanja");
   });
 
   const combos = [
@@ -194,9 +199,11 @@ describe("Hari ini's Belanja entry row", () => {
     ["dark", "siang", SIANG_NOW],
     ["dark", "malam", MALAM_NOW],
   ] as const;
-  it.each(combos)("%s %s: text at 4.5:1 and glyphs at 3:1 on the card it sits on", async (scheme, _mood, now) => {
+  it.each(combos)("%s %s: the entry card's text at 4.5:1 and glyphs at 3:1 on the card it sits on", async (scheme, _mood, now) => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
-    await renderToday(runtimeWith(), { now });
+    const runtime = runtimeWith();
+    (runtime.api.sellerOperations as jest.Mock).mockImplementation(async (_id: string, date: string) => dayFor(date, true));
+    await renderToday(runtime, { now });
     await screen.findByText("Belanja 7 hari");
     // The row sits in the body, on a theme surface card: the mood paints the header only, so both moods read alike.
     const theme = nativeThemes[scheme];
@@ -213,5 +220,13 @@ describe("Hari ini's Belanja entry row", () => {
     expect(contrastRatio(chevron, card)).toBeGreaterThanOrEqual(3);
     expect(glyph("basket-outline").color).toBe(theme.forest);
     expect(contrastRatio(theme.forest, card)).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(["light", "dark"] as const)("%s: the link's label and glyph are the forest action ink", async (scheme) => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+    await renderToday(runtimeWith());
+    const link = await screen.findByTestId("belanja-link");
+    expect(glyph("basket-outline", "belanja-link").color).toBe(nativeThemes[scheme].forest);
+    expect(flat(within(link).getByText("Belanja")).color).toBe(nativeThemes[scheme].forest);
   });
 });

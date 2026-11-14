@@ -21,7 +21,6 @@ import {
   ConnectionBanner,
   DecorativeIcon,
   FadeSwap,
-  FigureStrip,
   MoodHeader,
   PolishArt,
   PressableRow,
@@ -43,7 +42,7 @@ import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
 import { SelectionBar } from "./SelectionBar";
 import { useStopSelection } from "./selection";
-import { SessionCard } from "./SessionCard";
+import { cookingListShown, SessionCard } from "./SessionCard";
 import { useTicks } from "./ticks";
 import { covers, validDay, WeekStrip, weekOf } from "./WeekStrip";
 import { useRouteView } from "./DeliveryOrder";
@@ -80,30 +79,37 @@ async function keptDay(actorId: string, catererId: string, date: string): Promis
 }
 
 /**
- * The session's headline figures in the header, under the date: porsi (the lead), paket and alamat in one strip, with
- * when the first window opens as its subline, and the batch progress under it (how many stops have arrived, are on the way
- * or are cooking; nothing while every row is still scheduled).
- * The strip is the theme's surface, which is also the hero surface of both moods, so it needs no fill of its own and
- * does not cross-fade with the header. The mascot is not here (it stays on the done and empty cards).
+ * The session's headline figures in the header, under the date, as one line: "7 porsi · 1 paket · 6 alamat · antar 17.00"
+ * (the antar part is when the first window opens), with the batch progress under it (how many stops have arrived, are on
+ * the way or are cooking; nothing while every row is still scheduled). One line leaves the cooking list the screen. The
+ * mascot is not here (it stays on the done and empty cards).
  */
 function HeaderFigures({ ops, session }: { ops: SellerOperationsState; session: KitchenSession }) {
   const { t } = useMobile();
+  const m = useMoodColors();
   const { meal, portions, addresses } = session;
   // The window opens with the first row still being served: a failed or cancelled row's hours do not count.
   const served = new Set(session.stops.map((s) => s.deliveryId));
   const start = sessionStart({ ...ops, deliveries: ops.deliveries.filter((d) => served.has(d.id)) }, meal);
+  const packages = session.recap.byPackage.length;
+  const parts = [
+    t(`${portions} porsi`, plural(portions, "portion")),
+    t(`${packages} paket`, plural(packages, "package")),
+    t(`${addresses} alamat`, plural(addresses, "address", "addresses")),
+    start ? t(`antar ${start}`, `delivery ${start}`) : null,
+  ].filter(Boolean);
   return (
     <View testID="session-count" style={{ gap: FIGURE_GAP, marginTop: FIGURE_TOP }}>
-      <FigureStrip
+      <Text
         testID="session-figures"
-        lead
-        cells={[
-          { label: t("porsi", "portions"), value: String(portions) },
-          { label: t("paket", "packages"), value: String(session.recap.byPackage.length) },
-          { label: t("alamat", "addresses"), value: String(addresses) },
-        ]}
-        subline={start ? t(`Antar ${start}`, `Delivery ${start}`) : undefined}
-      />
+        variant="bodyStrong"
+        selectable
+        accessibilityRole="text"
+        accessibilityLabel={parts.join(", ")}
+        style={{ color: m.headerText, fontVariant: ["tabular-nums"] }}
+      >
+        {parts.join(" · ")}
+      </Text>
       <BatchProgress session={session} />
     </View>
   );
@@ -684,7 +690,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <View style={{ height: 0 }} />
           </View>
         </FadeSwap>
-        <BelanjaEntry />
+        {/* While the cooking list shows, Belanja 7 hari is a link in its heading; on any other day it keeps its card. */}
+        {loading || (ops && !done && session && cookingListShown(session)) ? null : <BelanjaEntry />}
         <FadeSwap swapKey={dayKey}>
           <View testID="today-day" style={{ gap: SECTION_GAP }}>
             <View style={{ height: 0 }} />
