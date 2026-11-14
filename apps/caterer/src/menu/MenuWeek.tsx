@@ -591,7 +591,7 @@ export function MenuWeek() {
             </FadeSwap>
             {weekReady && dates.length ? (
               <Text variant="meta" testID="menu-progress" style={{ color: m.headerMeta, marginTop: -4 }}>
-                {t(`${filledCount} dari ${dates.length} hari terisi`, `${filledCount} of ${dates.length} days filled`)}
+                {t(`${filledCount} dari ${dates.length} hari terisi`, `${filledCount} of ${plural(dates.length, "day")} filled`)}
               </Text>
             ) : null}
             {onlyMeal ? (
