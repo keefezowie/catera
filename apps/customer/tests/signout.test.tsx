@@ -105,7 +105,7 @@ it("Keluar from a demo session: the next request carries no credential and the s
     </ThemeProvider>,
   );
   await fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
-  expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: "Masuk atau daftar" })).toBeTruthy();
 
   // The next session read (a return from the background, the next launch) asks as nobody, and stays signed out.
   sent = [];
@@ -113,6 +113,6 @@ it("Keluar from a demo session: the next request carries no credential and the s
   expect(sent.find((s) => s.path === "me")).toEqual({ path: "me", authorization: "", cookie: "" });
   await act(async () => {});
   expect(session.actor).toBeNull();
-  expect(screen.getByRole("button", { name: "Masuk" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Masuk atau daftar" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Keluar" })).toBeNull();
 });
