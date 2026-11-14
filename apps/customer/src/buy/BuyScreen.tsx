@@ -170,7 +170,8 @@ export function BuyScreen({
           ...(renew ? { renewedFrom: renewFrom } : {}),
         }
       : null;
-  const quote = useQuote(payload);
+  // The server's quote copies the address record, pin included: a pin saved on this address changes it.
+  const quote = useQuote(payload, address);
   // The same package is still running: offer the first day after it instead of a dead-end retry.
   const running =
     quote.errorCode === "OVERLAP" && offer && !renew ? nextStartAfter(offer, customer.data?.subscriptions ?? [], now) : null;

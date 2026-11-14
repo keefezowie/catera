@@ -13,10 +13,12 @@ export type BuyPayload = {
 };
 
 /** The server's price for exactly this choice. Every rupiah on screen comes from here.
- * Requotes ~300 ms after the last change; `ready` is only the quote for the current choice. */
-export function useQuote(payload: BuyPayload | null) {
+ * Requotes ~300 ms after the last change; `ready` is only the quote for the current choice.
+ * `basis` is what the server copies into the quote beyond the payload (the address record): when it changes, so does
+ * the server's quote, so it is asked again (a pin saved on the same address would otherwise pay with a stale quote). */
+export function useQuote(payload: BuyPayload | null, basis?: unknown) {
   const { runtime, locale, t } = useMobile();
-  const key = payload ? JSON.stringify(payload) : "";
+  const key = payload ? JSON.stringify([payload, basis ?? null]) : "";
   const [state, setState] = useState<{ key: string; quote: Quote | null; error: string; errorCode: string }>({
     key: "",
     quote: null,

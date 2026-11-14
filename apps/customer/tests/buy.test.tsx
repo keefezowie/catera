@@ -800,6 +800,49 @@ describe("Beli / Perpanjang", () => {
     await bayarReady();
   });
 
+  it("a pin saved on the chosen address requotes, so the first Bayar sends the server's current quote", async () => {
+    // The server copies the address row (pin included) into its quote and refuses a create whose expected quote differs.
+    let book: Record<string, unknown>[] = [kantor, rumah];
+    const runtime = server();
+    const priced = (p: Payload) => ({ ...quoteFor(p), address: book.find((a) => a.id === p.addressId) }) as Quote;
+    (runtime.api.quote as jest.Mock).mockImplementation(async (p: Payload) => priced(p));
+    (runtime.api.customer as jest.Mock).mockImplementation(async () => ({ subscriptions: [current], deliveries: [], addresses: book, notifications: [], cases: [] }));
+    const create = runtime.api.command as jest.Mock;
+    const real = create.getMockImplementation()!;
+    create.mockImplementation(async (action: string, payload: Record<string, unknown>) => {
+      if (action === "checkout.create") {
+        const { expectedQuote, acceptedTerms: _, ...p } = payload;
+        if (JSON.stringify(expectedQuote) !== JSON.stringify(priced(p as unknown as Payload)))
+          throw Object.assign(new Error("PRICE_CHANGED"), { code: "PRICE_CHANGED" });
+      }
+      if (action === "address.save") {
+        book = book.map((a) => (a.id === "a-1" ? { ...a, lat: -6.2, lng: 106.85, version: 2 } : a));
+        return { id: "a-1" };
+      }
+      return real(action, payload);
+    });
+    function SavePin() {
+      const { useMobile } = require("@catera/mobile-core") as typeof import("@catera/mobile-core");
+      const { command } = useMobile();
+      return (
+        <ReactNative.Pressable accessibilityRole="button" accessibilityLabel="simpan-titik" onPress={() => void command("address.save", { id: "a-1", lat: -6.2, lng: 106.85 })}>
+          <ReactNative.Text>x</ReactNative.Text>
+        </ReactNative.Pressable>
+      );
+    }
+    await wrap(runtime, <><BuyScreen packageId="p-rumahan" /><SavePin /></>);
+    await bayarReady();
+    const quotes = (runtime.api.quote as jest.Mock).mock.calls.length;
+    await fireEvent.press(screen.getByRole("button", { name: "simpan-titik" }));
+    await waitFor(() => expect((runtime.api.quote as jest.Mock).mock.calls.length).toBeGreaterThan(quotes));
+    await bayarReady();
+    await fireEvent.press(screen.getByRole("button", { name: PAY }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
+    expect(screen.queryByText("Harga atau ketentuannya berubah. Cek lagi sebelum bayar.")).toBeNull();
+    const sent = commands(runtime).find(([a]) => a === "checkout.create")![1] as { expectedQuote: Quote };
+    expect(sent.expectedQuote.address).toEqual(expect.objectContaining({ id: "a-1", lat: -6.2, lng: 106.85 }));
+  });
+
   it("a two-cycle renewal pays with cycles 2 and renewedFrom", async () => {
     const runtime = server();
     await wrap(runtime, <BuyScreen renewFrom="s-1" />);
