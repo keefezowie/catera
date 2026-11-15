@@ -6,6 +6,7 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import { addDays, type CustomerState, type Subscription } from "@catera/domain";
 import { Beranda } from "../src/today/Beranda";
 import { customerLink } from "../src/links";
+import { endNote } from "../src/today/RecapCard";
 import * as offline from "../src/today/offline";
 import { delivery, offer, subscription } from "./fixtures";
 import { goOffline, keptLine } from "./offline";
@@ -168,11 +169,24 @@ describe("the Paket selesai recap", () => {
     expect(card.getByTestId("recap-photo", { includeHiddenElements: true }).props.source).toEqual({ uri: "https://images.example.test/keluarga.jpg" });
     expect(card.getByRole("button", { name: "Perpanjang" })).toBeTruthy();
     expect(card.getByRole("button", { name: "Tutup" })).toBeTruthy();
-    // No meal count: the read cannot count an old plan's meals truthfully (Ruling D5).
+    // How long ago it ended, and the plan's span (21 Sep to 7 Okt) with the caterer; never a meal count (Ruling D5).
+    expect(card.getByText("Sudah selesai Rabu 7 Okt")).toBeTruthy();
+    expect(card.getByText("17 hari bersama Dapur Contoh")).toBeTruthy();
     expect(card.queryByText(/porsi|kali makan|hari antar/)).toBeNull();
     // The page order as text; the pull-to-refresh element on the scroll view is a React element, not page content.
     const tree = JSON.stringify(screen.toJSON(), (key, value) => (key === "refreshControl" ? undefined : value));
     expect(tree.indexOf("Paket selesai")).toBeLessThan(tree.indexOf("Paket kamu"));
+  });
+
+  it("words the days left from the end date, in both languages", () => {
+  const id = (a: string, _b: string) => a;
+  const en = (_a: string, b: string) => b;
+  expect(endNote("2026-11-12", "2026-11-12", "id", id)).toBe("Habis hari ini");
+  expect(endNote("2026-11-13", "2026-11-12", "id", id)).toBe("Habis besok");
+  expect(endNote("2026-11-19", "2026-11-16", "id", id)).toBe("Habis 3 hari lagi · Kamis 19 Nov");
+  expect(endNote("2026-11-12", "2026-11-13", "id", id)).toBe("Sudah selesai Kamis 12 Nov");
+  expect(endNote("2026-11-19", "2026-11-18", "en", en)).toBe("Ends tomorrow");
+  expect(endNote("2026-11-19", "2026-11-16", "en", en)).toBe("Ends in 3 days · Thu 19 Nov");
   });
 
   it("has the 16 card radius of the cards around it", async () => {

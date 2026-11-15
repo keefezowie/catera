@@ -3,10 +3,23 @@ import { StyleSheet, View } from "react-native";
 import { router, useIsFocused } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { nativeLayout } from "@catera/design-tokens";
-import { shortDate, type Subscription } from "@catera/domain";
-import { useMobile, useTrack } from "@catera/mobile-core";
+import { jakartaDay, shortDate, type Locale, type Subscription } from "@catera/domain";
+import { plural, useMobile, useTrack } from "@catera/mobile-core";
 import { Button, fontFor, Photo, Text, themedStyles, useColors, cardEdge } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
+
+/** Whole days from one Jakarta calendar day to another (negative when `to` is earlier). */
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+
+/** How near the end is, from the plan's own end date: "Habis besok", "Habis 3 hari lagi · Kamis 19 Nov", "Sudah selesai Kamis 12 Nov". */
+export function endNote(endsOn: string, today: string, locale: Locale, t: (id: string, en: string) => string): string {
+  const left = daysBetween(today, endsOn);
+  const day = shortDate(endsOn, locale);
+  if (left < 0) return t(`Sudah selesai ${day}`, `Finished ${day}`);
+  if (left === 0) return t("Habis hari ini", "Ends today");
+  if (left === 1) return t("Habis besok", "Ends tomorrow");
+  return t(`Habis ${left} hari lagi · ${day}`, `Ends in ${plural(left, "day")} · ${day}`);
+}
 
 /**
  * "Paket selesai": a one-time look back at a full plan that ended in the last 14 days, leading to its renewal.
@@ -72,6 +85,7 @@ export function RecapCard({
 
   if (!sub || closed) return null;
   const offer = sub.snapshot.offer;
+  const span = daysBetween(sub.starts_on, sub.ends_on) + 1;
   const image = offer.image ? photoUri(offer.image, runtime.apiBase) : "";
 
   return (
@@ -93,6 +107,15 @@ export function RecapCard({
               ? shortDate(sub.starts_on, locale)
               : t(`${shortDate(sub.starts_on, locale)} sampai ${shortDate(sub.ends_on, locale)}`, `${shortDate(sub.starts_on, locale)} to ${shortDate(sub.ends_on, locale)}`)}
           </Text>
+          <Text testID="recap-end" style={{ color: c.muted }}>
+            {endNote(sub.ends_on, jakartaDay(new Date()), locale, t)}
+          </Text>
+          {/* Only the plan's own span: the read cannot count an old plan's meals (Ruling D5). */}
+          {sub.ends_on < jakartaDay(new Date()) ? (
+            <Text testID="recap-span" style={{ color: c.muted }}>
+              {t(`${span} hari bersama ${offer.caterer}`, `${plural(span, "day")} with ${offer.caterer}`)}
+            </Text>
+          ) : null}
         </View>
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
