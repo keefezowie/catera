@@ -27,6 +27,7 @@ export function BelanjaLink() {
       {/* forest: action */}
       <DecorativeIcon name="basket-outline" size={20} color={c.forest} />
       <View>
+        {/* forest: action */}
         <Text variant="bodyStrong" style={{ color: c.forest }}>
           {t("Belanja", "Shopping")}
         </Text>
