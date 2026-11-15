@@ -142,18 +142,19 @@ afterEach(() => {
 });
 
 describe("the count card's batch progress", () => {
-  it("shows nothing while every row is Terjadwal, and the Antar step once the kitchen started", async () => {
+  it("shows Masak current while every row is Terjadwal, and the Antar step with Mulai masak 08.10 once the kitchen started", async () => {
     let served = kitchenDay([scheduled]);
     const runtime = runtimeWith(async () => served);
     await renderToday(runtime);
     await screen.findByTestId("session-count");
-    expect(screen.queryByTestId("batch-progress")).toBeNull();
+    expect(within(screen.getByTestId("batch-progress")).getByText("Masak · 0 dari 4")).toBeTruthy();
 
     served = kitchenDay([cooking]);
     await fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
     const progress = await within(screen.getByTestId("session-count")).findByTestId("batch-progress");
     expect(within(progress).getByText("Antar · 0 dari 4")).toBeTruthy();
+    expect(within(progress).getByText("mulai masak 08.10")).toBeTruthy();
   });
 });
 
@@ -170,10 +171,11 @@ describe("the count card's batch progress with mixed stages", () => {
     const card = within(await screen.findByTestId("session-count"));
     // Two are still cooking, so the kitchen is on Antar, with the two that have left.
     expect(card.getByText("Antar · 2 dari 4")).toBeTruthy();
-    expect(card.getByTestId("batch-progress").props.accessibilityLabel).toBe("Langkah Antar, 2 dari 4. Masak selesai");
+    expect(card.getByText("terakhir 11.00")).toBeTruthy();
+    expect(card.getByTestId("batch-progress").props.accessibilityLabel).toBe("Langkah Antar, 2 dari 4, terakhir 11.00. Masak selesai");
   });
 
-  it("follows the meal on screen: Malam has nothing cooking yet, so its progress is gone", async () => {
+  it("follows the meal on screen: Malam has nothing cooking yet, so it is back on Masak", async () => {
     const day = kitchenDay([cooking]);
     for (const d of day.deliveries) d.meals.push({ meal: "dinner", status: "scheduled" } as never);
     const Switch = () => {
@@ -189,9 +191,9 @@ describe("the count card's batch progress with mixed stages", () => {
       </MobileProvider>,
     );
     const label = () => within(screen.getByTestId("session-count")).queryByTestId("batch-progress")?.props.accessibilityLabel;
-    await waitFor(() => expect(label()).toBe("Langkah Antar, 0 dari 4. Masak selesai"));
+    await waitFor(() => expect(label()).toBe("Langkah Antar, 0 dari 4, mulai masak 08.10. Masak selesai"));
     await fireEvent.press(screen.getByLabelText("ke Malam"));
-    await waitFor(() => expect(label()).toBeUndefined());
+    await waitFor(() => expect(label()).toBe("Langkah Masak, 0 dari 4"));
   });
 });
 
@@ -386,7 +388,8 @@ describe("Mulai masak", () => {
     // The action follows the least advanced row; the progress counts every row where it is.
     const card = within(screen.getByTestId("session-count"));
     expect(card.getByText("Masak · 1 dari 4")).toBeTruthy();
-    expect(card.getByTestId("batch-progress").props.accessibilityLabel).toBe("Langkah Masak, 1 dari 4");
+    expect(card.getByText("berangkat 09.00")).toBeTruthy();
+    expect(card.getByTestId("batch-progress").props.accessibilityLabel).toBe("Langkah Masak, 1 dari 4, berangkat 09.00");
   });
 
   it("answers an INVALID_DATE with an error toast with Coba lagi, and reads the day again", async () => {
@@ -1170,10 +1173,11 @@ describe("Hari ini on the Dapur scale", () => {
       expect(within(header).getByRole("tab", { name: "Siang" })).toBeTruthy();
     });
 
-    it("draws the batch progress under the strip once cooking began, and not before", async () => {
+    it("draws the step bar under the strip before cooking and once cooking began", async () => {
       const first = await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
-      await screen.findByTestId("session-figures");
-      expect(within(screen.getByTestId("mood-header")).queryByTestId("batch-progress")).toBeNull();
+      const firstHeader = await screen.findByTestId("mood-header");
+      const firstStrip = await within(firstHeader).findByTestId("session-figures");
+      expect(before(firstHeader, firstStrip, within(firstHeader).getByTestId("batch-progress"))).toBe(true);
       await first.unmount();
       await renderToday(runtimeWith(async () => kitchenDay([cooking])));
       const header = await screen.findByTestId("mood-header");

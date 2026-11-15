@@ -4,7 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import { kitchenSession, type KitchenSession, type SellerOperationsState } from "@catera/domain";
 import { MobileProvider, createMobileRuntime } from "@catera/mobile-core";
 import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
-import { nativeMood } from "@catera/design-tokens";
+import { contrastRatio, nativeMood } from "@catera/design-tokens";
 import { render } from "./render-dapur";
 import { canvasDay } from "./fixtures";
 import { BatchProgress, batchCounts } from "../src/today/BatchProgress";
@@ -68,15 +68,19 @@ describe("batchCounts", () => {
 });
 
 describe("BatchProgress step bar", () => {
-  it("renders nothing while every row is still scheduled (the pinned Mulai masak says that step)", async () => {
+  it("shows Masak current at 0 dari total while every row is still scheduled, with no time yet", async () => {
     await show(sessionOf(many(4, scheduled)));
-    expect(screen.queryByTestId("batch-progress", hidden)).toBeNull();
+    expect(screen.getByText("Masak · 0 dari 4")).toBeTruthy();
+    expect(label()).toBe("Langkah Masak, 0 dari 4");
+    expect(step("cook").backgroundColor).toBe(ink.stopActive);
+    expect(screen.queryByTestId("batch-progress-meta", hidden)).toBeNull();
   });
 
   it("Masak is current while some stops moved on and the rest are scheduled, with the count that started", async () => {
     await show(sessionOf([...many(2, scheduled), ...many(2, preparing)]));
     expect(screen.getByText("Masak · 2 dari 4")).toBeTruthy();
-    expect(label()).toBe("Langkah Masak, 2 dari 4");
+    expect(label()).toBe("Langkah Masak, 2 dari 4, mulai masak 08.10");
+    expect(screen.getByTestId("batch-progress-meta", hidden).props.children).toBe("mulai masak 08.10");
     expect(step("cook").backgroundColor).toBe(ink.stopActive);
     expect(step("depart").backgroundColor).toBe("transparent");
   });
@@ -86,7 +90,8 @@ describe("BatchProgress step bar", () => {
     expect(screen.getByText("Antar · 1 dari 3")).toBeTruthy();
     expect(screen.getByText("Masak")).toBeTruthy();
     expect(screen.getByText("Sampai")).toBeTruthy();
-    expect(label()).toBe("Langkah Antar, 1 dari 3. Masak selesai");
+    expect(label()).toBe("Langkah Antar, 1 dari 3, berangkat 09.30. Masak selesai");
+    expect(screen.getByTestId("batch-progress-meta", hidden).props.children).toBe("berangkat 09.30");
     expect(step("cook").backgroundColor).toBe(ink.toggleActive);
     expect(step("depart").backgroundColor).toBe(ink.stopActive);
     expect(step("arrive").backgroundColor).toBe("transparent");
@@ -95,7 +100,8 @@ describe("BatchProgress step bar", () => {
   it("Sampai is current once everything has left, with the count that arrived", async () => {
     await show(sessionOf([...many(3, out), ...many(3, arrivedRow("2026-10-08T03:20:00Z"))]));
     expect(screen.getByText("Sampai · 3 dari 6")).toBeTruthy();
-    expect(label()).toBe("Langkah Sampai, 3 dari 6. Masak dan Antar selesai");
+    expect(label()).toBe("Langkah Sampai, 3 dari 6, terakhir 10.20. Masak dan Antar selesai");
+    expect(screen.getByTestId("batch-progress-meta", hidden).props.children).toBe("terakhir 10.20");
     expect(step("cook").backgroundColor).toBe(ink.toggleActive);
     expect(step("depart").backgroundColor).toBe(ink.toggleActive);
     expect(step("arrive").backgroundColor).toBe(ink.stopActive);
@@ -103,19 +109,36 @@ describe("BatchProgress step bar", () => {
 
   it("all arrived: the three steps are done and none is current", async () => {
     await show(sessionOf(many(3, delivered("2026-10-08T03:10:00Z"))));
-    expect(label()).toBe("Masak, Antar, dan Sampai selesai");
+    expect(label()).toBe("Masak, Antar, dan Sampai selesai, terakhir 10.10");
     for (const k of ["cook", "depart", "arrive"]) expect(step(k).backgroundColor).toBe(ink.toggleActive);
     expect(screen.queryByText(/dari/)).toBeNull();
   });
 
   it("does not count rows marked Gagal diantar", async () => {
     await show(sessionOf([...many(5, delivered("2026-10-08T03:10:00Z")), { status: "issue" }, { status: "issue" }]));
-    expect(label()).toBe("Masak, Antar, dan Sampai selesai");
+    expect(label()).toBe("Masak, Antar, dan Sampai selesai, terakhir 10.10");
   });
 
   it("words the label and steps in English", async () => {
     await show(sessionOf([...many(3, out), ...many(3, arrivedRow("2026-10-08T03:20:00Z"))]), true);
     expect(screen.getByText("Arrive · 3 of 6")).toBeTruthy();
-    expect(label()).toBe("Step Arrive, 3 of 6. Cook and Deliver done");
+    expect(label()).toBe("Step Arrive, 3 of 6, last arrival 10.20. Cook and Deliver done");
+  });
+
+  it("lets the step names wrap under large text: no line limit, no fixed height", async () => {
+    await show(mixed());
+    expect(screen.getByText("Antar · 28 dari 31").props.numberOfLines).toBeUndefined();
+    for (const k of ["cook", "depart", "arrive"]) expect(step(k).height).toBeUndefined();
+  });
+
+  it("keeps each step's ink 4.5:1 on its fill, and the idle outline 3:1 on the mood header, in every theme and mood", () => {
+    for (const scheme of ["light", "dark"] as const)
+      for (const mood of ["siang", "malam"] as const) {
+        const k = nativeMood[scheme][mood];
+        expect(contrastRatio(k.hero, k.stopActive)).toBeGreaterThanOrEqual(4.5);
+        expect(contrastRatio(k.hero, k.toggleActive)).toBeGreaterThanOrEqual(4.5);
+        expect(contrastRatio(k.headerMeta, k.header)).toBeGreaterThanOrEqual(4.5);
+        expect(contrastRatio(k.markerIdle, k.header)).toBeGreaterThanOrEqual(3);
+      }
   });
 });

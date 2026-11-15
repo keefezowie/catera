@@ -375,7 +375,7 @@ describe("the header holds no cooking mascot", () => {
     }
   });
 
-  it("keeps the summary line the same before, during and after cooking, and adds the progress under it once cooking began", async () => {
+  it("keeps the summary line the same before, during and after cooking, with the step bar under it in every stage", async () => {
     // A 360dp phone at the default text size, where the line has the least room.
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
     // A lunch window the caterer set, so the line carries "antar 11.30" in every stage.
@@ -407,7 +407,7 @@ describe("the header holds no cooking mascot", () => {
     const { progress: _a, ...stripAfter } = after;
     expect(stripDuring).toEqual(stripBefore);
     expect(stripAfter).toEqual(stripBefore);
-    expect([before.progress, during.progress, after.progress]).toEqual([false, true, true]);
+    expect([before.progress, during.progress, after.progress]).toEqual([true, true, true]);
     expect(before).toMatchObject({ subline: true });
   });
 
@@ -423,7 +423,7 @@ describe("the header holds no cooking mascot", () => {
     await render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
     const bar = await screen.findByTestId("batch-progress", hidden);
     expect(bar.props.accessibilityRole).toBe("image");
-    expect(bar.props.accessibilityLabel).toMatch(/^Langkah Antar, 0 dari \d+\. Masak selesai$/);
+    expect(bar.props.accessibilityLabel).toMatch(/^Langkah Antar, 0 dari \d+, mulai masak \d\d\.\d\d\. Masak selesai$/);
   });
 });
 
