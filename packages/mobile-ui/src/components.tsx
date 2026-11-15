@@ -745,7 +745,7 @@ export function ScreenFooter({ children, os = process.env.EXPO_OS, lift = 0 }: {
   // footer adds that inset; inside the tabs NativeTabs already ends the screen above the bar, so it adds nothing.
   const inset = scaled && !insideTabs(navigation as never) ? insets.bottom : 0;
   const [height, setHeight] = useState<number>();
-  useToastAnchor(height === undefined ? null : { bottom: bottomEdge + height + (os === "ios" ? 0 : lift) });
+  useToastAnchor(height === undefined ? null : { bottom: bottomEdge + height + (os === "ios" ? 0 : lift), footer: true });
   const onLayout = (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height);
   if (os === "ios")
     return (

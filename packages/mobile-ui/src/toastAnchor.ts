@@ -16,8 +16,10 @@ import { useScreenFocused, useScreenNavigation } from "./navigation";
  *   shows that screen's toasts at the bottom instead (above the home indicator, the keyboard and any footer); a sheet
  *   has no tab bar under it, so Android sets the snackbar on the system inset rather than above a tab bar.
  *   `useToastAnchor` fills it in from the screen's presentation; callers do not pass it.
+ * - `footer`: a pinned footer (ScreenFooter) is on screen, so even on iOS full-screen the toast goes to the bottom,
+ *   above it, instead of under the header over the page's headings.
  */
-export type ToastAnchor = { top?: number; bottom?: number; sheet?: boolean };
+export type ToastAnchor = { top?: number; bottom?: number; sheet?: boolean; footer?: boolean };
 
 type Register = (key: object, anchor: ToastAnchor | null) => void;
 
@@ -68,11 +70,12 @@ export function useToastAnchor(anchor: ToastAnchor | null | undefined): void {
   const live = anchor != null;
   const top = anchor?.top;
   const bottom = anchor?.bottom;
+  const footer = anchor?.footer;
   useEffect(() => {
     if (!focused || !live || (top === undefined && bottom === undefined && !sheet)) return;
-    register(key, { top, bottom, sheet });
+    register(key, { top, bottom, sheet, footer });
     return () => register(key, null);
-  }, [register, key, focused, live, top, bottom, sheet]);
+  }, [register, key, focused, live, top, bottom, sheet, footer]);
 }
 
 type NavigationLike = { getState?: () => { type?: string } | undefined; getParent?: () => NavigationLike | undefined };

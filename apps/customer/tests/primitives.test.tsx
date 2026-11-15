@@ -574,6 +574,15 @@ describe("Toast", () => {
     }
   });
 
+  it("a full-screen iOS screen with a pinned footer shows its toast above the footer, not over the headings", async () => {
+    jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    await render(tree("ios", presented("card", stackScreen(<StickyAction label="Bayar Rp 100.000" onPress={() => {}} />))));
+    await layout("screen-footer", 96);
+    await act(() => toast.show({ message: "Alamat disimpan", tone: "success" }));
+    expect(lane().top).toBeUndefined();
+    expect(lane()).toMatchObject({ bottom: 34 + 96 + 8 });
+  });
+
   it("on Android the snackbar sits above a StickyAction footer", async () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     await render(

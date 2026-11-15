@@ -57,12 +57,14 @@ function mergeAnchors(anchors: ReadonlyMap<object, ToastAnchor>): ToastAnchor {
   let top: number | undefined;
   let bottom: number | undefined;
   let sheet = false;
+  let footer = false;
   for (const anchor of anchors.values()) {
     if (anchor.top !== undefined) top = Math.max(top ?? anchor.top, anchor.top);
     if (anchor.bottom !== undefined) bottom = Math.max(bottom ?? anchor.bottom, anchor.bottom);
     if (anchor.sheet) sheet = true;
+    if (anchor.footer) footer = true;
   }
-  return { top, bottom, sheet };
+  return { top, bottom, sheet, footer };
 }
 
 /**
@@ -161,7 +163,7 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
         next.delete(key);
         return next;
       }
-      if (current && current.top === anchor.top && current.bottom === anchor.bottom && current.sheet === anchor.sheet) return prev;
+      if (current && current.top === anchor.top && current.bottom === anchor.bottom && current.sheet === anchor.sheet && current.footer === anchor.footer) return prev;
       return new Map(prev).set(key, anchor);
     });
   }, []);
@@ -211,8 +213,8 @@ function ToastView({
   const palette = useColors();
   const insets = useSafeAreaInsets();
   const reduced = useReduced();
-  // Every placement but iOS full-screen sits against the bottom edge, and enters from below.
-  const atTop = ios && !anchor.sheet;
+  // Every placement but iOS full-screen with no pinned footer sits against the bottom edge, and enters from below.
+  const atTop = ios && !anchor.sheet && !anchor.footer;
 
   const motion = useMemo(
     () =>
