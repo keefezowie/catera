@@ -235,7 +235,7 @@ describe("Hari ini", () => {
     expect(skeletonNames()).toEqual([]);
   });
 
-  it("the count skeleton holds no room for the batch progress: it shows only once a row has left Terjadwal", async () => {
+  it("the count skeleton holds no room for the step bar: a loading day cannot say it has deliveries", async () => {
     const read = held<SellerOperationsState>();
     await renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
@@ -243,9 +243,10 @@ describe("Hari ini", () => {
     expect(within(header).queryByTestId("today-count-track", hiddenToo)).toBeNull();
     expect(within(header).queryByTestId("today-count-rail", hiddenToo)).toBeNull();
     await act(async () => read.answer(today()));
-    // An all-scheduled day draws the strip only; the strip's own height is checked against the skeleton's below.
+    // A day with deliveries draws the step bar under the strip, Masak current before cooking; the strip's own height is
+    // checked against the skeleton's below.
     expect(await screen.findByTestId("session-count")).toBeTruthy();
-    expect(screen.queryByTestId("batch-progress")).toBeNull();
+    expect(screen.getByTestId("batch-progress")).toBeTruthy();
   });
 
   it("the count skeleton's line is as tall as the loaded summary line, and both sit 12 under the date", async () => {

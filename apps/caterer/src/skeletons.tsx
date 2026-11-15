@@ -24,8 +24,8 @@ function Line({ width, block, line, onMood, testID }: { width: DimensionValue; b
 
 /**
  * The header's figures while the day loads: the one summary line ("7 porsi · 1 paket · 6 alamat · antar 17.00"), 12dp under
- * the date like the loaded line, so the header keeps its height when the figures replace it. The batch progress under the
- * line is not reserved: it shows only once a row has left Terjadwal, which a loading day cannot say. The block takes the
+ * the date like the loaded line, so the header keeps its height when the figures replace it. The step bar under the line
+ * is not reserved: it shows only on a day with deliveries, which a loading day cannot say. The block takes the
  * mood's toggle track, which stands off the header fill in Siang and Malam, light and dark. The body's `TodaySkeleton`
  * names the wait, so this one is hidden from screen readers.
  */
