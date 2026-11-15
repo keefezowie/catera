@@ -41,7 +41,7 @@ import { BatchProgress } from "./BatchProgress";
 import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
 import { SelectionBar } from "./SelectionBar";
-import { useStopSelection } from "./selection";
+import { useStopSelection, type Selection } from "./selection";
 import { cookingListShown, SessionCard } from "./SessionCard";
 import { useTicks } from "./ticks";
 import { covers, validDay, WeekStrip, weekOf } from "./WeekStrip";
@@ -163,11 +163,13 @@ function KitchenAction({
   session,
   catererId,
   date,
+  selection,
   onFailed,
 }: {
   session: KitchenSession;
   catererId: string;
   date: string;
+  selection: Selection;
   onFailed: () => void;
 }) {
   const { t, locale, command } = useMobile();
@@ -260,10 +262,14 @@ function KitchenAction({
   // Once some stops have left, the button takes whatever is still waiting, and the portions say how many.
   const left = session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0;
   const portions = left ? session.remaining.portions : session.portions;
+  // Every stop has left (none is cooking): the step is Sampai, and the button only opens Pilih, whose bar marks them.
+  const arrive = !cook && !session.canDepart;
   // The note of this stage, if any. It takes the caption's place, so the slot never holds more than its reserved lines.
-  const note = noted && noted.cook === cook ? noted.text : "";
+  const note = !arrive && noted && noted.cook === cook ? noted.text : "";
   // The push reaches only customers with an account, and the kitchen cannot count them, so no number is promised.
-  const caption = cook
+  const caption = arrive
+    ? t("Pilih alamat yang sudah sampai, lalu foto bukti.", "Pick the addresses that have arrived, then take a proof photo.")
+    : cook
     ? undefined
     : t(
         "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
@@ -284,14 +290,16 @@ function KitchenAction({
       </View>
       <Button
         label={
-          cook
+          arrive
+            ? t("Tandai Sampai", "Mark Arrived")
+            : cook
             ? t("Mulai masak", "Start cooking")
             : left
               ? t(`Berangkat semua sisa · ${portions} porsi`, `Head out with everything left · ${plural(portions, "portion")}`)
               : t(`Berangkat antar · ${portions} porsi`, `Head out · ${plural(portions, "portion")}`)
         }
         busy={busy}
-        onPress={() => void ask()}
+        onPress={() => (arrive ? selection.start() : void ask())}
         spinnerTestID="sticky-action-spinner"
       />
     </View>
@@ -494,7 +502,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // Nothing to cook on a weekday none of the kitchen's packages delivers: that is a day off, not an empty day.
   const rest = ops && !session && !otherSession && failedCount === 0 ? kitchenRest(ops, date) : null;
   // A copy kept from before the connection dropped may be stale: it can be read, but not acted on.
-  const action = session && !day.data?.savedAt && (session.canCook || session.canDepart) ? session : null;
+  const action = session && !day.data?.savedAt && (session.canCook || session.canDepart || session.canArrive) ? session : null;
   // "Pilih": the order list and the bottom bar share one selection, reset when the day or the meal changes.
   const selection = useStopSelection(session?.stops ?? [], `${date}:${meal}`);
   const picking = !!session && selection.active && today && !day.data?.savedAt;
@@ -582,6 +590,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             session={action}
             catererId={catererId}
             date={date}
+            selection={selection}
             onFailed={() => void day.reload()}
           />
         ) : undefined

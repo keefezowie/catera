@@ -1,8 +1,7 @@
 import { View } from "react-native";
 import type { KitchenSession } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { StopGlyph, Text, useColors, useMoodColors, useThemePreference } from "@catera/mobile-ui";
-import { jakartaClock } from "./exceptions";
+import { DecorativeIcon, StopGlyph, Text, useMoodColors } from "@catera/mobile-ui";
 
 /** How far the whole batch has got: every active row, counted once by the stage it is in. */
 export function batchCounts(session: KitchenSession): {
@@ -17,136 +16,76 @@ export function batchCounts(session: KitchenSession): {
   return { total, scheduled: c.scheduled, cooking: c.preparing, out: c.out_for_delivery, arrived: c.arrived + c.delivered };
 }
 
-/** The latest time any stop was marked Sampai, or null when none was. */
-function lastArrival(session: KitchenSession): string | null {
-  let best: string | null = null;
-  let bestAt = 0;
-  for (const stop of session.stops) {
-    const at = stop.arrivedAt ? Date.parse(stop.arrivedAt) : Number.NaN;
-    if (!Number.isNaN(at) && (best === null || at > bestAt)) {
-      best = stop.arrivedAt;
-      bestAt = at;
-    }
-  }
-  return best;
-}
-
-const BAR = 8;
-const DISC = 24;
-const GLYPH = 16;
-const GAP = 2;
-const OUTLINE = 1;
+const STEPS = ["cook", "depart", "arrive"] as const;
+type Step = (typeof STEPS)[number];
 
 /**
- * Hari ini's progress for the whole batch, under the figures: "{n} dari {total} sampai" with the newest time that
- * explains it, one bar of Sampai, Diantar and Dimasak segments (what is left is the scheduled remainder of the track)
- * and a legend of the same three counts. Delivery-ops tools count stops this way; a single track cannot say that
- * twelve are out while three still cook. Nothing is drawn while every row is scheduled: there is no progress to show.
- * The bar is one image for a screen reader, whose label carries the legend, so the legend is hidden from it.
- *
- * Colour: the track is the theme `line` step, which also shows through the 2dp gaps and holds the scheduled remainder.
- * It is all but invisible on the mood header it sits on, so a 1dp `markerIdle` outline (3:1 or more on every header)
- * draws the bar's whole 0..total extent. Every segment is at least 3:1 on the track, and the three differ in lightness,
- * not hue alone: forest, then sunrise ink, then the idle marker grey in light (darkest to lightest); forest, sunrise
- * and cream in dark, where the floor above the track leaves no grey step 1.5:1 off sunrise. Ratios are in the task
- * report.
+ * Hari ini's progress for the whole batch, under the figures, as three steps: Masak, Antar, Sampai. The current step is
+ * the earliest stage any stop is still in (stops leave in subsets), so it is `journey.stage`: scheduled means Masak
+ * is current (some stops have moved on, the rest are not cooking), preparing means Masak is done and Antar is current, out_for_delivery means Sampai is current, and a batch with every stop arrived has all three
+ * done. The current step carries the count: Masak "n dari total" that have started, Antar "n dari total" that have left, Sampai "n dari total" that arrived.
+ * Nothing is drawn while every row is scheduled: the pinned Mulai masak says that step. The bar is one image for a
+ * screen reader, whose label states the current step and its count.
  */
 export function BatchProgress({ session }: { session: KitchenSession }) {
   const { t } = useMobile();
   const ink = useMoodColors();
-  const track = useColors().line;
-  const { scheme } = useThemePreference();
   const { total, scheduled, cooking, out, arrived } = batchCounts(session);
   if (!total || cooking + out + arrived === 0) return null;
 
-  const { journey } = session;
-  const clock = (iso: string | null) => (iso ? jakartaClock(iso) : null);
-  const last = clock(lastArrival(session));
-  const left = clock(journey.departedAt);
-  const began = clock(journey.cookingAt);
-  const meta = last
-    ? t(`terakhir ${last}`, `last arrival ${last}`)
-    : left
-      ? t(`berangkat ${left}`, `left ${left}`)
-      : began
-        ? t(`mulai masak ${began}`, `started cooking ${began}`)
-        : null;
+  const stage = session.journey.stage;
+  const current: Step | null =
+    stage === "scheduled" ? "cook" : stage === "preparing" ? "depart" : stage === "out_for_delivery" ? "arrive" : null;
+  const names: Record<Step, string> = { cook: t("Masak", "Cook"), depart: t("Antar", "Deliver"), arrive: t("Sampai", "Arrive") };
+  const glyphs = { cook: "pot", depart: "motorbike", arrive: "house" } as const;
+  const count: Record<Step, number> = { cook: total - scheduled, depart: out + arrived, arrive: arrived };
+  const done = (s: Step) => current === null || STEPS.indexOf(s) < STEPS.indexOf(current);
 
-  const parts = [
-    { key: "arrived", n: arrived, color: ink.toggleActive, glyph: "house", label: t("Sampai", "Arrived") },
-    { key: "out", n: out, color: ink.stopActive, glyph: "motorbike", label: t("Diantar", "On the way") },
-    { key: "cooking", n: cooking, color: scheme === "dark" ? ink.headerText : ink.markerIdle, glyph: "pot", label: t("Dimasak", "Cooking") },
-  ] as const;
+  const label = current
+    ? t(
+        `Langkah ${names[current]}, ${count[current]} dari ${total}`,
+        `Step ${names[current]}, ${count[current]} of ${total}`,
+      ) + (current === "arrive" ? t(". Masak dan Antar selesai", ". Cook and Deliver done") : current === "depart" ? t(". Masak selesai", ". Cook done") : "")
+    : t("Masak, Antar, dan Sampai selesai", "Cook, Deliver and Arrive done");
 
   return (
-    <View testID="batch-progress" style={{ gap: 8 }}>
-      <View
-        testID="batch-progress-head"
-        style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", columnGap: 12 }}
-      >
-        <Text selectable variant="label" style={{ color: ink.headerText, fontVariant: ["tabular-nums"] }}>
-          {t(`${arrived} dari ${total} sampai`, `${arrived} of ${total} arrived`)}
-        </Text>
-        {meta ? (
-          <Text selectable variant="caption" style={{ color: ink.headerMeta, fontVariant: ["tabular-nums"] }}>
-            {meta}
-          </Text>
-        ) : null}
-      </View>
-      <View
-        testID="batch-progress-bar"
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel={t(
-          `${arrived} sampai, ${out} diantar, ${cooking} dimasak, dari ${total}`,
-          `${arrived} arrived, ${out} on the way, ${cooking} cooking, of ${total}`,
-        )}
-      >
-        <View
-          testID="batch-progress-track"
-          style={{
-            flexDirection: "row",
-            gap: GAP,
-            height: BAR + 2 * OUTLINE,
-            borderRadius: BAR / 2 + OUTLINE,
-            borderWidth: OUTLINE,
-            borderColor: ink.markerIdle,
-            overflow: "hidden",
-            backgroundColor: track,
-          }}
-        >
-          {parts.map((p) =>
-            p.n > 0 ? (
-              <View key={p.key} testID={`batch-progress-segment-${p.key}`} style={{ flex: p.n, backgroundColor: p.color }} />
-            ) : null,
-          )}
-          {/* What is still Terjadwal keeps its share of the track, so a segment's width is its count over the total. */}
-          {scheduled > 0 ? <View testID="batch-progress-rest" style={{ flex: scheduled }} /> : null}
-        </View>
-      </View>
-      <View
-        testID="batch-progress-legend"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={{ flexDirection: "row", gap: 8 }}
-      >
-        {[...parts].reverse().map((p) => (
-          <View key={p.key} testID={`batch-progress-cell-${p.key}`} style={{ flex: 1, flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
+    <View
+      testID="batch-progress"
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={label}
+      style={{ flexDirection: "row", gap: 6 }}
+    >
+      <View testID="batch-progress-bar" style={{ flex: 1, flexDirection: "row", gap: 6 }}>
+        {STEPS.map((s) => {
+          const isDone = done(s);
+          const isCurrent = s === current;
+          const fg = isDone || isCurrent ? ink.hero : ink.headerMeta;
+          return (
             <View
-              style={{ width: DISC, height: DISC, borderRadius: DISC / 2, backgroundColor: p.color, alignItems: "center", justifyContent: "center" }}
+              key={s}
+              testID={`batch-step-${s}`}
+              style={{
+                flex: isCurrent ? 2 : 1,
+                minHeight: 32,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                paddingHorizontal: 8,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: isCurrent ? ink.stopActive : ink.markerIdle,
+                backgroundColor: isCurrent ? ink.stopActive : isDone ? ink.toggleActive : "transparent",
+              }}
             >
-              <StopGlyph name={p.glyph} size={GLYPH} color={ink.hero} />
-            </View>
-            <View style={{ flex: 1, flexShrink: 1 }}>
-              <Text variant="caption" style={{ color: ink.headerMeta }}>
-                {p.label}
-              </Text>
-              <Text selectable variant="label" style={{ color: ink.headerText, fontVariant: ["tabular-nums"] }}>
-                {String(p.n)}
+              {isDone ? <DecorativeIcon name="checkmark" size={14} color={fg} /> : <StopGlyph name={glyphs[s]} size={14} color={fg} />}
+              <Text variant="label" numberOfLines={1} style={{ color: fg, fontVariant: ["tabular-nums"] }}>
+                {isCurrent ? `${names[s]} · ${t(`${count[s]} dari ${total}`, `${count[s]} of ${total}`)}` : names[s]}
               </Text>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );

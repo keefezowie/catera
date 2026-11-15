@@ -142,7 +142,7 @@ afterEach(() => {
 });
 
 describe("the count card's batch progress", () => {
-  it("shows nothing while every row is Terjadwal, and Mulai masak 08.10 once the kitchen started", async () => {
+  it("shows nothing while every row is Terjadwal, and the Antar step once the kitchen started", async () => {
     let served = kitchenDay([scheduled]);
     const runtime = runtimeWith(async () => served);
     await renderToday(runtime);
@@ -153,13 +153,12 @@ describe("the count card's batch progress", () => {
     await fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
     const progress = await within(screen.getByTestId("session-count")).findByTestId("batch-progress");
-    expect(within(progress).getByText("0 dari 4 sampai")).toBeTruthy();
-    expect(within(progress).getByText("mulai masak 08.10")).toBeTruthy();
+    expect(within(progress).getByText("Antar · 0 dari 4")).toBeTruthy();
   });
 });
 
 describe("the count card's batch progress with mixed stages", () => {
-  it("counts the rows by stage: cooking, on the way and arrived, with the latest arrival beside the title", async () => {
+  it("names the current step with its count, and the label says the same", async () => {
     const left = { departed_at: "2026-10-08T03:00:00Z" };
     const day = kitchenDay([
       cooking,
@@ -169,12 +168,9 @@ describe("the count card's batch progress with mixed stages", () => {
     ]);
     await renderToday(runtimeWith(async () => day));
     const card = within(await screen.findByTestId("session-count"));
-    const hidden = { includeHiddenElements: true };
-    expect(card.getByText("1 dari 4 sampai")).toBeTruthy();
-    expect(card.getByText("terakhir 11.00")).toBeTruthy();
-    expect(card.getByTestId("batch-progress-bar").props.accessibilityLabel).toBe("1 sampai, 1 diantar, 2 dimasak, dari 4");
-    const figure = (key: string) => within(card.getByTestId(`batch-progress-cell-${key}`, hidden)).getAllByText(/^\d+$/, hidden)[0].props.children;
-    expect(["cooking", "out", "arrived"].map(figure)).toEqual(["2", "1", "1"]);
+    // Two are still cooking, so the kitchen is on Antar, with the two that have left.
+    expect(card.getByText("Antar · 2 dari 4")).toBeTruthy();
+    expect(card.getByTestId("batch-progress").props.accessibilityLabel).toBe("Langkah Antar, 2 dari 4. Masak selesai");
   });
 
   it("follows the meal on screen: Malam has nothing cooking yet, so its progress is gone", async () => {
@@ -192,8 +188,8 @@ describe("the count card's batch progress with mixed stages", () => {
         </MoodProvider>
       </MobileProvider>,
     );
-    const label = () => within(screen.getByTestId("session-count")).queryByTestId("batch-progress-bar")?.props.accessibilityLabel;
-    await waitFor(() => expect(label()).toBe("0 sampai, 0 diantar, 4 dimasak, dari 4"));
+    const label = () => within(screen.getByTestId("session-count")).queryByTestId("batch-progress")?.props.accessibilityLabel;
+    await waitFor(() => expect(label()).toBe("Langkah Antar, 0 dari 4. Masak selesai"));
     await fireEvent.press(screen.getByLabelText("ke Malam"));
     await waitFor(() => expect(label()).toBeUndefined());
   });
@@ -389,9 +385,8 @@ describe("Mulai masak", () => {
     expect(screen.queryByText(/^Berangkat antar/)).toBeNull();
     // The action follows the least advanced row; the progress counts every row where it is.
     const card = within(screen.getByTestId("session-count"));
-    expect(card.getByText("0 dari 4 sampai")).toBeTruthy();
-    expect(card.getByText("berangkat 09.00")).toBeTruthy();
-    expect(card.getByTestId("batch-progress-bar").props.accessibilityLabel).toBe("0 sampai, 1 diantar, 0 dimasak, dari 4");
+    expect(card.getByText("Masak · 1 dari 4")).toBeTruthy();
+    expect(card.getByTestId("batch-progress").props.accessibilityLabel).toBe("Langkah Masak, 1 dari 4");
   });
 
   it("answers an INVALID_DATE with an error toast with Coba lagi, and reads the day again", async () => {
@@ -477,12 +472,29 @@ describe("Berangkat antar", () => {
     expect(Haptics.notificationAsync).toHaveBeenCalledWith("success");
   });
 
-  it("offers nothing once the meal is out for delivery", async () => {
+  it("offers Tandai Sampai, not the earlier buttons, once the meal is out for delivery", async () => {
     await renderToday(runtimeWith(async () => kitchenDay([{ status: "out_for_delivery", departed_at: "2026-10-08T02:30:00Z" }])));
     await screen.findByTestId("session-count");
     expect(screen.queryByText("Mulai masak")).toBeNull();
     expect(screen.queryByText(/^Berangkat antar/)).toBeNull();
-    expect(screen.queryByTestId("screen-footer")).toBeNull();
+    expect(screen.getByText("Pilih alamat yang sudah sampai, lalu foto bukti.")).toBeTruthy();
+    expect(screen.getByText("Tandai Sampai")).toBeTruthy();
+  });
+
+  it("Tandai Sampai opens Pilih: the bar offers Sampai (n), and no command runs", async () => {
+    const command = jest.fn(async () => ({}));
+    await renderToday(runtimeWith(async () => kitchenDay([{ status: "out_for_delivery", departed_at: "2026-10-08T02:30:00Z" }]), command));
+    await fireEvent.press(await screen.findByText("Tandai Sampai"));
+    expect(await screen.findByTestId("selection-bar")).toBeTruthy();
+    expect(screen.getByText("Sampai (0)")).toBeTruthy();
+    expect(screen.queryByText("Tandai Sampai")).toBeNull();
+    expect(command).not.toHaveBeenCalled();
+  });
+
+  it("keeps Berangkat antar while some stops still cook, even when others are out", async () => {
+    await renderToday(runtimeWith(async () => kitchenDay([cooking, { status: "out_for_delivery", departed_at: "2026-10-08T02:30:00Z" }])));
+    expect(await screen.findByText(/^Berangkat semua sisa/)).toBeTruthy();
+    expect(screen.queryByText("Tandai Sampai")).toBeNull();
   });
 });
 
@@ -848,9 +860,10 @@ describe("the order across the stages", () => {
     expect(screen.queryByText("Daftar masak")).toBeNull();
     expect(screen.queryByText("Per paket")).toBeNull();
     expect(screen.getByText("Dapur Bu Rina · Sedang diantar")).toBeTruthy();
-    expect(within(screen.getByTestId("session-count")).getByText("berangkat 09.30")).toBeTruthy();
+    expect(within(screen.getByTestId("session-count")).getByText("Sampai · 0 dari 4")).toBeTruthy();
     expect(screen.getByText(LINE)).toBeTruthy();
-    expect(screen.queryByTestId("screen-footer")).toBeNull();
+    // The pinned button follows the step: Tandai Sampai, not the departure buttons.
+    expect(screen.getByText("Tandai Sampai")).toBeTruthy();
     // The order and its buttons are all still there.
     expect(screen.getByTestId("stop-1")).toBeTruthy();
     expect(screen.getByText("Buka semua di Peta")).toBeTruthy();

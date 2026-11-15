@@ -419,12 +419,11 @@ describe("the header holds no cooking mascot", () => {
     expect(line.props.children).toMatch(/^\d+ porsi · \d+ paket · \d+ alamat/);
   });
 
-  it("gives the screen reader the batch progress as one image whose label carries the legend", async () => {
+  it("gives the screen reader the step bar as one image whose label names the current step", async () => {
     await render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), withDapurScale(<TodayScreen />)));
-    const bar = await screen.findByTestId("batch-progress-bar", hidden);
+    const bar = await screen.findByTestId("batch-progress", hidden);
     expect(bar.props.accessibilityRole).toBe("image");
-    expect(bar.props.accessibilityLabel).toMatch(/^0 sampai, 0 diantar, \d+ dimasak, dari \d+$/);
-    expect(screen.getByTestId("batch-progress-legend", hidden).props.accessibilityElementsHidden).toBe(true);
+    expect(bar.props.accessibilityLabel).toMatch(/^Langkah Antar, 0 dari \d+\. Masak selesai$/);
   });
 });
 
