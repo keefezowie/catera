@@ -210,14 +210,15 @@ it("says a meal the caterer could not deliver is not coming, with chat and a rep
   expect(router.push).toHaveBeenCalledWith("/masalah/d-today?meal=lunch");
 });
 
-it("lists the next days as rows, each naming its main dish", async () => {
+it("lists the next days as cards, each with a tile for its meal", async () => {
   await renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
-  expect(await screen.findByText(/^Besok · /)).toBeTruthy();
-  const days = within(screen.getByTestId("upcoming-days"));
-  expect(days.getAllByText("Ayam bakar madu")).toHaveLength(3);
-  // Three days, one delivery each: three rows of one card, none for the fourth day, and no change deadline on them.
-  expect(days.getAllByTestId(/^upcoming-row-d-next-[123]-lunch$/)).toHaveLength(3);
-  expect(days.queryByTestId("upcoming-row-d-next-4-lunch")).toBeNull();
+  const days = within(await screen.findByTestId("upcoming-days"));
+  expect(days.getByText(/^Besok, /)).toBeTruthy();
+  // Three days, one delivery each: three cards, none for the fourth day, and no change deadline on them.
+  expect(days.getAllByTestId(/^upcoming-day-\d/)).toHaveLength(3);
+  expect(days.getAllByText("Siang 1")).toHaveLength(3);
+  expect(days.getAllByTestId(/^upcoming-tile-d-next-[123]-lunch$/)).toHaveLength(3);
+  expect(days.queryByTestId("upcoming-tile-d-next-4-lunch")).toBeNull();
   expect(days.queryByText(/Bisa diubah sampai/)).toBeNull();
 });
 
@@ -262,7 +263,7 @@ it("signed-in Beranda error shows the message in danger with a Coba lagi text bu
   expect(StyleSheet.flatten(retry.props.style).backgroundColor).not.toBe(nativeThemes.light.forest);
   fail = false;
   await fireEvent.press(retry);
-  expect(await screen.findByText(/^Besok · /)).toBeTruthy();
+  expect(await screen.findByTestId("upcoming-days")).toBeTruthy();
   expect(screen.queryByTestId("home-error")).toBeNull();
 });
 
@@ -288,19 +289,19 @@ it("EmptyHome prices a combined package per meal, not per day", async () => {
   expect(screen.queryByText(/per hari/)).toBeNull();
 });
 
-it("upcoming rows name the meal and its window, tomorrow first as Besok", async () => {
+it("upcoming cards count the meals of each day, tomorrow first as Besok", async () => {
   await renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
-  expect(await screen.findByText("Besok · Siang 11.00–13.00")).toBeTruthy();
-  expect(within(screen.getByTestId("upcoming-days")).getAllByText("Siang 11.00–13.00")).toHaveLength(2);
+  const days = within(await screen.findByTestId("upcoming-days"));
+  expect(days.getAllByTestId("upcoming-day-label")[0].props.children).toMatch(/^Besok, /);
+  expect(days.getAllByText("Siang 1")).toHaveLength(3);
 });
 
-it("empty upcoming row says the menu is not announced yet", async () => {
+it("an upcoming day with no menu announced says so on its count line", async () => {
   const state = customerState(null);
   state.deliveries[0] = delivery("d-empty", addDays(TODAY, 1), {}, { offer: offer({ menus: [] }) });
   await renderHome(runtimeWith(async () => state));
-  // The kitchen stands in for the dish that is not chosen yet.
-  expect(await screen.findByText("Besok · Siang 11.00–13.00 · Dapur Contoh")).toBeTruthy();
-  expect(screen.getAllByText(/^Menu belum (dipilih|diumumkan)$/)).toHaveLength(1);
+  expect(await screen.findByText("Siang 1 · 1 menu belum diumumkan")).toBeTruthy();
+  expect(screen.getByTestId("upcoming-tile-d-empty-lunch-not-set")).toBeTruthy();
 });
 
 it("shows the renewal row at three days left", async () => {
@@ -575,9 +576,9 @@ describe("design tokens", () => {
   });
 
   const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
-  it("upcoming row dims on press", async () => {
+  it("upcoming card dims on press", async () => {
     await renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
-    await screen.findByText(/^Besok · /);
+    await screen.findByTestId("upcoming-days");
     const row = () => screen.getByRole("button", { name: /^Besok, / });
     expect(StyleSheet.flatten(row().props.style).opacity).toBeUndefined();
     await fireEvent(row(), "responderGrant", touch);

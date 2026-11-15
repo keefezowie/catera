@@ -830,271 +830,125 @@ const daysBlock = async () => within(await screen.findByTestId("upcoming-days"))
 describe("Berikutnya", () => {
   beforeEach(() => pin(morningOf(DEMO_TODAY)));
 
-  it("days with one delivery each are one card of 72 rows with a date column", async () => {
-    const state = scheduled({});
-    state.deliveries.push(
-      ...[1, 2, 3, 4].map((o) => planDelivery(state.subscriptions[0], addDays(DEMO_TODAY, o))),
+  it("is one card per day: label and count, a photo strip, one Siang / Malam line, at most three days", async () => {
+    await mount(runtimeWith(async () => scheduled({ 2: 3, 3: 2, 4: 2, 5: 2 })).runtime, v2);
+    const days = await daysBlock();
+    expect(days.getByText("Berikutnya")).toBeTruthy();
+    expect(days.getAllByTestId("list-card")).toHaveLength(3);
+    expect(days.getAllByTestId("upcoming-day-label").map((n) => n.props.children)).toEqual([
+      "Senin 12 Okt",
+      "Selasa 13 Okt",
+      "Rabu 14 Okt",
+    ]);
+    const monday = within(days.getByTestId("upcoming-day-2026-10-12"));
+    expect(monday.getByTestId("upcoming-day-count").props.children).toBe("3 pengantaran");
+    expect(monday.getByTestId("upcoming-day-split").props.children).toBe("Siang 2 · Malam 1");
+    // One tile per delivery, 48 square; the menus are set, so no "+n" and no action line.
+    const strip = days.getByTestId("upcoming-strip-2026-10-12");
+    expect(strip.children).toHaveLength(3);
+    expect(StyleSheet.flatten(days.getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch").props.style)).toMatchObject({
+      width: 48,
+      height: 48,
+      borderRadius: 8,
+    });
+    expect(days.queryByTestId("upcoming-more")).toBeNull();
+    expect(days.queryByTestId("upcoming-action-2026-10-12")).toBeNull();
+    // A zero side is left out.
+    expect(within(days.getByTestId("upcoming-day-2026-10-13")).getByTestId("upcoming-day-split").props.children).toBe("Siang 2");
+  });
+
+  it("a day of six deliveries shows four tiles then +2", async () => {
+    const meal = (i: number) => ({
+      deliveryId: `d-${i}`,
+      subscriptionId: "s-1",
+      pickable: false,
+      meal: (i % 2 ? "dinner" : "lunch") as "lunch" | "dinner",
+      packageName: `Paket ${i}`,
+      catererName: "Dapur Contoh",
+      lead: `Menu ${i}`,
+      image: "",
+      menuSet: true,
+      window: "",
+      changeUntil: null,
+    });
+    const day = { date: "2026-10-28", label: "Rabu 28 Okt", meals: [1, 2, 3, 4, 5, 6].map(meal) };
+    await mount(runtimeWith(async () => customerState({})).runtime, {
+      v2: true,
+      node: <UpcomingDays days={[day as never]} apiBase="" tomorrow={null} />,
+    });
+    const card = within(await screen.findByTestId("upcoming-day-2026-10-28"));
+    expect(screen.getByTestId("upcoming-strip-2026-10-28").children).toHaveLength(5);
+    expect(card.getByText("+2")).toBeTruthy();
+    expect(card.getByTestId("upcoming-day-split").props.children).toBe("Siang 3 · Malam 3");
+  });
+
+  it("a day with menus to pick has one action line with the deadline, and Pilih menu opens the first of them", async () => {
+    const state = ownMenus(scheduled({ 2: 3 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] }));
+    await mount(runtimeWith(async () => state).runtime, v2);
+    const days = await daysBlock();
+    const action = within(days.getByTestId("upcoming-action-2026-10-12"));
+    expect(action.getByText("2 menu perlu dipilih")).toBeTruthy();
+    expect(action.getByText(/^sebelum /)).toBeTruthy();
+    // Unpicked deliveries still get a tile (their picture), and no second status row exists.
+    expect(days.getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch-not-set")).toBeTruthy();
+    expect(days.queryByText("Menu belum dipilih")).toBeNull();
+    const pick = action.getAllByRole("button", { name: "Pilih menu" });
+    expect(pick).toHaveLength(1);
+    await fireEvent.press(pick[0]);
+    expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-1?date=2026-10-12&meal=lunch");
+    expect(color(action.getByText("Pilih menu"))).toBe(light.forest);
+  });
+
+  it("past the cutoff there is no action line", async () => {
+    const state = ownMenus(scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] }));
+    state.deliveries = state.deliveries.map((d) =>
+      d.service_date === "2026-10-12" ? { ...d, cutoff_at: "2026-10-09T10:00:00Z" } : d,
     );
     await mount(runtimeWith(async () => state).runtime, v2);
     const days = await daysBlock();
-    expect(days.getByText("Berikutnya")).toBeTruthy();
-    // At most three days, in one list card; no day label of its own.
-    expect(days.getAllByTestId("list-card")).toHaveLength(1);
-    expect(days.queryByTestId("upcoming-day-label")).toBeNull();
-    const rows = days.getAllByTestId(/^upcoming-row-d-.*-lunch$/);
-    expect(rows.map((r) => r.props.testID)).toEqual([
-      "upcoming-row-d-s-1-2026-10-11-lunch",
-      "upcoming-row-d-s-1-2026-10-12-lunch",
-      "upcoming-row-d-s-1-2026-10-13-lunch",
-    ]);
-    for (const row of rows) expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(72);
-    // Date column: the weekday over the day number, 36 wide; then the 56 thumb with the dish and its line.
-    expect(within(rows[0]).getByText("Min")).toBeTruthy();
-    expect(within(rows[0]).getByText("11")).toBeTruthy();
-    expect(StyleSheet.flatten(within(rows[0]).getByTestId("upcoming-date").props.style).width).toBe(36);
-    expect(StyleSheet.flatten(within(rows[0]).getByTestId("upcoming-row-d-s-1-2026-10-11-lunch-thumb").props.style)).toMatchObject({
-      width: 56,
-      height: 56,
-      borderRadius: 8,
-    });
-    expect(within(rows[0]).getByText("Ayam panggang")).toBeTruthy();
-    expect(within(rows[0]).getByText("Besok · Siang 11.00–13.00")).toBeTruthy();
-    expect(within(rows[1]).getByText("Siang 11.00–13.00")).toBeTruthy();
-    expect(rows[1].props.accessibilityLabel).toBe("Senin 12 Okt, Ayam panggang, Siang 11.00–13.00");
-    // The rule between rows starts at the thumb, past the date column.
-    expect(StyleSheet.flatten(days.getAllByTestId("list-card-separator")[0].props.style).marginLeft).toBe(48);
+    expect(days.queryByTestId("upcoming-action-2026-10-12")).toBeNull();
+    expect(days.queryByRole("button", { name: "Pilih menu" })).toBeNull();
   });
 
-  it("tomorrow's row opens the existing story, any other day its sheet", async () => {
-    const state = scheduled({});
-    state.deliveries.push(...[1, 2].map((o) => planDelivery(state.subscriptions[0], addDays(DEMO_TODAY, o))));
+  it("menus not announced are the tail of the count line, never an action", async () => {
+    const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")] });
     await mount(runtimeWith(async () => state).runtime, v2);
     const days = await daysBlock();
-    await fireEvent.press(days.getByTestId("upcoming-row-d-s-1-2026-10-11-lunch"));
+    const monday = within(days.getByTestId("upcoming-day-2026-10-12"));
+    expect(monday.getByTestId("upcoming-day-split").props.children).toBe("Siang 2 · 1 menu belum diumumkan");
+    expect(color(monday.getByTestId("upcoming-day-split"))).toBe(light.muted);
+    expect(days.getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch-not-set")).toBeTruthy();
+    expect(days.queryByTestId("upcoming-action-2026-10-12")).toBeNull();
+    expect(days.queryByRole("button", { name: "Pilih menu" })).toBeNull();
+  });
+
+  it("a card opens where its first delivery went: tomorrow's story, any other day its sheet", async () => {
+    await mount(runtimeWith(async () => scheduled({ 1: 2, 2: 1 })).runtime, v2);
+    const days = await daysBlock();
+    await fireEvent.press(days.getByTestId("upcoming-day-2026-10-11"));
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
-    await fireEvent.press(days.getByTestId("upcoming-row-d-s-1-2026-10-12-lunch"));
+    await fireEvent.press(days.getByTestId("upcoming-day-2026-10-12"));
     expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-1-2026-10-12?title=Senin%2012%20Okt");
   });
 
   it("a tomorrow delivery the story does not list opens its day sheet, never story part 0", async () => {
     const state = scheduled({ 1: 2 });
     const days = upcomingDays(state, morningOf(DEMO_TODAY), 3, "id");
-    // The story knows only the second delivery; the first falls back to its own sheet.
     const tomorrow = { date: addDays(DEMO_TODAY, 1), parts: [{ deliveryId: "d-s-2-2026-10-11", meal: "lunch" as const }] };
     await mount(runtimeWith(async () => state).runtime, { v2: true, node: <UpcomingDays days={days} apiBase="" tomorrow={tomorrow} /> });
-    const block = await daysBlock();
-    await fireEvent.press(block.getByTestId("upcoming-tile-d-s-1-2026-10-11-lunch"));
+    await fireEvent.press(await screen.findByTestId("upcoming-day-2026-10-11"));
     expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-1-2026-10-11?title=Minggu%2011%20Okt");
-    await fireEvent.press(block.getByTestId("upcoming-tile-d-s-2-2026-10-11-lunch"));
-    expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
   });
 
-  it("Lihat jadwal goes to the Jadwal tab", async () => {
+  it("Lihat jadwal and Lihat semua jadwal go to the Jadwal tab", async () => {
     await mount(runtimeWith(async () => scheduled({ 2: 1 })).runtime, v2);
     const days = await daysBlock();
     await fireEvent.press(days.getByRole("button", { name: "Lihat jadwal" }));
     expect(goToTab).toHaveBeenLastCalledWith("jadwal");
     expect(color(days.getByText("Lihat jadwal"))).toBe(light.forest);
-  });
-
-  it("a menu not set is its picture tile and says the menu is not chosen or announced, never a dish", async () => {
-    const state = scheduled({ 2: 1 }, { "s-1": [pendingMenu("lunch")] });
-    await mount(runtimeWith(async () => state).runtime, v2);
-    const days = await daysBlock();
-    const row = days.getByTestId("upcoming-row-d-s-1-2026-10-12-lunch");
-    expect(within(row).getByText(/^Menu belum (dipilih|diumumkan)$/)).toBeTruthy();
-    expect(within(row).getByTestId("polish-art", { includeHiddenElements: true })).toBeTruthy();
-    expect(within(row).getByTestId("upcoming-row-d-s-1-2026-10-12-lunch-thumb-not-set")).toBeTruthy();
-    expect(within(row).getByText("Siang 11.00–13.00 · Dapur Senja")).toBeTruthy();
-  });
-
-  it("a day with several deliveries is a block: two photo tiles, then how many more", async () => {
-    await mount(runtimeWith(async () => scheduled({ 2: 3 })).runtime, v2);
-    const days = await daysBlock();
-    expect(days.getByText("Senin 12 Okt")).toBeTruthy();
-    expect(days.getByTestId("upcoming-day-count").props.children).toBe("3 pengantaran");
-    // No list card: day blocks are tiles.
-    expect(days.queryByTestId("list-card")).toBeNull();
-    const tiles = days.getAllByTestId(/^upcoming-tile-d-.*-(lunch|dinner)$/);
-    expect(tiles.map((t) => t.props.testID)).toEqual([
-      "upcoming-tile-d-s-1-2026-10-12-lunch",
-      "upcoming-tile-d-s-2-2026-10-12-lunch",
-    ]);
-    const photo = StyleSheet.flatten(days.getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch-photo").props.style);
-    expect(photo.aspectRatio).toBeCloseTo(16 / 10, 6);
-    expect(photo.borderRadius).toBe(12);
-    const grid = StyleSheet.flatten(days.getByTestId("upcoming-grid-2026-10-12").props.style);
-    expect(grid).toMatchObject({ flexDirection: "row", gap: 12 });
-    // The dish is one line of bodyStrong; under it the meal and the kitchen.
-    expect(within(tiles[0]).getByText("Ayam panggang").props.numberOfLines).toBe(1);
-    expect(within(tiles[0]).getByText("Siang · Dapur Senja")).toBeTruthy();
-    expect(tiles[1].props.accessibilityLabel).toBe("Rendang sapi, Siang · Dapur Contoh");
-    // The third delivery is one tap away; it is the dinner, one delivery, so its own sheet opens.
-    const more = days.getByRole("button", { name: "+1 lagi" });
-    expect(StyleSheet.flatten(more.props.style).minHeight).toBeGreaterThanOrEqual(36);
-    await fireEvent.press(more);
-    expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-3-2026-10-12?title=Senin%2012%20Okt");
-    await fireEvent.press(tiles[1]);
-    expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-2-2026-10-12?title=Senin%2012%20Okt");
-  });
-
-  it("four deliveries a day: two tiles and +2 lagi, which opens the schedule where all four are", async () => {
-    await mount(runtimeWith(async () => scheduled({ 2: 4 })).runtime, v2);
-    const days = await daysBlock();
-    expect(days.getAllByTestId(/^upcoming-tile-.*-lunch$/)).toHaveLength(2);
-    expect(days.queryByText("Salmon teriyaki")).toBeNull();
-    expect(days.getByTestId("upcoming-day-count").props.children).toBe("4 pengantaran");
-    await fireEvent.press(days.getByRole("button", { name: "+2 lagi" }));
+    await fireEvent.press(days.getByRole("button", { name: "Lihat semua jadwal" }));
     expect(goToTab).toHaveBeenLastCalledWith("jadwal");
-  });
-
-  it("a day with one delivery beside a busy one keeps its block, with the empty meal said", async () => {
-    await mount(runtimeWith(async () => scheduled({ 2: 3, 3: 1 })).runtime, v2);
-    const days = await daysBlock();
-    const tuesday = within(days.getByTestId("upcoming-day-2026-10-13"));
-    expect(tuesday.getByText("Selasa 13 Okt")).toBeTruthy();
-    expect(tuesday.getByText("Malam tidak ada pengantaran")).toBeTruthy();
-    expect(tuesday.queryByText(/lagi$/)).toBeNull();
-    const none = StyleSheet.flatten(tuesday.getByTestId("upcoming-none").props.style);
-    expect(none.aspectRatio).toBeCloseTo(16 / 10, 6);
-    expect(none.borderRadius).toBe(12);
-    expect(none.backgroundColor).toBe(light.line);
-  });
-
-  it("a lone dinner leaves the lunch slot empty before it", async () => {
-    const state = scheduled({});
-    state.deliveries.push(planDelivery(state.subscriptions[2], addDays(DEMO_TODAY, 2)));
-    state.deliveries.push(planDelivery(state.subscriptions[0], addDays(DEMO_TODAY, 3)));
-    state.deliveries.push(planDelivery(state.subscriptions[1], addDays(DEMO_TODAY, 3)));
-    await mount(runtimeWith(async () => state).runtime, v2);
-    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
-    const labels = monday.getAllByText(/tidak ada pengantaran$|^Malam · /);
-    expect(labels.map((l) => l.props.children)).toEqual(["Siang tidak ada pengantaran", "Malam · Dapur Bulan"]);
-  });
-
-  it("a day's unpicked deliveries collapse into one row with one Pilih menu", async () => {
-    const state = scheduled(
-      { 2: 4 },
-      { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")], "s-3": [pendingMenu("dinner")] },
-    );
-    await mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
-    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
-    expect(monday.getByTestId("upcoming-day-count").props.children).toBe("4 pengantaran");
-    // One row for the three unpicked; no dashed tile per delivery, and nothing left behind "+n lagi".
-    const rows = monday.getAllByTestId("day-unpicked-row");
-    expect(rows).toHaveLength(1);
-    expect(within(rows[0]).getByText("3 pengantaran belum ada menu")).toBeTruthy();
-    expect(monday.queryByTestId(/-photo-not-set$/)).toBeNull();
-    expect(monday.queryByText(/^Menu belum (dipilih|diumumkan)$/)).toBeNull();
-    expect(monday.queryByText(/lagi$/)).toBeNull();
-    // The picked one keeps its photo tile.
-    expect(monday.getAllByTestId(/^upcoming-tile-d-.*-(lunch|dinner)$/).map((t) => t.props.testID)).toEqual([
-      "upcoming-tile-d-s-4-2026-10-12-dinner",
-    ]);
-    // One action, to the first unpicked delivery's menu.
-    const pick = within(rows[0]).getAllByRole("button", { name: "Pilih menu" });
-    expect(pick).toHaveLength(1);
-    await fireEvent.press(pick[0]);
-    expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-1?date=2026-10-12&meal=lunch");
-  });
-
-  it("a day with nothing picked is the one row and no tiles", async () => {
-    const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] });
-    await mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
-    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
-    expect(monday.getByText("2 pengantaran belum ada menu")).toBeTruthy();
-    expect(monday.queryByTestId("upcoming-grid-2026-10-12")).toBeNull();
-    expect(monday.queryByTestId("upcoming-none")).toBeNull();
-  });
-
-  it("one unpicked delivery reads Menu belum dipilih", async () => {
-    const state = scheduled({ 2: 2 }, { "s-2": [pendingMenu("lunch")] });
-    await mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
-    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
-    const row = within(monday.getByTestId("day-unpicked-row"));
-    expect(row.getByText("Menu belum dipilih")).toBeTruthy();
-    expect(monday.queryByText(/belum ada menu$/)).toBeNull();
-    expect(monday.getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch")).toBeTruthy();
-    await fireEvent.press(row.getByRole("button", { name: "Pilih menu" }));
-    expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-2?date=2026-10-12&meal=lunch");
-  });
-
-  it("the unpicked row at 360dp and font 1.3 grows instead of clipping", async () => {
-    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    const state = scheduled({ 2: 3 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] });
-    await mount(runtimeWith(async () => ownMenus(state)).runtime, v2);
-    const row = (await daysBlock()).getByTestId("day-unpicked-row");
-    expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(48);
-    expect(within(row).getByText("2 pengantaran belum ada menu").props.numberOfLines).toBeUndefined();
-    const pick = within(row).getByRole("button", { name: "Pilih menu" });
-    expect(StyleSheet.flatten(pick.props.style).minHeight).toBeGreaterThanOrEqual(44);
-    // The action keeps its words on one line; the count wraps beside it.
-    expect(within(pick).getByText("Pilih menu").props.numberOfLines).toBe(1);
-  });
-
-  it("the unpicked row takes its inks from the dark theme", async () => {
-    const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")] });
-    await mount(runtimeWith(async () => ownMenus(state)).runtime, { ...v2, scheme: "dark" });
-    const row = within((await daysBlock()).getByTestId("day-unpicked-row"));
-    expect(color(row.getByText("Pilih menu"))).toBe(nativeThemes.dark.forest);
-    // The picture tile sits on the small-fill tone, as the one-delivery rows' tile does.
-    expect(StyleSheet.flatten(row.getByTestId("day-unpicked-tile").props.style).backgroundColor).toBe(nativeThemes.dark.fill);
-    expect(row.getByTestId("polish-art", { includeHiddenElements: true })).toBeTruthy();
-  });
-
-  it("a caterer-chosen menu not announced yet has no Pilih menu", async () => {
-    const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")] });
-    await mount(runtimeWith(async () => state).runtime, v2);
-    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
-    const row = within(monday.getByTestId("day-unannounced-row"));
-    expect(row.getByText("Menu belum diumumkan")).toBeTruthy();
-    expect(monday.queryByRole("button", { name: "Pilih menu" })).toBeNull();
-    expect(monday.queryByTestId("day-unpicked-row")).toBeNull();
-  });
-
-  it("a day with both kinds keeps Pilih menu for the pick-your-own one only", async () => {
-    const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] });
-    state.subscriptions[1].snapshot.offer.menuSelectionMode = "customer";
-    await mount(runtimeWith(async () => state).runtime, v2);
-    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
-    expect(within(monday.getByTestId("day-unpicked-row")).getByText("Menu belum dipilih")).toBeTruthy();
-    expect(within(monday.getByTestId("day-unannounced-row")).getByText("Menu belum diumumkan")).toBeTruthy();
-    const pick = monday.getAllByRole("button", { name: "Pilih menu" });
-    expect(pick).toHaveLength(1);
-    await fireEvent.press(pick[0]);
-    expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-2?date=2026-10-12&meal=lunch");
-  });
-
-  it("past the cutoff the unpicked row has no action", async () => {
-    const state = ownMenus(scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] }));
-    state.deliveries = state.deliveries.map((d) =>
-      d.service_date === "2026-10-12" ? { ...d, cutoff_at: "2026-10-09T10:00:00Z" } : d,
-    );
-    await mount(runtimeWith(async () => state).runtime, v2);
-    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
-    expect(within(monday.getByTestId("day-unpicked-row")).getByText("2 pengantaran belum ada menu")).toBeTruthy();
-    expect(monday.queryByRole("button", { name: "Pilih menu" })).toBeNull();
-  });
-
-  it("shows at most three days, however many have a delivery", async () => {
-    await mount(runtimeWith(async () => scheduled({ 2: 2, 3: 2, 4: 2, 5: 2, 6: 2 })).runtime, v2);
-    const days = await daysBlock();
-    expect(days.getAllByTestId("upcoming-day-label").map((n) => n.props.children)).toEqual([
-      "Senin 12 Okt",
-      "Selasa 13 Okt",
-      "Rabu 14 Okt",
-    ]);
-  });
-
-  it("tomorrow's tiles and +n lagi open the story at their own part", async () => {
-    await mount(runtimeWith(async () => scheduled({ 1: 4 })).runtime, v2);
-    const days = await daysBlock();
-    expect(days.getByText("Besok, Minggu 11 Okt")).toBeTruthy();
-    await fireEvent.press(days.getByTestId("upcoming-tile-d-s-2-2026-10-11-lunch"));
-    expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=1");
-    // The first hidden part is the third in the story's own order (lunch, lunch, dinner by window, dinner).
-    await fireEvent.press(days.getByRole("button", { name: "+2 lagi" }));
-    expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=2");
+    expect(color(days.getByText("Lihat semua jadwal"))).toBe(light.forest);
   });
 
   it("is gone when nothing is coming, and the old Menu besok row never returns", async () => {
@@ -1113,24 +967,8 @@ describe("Berikutnya", () => {
     expect(title()).toBe("Siang ini, tidak ada pengantaran.");
     expect(screen.queryByTestId("plate-hero")).toBeNull();
     expect(within(screen.getByTestId("mood-header")).getByText("Berikutnya Senin 12 Okt")).toBeTruthy();
-    const rows = within(screen.getByTestId("upcoming-days")).getAllByTestId(/^upcoming-row-d-.*-lunch$/);
-    expect(within(rows[0]).getByText("Sen")).toBeTruthy();
-    expect(within(rows[0]).getByText("12")).toBeTruthy();
-  });
-
-  it("at 360dp and font scale 1.3 the tiles take a column each and the dish may wrap", async () => {
-    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
-    await mount(runtimeWith(async () => scheduled({ 2: 2 })).runtime, v2);
-    const days = await daysBlock();
-    expect(StyleSheet.flatten(days.getByTestId("upcoming-grid-2026-10-12").props.style).flexDirection).toBe("column");
-    expect(days.getByText("Ayam panggang").props.numberOfLines).toBeUndefined();
-  });
-
-  it("keeps two columns at 360dp and the default text size", async () => {
-    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
-    await mount(runtimeWith(async () => scheduled({ 2: 2 })).runtime, v2);
-    const days = await daysBlock();
-    expect(StyleSheet.flatten(days.getByTestId("upcoming-grid-2026-10-12").props.style).flexDirection).toBe("row");
+    const first = within(screen.getByTestId("upcoming-days")).getAllByTestId("upcoming-day-label")[0];
+    expect(first.props.children).toBe("Senin 12 Okt");
   });
 
   it("reads in English", async () => {
@@ -1139,10 +977,9 @@ describe("Berikutnya", () => {
     const days = await daysBlock();
     expect(days.getByText("Coming up")).toBeTruthy();
     expect(days.getByText("See schedule")).toBeTruthy();
+    expect(days.getByText("See the whole schedule")).toBeTruthy();
     expect(days.getByText("3 deliveries")).toBeTruthy();
-    expect(days.getByText("+1 more")).toBeTruthy();
-    expect(days.getByText("No dinner delivery")).toBeTruthy();
-    expect(days.getAllByText("Lunch · Dapur Senja")).toHaveLength(2);
+    expect(days.getByText("Lunch 2 · Dinner 1")).toBeTruthy();
   });
 });
 
@@ -1330,12 +1167,8 @@ describe("the lower blocks in dark and at Malam", () => {
     expect(StyleSheet.flatten(slot.props.style).backgroundColor).toBe(palette.surface);
     expect(color(within(slot).getByTestId("waiting-action"))).toBe(palette.charcoal);
     const days = await daysBlock();
-    expect(StyleSheet.flatten(days.getByTestId("upcoming-none").props.style).backgroundColor).toBe(palette.line);
-    // Its words are ink on the line fill, at least 4.5:1 (muted there is 4.4).
-    const noneText = color(days.getByText("Malam tidak ada pengantaran"));
-    expect(noneText).toBe(palette.charcoal);
-    expect(contrastOf(noneText, palette.line)).toBeGreaterThanOrEqual(4.5);
     expect(color(days.getByText("Lihat jadwal"))).toBe(palette.forest);
+    expect(color(days.getByText("Lihat semua jadwal"))).toBe(palette.forest);
     expect(color(days.getAllByTestId("upcoming-day-count")[0])).toBe(palette.muted);
     const plans = within(await screen.findByTestId("plans"));
     expect(color(plans.getByText("Lihat semua"))).toBe(palette.forest);
@@ -1343,32 +1176,3 @@ describe("the lower blocks in dark and at Malam", () => {
   });
 });
 
-
-describe("the +n lagi row", () => {
-  it("reaches 48dp on Android without its slop reaching past half the 8dp gap to its neighbours", async () => {
-    const { DayBlocks } = require("../src/today/DayBlocks") as typeof import("../src/today/DayBlocks");
-    const meal = (i: number) => ({
-      deliveryId: `d-${i}`,
-      subscriptionId: "s-1",
-      pickable: false,
-      meal: (i % 2 ? "dinner" : "lunch") as "lunch" | "dinner",
-      packageName: `Paket ${i}`,
-      catererName: "Dapur Contoh",
-      lead: `Menu ${i}`,
-      image: "",
-      menuSet: true,
-      window: "",
-      changeUntil: null,
-    });
-    const day = { date: "2026-10-28", label: "Rabu", meals: [meal(1), meal(2), meal(3)] };
-    await mount(runtimeWith(async () => customerState({})).runtime, {
-      v2: true,
-      node: <DayBlocks days={[day as never]} apiBase="" onOpen={() => undefined} onMore={() => undefined} onPick={() => undefined} />,
-    });
-    const more = await screen.findByRole("button", { name: "+1 lagi" });
-    const style = StyleSheet.flatten(more.props.style);
-    const slop = more.props.hitSlop as { top: number; bottom: number };
-    expect(style.minHeight + slop.top + slop.bottom).toBeGreaterThanOrEqual(48);
-    expect(Math.max(slop.top, slop.bottom)).toBeLessThanOrEqual(4);
-  });
-});
