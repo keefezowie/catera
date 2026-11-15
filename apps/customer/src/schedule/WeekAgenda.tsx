@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View } from "react-native";
 import {
   canChangeDay,
@@ -13,7 +14,7 @@ import {
   type Delivery,
   type Locale,
 } from "@catera/domain";
-import { useMobile } from "@catera/mobile-core";
+import { plural, useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
 import { PressableRow, PressableScale, Text, themedStyles, useColors, cardEdge, cardEdgeWidth } from "@catera/mobile-ui";
 import { router } from "expo-router";
@@ -79,6 +80,8 @@ export function WeekAgenda({
   const { t } = useMobile();
   const c = useColors();
   const styles = useStyles();
+  // The week whose folded past days are open; another week starts folded again.
+  const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const itemsOf = (date: string): Item[] =>
     deliveries
       .filter((d) => d.service_date === date && live(d))
@@ -92,10 +95,17 @@ export function WeekAgenda({
 
   const blocks = week.map((date) => ({ date, items: itemsOf(date) }));
   const withMeals = blocks.filter((b) => b.items.length > 0);
+  // This week's days already gone fold into one summary row; today and the days after stay as full rows.
+  const past = week.includes(today) ? withMeals.filter((b) => b.date < today) : [];
+  const upcoming = withMeals.filter((b) => !past.includes(b));
+  const pastItems = past.flatMap((b) => b.items);
+  const problems = pastItems.filter(({ m }) => failed(m.status) || mealReported(m)).length;
+  const arrived = pastItems.length - problems;
   const empty = blocks.filter((b) => b.items.length === 0).map((b) => weekdayName(b.date, locale));
   const count = withMeals.reduce((n, b) => n + b.items.length, 0);
   const range = rangeLabel(week, locale);
   const thisWeek = week.includes(today);
+  const open = expandedWeek === week[0];
 
   // Each meal is one delivery.
   const meta = thisWeek
@@ -183,6 +193,28 @@ export function WeekAgenda({
     );
   };
 
+  const dayBlock = (date: string, items: Item[]) => (
+    <View key={date} testID={`agenda-day-${date}`} style={styles.block}>
+      <Text variant="bodyStrong" style={{ fontVariant: ["tabular-nums"] }}>
+        {date === today ? `${dayName(date, locale)} · ${t("Hari ini", "Today")}` : dayName(date, locale)}
+      </Text>
+      <ListCard>{items.map((item) => mealRow(item, date))}</ListCard>
+    </View>
+  );
+
+  // "Senin sampai Kamis" over how many came; a meal that was reported or marked not delivered is said, never counted as arrived.
+  const [firstPast, lastPast] = [past[0]?.date, past[past.length - 1]?.date];
+  const pastTitle = !past.length
+    ? ""
+    : firstPast === lastPast
+      ? weekdayName(firstPast, locale)
+      : t(`${weekdayName(firstPast, "id")} sampai ${weekdayName(lastPast, "id")}`, `${weekdayName(firstPast, "en")} to ${weekdayName(lastPast, "en")}`);
+  const pastLine = problems
+    ? arrived
+      ? t(`${arrived} sampai, ${problems} bermasalah`, `${arrived} arrived, ${problems} with a problem`)
+      : t(`${problems} bermasalah`, `${problems} with a problem`)
+    : t(`${pastItems.length} pengantaran sudah sampai`, `${plural(pastItems.length, "delivery", "deliveries")} arrived`);
+
   return (
     <View testID="week-agenda">
       <View testID="agenda-heading" style={styles.heading}>
@@ -194,14 +226,29 @@ export function WeekAgenda({
       <View style={styles.body}>
         {withMeals.length ? (
           <View style={styles.blocks}>
-            {withMeals.map(({ date, items }) => (
-              <View key={date} testID={`agenda-day-${date}`} style={styles.block}>
-                <Text variant="bodyStrong" style={{ fontVariant: ["tabular-nums"] }}>
-                  {date === today ? `${dayName(date, locale)} · ${t("Hari ini", "Today")}` : dayName(date, locale)}
-                </Text>
-                <ListCard>{items.map((item) => mealRow(item, date))}</ListCard>
+            {past.length ? (
+              <View style={styles.block}>
+                <PressableRow
+                  testID="agenda-past-summary"
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: open }}
+                  accessibilityLabel={[pastTitle, pastLine].join(", ")}
+                  onPress={() => setExpandedWeek(open ? null : week[0])}
+                  style={styles.summary}
+                >
+                  <View style={styles.summaryIcon}>
+                    <DecorativeIcon name="checkmark" size={20} color={c.forest} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text variant="rowTitle">{pastTitle}</Text>
+                    <Text variant="meta">{pastLine}</Text>
+                  </View>
+                  <DecorativeIcon name={open ? "chevron-up" : "chevron-down"} size={20} color={c.muted} />
+                </PressableRow>
+                {open ? <View style={styles.blocks}>{past.map(({ date, items }) => dayBlock(date, items))}</View> : null}
               </View>
-            ))}
+            ) : null}
+            {upcoming.map(({ date, items }) => dayBlock(date, items))}
           </View>
         ) : null}
         {empty.length ? (
@@ -240,6 +287,25 @@ const useStyles = themedStyles((c) => ({
   body: { gap: nativeLayout.space.lg },
   blocks: { gap: nativeLayout.space.xl },
   block: { gap: nativeLayout.groupGap },
+  summary: {
+    minHeight: nativeLayout.row.media,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: nativeLayout.space.md,
+    paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
+    borderRadius: nativeLayout.radius.card,
+    borderCurve: "continuous",
+    backgroundColor: c.fill,
+  },
+  summaryIcon: {
+    width: nativeLayout.thumb.compact,
+    height: nativeLayout.thumb.compact,
+    borderRadius: nativeLayout.radius.thumb,
+    borderCurve: "continuous",
+    backgroundColor: c.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   pickRow: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.sm },
   pick: { minHeight: 44, flexShrink: 0, justifyContent: "center", paddingHorizontal: nativeLayout.space.sm },
   empty: {

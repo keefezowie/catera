@@ -160,6 +160,8 @@ const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.p
 const renderV2 = async (runtime: MobileRuntime, ui: React.ReactElement) =>
   await renderWith(runtime, <LayoutScaleProvider value="v2">{ui}</LayoutScaleProvider>);
 const agendaDay = (date: string) => screen.queryByTestId(`agenda-day-${date}`);
+/** The folded past days of this week open (Senin sampai Selasa and the like). */
+const openPast = () => fireEvent.press(screen.getByTestId("agenda-past-summary"));
 
 describe("Jadwal", () => {
   // Today is Wednesday the 7th. The 5th is past and delivered; the 7th is delivered but not past; the 8th has no menu yet.
@@ -414,6 +416,7 @@ describe("Jadwal", () => {
       await renderV2(runtimeWith(failed), <Jadwal />);
       await gridReady();
       await fireEvent.press(dayButton("Selasa 6 Oktober"));
+      await openPast();
       expect(within(screen.getByRole("button", { name: /Ayam bakar madu/ })).getByText(/Gagal diantar/)).toBeTruthy();
       // The day looks like a day without deliveries: no coverage in its label, no dot, no ring.
       expect(dayButton("Selasa 6 Oktober").props.accessibilityLabel).toBe("Selasa 6 Oktober");
@@ -454,13 +457,85 @@ describe("Jadwal", () => {
       expect(flat(within(heading).getByText("Minggu ini"))).toMatchObject({ fontSize: 20, lineHeight: 26 });
       expect(flat(within(heading).getByText("5–11 Okt")).fontSize).toBe(13);
       // Monday 5th to Sunday 11th: the 5th, 7th, 8th, 9th and 10th have meals.
+      // The 5th is past, so it folds into the summary row; today and the days after are full blocks.
       const shown = screen.getAllByTestId(/^agenda-day-/).map((n) => n.props.testID);
-      expect(shown).toEqual(["agenda-day-2026-10-05", "agenda-day-2026-10-07", "agenda-day-2026-10-08", "agenda-day-2026-10-09", "agenda-day-2026-10-10"]);
+      expect(shown).toEqual(["agenda-day-2026-10-07", "agenda-day-2026-10-08", "agenda-day-2026-10-09", "agenda-day-2026-10-10"]);
+      expect(agendaDay("2026-10-05")).toBeNull();
+      await openPast();
+      expect(screen.getAllByTestId(/^agenda-day-/).map((n) => n.props.testID)[0]).toBe("agenda-day-2026-10-05");
       expect(within(agendaDay("2026-10-05")!).getByText("Senin 5 Okt")).toBeTruthy();
       expect(flat(within(agendaDay("2026-10-05")!).getByText("Senin 5 Okt"))).toMatchObject({ fontSize: 15, fontFamily: "Jakarta-SemiBold" });
       expect(within(agendaDay("2026-10-07")!).getByText("Rabu 7 Okt · Hari ini")).toBeTruthy();
       // Nothing from the next week is in this one.
       expect(agendaDay("2026-10-13")).toBeNull();
+    });
+
+    describe("past days of the week", () => {
+      const summary = () => screen.getByTestId("agenda-past-summary");
+
+      it("fold into one row that says which days and how many came, and opens and closes the old rows", async () => {
+        const state = stateOf([
+          delivery("d-mon", "2026-10-05", { status: "delivered" }),
+          delivery("d-tue", "2026-10-06", { status: "delivered" }),
+          delivery("d-now", "2026-10-07", {}),
+        ]);
+        await renderV2(runtimeWith(state), <Jadwal />);
+        await gridReady();
+        expect(within(summary()).getByText("Senin sampai Selasa")).toBeTruthy();
+        expect(within(summary()).getByText("2 pengantaran sudah sampai")).toBeTruthy();
+        expect(summary().props.accessibilityRole).toBe("button");
+        expect(summary().props.accessibilityState).toMatchObject({ expanded: false });
+        expect(flat(summary())).toMatchObject({ borderRadius: 16, borderCurve: "continuous" });
+        expect(agendaDay("2026-10-05")).toBeNull();
+        expect(agendaDay("2026-10-07")).toBeTruthy();
+        await fireEvent.press(summary());
+        expect(summary().props.accessibilityState).toMatchObject({ expanded: true });
+        expect(agendaDay("2026-10-05")).toBeTruthy();
+        expect(agendaDay("2026-10-06")).toBeTruthy();
+        await fireEvent.press(summary());
+        expect(summary().props.accessibilityState).toMatchObject({ expanded: false });
+        expect(agendaDay("2026-10-05")).toBeNull();
+      });
+
+      it("name one day alone", async () => {
+        const one = stateOf([delivery("d-mon", "2026-10-05", { status: "delivered" }), delivery("d-now", "2026-10-07", {})]);
+        await renderV2(runtimeWith(one), <Jadwal />);
+        await gridReady();
+        expect(within(summary()).getByText("Senin")).toBeTruthy();
+        expect(within(summary()).getByText("1 pengantaran sudah sampai")).toBeTruthy();
+      });
+
+      it("say 'sampai, bermasalah' when a past meal failed or has an open report", async () => {
+        const state = stateOf([
+          delivery("d-mon", "2026-10-05", { status: "delivered" }),
+          delivery("d-tue", "2026-10-06", { status: "issue" }),
+          delivery("d-now", "2026-10-07", {}),
+        ]);
+        await renderV2(runtimeWith(state), <Jadwal />);
+        await gridReady();
+        expect(within(summary()).getByText("1 sampai, 1 bermasalah")).toBeTruthy();
+      });
+
+      it("are absent when nothing in the week has passed, and a later week keeps its blocks", async () => {
+        const state = stateOf([delivery("d-now", "2026-10-07", {}), delivery("d-next", "2026-10-13", {})]);
+        await renderV2(runtimeWith(state), <Jadwal />);
+        await gridReady();
+        expect(screen.queryByTestId("agenda-past-summary")).toBeNull();
+        expect(agendaDay("2026-10-07")).toBeTruthy();
+      });
+
+      it("read in English", async () => {
+        (require("expo-secure-store") as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+        const state = stateOf([
+          delivery("d-mon", "2026-10-05", { status: "delivered" }),
+          delivery("d-tue", "2026-10-06", { status: "delivered" }),
+          delivery("d-now", "2026-10-07", {}),
+        ]);
+        await renderV2(runtimeWith(state), <Jadwal />);
+        await gridReady();
+        expect(within(summary()).getByText("Monday to Tuesday")).toBeTruthy();
+        expect(within(summary()).getByText("2 deliveries arrived")).toBeTruthy();
+      });
     });
 
     it("draws each meal as a 72 media row: a 56 thumb, the dish, and meta with the meal, window and state", async () => {
@@ -501,6 +576,7 @@ describe("Jadwal", () => {
       ]);
       await renderV2(runtimeWith(mixed), <Jadwal />);
       await gridReady();
+      await openPast();
       expect(within(screen.getByTestId("agenda-row-d-sched-lunch")).getByText("Siang 11.00–13.00 · Terjadwal")).toBeTruthy();
       expect(within(screen.getByTestId("agenda-row-d-road-lunch")).getByText("Siang 11.00–13.00 · Sedang diantar")).toBeTruthy();
       expect(within(screen.getByTestId("agenda-row-d-cook-lunch")).getByText("Siang 11.00–13.00 · Sedang dimasak")).toBeTruthy();
@@ -517,6 +593,7 @@ describe("Jadwal", () => {
       ]);
       await renderV2(runtimeWith(state), <Jadwal />);
       await gridReady();
+      await openPast();
       expect(within(screen.getByTestId("agenda-row-d-rep-lunch")).getByText("Siang 11.00–13.00 · Laporan terkirim")).toBeTruthy();
       expect(screen.queryByText(/Terjadwal/)).toBeNull();
     });
@@ -824,6 +901,7 @@ describe("Jadwal", () => {
       const marked = stateOf([delivery("d-marked", "2026-10-06", {}, { meals: [meal("out_for_delivery")] })]);
       await renderV2(runtimeWith(marked), <Jadwal />);
       await gridReady();
+      await openPast();
       expect(within(screen.getByRole("button", { name: /Ayam bakar madu/ })).getByText(/Ditandai sampai/)).toBeTruthy();
     });
 
@@ -832,6 +910,7 @@ describe("Jadwal", () => {
       const failedRow = stateOf([delivery("d-failed2", "2026-10-06", {}, { meals: [meal] })]);
       await renderV2(runtimeWith(failedRow), <Jadwal />);
       await gridReady();
+      await openPast();
       const row = screen.getByRole("button", { name: /Ayam bakar madu/ });
       expect(within(row).getByText(/Gagal diantar/)).toBeTruthy();
       expect(within(row).queryByText(/Ditandai sampai/)).toBeNull();
