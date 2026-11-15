@@ -80,7 +80,7 @@ export function BerandaSkeleton() {
             </View>
           </View>
         </BerandaHeroFrame>
-        {/* Below the hero: the live slot (a 72 row card) and Berikutnya (its heading line over a card of 72 rows), each
+        {/* Below the hero: the live slot (a 72 row card) and Berikutnya (its heading line over two day cards), each
             leading by the 16 the page body's gap does not give, as the loaded blocks do. */}
         <ListCardFrame testID="beranda-skeleton-live" style={{ marginTop: SECTION_LEAD, minHeight: nativeLayout.row.media }}>
           <MediaPlaceholder glyph />
@@ -89,10 +89,10 @@ export function BerandaSkeleton() {
           <View testID="beranda-skeleton-days-heading" style={{ height: 26, marginBottom: nativeLayout.headingGap, justifyContent: "center" }}>
             <Skeleton width="38%" height={18} />
           </View>
-          <ListCardFrame>
-            <MediaPlaceholder />
-            <MediaPlaceholder />
-          </ListCardFrame>
+          <View style={{ gap: nativeLayout.space.md }}>
+            <DayCardPlaceholder />
+            <DayCardPlaceholder />
+          </View>
         </View>
       </View>
     </SkeletonGroup>
@@ -118,6 +118,41 @@ function ListCardFrame({ children, testID, style }: { children: ReactNode; testI
     >
       {children}
     </View>
+  );
+}
+
+/** The 48 photo tiles a Berikutnya day card's strip shows while it loads. */
+const DAY_TILES = 4;
+
+/**
+ * One Berikutnya day card while it loads, on the loaded `DayCard` geometry: 12 above and below, the label line (22) with
+ * the count at its end, the strip of 48 tiles, and the count line (18), 8 apart.
+ */
+function DayCardPlaceholder() {
+  const tile = nativeLayout.thumb.compact;
+  return (
+    <ListCardFrame>
+      <View testID="beranda-skeleton-day" style={{ paddingVertical: nativeLayout.space.md, gap: nativeLayout.space.sm }}>
+        <View style={{ height: 22, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Skeleton width="40%" height={16} />
+          <Skeleton width="24%" height={12} />
+        </View>
+        <View style={{ flexDirection: "row", gap: nativeLayout.space.sm }}>
+          {Array.from({ length: DAY_TILES }, (_, i) => (
+            <View
+              key={i}
+              testID="beranda-skeleton-tile"
+              style={{ width: tile, height: tile, borderRadius: nativeLayout.radius.thumb, borderCurve: "continuous", overflow: "hidden" }}
+            >
+              <Skeleton width={tile} height={tile} radius={nativeLayout.radius.thumb} />
+            </View>
+          ))}
+        </View>
+        <View style={{ height: 18, justifyContent: "center" }}>
+          <Skeleton width="36%" height={12} />
+        </View>
+      </View>
+    </ListCardFrame>
   );
 }
 

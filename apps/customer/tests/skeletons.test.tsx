@@ -304,7 +304,7 @@ describe("states", () => {
         // The photo block has its height from the 16:10 ratio, not a number.
         expect(blocks.find((b) => b.aspectRatio !== undefined)?.backgroundColor).toBe(nativeMood[scheme][mood].arcTrack);
         expect(nativeMood[scheme][mood].arcTrack).not.toBe(nativeMood[scheme][mood].hero);
-        expect(blocks.find((b) => b.height === 56)?.backgroundColor).toBe(nativeThemes[scheme].sage);
+        expect(blocks.find((b) => b.height === 48)?.backgroundColor).toBe(nativeThemes[scheme].sage);
       });
 
   it("under reduced motion the skeleton holds still: no pulse starts", async () => {
@@ -358,9 +358,9 @@ describe("states", () => {
     const blocks = hosts(screen.getByTestId("beranda-skeleton"))
       .filter((n) => typeof flat(n).height === "number")
       .map((n) => flat(n).height as number);
-    // The 56 thumb of a 72 row, the 40 glyph circle of the live slot and the hero's 30 dish line, in dp; they do not
-    // scale with text.
-    expect(blocks).toContain(56);
+    // The 48 tile of a Berikutnya day card, the 40 glyph circle of the live slot and the hero's 30 dish line, in dp; they
+    // do not scale with text.
+    expect(blocks).toContain(48);
     expect(blocks).toContain(40);
     expect(blocks).toContain(30);
     const skeletonPhoto = flat(screen.getByTestId("beranda-skeleton-photo"));
@@ -377,7 +377,7 @@ describe("states", () => {
 });
 
 describe("Beranda skeleton, below the hero", () => {
-  it("is the live slot and one Berikutnya card of 72 rows, on the loaded geometry", async () => {
+  it("is the live slot and two Berikutnya day cards, on the loaded geometry", async () => {
     const runtime = runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) });
     await renderWith(runtime, <Beranda />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
@@ -388,11 +388,14 @@ describe("Beranda skeleton, below the hero", () => {
     // The heading is one section line (26) high, 12 above the card.
     const heading = flat(within(days).getByTestId("beranda-skeleton-days-heading"));
     expect(heading).toMatchObject({ height: 26, marginBottom: nativeLayout.headingGap });
-    const rows = within(days).getAllByTestId("beranda-skeleton-row");
-    expect(rows).toHaveLength(2);
-    for (const row of rows) expect(flat(row).minHeight).toBe(nativeLayout.row.media);
-    const thumbs = within(days).getAllByTestId("beranda-skeleton-thumb");
-    expect(flat(thumbs[0])).toMatchObject({ width: 56, height: 56, borderRadius: nativeLayout.radius.thumb });
+    // Each card is the loaded DayCard: 12 above and below, 8 between the label line, the strip of 48 tiles and the count line.
+    const cards = within(days).getAllByTestId("beranda-skeleton-day");
+    expect(cards).toHaveLength(2);
+    for (const card of cards) expect(flat(card)).toMatchObject({ paddingVertical: 12, gap: 8 });
+    expect(within(days).queryAllByTestId("beranda-skeleton-row")).toHaveLength(0);
+    const tiles = within(cards[0]).getAllByTestId("beranda-skeleton-tile");
+    expect(tiles).toHaveLength(4);
+    expect(flat(tiles[0])).toMatchObject({ width: 48, height: 48, borderRadius: nativeLayout.radius.thumb });
     // Nothing of the old 60 rows or 10 gaps is left.
     expect(hosts(screen.getByTestId("beranda-skeleton")).filter((n) => flat(n).minHeight === 60)).toHaveLength(0);
   });
