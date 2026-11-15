@@ -249,7 +249,7 @@ describe("Hari ini", () => {
     expect(screen.getByTestId("batch-progress")).toBeTruthy();
   });
 
-  it("the count skeleton's line is as tall as the loaded summary line, and both sit 12 under the date", async () => {
+  it("the count skeleton's line is as tall as the loaded summary line, and both sit 12 under the week handle bar", async () => {
     const read = held<SellerOperationsState>();
     await renderWith(runtimeWith(owner, { sellerOperations: read.fn }), withDapurScale(<TodayScreen />));
     const header = await screen.findByTestId("mood-header");
@@ -268,8 +268,8 @@ describe("Hari ini", () => {
     expect(waitingLine.height).toBe(14);
     expect(stackHeight(skeleton)).toBe(22);
     expect(flat(loaded).lineHeight ?? 22).toBe(22);
-    expect(waitingFlow).toMatchObject({ gap: 12, marginTop: 8 });
-    expect(loadedFlow).toMatchObject({ gap: 12, marginTop: 8 });
+    expect(waitingFlow).toMatchObject({ gap: 12, marginTop: -13 });
+    expect(loadedFlow).toMatchObject({ gap: 12, marginTop: -13 });
   });
 
   it("Malam's skeleton sits on the Malam header, visible against its fill", async () => {
