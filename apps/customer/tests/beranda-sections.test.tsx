@@ -922,6 +922,43 @@ describe("Berikutnya", () => {
     expect(days.queryByRole("button", { name: "Pilih menu" })).toBeNull();
   });
 
+  it("a day with both kinds counts only the pick-your-own menu on its action line, the other on the count line", async () => {
+    const state = scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] });
+    state.subscriptions[1].snapshot.offer.menuSelectionMode = "customer";
+    await mount(runtimeWith(async () => state).runtime, v2);
+    const monday = within((await daysBlock()).getByTestId("upcoming-day-2026-10-12"));
+    expect(monday.getByTestId("upcoming-day-split").props.children).toBe("Siang 2 · 1 menu belum diumumkan");
+    const action = within(screen.getByTestId("upcoming-action-2026-10-12"));
+    expect(action.getByText("1 menu perlu dipilih")).toBeTruthy();
+    const pick = action.getAllByRole("button", { name: "Pilih menu" });
+    expect(pick).toHaveLength(1);
+    await fireEvent.press(pick[0]);
+    expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-2?date=2026-10-12&meal=lunch");
+  });
+
+  it("the action line at 360dp and font 1.3 grows instead of clipping, and Pilih menu keeps a 44 target on one line", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    const state = ownMenus(scheduled({ 2: 3 }, { "s-1": [pendingMenu("lunch")], "s-2": [pendingMenu("lunch")] }));
+    await mount(runtimeWith(async () => state).runtime, v2);
+    const line = (await daysBlock()).getByTestId("upcoming-action-2026-10-12");
+    expect(StyleSheet.flatten(line.props.style).height).toBeUndefined();
+    expect(within(line).getByText("2 menu perlu dipilih").props.numberOfLines).toBeUndefined();
+    expect(within(line).getByText(/^sebelum /).props.numberOfLines).toBeUndefined();
+    const pick = within(line).getByRole("button", { name: "Pilih menu" });
+    expect(StyleSheet.flatten(pick.props.style).minHeight).toBeGreaterThanOrEqual(44);
+    expect(within(pick).getByText("Pilih menu").props.numberOfLines).toBe(1);
+    expect(within((await daysBlock()).getByTestId("upcoming-day-2026-10-12")).getByTestId("upcoming-day-split").props.numberOfLines).toBeUndefined();
+  });
+
+  it("the action line and picture tiles take their inks from the dark theme", async () => {
+    const state = ownMenus(scheduled({ 2: 2 }, { "s-1": [pendingMenu("lunch")] }));
+    await mount(runtimeWith(async () => state).runtime, { ...v2, scheme: "dark" });
+    const days = await daysBlock();
+    expect(color(within(days.getByTestId("upcoming-action-2026-10-12")).getByText("Pilih menu"))).toBe(nativeThemes.dark.forest);
+    const tile = days.getByTestId("upcoming-tile-d-s-1-2026-10-12-lunch-not-set");
+    expect(StyleSheet.flatten(tile.props.style).backgroundColor).toBe(nativeThemes.dark.fill);
+  });
+
   it("a card opens where its first delivery went: tomorrow's story, any other day its sheet", async () => {
     await mount(runtimeWith(async () => scheduled({ 1: 2, 2: 1 })).runtime, v2);
     const days = await daysBlock();
