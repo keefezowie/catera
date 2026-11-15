@@ -35,6 +35,7 @@ export function TodayCountSkeleton() {
       testID="today-count-skeleton"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
+      pointerEvents="none"
       style={{ gap: FIGURE_GAP, marginTop: FIGURE_TOP }}
     >
       <SkeletonGroup label="">

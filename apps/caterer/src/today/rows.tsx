@@ -151,8 +151,12 @@ export function ActionPair({ children }: { children: ReactNode }) {
   return <View style={{ flexDirection: "row", alignItems: "center" }}>{children}</View>;
 }
 
-/** The header's figure strip sits 12 under the date (the band's 4 plus 8) and the compact track 12 under the strip. */
-export const FIGURE_TOP = 8;
+/**
+ * The header's figure line sits under the week strip's handle: a 48 target with its 5 bar centred, so 21.5 under the bar
+ * is touch room, not layout. The line pulls up into it (the band's 4, then -13) to sit 12 under the bar, the header's
+ * inner spacing; its container passes touches through, so the handle keeps its whole target. Each line is 12 apart.
+ */
+export const FIGURE_TOP = -13;
 export const FIGURE_GAP = 12;
 /** The footer's caption line keeps this much room (two `meta` lines) with or without words, so the footer never changes height. */
 export const CAPTION_RESERVE = 36;

@@ -125,6 +125,20 @@ it("shows the lunch cooking total for the day", async () => {
   expect(screen.queryByText("Makan siang")).toBeNull();
 });
 
+it("the summary line sits 12 under the week strip's handle bar, and the handle keeps its 48 target", async () => {
+  await renderToday(runtimeWith(same(canvasDay())));
+  const count = await screen.findByTestId("session-count");
+  const handle = StyleSheet.flatten(screen.getByTestId("week-handle").props.style);
+  expect(handle.height).toBe(48);
+  // Under the centred 5 bar: the rest of the target, the band's 4 gap, then the line's own top.
+  const BAND_GAP = 4;
+  const underBar = (handle.height - 5) / 2 + BAND_GAP + StyleSheet.flatten(count.props.style).marginTop;
+  expect(underBar).toBeGreaterThanOrEqual(12);
+  expect(underBar).toBeLessThanOrEqual(13);
+  // The line overlaps the handle's lower target, so its container lets those touches through to the handle.
+  expect(count.props.pointerEvents).toBe("box-none");
+});
+
 it("shares the route as WhatsApp-ready text", async () => {
   const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
   await renderToday(runtimeWith(same(canvasDay())));

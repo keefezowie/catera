@@ -99,7 +99,7 @@ function HeaderFigures({ ops, session }: { ops: SellerOperationsState; session: 
     start ? t(`antar ${start}`, `delivery ${start}`) : null,
   ].filter(Boolean);
   return (
-    <View testID="session-count" style={{ gap: FIGURE_GAP, marginTop: FIGURE_TOP }}>
+    <View testID="session-count" pointerEvents="box-none" style={{ gap: FIGURE_GAP, marginTop: FIGURE_TOP }}>
       <Text
         testID="session-figures"
         variant="bodyStrong"
