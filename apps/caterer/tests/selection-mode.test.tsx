@@ -157,6 +157,18 @@ describe("Pilih: selecting stops in Urutan antar", () => {
     expect(screen.getByText("Urutan antar")).toBeTruthy();
   });
 
+  it("once every stop has left, Berangkat is gone and Sampai takes the full row", async () => {
+    await renderToday(runtimeFor(() => dayWith([out])));
+    await pilih();
+    expect(screen.queryByRole("button", { name: /^Berangkat \(/ })).toBeNull();
+    await fireEvent.press(stopBox(/Bu Sari/));
+    expect(screen.queryByRole("button", { name: /^Berangkat \(/ })).toBeNull();
+    const sampai = screen.getByRole("button", { name: "Sampai (1)" });
+    expect(sampai.props.accessibilityState.disabled).toBe(false);
+    expect(within(screen.getByTestId("selection-actions")).getAllByRole("button")).toHaveLength(1);
+    expect(StyleSheet.flatten(sampai.props.style)).toMatchObject({ flex: 1 });
+  });
+
   it("Pilih semua ticks the stops an area can still take, and Lepas semua clears them", async () => {
     await renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
     await pilih();

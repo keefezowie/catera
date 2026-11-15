@@ -10,7 +10,8 @@ import { pushScreen } from "../nav";
 /**
  * The bar above the tab bar while "Pilih" is on (spec 5.7): "Berangkat (n)" for the selected stops that are cooking and
  * "Sampai (n)" for the ones on their way. Each counts only the stops it can take, so a stop that has already left is
- * not part of Berangkat, and a button with nothing to do waits. Berangkat asks first (customers are told) and goes
+ * not part of Berangkat, and a button with nothing to do waits. Once every stop has left, Berangkat is gone and Sampai
+ * takes the row. Berangkat asks first (customers are told) and goes
  * through `delivery.depart` with exactly these stops; Sampai opens the proof-photo sheet. A failure is a `FormError`
  * at the bar with "Coba lagi". The caption line ("Pilih pengantaran dulu.") keeps its room once something is selected, so
  * the bar never changes height.
@@ -79,6 +80,8 @@ export function SelectionBar({
 
   // Large text or a narrow phone: the buttons stack so "Berangkat (n)" keeps one line.
   const stacked = useStackedLayout(340);
+  // Every stop has left: no Berangkat can happen, so only Sampai shows, full width.
+  const canDepart = session.stops.some((s) => s.stage === "preparing");
   return (
     <View testID="selection-bar" style={{ gap: 8 }}>
       {/* The line's room is kept whether or not it has words, so the bar is one height from 0 to n selected. */}
@@ -86,13 +89,15 @@ export function SelectionBar({
         {selection.selected.size === 0 ? <Text variant="meta">{t("Pilih pengantaran dulu.", "Select deliveries first.")}</Text> : null}
       </View>
       <View testID="selection-actions" style={{ flexDirection: stacked ? "column" : "row", gap: 8 }}>
-        <Button
-          style={stacked ? undefined : { flex: 1 }}
-          label={t(`Berangkat (${depart.length})`, `Head out (${depart.length})`)}
-          disabled={!depart.length}
-          busy={busy}
-          onPress={() => void leave()}
-        />
+        {canDepart ? (
+          <Button
+            style={stacked ? undefined : { flex: 1 }}
+            label={t(`Berangkat (${depart.length})`, `Head out (${depart.length})`)}
+            disabled={!depart.length}
+            busy={busy}
+            onPress={() => void leave()}
+          />
+        ) : null}
         <Button
           style={stacked ? undefined : { flex: 1 }}
           variant="secondary"
