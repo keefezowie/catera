@@ -54,12 +54,15 @@ figcaption b{color:var(--ink)}
 .bar{height:6px;border-radius:3px;background:var(--field);overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--forest)}
 .sum{display:flex;gap:14px;font-size:11.5px;color:var(--muted)}.sum b{color:var(--ink);font-size:16px;display:block}
 ul.pts{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+.th{display:flex;gap:6px;margin:8px 0}.th span{width:52px;height:52px;border-radius:12px;background:var(--sage);display:grid;place-items:center;font-size:24px}.th span.more{background:var(--field);font-size:13px;font-weight:700;color:var(--muted)}
+.steps{display:flex;gap:6px;margin-top:10px;font-size:10.5px;color:var(--muted)}.steps span{flex:1;text-align:center}.steps span:before{content:"";display:block;height:6px;border-radius:3px;background:var(--field);margin-bottom:4px}.steps .done:before{background:var(--forest)}.steps .cur{color:var(--ink);font-weight:700}.steps .cur:before{background:var(--sun)}
+.dash{border:1.5px dashed var(--line);border-radius:14px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:center}
 </style>
 </head>
 <body>
 <header>
 <h1>Catera apps: UX audit design drafts</h1>
-<p>Drafts for review before any code. Each pair shows what the emulator shows today (13 Nov 2026) next to the proposed change. Wireframe fidelity: real copy, approved palette, placeholder icons. Artwork and final spacing follow DESIGN.md at build time.</p>
+<p>Drafts for review before any code. Each pair shows what the emulator shows today (13 Nov 2026) next to the proposed change. Wireframe fidelity: real copy, approved palette, placeholder icons. Artwork and final spacing follow DESIGN.md at build time. Sections 7 to 9 are round two, informed by docs/superpowers/research/2026-11-15-apps-mobbin-research.md (sections 4, 6, 7 and 8).</p>
 </header>
 <main>
 
@@ -181,6 +184,76 @@ ul.pts{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
 <div class="foot"><span class="btn">Mulai masak</span></div>
 <div class="tabs"><span class="on"><i></i>Hari ini</span><span><i></i>Pelanggan</span><span><i></i>Menu</span><span><i></i>Usaha</span></div></div>
 <figcaption><b>Change:</b> the three-number card becomes one line in the header, shopping becomes a link beside the heading, and four cooking rows plus the start of the route fit above the button.</figcaption></figure>
+</div></section>
+
+<section>
+<h2>7. Customer · Beranda "Berikutnya": one card per day</h2>
+<p class="why">Round two (Mobbin: Blue Apron, Shop Orders). Today every day repeats a photo pair, then "Menu belum dipilih" and "3 menu belum diumumkan" rows, so three days fill several screens and the same two lines say nothing new. Each day becomes one card with a thumbnail strip, one count line and at most one action line.</p>
+<div class="row">
+<figure><span class="tag now">Today</span>
+<div class="phone"><div class="body" style="padding-top:22px"><div style="display:flex;justify-content:space-between;align-items:baseline"><h3 style="margin:0;font-size:20px">Berikutnya</h3><span class="act">Lihat jadwal</span></div>
+<div style="display:flex;justify-content:space-between;margin:10px 0 6px"><b>Senin 16 Nov</b><small class="m">6 pengantaran</small></div>
+<div style="display:flex;gap:8px"><div style="flex:1"><div class="art" style="height:80px;font-size:34px;margin:0 0 4px">🍗</div><b>Ayam panggang bumb…</b><small class="m">Siang · Dapur Senja</small></div><div style="flex:1"><div class="art" style="height:80px;font-size:34px;margin:0 0 4px">🐟</div><b>Salmon teriyaki</b><small class="m">Malam · Hijau Kitchen</small></div></div>
+<div class="li"><span class="ic">🍽</span><div>Menu belum dipilih</div><span class="act">Pilih menu</span></div>
+<div class="li"><span class="ic">🍱</span><div>3 menu belum diumumkan</div></div>
+<div style="display:flex;justify-content:space-between;margin:8px 0 6px"><b>Selasa 17 Nov</b><small class="m">4 pengantaran</small></div>
+<div style="display:flex;gap:8px"><div style="flex:1"><div class="art" style="height:50px;font-size:26px;margin:0">🍗</div></div><div style="flex:1"><div class="art" style="height:50px;font-size:26px;margin:0">🐟</div></div></div></div>
+<div class="tabs"><span class="on"><i></i>Beranda</span><span><i></i>Jadwal</span><span><i></i>Jelajah</span><span><i></i>Akun</span></div></div>
+<figcaption>Photo pair, then two status rows, per day. Only one day fits above the tab bar (h2.png).</figcaption></figure>
+<figure><span class="tag new">Proposed</span>
+<div class="phone"><div class="body" style="padding-top:22px"><div style="display:flex;justify-content:space-between;align-items:baseline"><h3 style="margin:0;font-size:20px">Berikutnya</h3><span class="act">Lihat jadwal</span></div><div style="height:10px"></div>
+<div class="card"><div style="display:flex;justify-content:space-between"><b>Senin 16 Nov</b><small class="m">6 pengantaran</small></div><div class="th"><span>🍗</span><span>🐟</span><span>🍛</span><span>🥗</span><span class="more">+2</span></div><small class="m">Siang 3 · Malam 3</small>
+<div class="note" style="margin-top:8px;padding:8px 10px;display:flex;align-items:center"><div style="flex:1"><b>2 menu perlu dipilih</b><small class="m">sebelum Minggu 17.00</small></div><span class="btn sm">Pilih menu</span></div></div>
+<div class="card"><div style="display:flex;justify-content:space-between"><b>Selasa 17 Nov</b><small class="m">4 pengantaran</small></div><div class="th"><span>🍗</span><span>🐟</span><span>🍛</span><span>🥗</span></div><small class="m">Siang 2 · Malam 2</small></div>
+<div class="card" style="margin-bottom:6px"><div style="display:flex;justify-content:space-between"><b>Rabu 18 Nov</b><small class="m">6 pengantaran</small></div><div class="th"><span>🍗</span><span>🐟</span><span>🍛</span><span>🥗</span><span class="more">+2</span></div><small class="m">Siang 3 · Malam 3 · 1 menu belum diumumkan</small></div>
+<p style="text-align:center;margin:8px 0 0"><span class="act">Lihat semua jadwal</span></p></div>
+<div class="tabs"><span class="on"><i></i>Beranda</span><span><i></i>Jadwal</span><span><i></i>Jelajah</span><span><i></i>Akun</span></div></div>
+<figcaption><b>Change:</b> one card per day, up to four thumbnails then "+N", one "Siang N · Malam N" line, and the cream action line only when the customer must act. "Belum diumumkan" is a muted tail of the count line (Rabu). Next three days, then "Lihat semua jadwal".</figcaption></figure>
+</div></section>
+
+<section>
+<h2>8. Customer · Jadwal: past days collapse</h2>
+<p class="why">Round two (Mobbin: HelloFresh Past orders, Shop Orders). Under the calendar, Senin 9 to Kamis 12 each show full rows of dashed "Menu belum diisi" placeholders for meals that already arrived, so today and the days that matter start below the fold.</p>
+<div class="row">
+<figure><span class="tag now">Today</span>
+<div class="phone"><div class="top" style="padding-bottom:10px"><h3 style="font-size:18px">November 2026</h3><small>● Ada pengantaran · ○ Menu belum diisi</small></div>
+<div class="body"><div style="display:flex;justify-content:space-between;align-items:baseline"><h3 style="margin:0 0 6px;font-size:18px">Minggu ini</h3><small class="m">9–15 Nov</small></div>
+<b>Senin 9 Nov</b><div class="dash" style="margin-top:6px"><span class="ic" style="border-radius:8px">🍴</span><div><b>Menu belum diisi</b><small>Siang 11.00–13.00 · Sudah sampai</small></div></div>
+<b>Selasa 10 Nov</b><div class="dash" style="margin-top:6px"><span class="ic" style="border-radius:8px">🍴</span><div><b>Menu belum diisi</b><small>Siang 11.00–13.00 · Sudah sampai</small></div></div>
+<div class="dash"><span class="ic" style="border-radius:8px">🍴</span><div><b>Menu belum diisi</b><small>Siang 11.00–13.00 · Sudah sampai</small></div></div></div>
+<div class="tabs"><span><i></i>Beranda</span><span class="on"><i></i>Jadwal</span><span><i></i>Jelajah</span><span><i></i>Akun</span></div></div>
+<figcaption>Past days are full dashed placeholder rows, one per meal (j1.png); today (Jumat 13) is off screen.</figcaption></figure>
+<figure><span class="tag new">Proposed</span>
+<div class="phone"><div class="top" style="padding-bottom:10px"><h3 style="font-size:18px">November 2026</h3><small>● Ada pengantaran · ○ Menu belum diisi</small></div>
+<div class="body"><div style="display:flex;justify-content:space-between;align-items:baseline"><h3 style="margin:0 0 6px;font-size:18px">Minggu ini</h3><small class="m">9–15 Nov</small></div>
+<div class="card" style="display:flex;align-items:center;gap:10px;background:var(--field);border-color:var(--field)"><span class="ic" style="background:#fff">✓</span><div style="flex:1"><b>Senin sampai Kamis</b><small class="m">5 pengantaran sudah sampai</small></div><span class="act">›</span></div>
+<b>Jumat 13 Nov · Hari ini</b><div class="card" style="margin-top:6px"><div class="li"><span class="ic">🍛</span><div><b>Nasi putih · Ikan kembung balado</b><small>Malam 17.00–19.00 · Dimasak</small></div></div></div>
+<b>Sabtu 14 Nov</b><div class="card" style="margin-top:6px"><div class="li"><span class="ic">🍗</span><div><b>Ayam panggang bumbu</b><small>Siang 11.00–13.00</small></div></div></div>
+<b>Minggu 15 Nov</b><div class="dash" style="margin-top:6px"><span class="ic" style="border-radius:8px">🍴</span><div><b>Menu belum diisi</b><small>Siang 11.00–13.00</small></div><span class="act">Pilih</span></div></div>
+<div class="tabs"><span><i></i>Beranda</span><span class="on"><i></i>Jadwal</span><span><i></i>Jelajah</span><span><i></i>Akun</span></div></div>
+<figcaption><b>Change:</b> the past days of the week become one tappable summary row that expands to the old rows. Today and later days stay as full rows, today first. Past cells in the calendar grid stay plain with no placeholder dot.</figcaption></figure>
+</div></section>
+
+<section>
+<h2>9. Dapur · Hari ini: a step bar and a button that follows it</h2>
+<p class="why">Round two (Mobbin: Wonder pickup tracker, Vestiaire checklist). The header shows counts, but not where the kitchen is in the day. The backend has three real stages for a meal, so the bar has three steps and the pinned button names the next real action. The Sampai step has no pinned button today (only the "Pilih" bar); the draft adds one that opens the existing selection mode.</p>
+<div class="row">
+<figure><span class="tag now">Today</span>
+<div class="phone"><div class="top" style="padding-bottom:12px"><small>Dapur Senja · Hari ini</small><h3 style="font-size:19px">Jumat 13 Nov</h3><small><b>7 porsi</b> · 1 paket · 6 alamat · antar 17.00</small><div class="bar" style="height:8px"><i style="width:50%"></i></div><small>3 dari 6 sampai · Sampai 3, Diantar 2, Dimasak 1</small></div>
+<div class="body"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:16px">Urutan antar</b><span class="act">Pilih</span></div>
+<div class="li"><span class="ic">1</span><div><b>Budi Contoh</b><small>Jl. Contoh Kenanga 21</small></div><span class="chip">Sampai 17.12</span></div><div class="li"><span class="ic">2</span><div><b>Dimas Contoh</b><small>Jl. Contoh Melati 4</small></div><span class="chip">Diantar</span></div><div class="li"><span class="ic">3</span><div><b>Maya Contoh</b><small>Jl. Contoh Mawar 9</small></div><span class="chip">Diantar</span></div>
+<div class="card" style="margin-top:8px">✓ <b>Sudah dimasak · 7 porsi</b></div></div>
+<div class="tabs"><span class="on"><i></i>Hari ini</span><span><i></i>Pelanggan</span><span><i></i>Menu</span><span><i></i>Usaha</span></div></div>
+<figcaption>Once stops are out, there is no pinned button and no single place that says which step the kitchen is on; Sampai is reached only through Pilih (TodayScreen.tsx: KitchenAction renders only while canCook or canDepart).</figcaption></figure>
+<figure><span class="tag new">Proposed</span>
+<div class="phone"><div class="top" style="padding-bottom:12px"><small>Dapur Senja · Hari ini</small><h3 style="font-size:19px">Jumat 13 Nov</h3><small><b>7 porsi</b> · 1 paket · 6 alamat · antar 17.00</small>
+<div class="steps"><span class="done">✓ Masak</span><span class="done">✓ Antar</span><span class="cur">3 Sampai · 3 dari 6</span></div></div>
+<div class="body"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:16px">Urutan antar</b><span class="act">Pilih</span></div>
+<div class="li"><span class="ic">1</span><div><b>Budi Contoh</b><small>Jl. Contoh Kenanga 21</small></div><span class="chip">Sampai 17.12</span></div><div class="li"><span class="ic">2</span><div><b>Dimas Contoh</b><small>Jl. Contoh Melati 4</small></div><span class="chip">Diantar</span></div><div class="li"><span class="ic">3</span><div><b>Maya Contoh</b><small>Jl. Contoh Mawar 9</small></div><span class="chip">Diantar</span></div>
+<div class="card" style="margin-top:8px">✓ <b>Sudah dimasak · 7 porsi</b></div></div>
+<div class="foot"><small class="m">Pilih alamat yang sudah sampai, lalu foto bukti.</small><div style="height:6px"></div><span class="btn">Tandai Sampai</span></div>
+<div class="tabs"><span class="on"><i></i>Hari ini</span><span><i></i>Pelanggan</span><span><i></i>Menu</span><span><i></i>Usaha</span></div></div>
+<figcaption><b>Change:</b> a three-step bar (Masak, Antar, Sampai) replaces the segmented BatchProgress bar. Mapping, from packages/domain/src/journey.ts JourneyStage and kitchen.ts: <b>Masak</b> = stage "scheduled" to "preparing"; pinned "Mulai masak" while canCook, command delivery.cook (KitchenAction, apps/caterer/src/today/TodayScreen.tsx). <b>Antar</b> = "preparing" to "out_for_delivery"; pinned "Berangkat antar · N porsi" (or "Berangkat semua sisa · N porsi") while canDepart, command delivery.depart. <b>Sampai</b> = "out_for_delivery" to "arrived"/"delivered"; new pinned "Tandai Sampai" while canArrive, which turns on Pilih mode, then the existing SelectionBar "Sampai (n)" and ProofSheet (delivery.arrive, route sampai.tsx). No "selesai masak" stage exists; "Sudah dimasak" is derived (SessionCard.tsx, cookingListShown). Stops leave in subsets, so the current step is the earliest stage any stop is still in.</figcaption></figure>
 </div></section>
 
 </main>
