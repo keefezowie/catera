@@ -990,6 +990,10 @@ describe("Bayar", () => {
     const first = await wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     expect(screen.getByText("Jadwal ditahan 15:00")).toBeTruthy();
+    // The same expiry as a clock time, Jakarta, with a dot between hours and minutes.
+    const at = new Date(Date.now() + 7 * 3600_000 + 15 * 60_000);
+    const hhmm = `${String(at.getUTCHours()).padStart(2, "0")}.${String(at.getUTCMinutes()).padStart(2, "0")}`;
+    expect(screen.getByTestId("bayar-until").props.children).toBe(`Bayar sebelum ${hhmm}`);
     expect(screen.getAllByText(totalOf()).length).toBeGreaterThan(0);
     // The order summary sits on top: the package, its length and start, the address.
     const summary = screen.getByTestId("bayar-summary");

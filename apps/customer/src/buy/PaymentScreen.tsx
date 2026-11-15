@@ -5,7 +5,7 @@ import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { VA_CHANNELS, currency, directChannelKind, errorLabel, paidSummary, paymentMethodInfo, shortDate, type Checkout, type CustomerState, type DirectPaymentMethod, type VaBank } from "@catera/domain";
+import { VA_CHANNELS, currency, directChannelKind, errorLabel, jakartaClock, paidSummary, paymentMethodInfo, shortDate, type Checkout, type CustomerState, type DirectPaymentMethod, type VaBank } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
 import { Button, Card, FadeSwap, fontFor, FormError, Screen, Text, themedStyles, useBusy, useColors, useHaptic, useToast } from "@catera/mobile-ui";
@@ -341,6 +341,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   const payment = c.payment;
   const instructions = direct ? payment?.instructions : null;
   const deadline = Date.parse(payment?.expiresAt || c.expires_at) - now;
+  // The same expiry as the chip, as a clock time (Jakarta, the kitchen's and the customer's zone): HH.MM.
+  const until = jakartaClock(payment?.expiresAt || c.expires_at);
   const methods = payment?.selectedMethod ? [payment.selectedMethod] : (payment?.availableMethods ?? []);
   const chosen = method && methods.includes(method) ? method : methods.includes("QRIS") ? "QRIS" : (methods[0] ?? null);
   const nameOf = (code: string) => paymentMethodInfo(code)?.short ?? code;
@@ -396,12 +398,19 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
             {total}
           </Text>
           {deadline > 0 ? (
+            <>
             <View testID="bayar-hold" style={styles.hold}>
               <Ionicons name="timer-outline" size={16} color={palette.charcoal} accessible={false} />
               <Text variant="meta" style={[{ color: palette.charcoal, fontFamily: fontFor("700") }, tabular]}>
                 {t(`Jadwal ditahan ${clock(deadline)}`, `Schedule held ${clock(deadline)}`)}
               </Text>
             </View>
+            {until ? (
+              <Text variant="caption" testID="bayar-until">
+                {t(`Bayar sebelum ${until}`, `Pay before ${until.replace(".", ":")}`)}
+              </Text>
+            ) : null}
+            </>
           ) : null}
         </View>
 
