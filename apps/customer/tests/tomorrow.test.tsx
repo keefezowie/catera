@@ -183,11 +183,10 @@ describe("Menu besok on Beranda", () => {
     expect(screen.queryByText("Menu besok")).toBeNull();
     expect(screen.queryByTestId("tomorrow-row")).toBeNull();
     expect(screen.queryAllByTestId("photo-ring")).toHaveLength(0);
-    // Two deliveries tomorrow, so its block: a tile each, the dinner opening the story at its own part.
+    // Two deliveries tomorrow, so one card with a tile each; it opens the story at its first part, which pages on.
     expect(days.getByText(/^Besok, /)).toBeTruthy();
-    await fireEvent.press(days.getByRole("button", { name: /^Sate ayam madura, Malam/ }));
-    expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=1");
-    await fireEvent.press(days.getByRole("button", { name: /^Ayam bakar madu, Siang/ }));
+    expect(days.getByText("Siang 1 · Malam 1")).toBeTruthy();
+    await fireEvent.press(days.getByRole("button", { name: /^Besok, .*2 pengantaran/ }));
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
     await view.unmount();
     await wrap(runtimeWith(async () => noTomorrowState()), <Beranda />);
