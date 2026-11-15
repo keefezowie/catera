@@ -344,7 +344,7 @@ export function CustomerList() {
                                 importantForAccessibility="no-hide-descendants"
                                 style={{ width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, backgroundColor: palette.sage, alignItems: "center", justifyContent: "center" }}
                               >
-                                <Text variant="bodyStrong" style={{ color: palette.forest }}>
+                                <Text variant="bodyStrong" style={{ color: palette.charcoal }}>
                                   {initials(c.name)}
                                 </Text>
                               </View>

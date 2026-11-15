@@ -293,6 +293,10 @@ describe("derived steps and component rules", () => {
       expect(contrastRatio(p.cream, p.danger), "cream on danger").toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(p.danger, p.sage), "danger icon on sage").toBeGreaterThanOrEqual(3);
     });
+    // Pelanggan avatar: the initials are neutral ink on the sage circle (forest is kept for selection and action).
+    it(`${theme}: the customer avatar initials reach 4.5:1 on the sage circle`, () => {
+      expect(contrastRatio(p.charcoal, p.sage), "charcoal initials on sage").toBeGreaterThanOrEqual(4.5);
+    });
     it(`${theme}: toast text and its action reach 4.5:1 on the toast`, () => {
       expect(contrastRatio(p.onToast, p.toast)).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(p.toastAction, p.toast)).toBeGreaterThanOrEqual(4.5);
