@@ -104,6 +104,7 @@ export function BatchProgress({ session }: { session: KitchenSession }) {
                 paddingHorizontal: 8,
                 paddingVertical: 4,
                 borderRadius: 16,
+                borderCurve: "continuous",
                 borderWidth: 1,
                 borderColor: isCurrent ? ink.stopActive : ink.markerIdle,
                 backgroundColor: isCurrent ? ink.stopActive : isDone ? ink.toggleActive : "transparent",
