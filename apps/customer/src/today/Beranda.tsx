@@ -44,6 +44,7 @@ import { StatusStops, StatusStopsPlaceholder, type StopInfo } from "./StatusStop
 import { RecapCard } from "./RecapCard";
 import { StaleCopy } from "../staleCopy";
 import { LiveSlot } from "./LiveSlot";
+import { hasUrgentWaiting } from "./WaitingList";
 import { UpcomingDays } from "./UpcomingDays";
 import { PlansRow } from "./PlansRow";
 import { BerandaSkeleton } from "../skeletons";
@@ -348,23 +349,28 @@ function SignedInHome({ actorId }: { actorId: string }) {
       ? t(`Berikutnya ${nextLabel}`, `Next ${nextLabel}`)
       : dayLabel(today, today, locale);
 
+  const urgentWaiting = hasUrgentWaiting(state, savedAt ? null : (actions.data?.items ?? null), now);
+  const heroOverlaps = heroPlates.length > 0 && !urgentWaiting;
+
   return (
     <Screen
       refreshControl={pull}
       header={
         <HomeHeader
-          loaded={{ meta, statement, stops, hero: heroPlates.length > 0, updating: updating ? updatingText : null }}
+          loaded={{ meta, statement, stops, hero: heroOverlaps, updating: updating ? updatingText : null }}
         />
       }
     >
       {/* The whole page is one block that fades in from the skeleton, and again when the fresh read replaces the copy
           kept on this phone (the key follows which of the two is on screen; a refresh of a fresh read does not fade). A
-          hero rides up over the header from here, the block's own edge, so no part of the hero sits outside its
-          parent's bounds (where a touch would not reach). */}
+          hero rides up over the header from here unless an urgent item leads the page above it. */}
       <FadeSwap
         swapKey={savedAt ? "kept" : "fresh"}
-        style={[{ gap: 16 }, heroPlates.length ? { marginTop: HERO_BAND_RISE } : null]}
+        style={[{ gap: 16 }, heroOverlaps ? { marginTop: HERO_BAND_RISE } : null]}
       >
+        {urgentWaiting ? (
+          <LiveSlotM elevated state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
+        ) : null}
         {/* Both meals' heroes stay mounted and a switch only shows the other one, so it lands at once, photo included:
             nothing is built, measured or downloaded at the tap. The hidden one is out of the layout and out of the
             screen reader's reach, and its journey is never counted as seen. */}
@@ -399,7 +405,9 @@ function SignedInHome({ actorId }: { actorId: string }) {
             "Couldn't load the menus waiting for a choice. Check your connection and try again.",
           )} onRetry={() => void actions.reload()} />
         ) : null}
-        <LiveSlotM state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
+        {!urgentWaiting ? (
+          <LiveSlotM state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
+        ) : null}
         <UpcomingDaysM days={days} apiBase={runtime.apiBase} tomorrow={day.tomorrow} />
         <PlansRowM subscriptions={state.subscriptions} today={today} apiBase={runtime.apiBase} />
       </FadeSwap>

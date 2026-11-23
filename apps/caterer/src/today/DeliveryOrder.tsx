@@ -1,8 +1,9 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Linking, Share, View } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AccessibilityInfo, Linking, ScrollView, Share, View } from "react-native";
 import {
   routeMapsUrl,
   routeShareText,
+  whatsappUrl,
   type KitchenMeal,
   type SellerOperationsState,
   type Stop,
@@ -10,6 +11,7 @@ import {
 import { useMobile, plural } from "@catera/mobile-core";
 import {
   Button,
+  Chip,
   ListCard,
   SectionHeader,
   STOP_ROW_INSET,
@@ -19,6 +21,7 @@ import {
 } from "@catera/mobile-ui";
 import { ACTION, ActionPair, HEADING_GAP, LinkRow, TextAction } from "./rows";
 import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
+import { proofHref } from "./ProofSheet";
 import { stopStatus } from "./stopStatus";
 import { areaRuns, selectableStops, stopChoices, type Selection } from "./selection";
 import { pushScreen } from "../nav";
@@ -67,8 +70,12 @@ const StopItem = memo(function StopItem({
   selected,
   moreLabel,
   unpinned,
+  canContact,
+  canQuickArrive,
+  caterer,
   onOpen,
   onToggle,
+  onQuickArrive,
 }: {
   stop: Stop;
   picking: boolean;
@@ -76,12 +83,22 @@ const StopItem = memo(function StopItem({
   moreLabel?: string;
   /** This stop's map link searches the written address while others on the run go to an exact pin. */
   unpinned: boolean;
+  /** True on today's active delivery run when the stop carries a customer phone. */
+  canContact: boolean;
+  /** True on today's fresh read while the stop is out for delivery. */
+  canQuickArrive: boolean;
+  caterer: string;
   onOpen: (stop: Stop) => void;
   onToggle: (id: string) => void;
+  onQuickArrive: (stop: Stop) => void;
 }) {
   const { t } = useMobile();
   const choice = stopChoices(s, t);
   const portions = t(`${s.portions} porsi`, plural(s.portions, "portion"));
+  const contactText = t(
+    `Halo ${s.name}, pesanan ${s.packageName} dari ${caterer} sedang dalam pengantaran.`,
+    `Hi ${s.name}, your ${s.packageName} order from ${caterer} is on its way.`,
+  );
   return (
     <StopRow
       testID={`stop-${s.n}`}
@@ -96,6 +113,10 @@ const StopItem = memo(function StopItem({
       address={[s.addressLine, s.area].filter(Boolean).join(", ")}
       mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
       onMap={() => void Linking.openURL(s.mapsUrl)}
+      onContact={canContact && s.phone ? () => void Linking.openURL(whatsappUrl(contactText, s.phone!)) : undefined}
+      contactLabel={canContact && s.phone ? `${t("Hubungi lewat WhatsApp", "Message on WhatsApp")} ${s.name}` : undefined}
+      onQuickArrive={canQuickArrive ? () => onQuickArrive(s) : undefined}
+      quickArriveLabel={canQuickArrive ? t("Sampai", "Arrived") : undefined}
       onMore={moreLabel ? () => onOpen(s) : undefined}
       moreLabel={moreLabel}
       selection={
@@ -114,12 +135,8 @@ const StopItem = memo(function StopItem({
 
 /**
  * "Urutan antar": a section whose heading carries how many addresses ("14 alamat") and "Pilih", over one `ListCard` of the
- * session's stops in route order, as numbered rows with a map button and, where the sheet would
- * send something, a "…" button for the stop's exception sheet, a form sheet over Hari ini (a failed delivery, or moving
- * the day). A delivered stop has
- * neither, so it has no "…". The first three show; the rest are one tap away. Under them: the whole route in Maps, the
- * route as WhatsApp text, and for today a line saying arrival is recorded by itself. The stops come from the session,
- * so a row marked "Gagal diantar" or cancelled is not in the list.
+ * session's stops in route order, as numbered rows with a 1-tap WhatsApp button (today's active stops), a map button,
+ * 1-tap Sampai while out for delivery, and a "…" button for exceptions.
  */
 export function DeliveryOrder({
   ops,
@@ -130,6 +147,7 @@ export function DeliveryOrder({
   caterer,
   selection,
   view,
+  showAllByDefault = false,
 }: {
   ops: SellerOperationsState;
   stops: Stop[];
@@ -140,17 +158,25 @@ export function DeliveryOrder({
   caterer: string;
   /** "Pilih" mode, owned by the screen so its bottom bar can read it. Left out, the list has no selection. */
   selection?: Selection;
-  /** The expanded list and the next WhatsApp part, owned by the screen so they outlive a stage change. Left out, the
-   * order keeps its own. */
+  /** The expanded list and the next WhatsApp part, owned by the screen so they outlive a stage change. */
   view?: RouteView;
+  /** Show every stop immediately without the 3-stop fold (used in dedicated Delivery mode). */
+  showAllByDefault?: boolean;
 }) {
   const { t, locale, actor } = useMobile();
   const own = useRouteView(`${date}:${meal}`);
   const { all, part, showAll, setPart } = view ?? own;
-  const parts = routeShareText(stops, { date, meal, caterer }, locale);
+  const [areaFilter, setAreaFilter] = useState("");
+  const areas = useMemo(() => [...new Set(stops.map((s) => s.area).filter(Boolean))], [stops]);
+  const activeArea = areas.includes(areaFilter) ? areaFilter : "";
+  const filteredStops = useMemo(
+    () => (activeArea ? stops.filter((s) => s.area === activeArea) : stops),
+    [stops, activeArea],
+  );
+  const parts = routeShareText(filteredStops, { date, meal, caterer }, locale);
   // A same-day revision can shorten the route under a part index already advanced past its end.
   const at = Math.min(part, Math.max(parts.length - 1, 0));
-  const route = routeMapsUrl(stops);
+  const route = routeMapsUrl(filteredStops);
   // Picking needs the whole list in view, and only today's stops on a fresh read can take an action.
   const picking = !!selection?.active && report === "today";
   // Android reads the title through its live region; iOS has none, so a change of the count is announced here.
@@ -161,18 +187,21 @@ export function DeliveryOrder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickedCount, picking]);
   const canPick = !!selection && report === "today" && selectableStops(stops).length > 0;
-  const shown = all || picking ? stops : stops.slice(0, FIRST_STOPS);
-  const hidden = stops.length - shown.length;
+  const shown = all || picking || showAllByDefault || !!activeArea ? filteredStops : filteredStops.slice(0, FIRST_STOPS);
+  const hidden = filteredStops.length - shown.length;
 
   // The "…" shows only when its sheet would send something, and its label says what: "Gagal diantar" (today, while the
-  // meal can still fail), "Pindah tanggal" (while the day can move), or both. The label ends with the customer's name,
-  // like the map button, so a screen reader hears which stop each "…" belongs to.
+  // meal can still fail), "Pindah tanggal" (while the day can move), or both.
   const canFail = (s: Stop) => report === "today" && failable(ops, s, meal);
   const hasMore = (s: Stop) => report !== null && (canFail(s) || movable(ops, s));
   // The sheet draws from the day on screen at once, and reads it again itself.
   const openSheet = (s: Stop) => {
     parkDay(actor?.catererId ?? "", date, ops);
     pushScreen(stopHref(s.deliveryId, meal, date));
+  };
+  const openQuickArrive = (s: Stop) => {
+    parkDay(actor?.catererId ?? "", date, ops);
+    pushScreen(proofHref([s.deliveryId], meal, date));
   };
   const moreLabel = (s: Stop) =>
     `${
@@ -183,11 +212,12 @@ export function DeliveryOrder({
         : t("Pindah tanggal", "Move date")
     }: ${s.name}`;
 
-  const count = t(`${stops.length} alamat`, plural(stops.length, "address", "addresses"));
+  const count = t(`${filteredStops.length} alamat`, plural(filteredStops.length, "address", "addresses"));
   // Stable handlers for the memoised rows, which always run this render's sheet and selection.
-  const latest = useRef({ openSheet, selection });
-  latest.current = { openSheet, selection };
+  const latest = useRef({ openSheet, openQuickArrive, selection });
+  latest.current = { openSheet, openQuickArrive, selection };
   const onOpen = useCallback((s: Stop) => latest.current.openSheet(s), []);
+  const onQuickArrive = useCallback((s: Stop) => latest.current.openQuickArrive(s), []);
   const onToggle = useCallback((id: string) => latest.current.selection?.toggle(id), []);
   // Only worth saying once pins exist on this run: before customers have any, every row would carry the same line.
   const anyPinned = stops.some((s) => s.pinned);
@@ -199,8 +229,12 @@ export function DeliveryOrder({
       selected={picking && selection!.selected.has(s.deliveryId)}
       moreLabel={hasMore(s) ? moreLabel(s) : undefined}
       unpinned={anyPinned && !s.pinned}
+      canContact={report === "today" && !!s.phone}
+      canQuickArrive={report === "today" && s.stage === "out_for_delivery"}
+      caterer={caterer}
       onOpen={onOpen}
       onToggle={onToggle}
+      onQuickArrive={onQuickArrive}
     />
   );
   const moreLink = hidden > 0 && !picking;
@@ -247,7 +281,22 @@ export function DeliveryOrder({
           />
         </View>
       )}
-      {stops.length ? (
+      {!picking && areas.length > 1 ? (
+        <ScrollView
+          testID="delivery-area-filter"
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, marginBottom: HEADING_GAP }}
+          contentContainerStyle={{ gap: 8, alignItems: "center", minHeight: 48 }}
+        >
+          <Chip label={t(`Semua area (${stops.length})`, `All areas (${stops.length})`)} selected={!activeArea} onPress={() => setAreaFilter("")} />
+          {areas.map((a) => {
+            const n = stops.filter((s) => s.area === a).length;
+            return <Chip key={a} label={`${a} (${n})`} selected={activeArea === a} onPress={() => setAreaFilter(a)} />;
+          })}
+        </ScrollView>
+      ) : null}
+      {filteredStops.length ? (
         <>
           <View style={{ gap: HEADING_GAP }}>
             {(picking ? areaRuns(shown) : [{ area: "", stops: shown }]).map((run) => {

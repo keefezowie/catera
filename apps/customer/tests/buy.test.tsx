@@ -329,9 +329,20 @@ const commands = (runtime: MobileRuntime) => (runtime.api.command as jest.Mock).
 /** The Diantar ke row names this address (its label, or the empty-address sentence). */
 const deliveredTo = (text: string) =>
   waitFor(() => expect(within(screen.getByTestId("buy-row-address")).getByText(text)).toBeTruthy());
-/** Beli's pay button: "Bayar" until a quote is ready, then "Bayar" with the amount. */
+/** Beli's footer buttons: Step 1 continues to review; Step 2 (and fast-renew) pays. */
+const CONTINUE = /^Lanjut ke ringkasan$/;
 const PAY = /^Bayar(\s|$)/;
+const step1Ready = () => waitFor(() => expect(screen.getByRole("button", { name: CONTINUE })).toBeEnabled());
 const bayarReady = () => waitFor(() => expect(screen.getByRole("button", { name: PAY })).toBeEnabled());
+const goToStep2 = async () => {
+  await step1Ready();
+  await fireEvent.press(screen.getByRole("button", { name: CONTINUE }));
+  await bayarReady();
+};
+const editRenew = async () => {
+  await fireEvent.press(await screen.findByRole("button", { name: "Ubah tanggal, porsi, atau alamat" }));
+  await step1Ready();
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -341,13 +352,12 @@ beforeEach(() => {
 });
 
 describe("Beli / Perpanjang", () => {
-  it("renew mode prefills the next operating day and one cycle", async () => {
+  it("renew mode opens in 1-tap Perpanjang sama persis, prefills next operating day, and lets the user edit details", async () => {
     const runtime = server();
     await wrap(runtime, <BuyScreen renewFrom="s-1" />);
-    expect(await within(await screen.findByTestId("buy-summary")).findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(await screen.findByTestId("fast-renew")).toBeTruthy();
+    expect(screen.getByText("Perpanjang sama persis")).toBeTruthy();
     expect(await screen.findByText("Mulai Senin 19 Okt, tepat setelah paket sekarang")).toBeTruthy();
-    expect(screen.getByRole("radio", { name: "20 hari" }).props.accessibilityState.checked).toBe(true);
-    expect(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }).props.accessibilityState.checked).toBe(false);
     await waitFor(() =>
       expect(runtime.api.quote).toHaveBeenCalledWith({
         packageId: "p-rumahan",
@@ -364,7 +374,14 @@ describe("Beli / Perpanjang", () => {
     expect(screen.getAllByText(totalOf()).length).toBeGreaterThan(0);
     // A price is read as text, never announced as a heading.
     expect(screen.getAllByText(totalOf()).filter((n) => n.props.accessibilityRole === "header")).toHaveLength(0);
+    // Expanding price breakdown inside fast-renew reveals Termasuk.
+    await fireEvent.press(screen.getByRole("button", { name: "Lihat rincian harga" }));
     expect(screen.getByText("Termasuk")).toBeTruthy();
+    // Stepping into full edit mode exposes the length radios and summary card.
+    await editRenew();
+    expect(within(screen.getByTestId("buy-summary")).getByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "20 hari" }).props.accessibilityState.checked).toBe(true);
+    expect(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }).props.accessibilityState.checked).toBe(false);
   });
 
   it("prefers the start date the renewal context returns", async () => {
@@ -442,12 +459,13 @@ describe("Beli / Perpanjang", () => {
   it("changing length requotes with cycles 2", async () => {
     const runtime = server();
     await wrap(runtime, <BuyScreen renewFrom="s-1" />);
-    await bayarReady();
+    await editRenew();
     await fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
-    // Never pay against the old price: Bayar waits for the new quote.
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    // Never advance against the old price: footer waits for the new quote.
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ cycles: 2, renewedFrom: "s-1" })));
     expect(runtime.api.renewalContext).toHaveBeenCalledWith("s-1", undefined, 2);
+    await goToStep2();
     expect(await screen.findByText("Hemat 5% untuk 40 hari")).toBeTruthy();
     await waitFor(() => expect(screen.getAllByText(totalOf({ cycles: 2 })).length).toBeGreaterThan(0));
     await bayarReady();
@@ -456,8 +474,8 @@ describe("Beli / Perpanjang", () => {
   it("Bayar creates the checkout with accepted terms and starts QRIS", async () => {
     const runtime = server();
     await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await goToStep2();
     expect(await screen.findByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeTruthy();
-    await bayarReady();
     await fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
     const calls = commands(runtime);
@@ -479,6 +497,7 @@ describe("Beli / Perpanjang", () => {
   it("transfer bank starts the virtual account instead", async () => {
     const runtime = server();
     await wrap(runtime, withChoices(<BuyScreen packageId="p-rumahan" />));
+    await goToStep2();
     await fireEvent.press(await screen.findByRole("button", { name: "Ubah cara bayar" }));
     await fireEvent.press(await screen.findByRole("radio", { name: /^BRI Virtual Account/ }));
     await bayarReady();
@@ -490,7 +509,7 @@ describe("Beli / Perpanjang", () => {
   it("hosted payment only creates the checkout and opens Bayar", async () => {
     const runtime = server({ mode: "hosted" });
     await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await goToStep2();
     await fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
     expect(commands(runtime).map((c) => c[0])).toEqual(["checkout.create"]);
@@ -503,7 +522,7 @@ describe("Beli / Perpanjang", () => {
   ])("%s reloads the app's data once", async (_name, options) => {
     const runtime = server(options);
     await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await goToStep2();
     const reads = () => (runtime.api.offer as jest.Mock).mock.calls.length;
     const before = reads();
     await fireEvent.press(screen.getByRole("button", { name: PAY }));
@@ -523,7 +542,7 @@ describe("Beli / Perpanjang", () => {
       // No red error, and the quote was asked for without any pin.
       expect(screen.queryByText("Tandai titik lokasi alamat ini dulu.")).toBeNull();
       await waitFor(() => expect(runtime.api.quote).toHaveBeenCalled());
-      expect(await screen.findByText("Rincian")).toBeTruthy();
+      expect(await screen.findByText(totalOf({ startDate: "2026-10-08" }))).toBeTruthy();
       const button = await screen.findByRole("button", { name: "Tandai titik dulu" });
       expect(button).toBeEnabled();
       expect(screen.queryByRole("button", { name: PAY })).toBeNull();
@@ -539,7 +558,7 @@ describe("Beli / Perpanjang", () => {
 
   it("payment card makes no security claim", async () => {
     await wrap(server({ mode: "hosted" }), <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await goToStep2();
     expect(screen.getByText("Cara bayar dipilih di langkah berikutnya.")).toBeTruthy();
     expect(screen.queryByText(/\baman\b/i)).toBeNull();
     expect(screen.queryByText(/secure/i)).toBeNull();
@@ -549,11 +568,11 @@ describe("Beli / Perpanjang", () => {
     const runtime = server();
     await wrap(runtime, <BuyScreen packageId="p-rumahan" initial={{ portions: "2", cycles: "2" }} />);
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalledWith(expect.objectContaining({ portions: 2, cycles: 2 })));
-    await bayarReady();
+    await step1Ready();
     await fireEvent.press(screen.getByRole("button", { name: "Tambah porsi" }));
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ portions: 3, cycles: 2 })));
-    await bayarReady();
+    await step1Ready();
   });
 
   it("a trial is one day at the trial price", async () => {
@@ -561,16 +580,17 @@ describe("Beli / Perpanjang", () => {
     await wrap(runtime, <BuyScreen packageId="p-rumahan" trial />);
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalledWith(expect.objectContaining({ trial: true, cycles: 1 })));
     expect(screen.queryByRole("radio", { name: "40 hari · Hemat 5%" })).toBeNull();
+    await goToStep2();
     expect(await screen.findByText(`1 hari × 1 porsi × ${currency(30000, "id")}`)).toBeTruthy();
   });
 
-  it("a failed quote keeps Bayar disabled and offers a retry", async () => {
+  it("a failed quote keeps Step 1 disabled and offers a retry", async () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CAPACITY"), { code: "CAPACITY" }));
     await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     await fireEvent.press(await screen.findByRole("button", { name: "Hitung ulang" }));
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
-    await bayarReady();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
+    await step1Ready();
   });
 
   it("offers the next start when the same package is still running", async () => {
@@ -582,7 +602,7 @@ describe("Beli / Perpanjang", () => {
     expect(screen.queryByRole("button", { name: "Hitung ulang" })).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: /Mulai Jumat 16 Okt/ }));
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ startDate: "2026-10-16" })));
-    await bayarReady();
+    await step1Ready();
     expect(screen.queryByText(/masih berjalan sampai/)).toBeNull();
   });
 
@@ -598,12 +618,12 @@ describe("Beli / Perpanjang", () => {
     await wrap(server({ pkg: offer({ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, price: 28000 }) }), <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByText("20 hari")).toBeTruthy();
     expect(screen.queryAllByRole("radio")).toHaveLength(0);
-    await bayarReady();
+    await step1Ready();
   });
 
   it("Bayar is a forest primary button", async () => {
     await wrap(server(), <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await goToStep2();
     expect(StyleSheet.flatten(screen.getByRole("button", { name: PAY }).props.style).backgroundColor).toBe(nativeThemes.light.forest);
   });
 
@@ -620,7 +640,7 @@ describe("Beli / Perpanjang", () => {
     await wrap(runtime, <BuyScreen renewFrom="s-1" />);
     await fireEvent.press(await screen.findByRole("button", { name: "Lanjutkan pembayaran" }));
     expect(router.replace).toHaveBeenCalledWith("/bayar/ck-9");
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
     expect(screen.queryByText(/belum bisa diperpanjang/)).toBeNull();
   });
 
@@ -651,7 +671,7 @@ describe("Beli / Perpanjang", () => {
 
   it("sheet options are 48dp picks with a selection haptic", async () => {
     await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
-    await bayarReady();
+    await step1Ready();
     await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     const home = await screen.findByRole("radio", { name: /Rumah/ });
     expect(StyleSheet.flatten(home.props.style).minHeight).toBeGreaterThanOrEqual(48);
@@ -661,7 +681,7 @@ describe("Beli / Perpanjang", () => {
 
   it("Beli's address picker returns to Beli with the chosen address", async () => {
     await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
-    await bayarReady();
+    await step1Ready();
     await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     // A native choice sheet over Beli, with the current address marked and Kelola alamat under the list.
     expect(router.push).toHaveBeenCalledWith({ pathname: "/pembelian/alamat-pilih", params: { id: expect.any(String) } });
@@ -683,7 +703,7 @@ describe("Beli / Perpanjang", () => {
 
   it("the pick sheet offers Tambah alamat and Kelola alamat", async () => {
     await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
-    await bayarReady();
+    await step1Ready();
     await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     const sheet = within(await screen.findByTestId("choice-sheet"));
     expect(sheet.getByRole("button", { name: "Kelola alamat" })).toBeTruthy();
@@ -701,14 +721,14 @@ describe("Beli / Perpanjang", () => {
     };
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
     await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
-    await bayarReady();
+    await step1Ready();
     expect(await basis()).toEqual(["100%", "100%"]);
   });
 
   it("the pick sheet's two buttons sit side by side at font 1", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1 };
     await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
-    await bayarReady();
+    await step1Ready();
     await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     const sheet = within(await screen.findByTestId("choice-sheet"));
     expect(["Tambah alamat", "Kelola alamat"].map((name) => StyleSheet.flatten(sheet.getByRole("button", { name }).props.style).flexBasis)).toEqual([140, 140]);
@@ -726,7 +746,7 @@ describe("Beli / Perpanjang", () => {
       );
     }
     await wrap(rt, withChoices(<><BuyScreen packageId="p-rumahan" /><Remove /></>));
-    await bayarReady();
+    await step1Ready();
     await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     await fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
     await deliveredTo("Rumah");
@@ -735,10 +755,10 @@ describe("Beli / Perpanjang", () => {
     await fireEvent.press(screen.getByRole("button", { name: "hapus-rumah" }));
     await deliveredTo("Kantor");
     expect(screen.queryByText("Belum ada alamat pengantaran.")).toBeNull();
-    await bayarReady();
+    await step1Ready();
   });
 
-  it("shows the empty address state when the chosen address was the last one removed", async () => {
+  it("shows the empty address state with direct Tambah alamat dulu action when the last address is removed", async () => {
     const rt = server();
     function Remove() {
       const { useMobile } = require("@catera/mobile-core") as typeof import("@catera/mobile-core");
@@ -750,19 +770,22 @@ describe("Beli / Perpanjang", () => {
       );
     }
     await wrap(rt, withChoices(<><BuyScreen packageId="p-rumahan" /><Remove /></>));
-    await bayarReady();
+    await step1Ready();
     await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     await fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
     await deliveredTo("Rumah");
     (rt.api.customer as jest.Mock).mockImplementation(async () => ({ subscriptions: [current], deliveries: [], addresses: [], notifications: [], cases: [] }));
     await fireEvent.press(screen.getByRole("button", { name: "hapus" }));
     await deliveredTo("Belum ada alamat pengantaran.");
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    const addBtn = screen.getByRole("button", { name: "Tambah alamat dulu" });
+    expect(addBtn).toBeEnabled();
+    await fireEvent.press(addBtn);
+    expect(router.push).toHaveBeenLastCalledWith("/pembelian/alamat-form");
   });
 
   it("cycle options give a selection haptic", async () => {
     await wrap(server(), <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await step1Ready();
     const long = screen.getByRole("radio", { name: "40 hari · Hemat 5%" });
     expect(StyleSheet.flatten(long.props.style).minHeight).toBeGreaterThanOrEqual(48);
     await fireEvent.press(long);
@@ -771,15 +794,14 @@ describe("Beli / Perpanjang", () => {
 
   it("an address outside the area hides the old price", async () => {
     await wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
-    await bayarReady();
-    expect(screen.getByText("Biaya layanan")).toBeTruthy();
+    await step1Ready();
+    expect(screen.getByText(totalOf({ startDate: "2026-10-08" }))).toBeTruthy();
     await fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     await fireEvent.press(await screen.findByRole("radio", { name: /Rumah/ }));
     // The line under the choices, and the same words as the footer's reason.
     expect(await screen.findAllByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toHaveLength(2);
-    expect(screen.queryByText("Biaya layanan")).toBeNull();
     expect(screen.queryByText(totalOf({ startDate: "2026-10-08" }))).toBeNull();
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
   });
 
   it("a changed price is explained and requoted before paying", async () => {
@@ -790,7 +812,7 @@ describe("Beli / Perpanjang", () => {
       throw Object.assign(new Error("PRICE_CHANGED"), { code: "PRICE_CHANGED" });
     });
     await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await goToStep2();
     const quotes = (runtime.api.quote as jest.Mock).mock.calls.length;
     await fireEvent.press(screen.getByRole("button", { name: PAY }));
     expect(await screen.findByText("Harga atau ketentuannya berubah. Cek lagi sebelum bayar.")).toBeTruthy();
@@ -831,7 +853,7 @@ describe("Beli / Perpanjang", () => {
       );
     }
     await wrap(runtime, <><BuyScreen packageId="p-rumahan" /><SavePin /></>);
-    await bayarReady();
+    await goToStep2();
     const quotes = (runtime.api.quote as jest.Mock).mock.calls.length;
     await fireEvent.press(screen.getByRole("button", { name: "simpan-titik" }));
     await waitFor(() => expect((runtime.api.quote as jest.Mock).mock.calls.length).toBeGreaterThan(quotes));
@@ -846,10 +868,10 @@ describe("Beli / Perpanjang", () => {
   it("a two-cycle renewal pays with cycles 2 and renewedFrom", async () => {
     const runtime = server();
     await wrap(runtime, <BuyScreen renewFrom="s-1" />);
-    await bayarReady();
+    await editRenew();
     await fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
     await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ cycles: 2 })));
-    await bayarReady();
+    await goToStep2();
     await fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
     const payload = { packageId: "p-rumahan", addressId: "a-1", portions: 1, startDate: "2026-10-19", cycles: 2, trial: false, renewedFrom: "s-1" };
@@ -863,7 +885,7 @@ describe("Beli / Perpanjang", () => {
   it("a failed payment start still opens Bayar, which offers the method again", async () => {
     const runtime = server({ startFails: true });
     const view = await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await goToStep2();
     await fireEvent.press(screen.getByRole("button", { name: PAY }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
     expect(commands(runtime).map((c) => c[0])).toEqual(["checkout.create", "checkout.payment.start"]);
@@ -902,7 +924,7 @@ describe("Beli and Bayar under the native header", () => {
     expect(flat(title).color).toBe(nativeThemes.light.charcoal);
     expect(screen.queryByTestId("mood-header")).toBeNull();
     expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
-    // The back is the header's Close (native-header.test); the page has no back of its own.
+    // The back is the header's Close (native-header.test); Step 1 has no duplicate back button.
     expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
     // The portions card keeps the theme surface.
     const portions = await screen.findByText("Porsi per hari");
@@ -917,10 +939,10 @@ describe("Beli and Bayar under the native header", () => {
     expect(screen.getAllByText("Makan Siang Rumahan")).toHaveLength(1);
     await beli.unmount();
     await wrapMood(server(), <BuyScreen renewFrom="s-1" />);
-    await screen.findByTestId("buy-summary");
+    await screen.findByTestId("fast-renew");
     expect((await nativeTitle()).getByText("Perpanjang")).toBeTruthy();
     expect(screen.getAllByText(/Makan Siang Rumahan/)).toHaveLength(1);
-    expect(within(screen.getByTestId("buy-summary")).getByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(within(screen.getByTestId("fast-renew")).getByText("Makan Siang Rumahan")).toBeTruthy();
   });
 
   it("keeps its title while the package loads, is missing, or cannot be read", async () => {
@@ -1689,12 +1711,12 @@ describe("Pembayaran diterima", () => {
 });
 
 describe("Beli waits (Task 5 fix round 1)", () => {
-  it("while the server prices the first choice, the breakdown names its wait (Menghitung harga) with no spinner", async () => {
+  it("while the server prices the first choice, the footer names its wait (Menghitung…) with no spinner", async () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    expect(await screen.findByRole("progressbar", { name: "Menghitung harga" })).toBeTruthy();
-    expect(screen.getByTestId("breakdown-skeleton")).toBeTruthy();
+    expect(await screen.findByText("Menghitung…")).toBeTruthy();
+    expect(screen.getByText("Menghitung total…")).toBeTruthy();
     expect(hostsWhere({ type: "ActivityIndicator" })).toHaveLength(0);
   });
 
@@ -1711,10 +1733,10 @@ describe("Beli waits (Task 5 fix round 1)", () => {
     await wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     // The swap's key is not a prop a host keeps: the loading block is the skeleton alone, the ready block the page.
     await waitFor(() => expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy());
-    expect(screen.queryByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeNull();
+    expect(screen.queryByTestId("buy-step-1")).toBeNull();
     const timing = spyFades();
     await act(async () => release());
-    expect(await screen.findByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeTruthy();
+    expect(await screen.findByTestId("buy-step-1")).toBeTruthy();
     expect(screen.queryByRole("progressbar", { name: "Memuat paket" })).toBeNull();
     expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).not.toHaveLength(0);
   });
@@ -1735,7 +1757,12 @@ describe("Beli layout (customer layout spec 3.7)", () => {
   const open = async (runtime = server(), ui: React.ReactElement = <BuyScreen packageId="p-rumahan" />) => {
     mockWindow = PHONE;
     await wrapV2(runtime, ui);
-    await bayarReady();
+    await step1Ready();
+    return runtime;
+  };
+  const openStep2 = async (runtime = server(), ui: React.ReactElement = <BuyScreen packageId="p-rumahan" />) => {
+    await open(runtime, ui);
+    await goToStep2();
     return runtime;
   };
 
@@ -1750,12 +1777,12 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(card)).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderRadius: 16 });
   });
 
-  it("puts the four choices in one card of glyph rows: Mulai 72, Lama paket, Porsi 56, Diantar ke 72", async () => {
+  it("puts delivery address in its own card and plan options in a glyph-row card: Mulai 72, Lama paket, Porsi 56, Diantar ke 72", async () => {
     await open();
-    // Two list cards: the choices, then the Bayar dengan row (deep pages R1).
-    expect(screen.getAllByTestId("list-card")).toHaveLength(2);
-    const card = screen.getAllByTestId("list-card")[0];
-    for (const id of ["buy-row-start", "buy-row-length", "buy-row-portions", "buy-row-address"]) expect(within(card).getByTestId(id)).toBeTruthy();
+    // Step 1 renders one ListCard for plan options (delivery address has its own BuyAddressCard).
+    expect(screen.getAllByTestId("list-card")).toHaveLength(1);
+    for (const id of ["buy-row-start", "buy-row-length", "buy-row-portions", "buy-row-address"])
+      expect(screen.getByTestId(id)).toBeTruthy();
     expect(flat(screen.getByTestId("buy-row-start")).minHeight).toBe(72);
     expect(flat(screen.getByTestId("buy-row-portions")).minHeight).toBe(56);
     expect(flat(screen.getByTestId("buy-row-address")).minHeight).toBe(72);
@@ -1788,7 +1815,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     const single = offer({ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, price: 28000 });
     mockWindow = PHONE;
     const one = await wrapV2(server({ pkg: single }), <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await step1Ready();
     let row = within(screen.getByTestId("buy-row-length"));
     expect(flat(row.getByText("20 hari"))).toMatchObject({ fontSize: 15, fontFamily: fonts.semibold });
     expect(row.queryAllByRole("radio")).toHaveLength(0);
@@ -1796,7 +1823,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     await one.unmount();
 
     await wrapV2(server(), <BuyScreen packageId="p-rumahan" trial />);
-    await bayarReady();
+    await step1Ready();
     row = within(screen.getByTestId("buy-row-length"));
     expect(row.getByText("1 hari, coba dulu")).toBeTruthy();
     expect(row.queryAllByRole("radio")).toHaveLength(0);
@@ -1830,21 +1857,23 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     await screen.unmount();
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 2 };
     await wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await step1Ready();
     expect(within(screen.getByTestId("buy-row-start-text")).getByRole("button", { name: "Ubah tanggal mulai" })).toBeTruthy();
     expect(within(screen.getByTestId("buy-row-address-text")).getByRole("button", { name: "Ganti alamat" })).toBeTruthy();
   });
 
-  it("without an address Diantar ke says so and offers Tambah alamat, with Bayar off and the reason shown", async () => {
+  it("without an address Diantar ke offers Tambah alamat directly into the address form, and the footer leads there too", async () => {
     mockWindow = PHONE;
     await wrapV2(server({ addresses: [] }), <BuyScreen packageId="p-rumahan" />);
     const row = within(await screen.findByTestId("buy-row-address"));
     expect(await row.findByText("Belum ada alamat pengantaran.")).toBeTruthy();
     expect(flat(screen.getByTestId("buy-row-address")).minHeight).toBe(72);
     await fireEvent.press(row.getByRole("button", { name: "Tambah alamat" }));
-    expect(router.push).toHaveBeenCalledWith("/pembelian/alamat");
-    expect(screen.getByText("Tambahkan alamat pengantaran dulu.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    expect(router.push).toHaveBeenCalledWith("/pembelian/alamat-form");
+    const cta = screen.getByRole("button", { name: "Tambah alamat dulu" });
+    expect(cta).toBeEnabled();
+    await fireEvent.press(cta);
+    expect(router.push).toHaveBeenCalledTimes(2);
     // Nothing is priced, so there is no Rincian to show.
     expect(screen.queryByRole("header", { name: "Rincian" })).toBeNull();
   });
@@ -1854,12 +1883,12 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     await wrapV2(server({ addresses: [rumah] }), <BuyScreen packageId="p-rumahan" />);
     // The line under the choices, and the same words as the footer's reason.
     expect(await screen.findAllByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
     expect(screen.queryByRole("header", { name: "Rincian" })).toBeNull();
   });
 
-  it("Rincian is a section over a card of 40 rows in bodyL, every line verbatim from the quote", async () => {
-    await open();
+  it("Rincian on Step 2 is a section over a card of 40 rows in bodyL, every line verbatim from the quote", async () => {
+    await openStep2();
     const heading = screen.getByRole("header", { name: "Rincian" });
     expect(flat(heading)).toMatchObject({ fontSize: 20, lineHeight: 26 });
     const rows = screen.getAllByTestId("buy-breakdown-row");
@@ -1871,8 +1900,8 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(screen.getByTestId("buy-breakdown"))).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderRadius: 16 });
   });
 
-  it("Bayar dengan is a section over the payment card, then the terms in meta", async () => {
-    await open();
+  it("Bayar dengan on Step 2 is a section over the payment card, then the terms in meta", async () => {
+    await openStep2();
     expect(flat(screen.getByRole("header", { name: "Bayar dengan" }))).toMatchObject({ fontSize: 20, lineHeight: 26 });
     expect(screen.getByText("QRIS")).toBeTruthy();
     const terms = screen.getByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.");
@@ -1881,7 +1910,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
 
   it("the terms link is a 44 tall target that opens the terms on the web origin", async () => {
     const opened = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined as never);
-    await open();
+    await openStep2();
     const link = screen.getByTestId("buy-terms");
     expect(link.props.accessibilityRole).toBe("link");
     expect(flat(link).minHeight).toBe(44);
@@ -1899,7 +1928,7 @@ describe("Beli layout (customer layout spec 3.7)", () => {
         <BuyScreen packageId="p-rumahan" />
       </SafeAreaInsetsContext.Provider>,
     );
-    await bayarReady();
+    await step1Ready();
     expect(flat(screen.getByTestId("screen-footer")).paddingBottom).toBe(16 + 48);
     await v2.unmount();
     await wrap(
@@ -1908,12 +1937,12 @@ describe("Beli layout (customer layout spec 3.7)", () => {
         <BuyScreen packageId="p-rumahan" />
       </SafeAreaInsetsContext.Provider>,
     );
-    await bayarReady();
+    await step1Ready();
     expect(flat(screen.getByTestId("screen-footer")).paddingBottom).toBe(20);
   });
 
-  it("the footer shows Total in meta over the amount in section 800 and a 50 round Bayar at the right", async () => {
-    await open();
+  it("the Step 2 footer shows Total in meta over the amount in section 800 and a 50 round Bayar at the right", async () => {
+    await openStep2();
     const footer = within(screen.getByTestId("screen-footer"));
     expect(flat(footer.getByText("Total"))).toMatchObject({ fontSize: 13, lineHeight: 18, color: nativeThemes.light.muted });
     const amount = footer.getByText(totalOf());
@@ -1930,13 +1959,14 @@ describe("Beli layout (customer layout spec 3.7)", () => {
   it("the footer stacks at 411dp and font scale 1.3, now that Bayar names the amount", async () => {
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
     await wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await goToStep2();
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
   });
 
   it("a seven-digit total stacks the footer at 360dp and font scale 1.0, so the amount never breaks after Rp", async () => {
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1 };
     await wrapV2(server(), <BuyScreen packageId="p-rumahan" initial={{ portions: "4" }} />);
+    await goToStep2();
     const total = totalOf({ portions: 4 });
     expect(total.replace(/[^0-9]/g, "")).toHaveLength(7);
     await screen.findByRole("button", { name: `Bayar ${total}` });
@@ -1946,22 +1976,23 @@ describe("Beli layout (customer layout spec 3.7)", () => {
   it("a seven-digit total stacks the footer at 411dp and font scale 1.3", async () => {
     mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
     await wrapV2(server(), <BuyScreen packageId="p-rumahan" initial={{ portions: "4" }} />);
+    await goToStep2();
     await screen.findByRole("button", { name: `Bayar ${totalOf({ portions: 4 })}` });
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
   });
 
   it("a six-digit total keeps the footer row at 411dp and font scale 1.0", async () => {
-    await open();
+    await openStep2();
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("row");
   });
 
-  it("the footer's amount and Bayar stack at 360dp and font scale 1.3, and every row's words wrap", async () => {
+  it("the footer's amount and CTA stack at 360dp and font scale 1.3, and every row's words wrap", async () => {
     mockWindow = SMALL_LARGE_TEXT;
     await wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await step1Ready();
     expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
-    const pay = within(screen.getByTestId("screen-footer")).getByRole("button", { name: PAY });
-    expect(flat(pay).alignSelf).toBe("stretch");
+    const cta = within(screen.getByTestId("screen-footer")).getByRole("button", { name: CONTINUE });
+    expect(flat(cta).alignSelf).toBe("stretch");
     for (const id of ["buy-row-start", "buy-row-address"])
       for (const text of within(screen.getByTestId(id)).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
     expect(within(screen.getByTestId("buy-summary")).getByText("Makan Siang Rumahan").props.numberOfLines).toBeUndefined();
@@ -1986,12 +2017,13 @@ describe("Beli layout (customer layout spec 3.7)", () => {
         </LayoutScaleProvider>
       </ThemeProvider>,
     );
-    await bayarReady();
+    await step1Ready();
     expect(flat(screen.getByTestId("buy-summary")).backgroundColor).toBe(dark.surface);
     for (const card of screen.getAllByTestId("list-card")) expect(flat(card).backgroundColor).toBe(dark.surface);
-    expect(flat(screen.getByTestId("buy-breakdown")).backgroundColor).toBe(dark.surface);
     expect(flat(screen.getByTestId("screen-footer")).backgroundColor).toBe(dark.canvas);
     expect(flat(within(screen.getByTestId("screen-footer")).getByText("Total")).color).toBe(dark.muted);
+    await goToStep2();
+    expect(flat(screen.getByTestId("buy-breakdown")).backgroundColor).toBe(dark.surface);
     scheme.mockRestore();
   });
 
@@ -2002,18 +2034,6 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(flat(card)).toMatchObject({ borderWidth: 1, borderColor: nativeThemes.light.attentionBorder });
     expect(within(card).getByRole("button", { name: "Lanjutkan pembayaran" })).toBeTruthy();
     expect(screen.getByTestId("buy-summary")).toBeTruthy();
-  });
-
-  it("while the price is worked out, Rincian holds a skeleton of three 40 rows", async () => {
-    const runtime = server();
-    (runtime.api.quote as jest.Mock).mockImplementation(() => new Promise(() => undefined));
-    mockWindow = PHONE;
-    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
-    expect(await screen.findByTestId("breakdown-skeleton")).toBeTruthy();
-    expect(screen.getByRole("header", { name: "Rincian" })).toBeTruthy();
-    const rows = screen.getAllByTestId("breakdown-skeleton-row");
-    expect(rows).toHaveLength(3);
-    for (const row of rows) expect(flat(row).minHeight).toBe(40);
   });
 
   it("the page skeleton reads the loaded geometry: an 88 summary, the field rows and the Rincian rows", async () => {
@@ -2027,17 +2047,16 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     for (const row of screen.getAllByTestId("breakdown-skeleton-row")) expect(flat(row).minHeight).toBe(40);
   });
 
-  it("a failed price keeps Rincian with the recalculate action", async () => {
+  it("a failed price on Step 1 keeps the recalculate action", async () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CAPACITY"), { code: "CAPACITY" }));
     mockWindow = PHONE;
     await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     expect(await screen.findByRole("button", { name: "Hitung ulang" })).toBeTruthy();
-    expect(screen.getByRole("header", { name: "Rincian" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
   });
 
-  it("a package that still runs offers its next start inside Rincian, as a 50 button", async () => {
+  it("a package that still runs offers its next start on Step 1 as a 50 button", async () => {
     const running = subscription({ id: "s-1", package_id: "p-rumahan", ends_on: "2026-10-15" });
     const runtime = server({ subscriptions: [running] });
     (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("OVERLAP"), { code: "OVERLAP" }));
@@ -2046,9 +2065,8 @@ describe("Beli layout (customer layout spec 3.7)", () => {
     expect(await screen.findByText("Paket ini masih berjalan sampai Kamis 15 Okt.")).toBeTruthy();
     const start = screen.getByRole("button", { name: /Mulai Jumat 16 Okt/ });
     expect(flat(start)).toMatchObject({ minHeight: 50 });
-    // Bayar is the one primary control: this offer is a secondary button (no forest fill).
+    // The footer CTA is the one primary control: this offer is a secondary button (no forest fill).
     expect(flat(start).backgroundColor).not.toBe(nativeThemes.light.forest);
-    expect(screen.getByRole("header", { name: "Rincian" })).toBeTruthy();
   });
 });
 
@@ -2067,24 +2085,25 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
   };
   const reason = () => within(screen.getByTestId("screen-footer")).getByTestId("buy-pay-reason");
 
-  it("the pay button names the amount", async () => {
+  it("the Step 2 pay button names the amount", async () => {
     await wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
+    await goToStep2();
     const pay = await screen.findByRole("button", { name: `Bayar ${totalOf()}` });
     expect(pay).toBeEnabled();
     expect(screen.queryByTestId("buy-pay-reason")).toBeNull();
   });
 
-  it("a renewal's pay button names the amount too", async () => {
+  it("a renewal's 1-tap pay button names the amount immediately", async () => {
     await wrapV2(server(), <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByRole("button", { name: `Bayar ${totalOf()}` })).toBeEnabled();
   });
 
-  it("a disabled pay button says why: the quote is loading", async () => {
+  it("a disabled Step 1 button says why: the quote is loading", async () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalled());
-    expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
     expect(reason().props.children).toBe("Menghitung total…");
     expect(flat(reason())).toMatchObject({ fontSize: 13 });
     // The Total keeps its place and says it is being worked out instead of a dash.
@@ -2092,22 +2111,21 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     expect(within(screen.getByTestId("buy-footer-row")).queryByText("-")).toBeNull();
   });
 
-  it("a disabled pay button says why: no address", async () => {
+  it("without an address, Step 1 turns the footer into an enabled Tambah alamat dulu action and keeps empty total accessible", async () => {
     await wrapV2(server({ addresses: [] }), <BuyScreen packageId="p-rumahan" />);
     await deliveredTo("Belum ada alamat pengantaran.");
-    await waitFor(() => expect(reason().props.children).toBe("Tambahkan alamat dulu."));
-    const pay = screen.getByRole("button", { name: "Bayar" });
-    expect(pay).toBeDisabled();
-    // A screen reader hears the same reason after the label.
-    expect(pay.props.accessibilityHint).toBe("Tambahkan alamat dulu.");
+    const cta = screen.getByRole("button", { name: "Tambah alamat dulu" });
+    expect(cta).toBeEnabled();
     // The empty total is a dash on screen and "Belum ada harga" to a screen reader.
     expect(within(screen.getByTestId("buy-footer-row")).getByText("-").props.accessibilityLabel).toBe("Belum ada harga");
   });
 
-  it("a disabled pay button says why: no payment method is available", async () => {
+  it("a disabled Step 2 pay button says why: no payment method is available", async () => {
     const runtime = server();
     (runtime.api.request as jest.Mock).mockImplementation(async () => ({ mode: "direct", availableMethods: [] }));
     await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await step1Ready();
+    await fireEvent.press(screen.getByRole("button", { name: CONTINUE }));
     await waitFor(() => expect(reason().props.children).toBe("Pembayaran belum tersedia. Coba lagi nanti."));
     const pay = screen.getByRole("button", { name: PAY });
     expect(pay).toBeDisabled();
@@ -2122,6 +2140,7 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
       action === "checkout.create" ? new Promise((resolve) => (release = resolve)) : base(action, payload),
     );
     await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await goToStep2();
     const pay = await screen.findByRole("button", { name: `Bayar ${totalOf()}` });
     await act(async () => {
       await fireEvent.press(pay);
@@ -2142,11 +2161,13 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     expect(screen.queryByText("Tambahkan alamat dulu.")).toBeNull();
   });
 
-  it("says nothing about the total while the payment methods are still loading", async () => {
+  it("says Menghitung total… on Step 2 while the payment methods are still loading", async () => {
     const runtime = server();
     const methods = jest.fn(() => new Promise(() => undefined));
     (runtime.api.request as jest.Mock).mockImplementation(methods);
     await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await step1Ready();
+    await fireEvent.press(screen.getByRole("button", { name: CONTINUE }));
     await screen.findByRole("button", { name: `Bayar ${totalOf()}` });
     expect(reason().props.children).toBe("Menghitung total…");
   });
@@ -2159,10 +2180,10 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
       return first(id, pkg, cycles);
     });
     await wrapV2(runtime, <BuyScreen renewFrom="s-1" />);
-    await bayarReady();
+    await editRenew();
     await fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
     expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
     expect(screen.queryByText("Menghitung total…")).toBeNull();
   });
 
@@ -2172,14 +2193,14 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     await waitFor(() => expect(reason().props.children).toBe(blocked));
   });
 
-  it("a disabled pay button says why: a pending checkout", async () => {
+  it("a disabled footer button says why: a pending checkout", async () => {
     await wrapV2(server({ context: { pendingCheckoutId: "ck-9" } }), <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByTestId("buy-pending")).toBeTruthy();
     await waitFor(() => expect(reason().props.children).toBe("Ada pembayaran yang belum selesai."));
-    expect(screen.getByRole("button", { name: PAY })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
   });
 
-  it("a disabled pay button says why: the quote failed", async () => {
+  it("a disabled Step 1 button says why: the quote failed", async () => {
     const runtime = server();
     (runtime.api.quote as jest.Mock).mockRejectedValue(Object.assign(new Error("CAPACITY"), { code: "CAPACITY" }));
     await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
@@ -2187,12 +2208,12 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     const said = reason().props.children as string;
     expect(said.length).toBeGreaterThan(0);
     expect(said).not.toBe("Menghitung total…");
-    expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONTINUE })).toBeDisabled();
   });
 
   it("Bayar dengan is a row with Ubah, not an input", async () => {
     await wrapV2(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
-    await bayarReady();
+    await goToStep2();
     const row = screen.getByTestId("buy-pay-method");
     expect(flat(row).borderWidth ?? 0).toBe(0);
     expect(within(row).getByText("QRIS")).toBeTruthy();
@@ -2211,18 +2232,25 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
     const runtime = server();
     (runtime.api.request as jest.Mock).mockImplementation(async () => ({ mode: "direct", availableMethods: ["QRIS"] }));
     await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
-    await bayarReady();
+    await goToStep2();
     expect(within(screen.getByTestId("buy-pay-method")).getByText("QRIS")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Ubah cara bayar" })).toBeNull();
   });
 
   it("at 360dp and font scale 1.3 the reason and the method row wrap instead of clipping", async () => {
-    const runtime = server({ addresses: [] });
-    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    const runtime = server();
+    (runtime.api.request as jest.Mock).mockImplementation(async () => ({ mode: "direct", availableMethods: [] }));
     mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
-    await deliveredTo("Belum ada alamat pengantaran.");
+    await wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    await step1Ready();
+    await fireEvent.press(screen.getByRole("button", { name: CONTINUE }));
     await waitFor(() => expect(reason()).toBeTruthy());
     expect(reason().props.numberOfLines).toBeUndefined();
+    const normalRuntime = server();
+    await screen.unmount();
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    await wrapV2(normalRuntime, <BuyScreen packageId="p-rumahan" />);
+    await goToStep2();
     const row = screen.getByTestId("buy-pay-method");
     for (const text of within(row).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
     expect(flat(row).minHeight).toBe(56);
@@ -2240,10 +2268,69 @@ describe("Beli names the amount and why it waits (deep pages R1)", () => {
         </LayoutScaleProvider>
       </ThemeProvider>,
     );
-    await bayarReady();
+    await goToStep2();
     const row = screen.getByTestId("buy-pay-method");
     expect(flat(within(screen.getByTestId("buy-pay-with")).getByTestId("list-card")).backgroundColor).toBe(nativeThemes.dark.surface);
     expect(flat(within(row).getByText("QRIS")).color).toBe(nativeThemes.dark.charcoal);
     scheme.mockRestore();
   });
 });
+
+describe("UX polish: 2-step Beli, BuyAddressCard, fast-renew, and Bayar upgrades", () => {
+  it("Step 2 shows order summary with Ubah pesanan returning to Step 1", async () => {
+    await wrap(server(), <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByTestId("buy-step-1")).toBeTruthy();
+    await goToStep2();
+    const review = screen.getByTestId("buy-review-summary");
+    expect(within(review).getByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(within(review).getByText("Kantor")).toBeTruthy();
+    await fireEvent.press(screen.getByRole("button", { name: "Ubah pesanan" }));
+    expect(await screen.findByTestId("buy-step-1")).toBeTruthy();
+  });
+
+  it("BuyAddressCard renders Sesuaikan titik for a pinned address when Maps key is configured", async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY = "test-key";
+    try {
+      const pinned = { ...kantor, lat: -6.224, lng: 106.851 };
+      await wrap(server({ addresses: [pinned] }), <BuyScreen packageId="p-rumahan" />);
+      const adjust = await screen.findByTestId("buy-adjust-pin");
+      await fireEvent.press(adjust);
+      expect(router.push).toHaveBeenCalledWith("/pembelian/alamat-form?id=a-1");
+    } finally {
+      delete process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+    }
+  });
+
+  it("1-tap Perpanjang sama persis pays directly without visiting Step 1", async () => {
+    const runtime = server();
+    await wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    expect(await screen.findByTestId("fast-renew")).toBeTruthy();
+    await bayarReady();
+    await fireEvent.press(screen.getByRole("button", { name: PAY }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
+    expect(commands(runtime).map((c) => c[0])).toEqual(["checkout.create", "checkout.payment.start"]);
+  });
+
+  it("Bayar offers 1-tap Salin nominal, visual hold progress bar, and honest method-switch info", async () => {
+    const va = pendingCheckout(
+      {},
+      {
+        selectedMethod: "VIRTUAL_ACCOUNT_BRI",
+        instructions: { kind: "virtual_account", accountNumber: "8808123456789012", accountName: "CATERA SINTETIS", bank: "BRI" },
+      },
+    );
+    await wrap(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
+    const copyTotal = await screen.findByTestId("bayar-copy-total");
+    await fireEvent.press(within(copyTotal).getByRole("button", { name: "Salin nominal" }));
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith(String(va.quote.total));
+    expect(await screen.findByText("Nominal disalin")).toBeTruthy();
+    expect(screen.getByTestId("bayar-hold-bar", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByTestId("bayar-hold-fill", { includeHiddenElements: true })).toBeTruthy();
+    // Honest disclosure explaining why DOKU locks a generated payment channel.
+    const toggle = screen.getByTestId("bayar-switch-method");
+    expect(screen.queryByTestId("bayar-switch-info")).toBeNull();
+    await fireEvent.press(within(toggle).getByRole("button", { name: "Mau pakai cara bayar lain?" }));
+    expect(screen.getByTestId("bayar-switch-info")).toBeTruthy();
+  });
+});
+

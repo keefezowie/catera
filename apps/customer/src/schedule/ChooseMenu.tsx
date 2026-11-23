@@ -175,8 +175,12 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
   const options = (menus.data?.options ?? []).filter((o) => !o.archived);
   const dates = menus.data?.dates ?? [];
   const today = jakartaDay(new Date(now));
-  const selected = dates.find((d) => d.date === date) ?? dates.find((d) => d.date >= today) ?? dates[0];
   const editable = (d: MenuDay) => d.editable && Date.parse(d.cutoffAt) > now;
+  const selected =
+    dates.find((d) => d.date === date) ??
+    dates.find((d) => editable(d) && !d.details) ??
+    dates.find((d) => d.date >= today) ??
+    dates[0];
   const menuState = (d: MenuDay) =>
     customerMenuPresentation({
       surface: "delivery",
@@ -237,7 +241,35 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
   const daysPayload = () =>
     draft!.days.map((d) => ({ id: d.dayId, date: d.date, deliveryVersion: d.deliveryVersion, version: d.version }));
 
-  async function send(action: "customerMenu.saveBatch" | "customerMenu.resetBatch") {
+  // The next editable unpicked day after the current draft's dates (for smooth multi-day picking).
+  const draftDayIds = new Set(draft?.days.map((d) => d.dayId) ?? []);
+  const nextUnpicked = draft
+    ? dates.find((d) => !draftDayIds.has(d.dayId) && editable(d) && !d.details) ?? null
+    : null;
+
+  // Closest earlier day with a saved menu whose dishes are still active and fit every slot.
+  const prevCopy = (() => {
+    if (!draft || draft.days.length !== 1 || !slots.length) return null;
+    const currentDate = draft.days[0].date;
+    const earlier = [...dates].filter((d) => d.date < currentDate && !!d.details?.items?.length).reverse();
+    for (const prev of earlier) {
+      const mapped: Choice[] = [];
+      const used = new Set<string>();
+      for (const s of slots) {
+        const savedItem = prev.details?.items?.find((i) => i.id === s.id);
+        const active = savedItem?.optionId
+          ? options.find((o) => o.id === savedItem.optionId && o.categoryId === s.category && !used.has(o.id))
+          : undefined;
+        if (!active) break;
+        used.add(active.id);
+        mapped.push({ slotId: s.id, optionId: active.id, optionVersion: active.version });
+      }
+      if (mapped.length === slots.length) return { date: prev.date, choices: mapped };
+    }
+    return null;
+  })();
+
+  async function send(action: "customerMenu.saveBatch" | "customerMenu.resetBatch", advance = false) {
     if (!draft || busy) return;
     setSending(action === "customerMenu.saveBatch" ? "save" : "reset");
     setError("");
@@ -249,8 +281,14 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
         ...(action === "customerMenu.saveBatch" ? { choices: draft.choices } : {}),
       });
       if (action === "customerMenu.saveBatch") toast.show({ message: savedMessage(draft.days, t), tone: "success" });
-      setDraft(null);
-      setReviewing(false);
+      if (advance && nextUnpicked) {
+        setDate(nextUnpicked.date);
+        edit(nextUnpicked);
+      } else {
+        if (nextUnpicked) setDate(nextUnpicked.date);
+        setDraft(null);
+        setReviewing(false);
+      }
     } catch (e) {
       setError(failureText(e, locale, t));
       setFailures((n) => n + 1);
@@ -299,7 +337,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
       </View>
     ) : null;
 
-  // While editing, the one action is pinned under the page: Tinjau pilihan, then Simpan menu.
+  // While editing, the one action is pinned under the page: Tinjau pilihan, then Simpan menu (or Simpan & lanjut when another day waits).
   const footer =
     offer.menuSelectionMode === "customer" && draft ? (
       reviewing ? (
@@ -310,10 +348,14 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
             "Pilihan yang sudah tersimpan di tanggal-tanggal ini akan diganti. Semua porsi dapat menu yang sama.",
             "Choices already saved on these dates will be replaced. Every portion gets the same menu.",
           )}
-          label={t("Simpan menu", "Save menu")}
+          label={
+            nextUnpicked
+              ? t(`Simpan & pilih ${weekdayName(nextUnpicked.date, "id")}`, `Save & choose ${weekdayName(nextUnpicked.date, "en")}`)
+              : t("Simpan menu", "Save menu")
+          }
           busy={sending === "save"}
           disabled={!valid || !writeable || sending === "reset"}
-          onPress={() => void send("customerMenu.saveBatch")}
+          onPress={() => void send("customerMenu.saveBatch", !!nextUnpicked)}
         />
       ) : (
         <StickyAction
@@ -460,6 +502,18 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 )}
               />
             ) : null}
+            {!reviewing && prevCopy && open ? (
+              <View testID="menu-copy-prev">
+                <Button
+                  variant="secondary"
+                  label={t(
+                    `Sama seperti ${weekdayName(prevCopy.date, "id")}`,
+                    `Same as ${weekdayName(prevCopy.date, "en")}`,
+                  )}
+                  onPress={() => setDraft((d) => (d ? { ...d, dirty: true, choices: prevCopy.choices } : d))}
+                />
+              </View>
+            ) : null}
             {slots.map((slot) => {
               const choice = draft.choices.find((c) => c.slotId === slot.id);
               const dish = options.find((o) => o.id === choice?.optionId);
@@ -526,6 +580,14 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
             ) : (
               <>
                 {error ? <FormError message={error} failureKey={failures} testID="menu-error" /> : null}
+                {nextUnpicked ? (
+                  <Button
+                    variant="secondary"
+                    label={t("Simpan saja", "Save only")}
+                    disabled={!valid || !writeable || busy}
+                    onPress={() => void send("customerMenu.saveBatch", false)}
+                  />
+                ) : null}
                 <Button variant="secondary" label={t("Lanjut memilih", "Keep choosing")} onPress={() => setReviewing(false)} />
               </>
             )}

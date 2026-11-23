@@ -198,6 +198,7 @@ export function ChangeDaySheet({
     wanted === "address" && can.address ? "address" : wanted === "date" && can.date ? "date" : can.date ? "date" : "address",
   );
   const [addressId, setAddressId] = useState("");
+  const [pickedDate, setPickedDate] = useState("");
   const [error, setError] = useState("");
   const [failures, setFailures] = useState(0);
   // Whether the sheet is on screen: true while mounted (again after a remount: Fast Refresh, StrictMode), false once
@@ -328,15 +329,40 @@ export function ChangeDaySheet({
             ) : (
               // The sheet's day-by-day calendar: a new day is chosen in the grid, and the button under it stays off
               // until one is.
-              <CalendarPanel
-                month={openMonth}
-                days={days}
-                current={delivery.service_date}
-                onPick={() => setError("")}
-                confirmLabel={(date) => t(`Pindah ke ${shortDate(date, locale)}`, `Move to ${shortDate(date, locale)}`)}
-                onConfirm={(date) => perform("date", date)}
-                window={{ from: today, to: addDays(today, 30) }}
-              />
+              <View style={{ gap: 10 }}>
+                {pickedDate ? (
+                  <View
+                    testID="change-day-preview"
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      paddingVertical: 10,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderCurve: "continuous",
+                      backgroundColor: c.sage,
+                    }}
+                  >
+                    <Text variant="bodyStrong" style={{ fontVariant: ["tabular-nums"] }}>
+                      {`${oldDay} → ${shortDate(pickedDate, locale)}`}
+                    </Text>
+                  </View>
+                ) : null}
+                <CalendarPanel
+                  month={openMonth}
+                  days={days}
+                  current={delivery.service_date}
+                  onPick={(date) => {
+                    setPickedDate(date);
+                    setError("");
+                  }}
+                  confirmLabel={(date) => t(`Pindah ke ${shortDate(date, locale)}`, `Move to ${shortDate(date, locale)}`)}
+                  onConfirm={(date) => perform("date", date)}
+                  window={{ from: today, to: addDays(today, 30) }}
+                />
+              </View>
             )
           ) : (
             // The sheet's own scroll view carries the list; each row is a 56dp option.

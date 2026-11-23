@@ -47,6 +47,10 @@ export function StopRow({
   address,
   onMap,
   mapLabel,
+  onContact,
+  contactLabel,
+  onQuickArrive,
+  quickArriveLabel,
   onMore,
   moreLabel,
   selection,
@@ -73,6 +77,12 @@ export function StopRow({
   mapNote?: string;
   onMap: () => void;
   mapLabel: string;
+  /** 1-tap WhatsApp/contact action for today's active delivery stops. */
+  onContact?: () => void;
+  contactLabel?: string;
+  /** Direct 1-tap Sampai action when a stop is out for delivery (outside Pilih mode). */
+  onQuickArrive?: () => void;
+  quickArriveLabel?: string;
   onMore?: () => void;
   moreLabel?: string;
   selection?: { selected: boolean; disabled?: boolean; onToggle: () => void; note?: string };
@@ -93,6 +103,10 @@ export function StopRow({
         mapNote={mapNote}
         onMap={onMap}
         mapLabel={mapLabel}
+        onContact={onContact}
+        contactLabel={contactLabel}
+        onQuickArrive={onQuickArrive}
+        quickArriveLabel={quickArriveLabel}
         onMore={onMore}
         moreLabel={moreLabel}
         selection={selection}
@@ -232,6 +246,10 @@ function StopRowV2({
   mapNote,
   onMap,
   mapLabel,
+  onContact,
+  contactLabel,
+  onQuickArrive,
+  quickArriveLabel,
   onMore,
   moreLabel,
   selection,
@@ -248,6 +266,10 @@ function StopRowV2({
   mapNote?: string;
   onMap: () => void;
   mapLabel: string;
+  onContact?: () => void;
+  contactLabel?: string;
+  onQuickArrive?: () => void;
+  quickArriveLabel?: string;
   onMore?: () => void;
   moreLabel?: string;
   selection?: { selected: boolean; disabled?: boolean; onToggle: () => void; note?: string };
@@ -294,26 +316,56 @@ function StopRowV2({
           {mapNote}
         </Text>
       ) : null}
-      {status && pill ? (
-        <View
-          testID={`${testID}-status`}
-          style={{
-            alignSelf: "flex-start",
-            minHeight: PILL_HEIGHT,
-            marginTop: 2,
-            paddingHorizontal: 8,
-            justifyContent: "center",
-            borderRadius: PILL_HEIGHT / 2,
-            backgroundColor: pill.fill,
-            borderWidth: pill.edge ? 1 : 0,
-            borderColor: pill.edge ?? "transparent",
-          }}
-        >
-          <Text variant="meta" numberOfLines={1} style={{ color: pill.ink, fontVariant: ["tabular-nums"] }}>
-            {status.label}
-          </Text>
-        </View>
-      ) : null}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+        {status && pill ? (
+          <View
+            testID={`${testID}-status`}
+            style={{
+              alignSelf: "flex-start",
+              minHeight: PILL_HEIGHT,
+              marginTop: 2,
+              paddingHorizontal: 8,
+              justifyContent: "center",
+              borderRadius: PILL_HEIGHT / 2,
+              backgroundColor: pill.fill,
+              borderWidth: pill.edge ? 1 : 0,
+              borderColor: pill.edge ?? "transparent",
+            }}
+          >
+            <Text variant="meta" numberOfLines={1} style={{ color: pill.ink, fontVariant: ["tabular-nums"] }}>
+              {status.label}
+            </Text>
+          </View>
+        ) : null}
+        {onQuickArrive && quickArriveLabel && !selection ? (
+          <PressableScale
+            testID={`${testID}-quick-arrive`}
+            accessibilityRole="button"
+            accessibilityLabel={`${quickArriveLabel} ${name}`}
+            haptic="tap"
+            onPress={onQuickArrive}
+            style={{
+              minHeight: 36,
+              marginTop: 4,
+              paddingHorizontal: 10,
+              borderRadius: 18,
+              borderCurve: "continuous",
+              borderWidth: 1,
+              borderColor: c.secondaryBorder,
+              backgroundColor: c.surface,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Ionicons name="checkmark-circle-outline" size={16} color={c.forest} accessible={false} importantForAccessibility="no" />
+            {/* forest: action */}
+            <Text variant="caption" style={{ color: c.forest }}>
+              {quickArriveLabel}
+            </Text>
+          </PressableScale>
+        ) : null}
+      </View>
       {selection?.note ? (
         // One line at the default size, cut at the end: the last line of a picking row, after the delivery note and the status.
         <Text testID={`${testID}-note`} variant="meta" numberOfLines={lines}>
@@ -322,8 +374,9 @@ function StopRowV2({
       ) : null}
     </View>
   );
-  // The "…" is hidden while picking; outside it, a stop without one keeps the room so the map button never shifts.
-  const actions = selection ? V2_BUTTON : V2_BUTTON * 2;
+  // The "…" and contact buttons are hidden while picking; outside it, keep consistent trailing columns.
+  const count = selection ? 1 : onContact ? 3 : 2;
+  const actions = V2_BUTTON * count;
   return (
     <View testID={testID} style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: V2_ROW, paddingVertical: 8 }}>
       {selection ? (
@@ -367,6 +420,9 @@ function StopRowV2({
         </View>
       )}
       <View testID={`${testID}-actions`} style={{ width: actions, flexDirection: "row", flexGrow: 0, flexShrink: 0 }}>
+        {onContact && !selection ? (
+          <IconButton testID={`${testID}-contact`} icon="chatbubble-ellipses-outline" label={contactLabel ?? name} onPress={onContact} />
+        ) : null}
         <IconButton icon="map-outline" label={mapLabel} onPress={onMap} />
         {onMore && !selection ? <IconButton icon="ellipsis-horizontal" label={moreLabel ?? "…"} onPress={onMore} /> : null}
       </View>

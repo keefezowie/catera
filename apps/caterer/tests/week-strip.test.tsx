@@ -723,9 +723,13 @@ describe("dragging the handle", () => {
 });
 
 describe("a future day is read-only", () => {
+  const openDeliver = async () =>
+    fireEvent.press(within(await screen.findByTestId("today-mode-switch")).getByText(/^(Antar|Deliver)/));
+
   it("shows the checklist and order without Pilih, a proof-photo note or a footer, on a day ahead", async () => {
     await renderToday(runtimeWith(null, async (_id, date) => dayFor(date, "preparing")));
-    // Today, for contrast: the order offers Pilih and the proof-photo note, and the footer has the action.
+    // Today, for contrast: Antar mode offers Pilih and the proof-photo note, and the footer has the action.
+    await openDeliver();
     expect(await screen.findByRole("button", { name: "Pilih" })).toBeTruthy();
     expect(screen.getByText(/foto bukti/i)).toBeTruthy();
     expect(await screen.findByText(/^Berangkat antar/)).toBeTruthy();
@@ -733,6 +737,7 @@ describe("a future day is read-only", () => {
     await screen.findByText("Dapur Bu Rina · Minggu");
     await waitFor(() => expect(screen.queryByText(/^Berangkat antar/)).toBeNull());
     expect(await screen.findByText("Daftar masak")).toBeTruthy();
+    await openDeliver();
     expect(screen.queryByRole("button", { name: "Pilih" })).toBeNull();
     expect(screen.queryByText(/foto bukti/i)).toBeNull();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
@@ -743,6 +748,7 @@ describe("a future day is read-only", () => {
     await screen.findByText("Mulai masak");
     await fireEvent.press(cell("2026-10-11"));
     await screen.findByText("Dapur Bu Rina · Minggu");
+    await openDeliver();
     // Bu Sari can still move (record and cutoff ahead); Keluarga Hartono and the fixed-date package cannot, so no button.
     const menu = await within(await screen.findByTestId("stop-1")).findByLabelText(/^Pindah tanggal/);
     expect(within(screen.getByTestId("stop-3")).queryByLabelText(/^(Laporkan masalah|Pindah tanggal)/)).toBeNull();

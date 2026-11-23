@@ -101,12 +101,18 @@ beforeEach(() => {
   (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
 });
 
+/** Switches Hari ini from Masak to Antar mode when the segmented mode switch is shown. */
+const openDeliver = async () =>
+  fireEvent.press(within(await screen.findByTestId("today-mode-switch")).getByText(/^(Antar|Deliver)/));
+
 /**
  * The "…" button of delivery-order row `n` (route order: 1 Bu Sari Wulandari, 2 Kantor PT Sinar Rasa, 3 Keluarga
  * Hartono, 4 Kost Damai). Its label says what the sheet can do, so it is found by its start.
  */
-const stopMenu = async (n: number) =>
-  within(await screen.findByTestId(`stop-${n}`)).getByLabelText(/^(Laporkan masalah|Pindah tanggal)/);
+const stopMenu = async (n: number) => {
+  if (!screen.queryByTestId(`stop-${n}`)) await openDeliver();
+  return within(await screen.findByTestId(`stop-${n}`)).getByLabelText(/^(Laporkan masalah|Pindah tanggal)/);
+};
 
 it("shows the lunch cooking total for the day", async () => {
   await renderToday(runtimeWith(same(canvasDay())));
@@ -142,6 +148,7 @@ it("the summary line sits 12 under the week strip's handle bar, and the handle k
 it("shares the route as WhatsApp-ready text", async () => {
   const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
   await renderToday(runtimeWith(same(canvasDay())));
+  await openDeliver();
   await fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
   await waitFor(() => expect(share).toHaveBeenCalled());
   expect(share.mock.calls[0][0]).toEqual(
@@ -288,6 +295,8 @@ it("moves a customer's day from Besok while the cutoff is still ahead", async ()
 
 it("the stop menu button and the problem options give haptics", async () => {
   await renderToday(runtimeWith(same(canvasDay())));
+  await openDeliver();
+  (Haptics.selectionAsync as jest.Mock).mockClear();
   await fireEvent.press(await stopMenu(1));
   expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
   await fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
@@ -393,6 +402,7 @@ describe("session cards", () => {
     await renderToday(runtimeWith(async () => day));
     expect(await screen.findByTestId("session-card")).toBeTruthy();
     expect(within(screen.getByTestId("session-count")).getByTestId("session-figures").props.accessibilityLabel).toMatch(/^1 porsi, 1 paket, 1 alamat/);
+    await openDeliver();
     expect(screen.getByText("Nadia Putri")).toBeTruthy();
     expect(screen.getByText("Bagikan rute ke WhatsApp")).toBeTruthy();
     expect(screen.queryByText("Makan malam")).toBeNull();
@@ -508,15 +518,16 @@ describe("Hari ini by mood", () => {
     expect(screen.getByText("Fri 9 Oct")).toBeTruthy();
   });
 
-  it("has two tablists: the mood toggle in the top row and the week strip under the title", async () => {
+  it("has three tablists: mood toggle in top row, week strip under title, and Masak | Antar switch in the session", async () => {
     await renderMood(runtimeWith(same(canvasDay())));
     await screen.findByTestId("session-count");
     const tablists = findInScreen((n) => n.props.accessibilityRole === "tablist");
-    expect(tablists).toHaveLength(2);
+    expect(tablists).toHaveLength(3);
     expect(moodTabs().map((t) => t.props.accessibilityLabel)).toEqual(["Siang", "Malam"]);
     expect(within(screen.getByTestId("week-strip")).getAllByRole("tab")).toHaveLength(7);
     expect(tabsSelected()).toEqual([true, false]);
-    expect(screen.queryByText("Masak")).toBeNull();
+    expect(within(screen.getByTestId("today-mode-switch")).getByText(/^Masak · /)).toBeTruthy();
+    expect(within(screen.getByTestId("today-mode-switch")).getByText(/^Antar · /)).toBeTruthy();
   });
 
   it("draws the band's Siang / Malam toggle compact: a 34 track that keeps the 36 row, its tabs reaching 48 by hitSlop 7", async () => {
@@ -589,10 +600,12 @@ describe("Hari ini by mood", () => {
   describe("one session at a time", () => {
     it("shows only the mood's session card and swaps it with the toggle", async () => {
       await renderMood(runtimeWith(async () => toDinner(canvasDay())));
+      await openDeliver();
       expect(await screen.findByText("Keluarga Hartono")).toBeTruthy();
       expect(screen.queryByText("Kost Damai")).toBeNull();
 
       await fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await openDeliver();
       expect(await screen.findByText("Kost Damai")).toBeTruthy();
       expect(screen.queryByText("Keluarga Hartono")).toBeNull();
       expect(tabsSelected()).toEqual([false, true]);
@@ -688,6 +701,7 @@ describe("route sharing after a same-day revision", () => {
       </MobileProvider>
     );
     const view = await render(card(long));
+    await openDeliver();
     await fireEvent.press(screen.getByText("Bagikan rute ke WhatsApp"));
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
     await fireEvent.press(await screen.findByText("Bagikan bagian 2"));
@@ -1030,3 +1044,60 @@ describe("dark Malam", () => {
     expect(flatOf("batch-step-depart").backgroundColor).toBe(ink.stopActive);
   });
 });
+
+describe("UX polish: Masak | Antar mode, 1-tap WhatsApp contact, 1-tap Sampai, and area filter", () => {
+  it("switches cleanly between Masak and Antar, offers 1-tap WhatsApp on today's stops (for owner and staff), and filters by area", async () => {
+    const openUrl = jest.spyOn(ReactNative.Linking, "openURL").mockResolvedValue(undefined as never);
+    try {
+      const base = canvasDay();
+      const withPhones = {
+        ...base,
+        deliveries: base.deliveries.map((d, i) => ({
+          ...d,
+          address: { ...d.address, area: i % 2 === 0 ? "Tebet" : "Kuningan" },
+          customer: { ...d.customer, phone: `+628120000000${i + 1}` },
+        })),
+      } as typeof base;
+      // Verify as kitchen staff (helper) as well as owner.
+      await renderToday(runtimeWith(async () => withPhones, { ...owner, role: "staff" }));
+      // Starts in Masak mode before departure.
+      expect(await screen.findByText("Daftar masak")).toBeTruthy();
+      expect(screen.queryByTestId("delivery-order")).toBeNull();
+      // Switch to Antar mode.
+      await openDeliver();
+      expect(await screen.findByTestId("delivery-order")).toBeTruthy();
+      expect(screen.queryByText("Daftar masak")).toBeNull();
+      // 1-tap WhatsApp button on stop-1 opens WhatsApp with prefilled message.
+      const waBtn = screen.getByTestId("stop-1-contact");
+      await fireEvent.press(waBtn);
+      expect(openUrl).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\/wa\.me\/628120000000\d\?text=/));
+      // Area filter pills appear when 2+ areas exist and narrow the stops list.
+      const filterBar = screen.getByTestId("delivery-area-filter");
+      expect(within(filterBar).getByText(/^Semua area \(\d+\)$/)).toBeTruthy();
+      const areaChip = within(filterBar).getByText(/^Kuningan \(\d+\)$/);
+      await fireEvent.press(areaChip);
+      expect(screen.getByText("Kantor PT Sinar Rasa")).toBeTruthy();
+      expect(screen.queryByText("Bu Sari Wulandari")).toBeNull();
+    } finally {
+      openUrl.mockRestore();
+    }
+  });
+
+  it("auto-selects Antar when stops are out for delivery and offers 1-tap Sampai quick action", async () => {
+    const base = canvasDay();
+    const outDay = {
+      ...base,
+      deliveries: base.deliveries.map((d) => ({
+        ...d,
+        meals: d.meals.map((m) => ({ ...m, status: "out_for_delivery" }) as typeof m),
+      })),
+    } as typeof base;
+    await renderToday(runtimeWith(async () => outDay));
+    // Auto-selects Antar mode once out for delivery without needing a tap.
+    expect(await screen.findByTestId("delivery-order")).toBeTruthy();
+    const quickArrive = await screen.findByTestId("stop-1-quick-arrive");
+    await fireEvent.press(quickArrive);
+    expect(router.push).toHaveBeenCalledWith(expect.stringMatching(/^\/sampai\?/));
+  });
+});
+

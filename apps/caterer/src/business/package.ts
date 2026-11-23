@@ -157,24 +157,40 @@ export function packageIssues(
   return issues;
 }
 
+/** Minimal validation for saving a partial package draft: just a 3-letter name and valid nutrition if entered. */
+export function draftIssues(
+  f: PackageForm,
+  t: (id: string, en: string) => string = (id) => id,
+): Partial<Record<keyof PackageForm, string>> {
+  const issues: Partial<Record<keyof PackageForm, string>> = {};
+  if (f.name.trim().length < 3) issues.name = t("Nama paket minimal 3 huruf", "The package name needs at least 3 letters");
+  const gizi = Object.values(nutritionIssues(f.nutrition, t));
+  if (gizi.length) issues.nutrition = gizi[0];
+  return issues;
+}
+
 /** The existing offer shape with the simple defaults: one duration, no tiers, no trial, flexible. */
-export function quickOffer(f: PackageForm) {
-  const capacity = digits(f.capacity) ?? 0;
+export function quickOffer(f: PackageForm, draft = false) {
+  const parsedCapacity = digits(f.capacity);
   const meals = f.meal === "both" ? (["lunch", "dinner"] as const) : ([f.meal] as const);
   const composition = defaultDishCategories
     .filter((c) => (f.counts[c.id] ?? 0) > 0)
     .map((c) => ({ id: `g-${c.id}`, categoryId: c.id, name: c.name, slots: f.counts[c.id] }));
+  const weekdays = [...f.weekdays].sort();
   return {
     name: f.name.trim(),
     description: f.description.trim(),
     price: digits(f.price),
-    days: Math.max(1, f.weekdays.length),
+    days: Math.max(1, weekdays.length),
     meal: f.meal,
-    weekdays: [...f.weekdays].sort(),
+    weekdays,
     flexible: true,
     trialPrice: null,
     trialMax: null,
-    capacity: Object.fromEntries(f.weekdays.map((d) => [String(d), capacity])),
+    capacity:
+      draft && parsedCapacity === null
+        ? {}
+        : Object.fromEntries(weekdays.map((d) => [String(d), parsedCapacity ?? 0])),
     tiers: [] as never[],
     durationPricing: { revision: 0, options: [{ cycles: 1, discountPercent: 0 }] },
     windows: { lunch: "11.00-13.00", dinner: "17.00-19.00" },
@@ -193,7 +209,7 @@ export function quickOffer(f: PackageForm) {
       items: [],
       nutrition: null,
     })),
-    status: "published" as const,
+    status: (draft ? "draft" : "published") as "draft" | "published",
   };
 }
 

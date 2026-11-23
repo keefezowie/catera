@@ -163,7 +163,7 @@ describe("new password: leaving and rejection", () => {
   it("offers Kembali ke Masuk on the form and on the sent screen", async () => {
     recoveryLink();
     await renderCallback();
-    await fireEvent.press(await screen.findByRole("button", { name: "Kembali ke Masuk" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Kembali ke halaman masuk" }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/checkout/package?cycles=3" } });
   });
 
@@ -270,7 +270,7 @@ describe("expired link", () => {
     await renderCallback();
     expect(await screen.findByText(/rani@example.test/)).toBeTruthy();
     expect(supabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
-    await fireEvent.press(screen.getByRole("button", { name: "Kembali ke Masuk" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Kembali ke halaman masuk" }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/checkout/package?cycles=3" } });
   });
 
@@ -282,7 +282,7 @@ describe("expired link", () => {
     await fireEvent.press(send);
     await fireEvent.press(send);
     expect(await screen.findByText("Cek emailmu")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Kembali ke Masuk" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Kembali ke halaman masuk" })).toBeTruthy();
     expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
     expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith("rani@example.test", { redirectTo: "catera://auth/callback" });
   });

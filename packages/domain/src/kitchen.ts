@@ -24,6 +24,8 @@ export type Stop = {
   deliveryId: string;
   version: number;
   name: string;
+  /** Customer WhatsApp/phone when present on today's active delivery run (never on past/future dates). */
+  phone?: string | null;
   addressLine: string;
   area: string;
   note: string;
@@ -224,6 +226,7 @@ export function deliveryRoute(state: SellerOperationsState, meal: KitchenMeal): 
         deliveryId: d.id,
         version: d.version,
         name: d.customer.name,
+        ...(d.customer.phone ? { phone: d.customer.phone } : {}),
         addressLine: d.address.line,
         area: d.address.area,
         note: d.address.instructions,

@@ -2,6 +2,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
 import { FadeSwap, linkTitle, Screen, Text } from "@catera/mobile-ui";
 import { PackageDetail } from "../../../../src/business/PackageDetail";
+import { PackageEditor } from "../../../../src/business/PackageEditor";
 import { ReadError } from "../../../../src/ReadError";
 import { DetailSkeleton } from "../../../../src/skeletons";
 
@@ -29,6 +30,17 @@ export default function EditPackageRoute() {
           )}
         </FadeSwap>
       </Screen>
+    );
+  }
+  if (offer.status === "draft") {
+    const publishedCount = (ops.data?.offers ?? []).filter((o) => o.status === "published").length;
+    return (
+      <PackageEditor
+        key={offer.id}
+        editing={offer}
+        firstPublish={publishedCount === 0}
+        kitchenStatus={ops.data?.caterer.status ?? "draft"}
+      />
     );
   }
   return <PackageDetail offer={offer} kitchenStatus={ops.data?.caterer.status ?? "draft"} />;

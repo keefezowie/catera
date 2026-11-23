@@ -88,13 +88,16 @@ export function UsahaScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pulls]);
   const offers = (ops.data?.offers ?? []).filter((o) => o.status !== "retired");
-  /** "…" on a package: look at it, or copy it into a new package (a live package's terms cannot change). */
+  /** "…" on a package: edit a draft, inspect a live/paused package, or copy it into a new package. */
   async function packageActions(o: (typeof offers)[number], detail: string, image: string | undefined) {
+    const isDraft = o.status === "draft";
     const key = await actions({
       title: t("Paket", "Package"),
       context: { image, title: o.name, lines: [detail] },
       items: [
-        { key: "lihat", label: t("Lihat paket", "View package"), icon: "eye-outline" },
+        isDraft
+          ? { key: "lihat", label: t("Lanjutkan edit", "Continue editing"), icon: "create-outline" }
+          : { key: "lihat", label: t("Lihat paket", "View package"), icon: "eye-outline" },
         { key: "salin", label: t("Salin jadi paket baru", "Copy into a new package"), icon: "copy-outline" },
       ],
       closeLabel: t("Tutup", "Close"),
@@ -151,7 +154,12 @@ export function UsahaScreen() {
       {/* The kitchen card or the payments card (when one applies), Paket and Kelola: blocks 24 apart. */}
       <View testID="usaha-sections" style={{ gap: nativeLayout.dense.sectionGap, marginTop: BODY_LIFT }}>
         {ops.data ? (
-          <KitchenStatusCard status={ops.data.caterer.status} reviewNote={ops.data.caterer.review_note} packages={offers.length} />
+          <KitchenStatusCard
+            status={ops.data.caterer.status}
+            reviewNote={ops.data.caterer.review_note}
+            packages={offers.length}
+            paymentsActive={payments === true}
+          />
         ) : null}
         {/* One cream card at a time: payments come after the kitchen is live, since their first step is the review. */}
         {payments === false && kitchenLive(ops.data?.caterer.status) ? (

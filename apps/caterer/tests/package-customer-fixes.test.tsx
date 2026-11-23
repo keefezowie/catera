@@ -81,7 +81,8 @@ describe("Terbitkan paket", () => {
     // The days as they stand: Sen was just switched off.
     expect(asked.message).toContain("Sel, Rab, Kam, Jum");
     expect(asked.message).not.toContain("Sen");
-    expect(asked.message).toContain("tidak bisa diubah");
+    expect(asked.message).toContain("tetap sama untuk pembeli");
+    expect(asked.message).toContain("menjeda atau menyalinnya");
     await asked.press(asked.cancelLabel);
     expect(command).not.toHaveBeenCalled();
   });

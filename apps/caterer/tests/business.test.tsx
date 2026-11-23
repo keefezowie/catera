@@ -1060,3 +1060,102 @@ describe("Kelola glyphs", () => {
     for (const glyph of glyphs) expect(glyph.color).toBe(nativeThemes.light.muted);
   });
 });
+
+describe("UX polish: Go-Live checklist, package drafts, suspend/archive, and Tim members", () => {
+  it("shows the 4-step Go-Live checklist on Usaha for an unapproved kitchen", async () => {
+    const rt = runtimeWith({
+      sellerOperations: jest.fn(async () => ({
+        caterer: { id: "k-1", name: "Dapur Bu Rina", status: "draft", review_note: null },
+        offers: [],
+        deliveries: [],
+        datedMenus: [],
+        customers: [],
+        staff: [],
+        transactions: [],
+        payouts: [],
+      }) as never),
+    });
+    await scaled(rt, <UsahaScreen />);
+    const checklist = await screen.findByTestId("kitchen-checklist");
+    expect(within(checklist).getByText("1. Buka dapur")).toBeTruthy();
+    expect(within(checklist).getByText("2. Buat paket pertama")).toBeTruthy();
+    expect(within(checklist).getByText("3. Verifikasi tim Catera")).toBeTruthy();
+    expect(within(checklist).getByText("4. Aktifkan pembayaran")).toBeTruthy();
+  });
+
+  it("lets a caterer save a partial package as a draft via Simpan draf", async () => {
+    const command = jest.fn(async () => ({ id: "p-draft" }));
+    const rt = runtimeWith({ command });
+    await scaled(rt, <PackageEditor />);
+    await fireEvent.changeText(screen.getByLabelText("Nama paket"), "Draf Bekal Kantor");
+    const draftBtn = within(screen.getByTestId("package-save-draft")).getByRole("button", { name: "Simpan draf" });
+    await fireEvent.press(draftBtn);
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "package.save",
+        expect.objectContaining({
+          catererId: "k-1",
+          offer: expect.objectContaining({ name: "Draf Bekal Kantor", status: "draft" }),
+        }),
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("lets a caterer suspend and archive a published package from PackageDetail", async () => {
+    const command = jest.fn(async () => ({}));
+    const rt = runtimeWith({ command });
+    const liveOffer = {
+      ...packageNamed(1),
+      status: "published",
+    };
+    const view = await scaled(rt, <PackageDetail offer={liveOffer as never} kitchenStatus="approved" />);
+    const suspendBtn = within(screen.getByTestId("package-suspend")).getByRole("button", { name: "Jeda paket" });
+    await fireEvent.press(suspendBtn);
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "package.suspend",
+        { catererId: "k-1", packageId: liveOffer.id },
+        expect.any(String),
+      ),
+    );
+    await view.unmount();
+    const pausedOffer = { ...liveOffer, status: "suspended" };
+    await scaled(rt, <PackageDetail offer={pausedOffer as never} kitchenStatus="approved" />);
+    const archiveBtn = within(screen.getByTestId("package-archive")).getByRole("button", { name: "Arsipkan paket" });
+    await fireEvent.press(archiveBtn);
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "package.archive",
+        { catererId: "k-1", packageId: liveOffer.id },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("displays active team members in TimScreen", async () => {
+    const rt = runtimeWith({
+      sellerOperations: jest.fn(async () => ({
+        caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved", review_note: null },
+        offers: [],
+        deliveries: [],
+        datedMenus: [],
+        customers: [],
+        staff: [
+          { user_id: "u-1", name: "Bu Rina", role: "owner" },
+          { user_id: "u-2", name: "Mas Dani", role: "staff" },
+        ],
+        transactions: [],
+        payouts: [],
+      }) as never),
+    });
+    await scaled(rt, <TimScreen />);
+    const members = await screen.findByTestId("tim-members");
+    expect(within(members).getByText("Anggota tim (2)")).toBeTruthy();
+    expect(within(members).getByText("Bu Rina")).toBeTruthy();
+    expect(within(members).getByText("Pemilik")).toBeTruthy();
+    expect(within(members).getByText("Mas Dani")).toBeTruthy();
+    expect(within(members).getByText("Staf dapur")).toBeTruthy();
+  });
+});
+

@@ -365,30 +365,53 @@ export function ImportRowEditor({ n: opened }: { n: number }) {
       );
     AccessibilityInfo.announceForAccessibility(first.message);
   };
+  const advanceToNext = () => {
+    if (!next) return;
+    setN(next.n);
+    scroller.current?.scrollTo({ y: 0, animated: false });
+  };
+  const remainingCount = waiting.length + (row.needsReview ? 1 : 0);
   const primary = issues.length
-    ? { label: t("Lengkapi yang kurang", "Fill in what's missing"), onPress: showFirst }
+    ? { label: t("Lengkapi yang kurang", "Fill in what's missing"), onPress: showFirst, isNext: false }
     : doubt
-      ? { label: t("Sudah benar", "This is correct"), onPress: () => update({}) }
+      ? next
+        ? {
+            label: t(`Sudah benar & lanjut ke ${nextName}`, `Confirm & go on to ${nextName}`),
+            onPress: () => {
+              update({});
+              advanceToNext();
+            },
+            isNext: true,
+          }
+        : { label: t("Sudah benar", "This is correct"), onPress: () => update({}), isNext: false }
       : next
         ? {
             label: t(`Lanjut ke ${nextName}`, `Go on to ${nextName}`),
-            onPress: () => {
-              setN(next.n);
-              scroller.current?.scrollTo({ y: 0, animated: false });
-            },
+            onPress: advanceToNext,
+            isNext: true,
           }
-        : { label: t("Selesai", "Done"), onPress: close };
+        : { label: t("Selesai", "Done"), onPress: close, isNext: false };
   const secondary = issues.length || doubt ? t("Nanti saja", "Later") : next ? t("Kembali ke daftar", "Back to the list") : "";
 
   return (
     <View testID="import-row-sheet" style={{ flex: 1 }}>
-      <SheetHeader title={name} closeLabel={t("Tutup", "Close")} />
+      <SheetHeader
+        title={name}
+        context={
+          remainingCount > 1
+            ? t(`Sisa ${remainingCount} baris perlu dicek`, `${plural(remainingCount, "row")} left to check`)
+            : undefined
+        }
+        closeLabel={t("Tutup", "Close")}
+      />
       {/* The next step is pinned under the form; "Hapus baris ini" is destructive and secondary, so it stays in the scrolling content. */}
       <SheetBody
         scrollRef={scroller}
         footer={
           <View style={{ gap: nativeLayout.space.xs }}>
-            <Button label={primary.label} onPress={primary.onPress} />
+            <View testID={primary.isNext ? "import-save-next" : undefined}>
+              <Button label={primary.label} onPress={primary.onPress} />
+            </View>
             {secondary ? <Button variant="text" label={secondary} onPress={close} /> : null}
           </View>
         }

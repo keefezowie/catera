@@ -1,4 +1,5 @@
 import { View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Card, fontFor, FormError, Text, useColors } from "@catera/mobile-ui";
@@ -15,6 +16,7 @@ export const canAskReview = (status: string | undefined) => status === "draft" |
 
 /** A package's word in Dapur: "tayang" only when customers can really see it, so a live package in an unapproved kitchen never claims it. */
 export function packageState(offerStatus: string, kitchenStatus: string | undefined, t: T) {
+  if (offerStatus === "suspended") return t("dijeda", "paused");
   if (offerStatus !== "published") return t("draf", "draft");
   return kitchenLive(kitchenStatus) ? t("tayang", "live") : t("belum tampil", "not shown yet");
 }
@@ -45,16 +47,76 @@ export function useAskReview(onSent?: () => void) {
   return { ...form, ask };
 }
 
+function StepItem({ done, active, label, detail }: { done: boolean; active?: boolean; label: string; detail?: string }) {
+  const c = useColors();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <Ionicons
+        name={done ? "checkmark-circle" : active ? "ellipse" : "ellipse-outline"}
+        size={18}
+        color={done || active ? c.forest : c.muted}
+        accessible={false}
+        importantForAccessibility="no"
+      />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text variant={active ? "bodyStrong" : "meta"} style={{ color: done || active ? c.charcoal : c.muted }}>
+          {label}
+        </Text>
+        {detail ? <Text variant="meta">{detail}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
 /**
- * The top of Usaha until the kitchen is approved: why customers cannot see it yet, and the one next step for its status.
+ * The top of Usaha until the kitchen is approved: a clear 4-step go-live checklist plus the one next action for its status.
  * An approved kitchen draws nothing.
  */
-export function KitchenStatusCard({ status, reviewNote, packages }: { status: string | undefined; reviewNote?: string | null; packages: number }) {
+export function KitchenStatusCard({
+  status,
+  reviewNote,
+  packages,
+  paymentsActive = false,
+}: {
+  status: string | undefined;
+  reviewNote?: string | null;
+  packages: number;
+  paymentsActive?: boolean;
+}) {
   const { t } = useMobile();
   const review = useAskReview();
   if (kitchenLive(status)) return null;
   const note = reviewNote?.trim() ? <ReviewNote note={reviewNote.trim()} /> : null;
   const failure = review.failure ? <FormError message={review.failure.message} failureKey={review.failure.key} /> : null;
+
+  const checklist = (
+    <View testID="kitchen-checklist" style={{ gap: 6, paddingVertical: 4 }}>
+      <StepItem done label={t("1. Buka dapur", "1. Open kitchen")} />
+      <StepItem
+        done={packages > 0}
+        active={packages === 0}
+        label={t("2. Buat paket pertama", "2. Create your first package")}
+      />
+      <StepItem
+        done={false}
+        active={packages > 0 && (status === "draft" || status === "corrections" || status === "submitted")}
+        label={t("3. Verifikasi tim Catera", "3. Catera team review")}
+        detail={
+          status === "submitted"
+            ? t("Sedang diperiksa", "Under review")
+            : status === "corrections"
+              ? t("Perlu perbaikan", "Needs changes")
+              : undefined
+        }
+      />
+      <StepItem
+        done={paymentsActive}
+        label={t("4. Aktifkan pembayaran", "4. Turn on payments")}
+        detail={t("Setelah dapur disetujui", "After your kitchen is approved")}
+      />
+    </View>
+  );
+
   if (status === "submitted")
     return (
       <Card testID="kitchen-status">
@@ -65,6 +127,7 @@ export function KitchenStatusCard({ status, reviewNote, packages }: { status: st
             "Your packages show to customers once approved. You can keep preparing menus meanwhile.",
           )}
         </Text>
+        {checklist}
       </Card>
     );
   if (status === "suspended")
@@ -82,6 +145,7 @@ export function KitchenStatusCard({ status, reviewNote, packages }: { status: st
         <Text variant="section">{t("Ada yang perlu diperbaiki", "Something needs fixing")}</Text>
         <Text>{t("Pelanggan belum bisa melihat dapurmu. Perbaiki dulu, lalu kirim lagi untuk diperiksa.", "Customers can't see your kitchen yet. Fix it, then send it for review again.")}</Text>
         {note}
+        {checklist}
         <Button label={t("Kirim lagi untuk diperiksa", "Send for review again")} busy={review.busy} onPress={() => void review.ask()} />
         {failure}
       </Card>
@@ -90,6 +154,7 @@ export function KitchenStatusCard({ status, reviewNote, packages }: { status: st
   return (
     <Card testID="kitchen-status" tone="attention">
       <Text variant="section">{t("Pelanggan belum bisa melihat dapurmu", "Customers can't see your kitchen yet")}</Text>
+      {checklist}
       {packages ? (
         <>
           <Text>

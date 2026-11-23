@@ -45,6 +45,65 @@ const clock = (ms: number) => {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 };
 
+const HOLD_MS = 15 * 60_000;
+const URGENT_HOLD_MS = 3 * 60_000;
+
+/** Isolated countdown + progress bar leaf so the 1 s tick never re-renders the whole Bayar screen. */
+function HoldCountdown({
+  expiresAtMs,
+  until,
+  t,
+}: {
+  expiresAtMs: number;
+  until: string | null;
+  t: (id: string, en: string) => string;
+}) {
+  const palette = useColors();
+  const styles = useStyles();
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) return;
+    const timer = setInterval(() => setTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [expiresAtMs]);
+  const deadline = Number.isFinite(expiresAtMs) ? expiresAtMs - tick : 0;
+  if (deadline <= 0) return null;
+  const holdFraction = Math.max(0, Math.min(1, deadline / HOLD_MS));
+  const holdUrgent = deadline <= URGENT_HOLD_MS;
+  return (
+    <>
+      <View testID="bayar-hold" style={styles.hold}>
+        <Ionicons name="timer-outline" size={16} color={palette.charcoal} accessible={false} />
+        <Text variant="meta" style={[{ color: palette.charcoal, fontFamily: fontFor("700") }, tabular]}>
+          {t(`Jadwal ditahan ${clock(deadline)}`, `Schedule held ${clock(deadline)}`)}
+        </Text>
+      </View>
+      <View
+        testID="bayar-hold-bar"
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        style={styles.holdTrack}
+      >
+        <View
+          testID="bayar-hold-fill"
+          style={[
+            styles.holdFill,
+            {
+              width: `${Math.round(holdFraction * 100)}%`,
+              backgroundColor: holdUrgent ? palette.danger : palette.forest,
+            },
+          ]}
+        />
+      </View>
+      {until ? (
+        <Text variant="caption" testID="bayar-until">
+          {t(`Bayar sebelum ${until}`, `Pay before ${until.replace(".", ":")}`)}
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
 /** Bayar: the QR or VA number with a countdown; reopening restores it from the server. */
 export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   const { runtime, actor, ready, demo, command, invalidate, t, locale } = useMobile();
@@ -100,6 +159,13 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     const timer = setTimeout(() => setCopies(0), COPIED_MS);
     return () => clearTimeout(timer);
   }, [copies]);
+  const [amountCopies, setAmountCopies] = useState(0);
+  useEffect(() => {
+    if (!amountCopies) return;
+    const timer = setTimeout(() => setAmountCopies(0), COPIED_MS);
+    return () => clearTimeout(timer);
+  }, [amountCopies]);
+  const [showSwitchInfo, setShowSwitchInfo] = useState(false);
   const [method, setMethod] = useState<DirectPaymentMethod | null>(null);
   const qris = useQris();
   const summary = c ? paidSummary(c) : null;
@@ -151,11 +217,18 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     }, [paid]),
   );
 
+  const expiresAtIso = c?.payment?.expiresAt || c?.expires_at || "";
+  const expiresAtMs = expiresAtIso ? Date.parse(expiresAtIso) : Number.NaN;
   useEffect(() => {
-    if (!live) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [live]);
+    if (!live || !Number.isFinite(expiresAtMs)) return;
+    const left = expiresAtMs - Date.now();
+    if (left <= 0) {
+      setNow(Date.now());
+      return;
+    }
+    const timer = setTimeout(() => setNow(Date.now()), Math.min(left + 50, 2_147_483_647));
+    return () => clearTimeout(timer);
+  }, [live, expiresAtMs]);
 
   const reload = state.reload;
   // The poll asks quietly: a refresh that finds nothing new must not reload every tab every 10 s. Only this screen
@@ -340,14 +413,15 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
 
   const payment = c.payment;
   const instructions = direct ? payment?.instructions : null;
-  const deadline = Date.parse(payment?.expiresAt || c.expires_at) - now;
   // The same expiry as the chip, as a clock time (Jakarta, the kitchen's and the customer's zone): HH.MM.
   const until = jakartaClock(payment?.expiresAt || c.expires_at);
   const methods = payment?.selectedMethod ? [payment.selectedMethod] : (payment?.availableMethods ?? []);
+  const allMethods = payment?.availableMethods ?? [];
   const chosen = method && methods.includes(method) ? method : methods.includes("QRIS") ? "QRIS" : (methods[0] ?? null);
   const nameOf = (code: string) => paymentMethodInfo(code)?.short ?? code;
   const bankName = (bank: VaBank) => paymentMethodInfo(VA_CHANNELS[bank])?.short ?? bank;
   const redirectName = instructions?.kind === "redirect" ? nameOf(instructions.channel) : "";
+  const lockedMethodName = payment?.selectedMethod ? nameOf(payment.selectedMethod) : "";
   const steps =
     instructions?.kind === "virtual_account"
       ? [
@@ -397,21 +471,26 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
           <Text variant="title" selectable style={[{ fontSize: 32, color: palette.charcoal }, tabular]}>
             {total}
           </Text>
-          {deadline > 0 ? (
-            <>
-            <View testID="bayar-hold" style={styles.hold}>
-              <Ionicons name="timer-outline" size={16} color={palette.charcoal} accessible={false} />
-              <Text variant="meta" style={[{ color: palette.charcoal, fontFamily: fontFor("700") }, tabular]}>
-                {t(`Jadwal ditahan ${clock(deadline)}`, `Schedule held ${clock(deadline)}`)}
-              </Text>
+          {instructions ? (
+            <View testID="bayar-copy-total">
+              <Button
+                variant="text"
+                label={amountCopies ? t("Nominal disalin", "Amount copied") : t("Salin nominal", "Copy amount")}
+                leadingIcon={amountCopies ? "checkmark" : "copy-outline"}
+                onPress={() =>
+                  void Clipboard.setStringAsync(String(c.quote.total)).then(
+                    () => {
+                      setAmountCopies((n) => n + 1);
+                      haptic.select();
+                      AccessibilityInfo.announceForAccessibility(t("Nominal disalin", "Amount copied"));
+                    },
+                    () => toast.show({ message: t("Belum bisa menyalin nominal. Coba lagi.", "Couldn't copy the amount. Try again."), tone: "error" }),
+                  )
+                }
+              />
             </View>
-            {until ? (
-              <Text variant="caption" testID="bayar-until">
-                {t(`Bayar sebelum ${until}`, `Pay before ${until.replace(".", ":")}`)}
-              </Text>
-            ) : null}
-            </>
           ) : null}
+          <HoldCountdown expiresAtMs={expiresAtMs} until={until} t={t} />
         </View>
 
         {instructions?.kind === "qris" ? (
@@ -472,6 +551,33 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
                 <Text style={{ flex: 1 }}>{s}</Text>
               </View>
             ))}
+          </View>
+        ) : null}
+
+        {direct && instructions && allMethods.length > 1 ? (
+          <View testID="bayar-switch-method" style={{ gap: 8 }}>
+            <Button
+              variant="text"
+              label={t("Mau pakai cara bayar lain?", "Want a different payment method?")}
+              onPress={() => setShowSwitchInfo((v) => !v)}
+              style={{ alignSelf: "flex-start" }}
+            />
+            {showSwitchInfo ? (
+              <Card testID="bayar-switch-info" tone="sage" style={{ gap: 4 }}>
+                <Text variant="bodyStrong">{t("Cara bayar sudah dikunci untuk kode ini", "Payment method is locked for this code")}</Text>
+                <Text variant="meta">
+                  {until
+                    ? t(
+                        `Kode ${lockedMethodName || "bayar"} ini aktif sampai ${until} supaya tidak terjadi bayar ganda. Kalau belum membayar, kamu bisa tunggu sampai ${until} lalu pilih cara bayar lain.`,
+                        `This ${lockedMethodName || "payment"} code stays active until ${until.replace(".", ":")} to prevent double payment. If you haven't paid, wait until ${until.replace(".", ":")} to start again with another method.`,
+                      )
+                    : t(
+                        `Kode ${lockedMethodName || "bayar"} ini sudah aktif supaya tidak terjadi bayar ganda. Kalau belum membayar, tunggu waktu bayar selesai lalu pilih cara bayar lain.`,
+                        `This ${lockedMethodName || "payment"} code is already active to prevent double payment. If you haven't paid, wait until the timer ends to choose another method.`,
+                      )}
+                </Text>
+              </Card>
+            ) : null}
           </View>
         ) : null}
 
@@ -547,6 +653,21 @@ const useStyles = themedStyles((c) => ({
     borderRadius: 14,
     borderCurve: "continuous",
     backgroundColor: c.sage,
+  },
+  holdTrack: {
+    width: "100%",
+    maxWidth: 240,
+    height: 4,
+    borderRadius: 2,
+    borderCurve: "continuous",
+    backgroundColor: c.line,
+    overflow: "hidden",
+    marginTop: 4,
+  },
+  holdFill: {
+    height: "100%",
+    borderRadius: 2,
+    borderCurve: "continuous",
   },
   va: { fontSize: 26, fontFamily: fontFor("800"), color: c.charcoal, fontVariant: ["tabular-nums"], letterSpacing: 1 },
   step: { flexDirection: "row", gap: 10, alignItems: "flex-start" },

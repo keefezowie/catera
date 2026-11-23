@@ -667,11 +667,11 @@ describe("the live slot", () => {
     const row = slot.getByTestId("live-slot-row");
     // A screen reader hears the rest too: the link is not only a touch target.
     expect(row.props.accessibilityLabel).toBe(
-      "Pilih menu Selasa 13 Okt, Makan Siang Kantor · sebelum Senin 17.00, Pilih, 4 hal lainnya",
+      "Pilih menu Selasa 13 Okt, Makan Siang Kantor · sebelum Senin 17.00, Pilih, 4 lainnya",
     );
     expect(slot.getByText("Pilih menu Selasa 13 Okt")).toBeTruthy();
     expect(slot.getByTestId("waiting-action").props.children).toBe("Pilih");
-    expect(slot.getByText("4 hal lainnya")).toBeTruthy();
+    expect(slot.getByText("4 lainnya")).toBeTruthy();
     // Nothing else of the list stays on Beranda.
     expect(screen.queryByTestId("waiting-list")).toBeNull();
     expect(screen.queryByText(/^Pilih menu (Rabu|3 hari)/)).toBeNull();
@@ -685,7 +685,7 @@ describe("the live slot", () => {
     expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-kantor?date=2026-10-13&meal=lunch");
   });
 
-  it("n hal lainnya opens the full list", async () => {
+  it("n lainnya opens the full list", async () => {
     const { state, actions } = fiveWaiting();
     await mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
     const link = await screen.findByTestId("live-slot-more");
@@ -703,18 +703,18 @@ describe("the live slot", () => {
     expect(router.push).toHaveBeenCalledTimes(2);
     // TalkBack reaches the same link as an action on the row.
     const row = screen.getByTestId("live-slot-row");
-    expect(row.props.accessibilityActions).toEqual([{ name: "more", label: "4 hal lainnya" }]);
+    expect(row.props.accessibilityActions).toEqual([{ name: "more", label: "4 lainnya" }]);
     await fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: "more" } });
     expect(router.push).toHaveBeenCalledTimes(3);
     expect(router.push).toHaveBeenLastCalledWith("/perlu-diurus");
   });
 
-  it("one waiting item has no n hal lainnya, and its action keeps its side effect", async () => {
+  it("one waiting item has no n lainnya, and its action keeps its side effect", async () => {
     const { runtime, usage } = runtimeWith(async () => oneWaiting());
     await mount(runtime, v2);
     const slot = within(await screen.findByTestId("live-slot"));
     expect(slot.getByText("Makan Siang Rumahan, sisa 2 hari")).toBeTruthy();
-    expect(slot.queryByText(/hal lainnya/)).toBeNull();
+    expect(slot.queryByText(/lainnya/)).toBeNull();
     expect(slot.queryByTestId("live-slot-more")).toBeNull();
     expect(screen.getByTestId("live-slot-row").props.accessibilityActions).toBeUndefined();
     // Only the renewal is charcoal; it is the urgent one.
@@ -729,14 +729,25 @@ describe("the live slot", () => {
     await screen.findByTestId("plate-hero");
     await settle();
     expect(screen.queryByTestId("live-slot")).toBeNull();
-    expect(screen.queryByText(/hal lainnya/)).toBeNull();
+    expect(screen.queryByText(/lainnya/)).toBeNull();
   });
 
-  it("keeps a 32 section gap after the hero and before the next block", async () => {
+  it("keeps a 32 section gap after the hero for non-urgent items", async () => {
+    const { state, actions } = fiveWaiting();
+    await mount(runtimeWith(async () => state, async () => ({ total: actions.length, items: actions })).runtime, v2);
+    // The page body gaps blocks by 16; a non-urgent slot stays below the hero and adds 16 more.
+    expect(StyleSheet.flatten((await screen.findByTestId("live-slot")).props.style).marginTop).toBe(16);
+  });
+
+  it("elevates urgent renewal items above the hero with warm cream emphasis", async () => {
     const { runtime } = runtimeWith(async () => oneWaiting());
     await mount(runtime, v2);
-    // The page body gaps blocks by 16; the slot adds 16 more.
-    expect(StyleSheet.flatten((await screen.findByTestId("live-slot")).props.style).marginTop).toBe(16);
+    const slotStyle = StyleSheet.flatten((await screen.findByTestId("live-slot")).props.style);
+    expect(slotStyle).toMatchObject({
+      marginTop: 0,
+      backgroundColor: light.cream,
+      borderColor: light.attentionBorder,
+    });
   });
 
   it("a review is the slot only when it is first; until its mark is read it is not counted", async () => {
@@ -745,8 +756,8 @@ describe("the live slot", () => {
     await mount(runtimeWith(async () => state).runtime, v2);
     const slot = within(await screen.findByTestId("live-slot"));
     // The renewal leads; once the mark is read the review row is the one more.
-    expect(await slot.findByText("1 hal lainnya")).toBeTruthy();
-    await fireEvent.press(slot.getByText("1 hal lainnya"));
+    expect(await slot.findByText("1 lainnya")).toBeTruthy();
+    await fireEvent.press(slot.getByText("1 lainnya"));
     expect(router.push).toHaveBeenLastCalledWith("/perlu-diurus");
   });
 
@@ -764,7 +775,7 @@ describe("the live slot", () => {
     const slot = within(await screen.findByTestId("live-slot"));
     expect(slot.getByText("Paket Sehat, sisa 2 hari")).toBeTruthy();
     // The renewal, the trial: one more.
-    expect(slot.getByText("1 hal lainnya")).toBeTruthy();
+    expect(slot.getByText("1 lainnya")).toBeTruthy();
     expect(screen.queryByText(/^Pilih menu/)).toBeNull();
   });
 
@@ -1201,7 +1212,7 @@ describe("the lower blocks in dark and at Malam", () => {
     await mount(runtimeWith(async () => state).runtime, { v2: true, scheme, now: mood === "siang" ? morningOf(DEMO_TODAY) : eveningOf(DEMO_TODAY) });
     const palette = nativeThemes[scheme];
     const slot = await screen.findByTestId("live-slot");
-    expect(StyleSheet.flatten(slot.props.style).backgroundColor).toBe(palette.surface);
+    expect(StyleSheet.flatten(slot.props.style).backgroundColor).toBe(palette.cream);
     expect(color(within(slot).getByTestId("waiting-action"))).toBe(palette.charcoal);
     const days = await daysBlock();
     expect(color(days.getByText("Lihat jadwal"))).toBe(palette.forest);

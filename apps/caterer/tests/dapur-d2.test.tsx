@@ -261,6 +261,7 @@ describe("the cooked summary", () => {
     day.operationalDate = TODAY;
     day.deliveries = day.deliveries.map((x) => ({ ...x, status: "out_for_delivery", meals: [{ meal: "lunch", status: "out_for_delivery" }] })) as typeof day.deliveries;
     await show(runtimeWith({ sellerOperations: jest.fn(async () => day) }), <TodayScreen />);
+    await fireEvent.press(within(await screen.findByTestId("today-mode-switch")).getByText(/^Masak/));
     const summary = await screen.findByTestId("cooked-summary");
     expect(flat(within(summary).getByText(/Sudah dimasak · \d+ porsi/))).toMatchObject({ fontVariant: expect.arrayContaining(["tabular-nums"]) });
   });

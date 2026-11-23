@@ -213,7 +213,7 @@ export function AuthCallback() {
           onResend={() => void resend()}
           onChangeEmail={enterEmail}
         />
-        <Button variant="text" label={t("Kembali ke Masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={toSignIn} />
+        <Button variant="text" label={t("Kembali ke halaman masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={toSignIn} />
       </AuthScreen>
     );
   return (

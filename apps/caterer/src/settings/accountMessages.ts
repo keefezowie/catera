@@ -13,8 +13,8 @@ export function accountMessage(error: unknown, t: T, locale: "id" | "en", fallba
   const known: Partial<Record<AccountErrorCode, string>> = {
     INVALID_INPUT: t("Periksa isiannya, lalu coba lagi.", "Check what you typed, then try again."),
     INVALID_PHONE: t(
-      "Nomor HP belum benar. Tulis nomor Indonesia, misalnya 0812...",
-      "That phone number is not right. Write an Indonesian number, such as 0812...",
+      "Nomor WhatsApp belum benar. Tulis nomor Indonesia, misalnya 0812...",
+      "That WhatsApp number is not right. Write an Indonesian number, such as 0812...",
     ),
     NOT_CONFIGURED: t("Ini belum tersedia di versi aplikasi ini.", "Not available in this app version."),
     UNAUTHORIZED: t("Sesi kamu habis. Masuk lagi.", "Your session expired. Sign in again."),

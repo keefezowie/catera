@@ -68,6 +68,24 @@ export type WaitingRow = {
   onPress: () => void;
 };
 
+/** A menu choice whose cutoff is within 24 hours is urgent and elevates above Beranda's hero. */
+const URGENT_MENU_MS = 24 * 3600_000;
+
+export function isUrgentItem(item: WaitingItem, now: Date): boolean {
+  if (item.kind === "renew") return true;
+  if (item.kind === "menu" && item.deadline) {
+    const remaining = Date.parse(item.deadline) - now.getTime();
+    return Number.isFinite(remaining) && remaining > 0 && remaining <= URGENT_MENU_MS;
+  }
+  return false;
+}
+
+/** True when the leading waiting item on Beranda needs the customer right now (ending renewal or menu due < 24h). */
+export function hasUrgentWaiting(state: CustomerState, actions: CustomerActionItem[] | null, now: Date): boolean {
+  const first = waitingItems(state, actions, now)[0];
+  return !!first && isUrgentItem(first, now);
+}
+
 /**
  * Everything that waits on the customer as rows, in the domain's order (menus to choose, plans to renew, trials ending,
  * then the review). The saved offline copy gives no menu rows (they come from the action read) and no review (it cannot
@@ -123,6 +141,7 @@ export function useWaitingRows({
           title: menuTitle(item.dates, t),
           detail: deadline ? `${item.packageName} · ${t("sebelum", "before")} ${deadline}` : item.packageName,
           action: t("Pilih", "Choose"),
+          urgent: isUrgentItem(item, now),
           onPress: () => openLink(customerLink(item.href)),
         };
       }

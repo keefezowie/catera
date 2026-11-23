@@ -604,9 +604,15 @@ const delivered: MealState = { status: "delivered" };
 const failed: MealState = { status: "issue" };
 const LINE = "Tandai Sampai pakai foto bukti. Pelanggan lalu konfirmasi. Kalau tidak ada laporan, pengantaran otomatis dianggap sampai.";
 
+const openDeliver = async () =>
+  fireEvent.press(within(await screen.findByTestId("today-mode-switch")).getByText(/^(Antar|Deliver)/));
+const openCook = async () =>
+  fireEvent.press(within(await screen.findByTestId("today-mode-switch")).getByText(/^(Masak|Cook)/));
+
 describe("Urutan antar", () => {
   it("shows the first three stops as numbered rows and reveals the rest on Lihat alamat lainnya", async () => {
     await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await openDeliver();
     expect(await screen.findByText("Urutan antar")).toBeTruthy();
     const first = screen.getByTestId("stop-1");
     expect(within(first).getByText("1")).toBeTruthy();
@@ -624,6 +630,7 @@ describe("Urutan antar", () => {
 
   it("says how many addresses are folded away, and reveals all of them", async () => {
     await renderToday(runtimeWith(async () => manyStops(12)));
+    await openDeliver();
     await fireEvent.press(await screen.findByText("Lihat 9 alamat lainnya"));
     expect(screen.getByTestId("stop-12")).toBeTruthy();
   });
@@ -643,9 +650,11 @@ describe("Urutan antar", () => {
         </MoodProvider>
       </MobileProvider>,
     );
+    await openDeliver();
     await fireEvent.press(await screen.findByText("Lihat 2 alamat lainnya"));
     expect(screen.getByTestId("stop-5")).toBeTruthy();
     await fireEvent.press(screen.getByLabelText("ke Malam"));
+    await openDeliver();
     // The dinner session has the same five stops, but its own order starts with the first three.
     expect(await screen.findByText("Lihat 2 alamat lainnya")).toBeTruthy();
     expect(screen.queryByTestId("stop-5")).toBeNull();
@@ -654,6 +663,7 @@ describe("Urutan antar", () => {
 
   it("keeps the whole address in the row's spoken label while the visible address is one line", async () => {
     await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await openDeliver();
     const info = await screen.findByTestId("stop-1-info");
     expect(info.props.accessibilityLabel).toMatch(
       /^1\. Bu Sari Wulandari, 2 porsi · Makan Siang Rumahan, Jl\. Melati \d+, Tebet$/,
@@ -665,6 +675,7 @@ describe("Urutan antar", () => {
     const day = kitchenDay([scheduled]);
     day.deliveries[0].address.instructions = "Pagar hijau, titip di pos satpam";
     await renderToday(runtimeWith(async () => day));
+    await openDeliver();
     const note = await screen.findByText("Pagar hijau, titip di pos satpam");
     // One more meta line in the stop's own text column, so the row grows by 18 and no more.
     expect(note.props.numberOfLines).toBe(1);
@@ -677,6 +688,7 @@ describe("Urutan antar", () => {
     const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     const day = kitchenDay([scheduled]);
     await renderToday(runtimeWith(async () => day));
+    await openDeliver();
     await fireEvent.press(await screen.findByLabelText("Buka peta Keluarga Hartono"));
     expect(open).toHaveBeenCalledTimes(1);
     expect(open).toHaveBeenCalledWith(stopsOf(day).find((s) => s.name === "Keluarga Hartono")!.mapsUrl);
@@ -687,6 +699,7 @@ describe("Urutan antar", () => {
     // One day for every read, as the server answers: the sheet reads it again and must find the same stop.
     const day = kitchenDay([scheduled]);
     await renderToday(runtimeWith(async () => day));
+    await openDeliver();
     const more = within(await screen.findByTestId("stop-1")).getByLabelText(
       "Laporkan masalah atau pindah tanggal: Bu Sari Wulandari",
     );
@@ -701,6 +714,7 @@ describe("Urutan antar", () => {
     // One day for every read, as the server answers: the sheet reads it again and must find the same stop.
     const day = kitchenDay([scheduled]);
     await renderToday(runtimeWith(async () => day));
+    await openDeliver();
     // Keluarga Hartono's change deadline has passed.
     await fireEvent.press(within(await screen.findByTestId("stop-3")).getByLabelText("Laporkan masalah: Keluarga Hartono"));
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
@@ -709,6 +723,7 @@ describe("Urutan antar", () => {
 
   it("names the customer on every ellipsis, so no two buttons read the same", async () => {
     await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await openDeliver();
     await screen.findByTestId("stop-1");
     const labels = screen
       .getAllByLabelText(/^(Laporkan masalah|Pindah tanggal)/)
@@ -725,6 +740,7 @@ describe("Urutan antar", () => {
     const runtime = runtimeWith(async () => day);
     store().set(runtime.storageKey("locale"), "en");
     await renderToday(runtime);
+    await openDeliver();
     expect(
       within(await screen.findByTestId("stop-1")).getByLabelText(
         "Report a problem or move the date: Bu Sari Wulandari",
@@ -739,6 +755,7 @@ describe("Urutan antar", () => {
     await renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     await screen.findByText("Mulai masak");
     await fireEvent.press(dayTab(1));
+    await openDeliver();
     // Tomorrow's day is read before its first stop shows; the checklist beside it reads its note too, so let that settle.
     expect(
       await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"),
@@ -810,6 +827,7 @@ describe("Buka semua di Peta", () => {
     const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     const day = kitchenDay([scheduled]);
     await renderToday(runtimeWith(async () => day));
+    await openDeliver();
     await fireEvent.press(await screen.findByText("Buka semua di Peta"));
     expect(open).toHaveBeenCalledWith(routeMapsUrl(stopsOf(day))!.url);
     open.mockRestore();
@@ -819,6 +837,7 @@ describe("Buka semua di Peta", () => {
     const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     const day = manyStops(12);
     await renderToday(runtimeWith(async () => day));
+    await openDeliver();
     await fireEvent.press(await screen.findByText("Buka 10 alamat pertama di Peta"));
     expect(screen.queryByText("Buka semua di Peta")).toBeNull();
     const link = routeMapsUrl(stopsOf(day))!;
@@ -832,6 +851,7 @@ describe("Buka semua di Peta", () => {
     const runtime = runtimeWith(async () => manyStops(12));
     store().set(runtime.storageKey("locale"), "en");
     await renderToday(runtime);
+    await openDeliver();
     expect(await screen.findByText("Open the first 10 addresses in Maps")).toBeTruthy();
   });
 });
@@ -840,6 +860,7 @@ describe("Bagikan rute ke WhatsApp", () => {
   it("still shares the route text", async () => {
     const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
     await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await openDeliver();
     await fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(share.mock.calls[0][0]).toEqual(expect.objectContaining({ message: expect.stringMatching(/^\*Antar siang/) }));
@@ -848,12 +869,13 @@ describe("Bagikan rute ke WhatsApp", () => {
 });
 
 describe("the order across the stages", () => {
-  it("sits below the checklist before departure", async () => {
+  it("opens on Masak before departure and lets the cook switch to Antar anytime", async () => {
     await renderToday(runtimeWith(async () => kitchenDay([cooking])));
-    await screen.findByText("Urutan antar");
-    const [list, order] = readingOrder(["cooking-list", "delivery-order"]);
-    expect(list).toBeGreaterThan(0);
-    expect(order).toBeGreaterThan(list);
+    expect(await screen.findByTestId("cooking-list")).toBeTruthy();
+    expect(screen.queryByTestId("delivery-order")).toBeNull();
+    await openDeliver();
+    expect(await screen.findByTestId("delivery-order")).toBeTruthy();
+    expect(screen.queryByTestId("cooking-list")).toBeNull();
   });
 
   it("leads alone after departure: no checklist, the header and track say it is out, and the line explains arrival", async () => {
@@ -876,10 +898,12 @@ describe("the order across the stages", () => {
   it("keeps Hari ini in the header before departure, and says nothing about arrival on tomorrow", async () => {
     await renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
     expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
+    await openDeliver();
     expect(screen.getByText(LINE)).toBeTruthy();
     await fireEvent.press(dayTab(1));
     // Wait for tomorrow's own day: the header names it before its stops are read.
     await screen.findByText("Dapur Bu Rina · Besok");
+    await openDeliver();
     await screen.findByLabelText(/^Pindah tanggal: /);
     await act(async () => undefined);
     expect(screen.queryByText(LINE)).toBeNull();
@@ -1073,6 +1097,7 @@ describe("Hari ini across a stage change", () => {
     const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
     let served = longRoute([scheduled]);
     await renderToday(runtimeWith(async () => served));
+    await openDeliver();
     await fireEvent.press(await screen.findByText("Lihat 1 alamat lainnya"));
     expect(screen.getByTestId("stop-4")).toBeTruthy();
     await fireEvent.press(screen.getByText("Bagikan rute ke WhatsApp"));
@@ -1325,6 +1350,7 @@ describe("Hari ini on the Dapur scale", () => {
     it("heads the run with its count and Pilih, and lists 64 rows, three stops then a link", async () => {
       // Pilih is offered once a stop can leave or arrive, so the meal is cooking.
       await renderToday(runtimeWith(async () => sixStops([cooking])));
+      await openDeliver();
       const run = await screen.findByTestId("delivery-order");
       const header = within(run).getByTestId("section-header");
       expect(within(header).getByText("Urutan antar")).toBeTruthy();
@@ -1341,6 +1367,7 @@ describe("Hari ini on the Dapur scale", () => {
 
     it("holds the map and the … in one 96 column at the same place on every row", async () => {
       await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await openDeliver();
       await screen.findByTestId("stop-1");
       for (const n of [1, 2, 3]) {
         const row = screen.getByTestId(`stop-${n}`);
@@ -1357,6 +1384,7 @@ describe("Hari ini on the Dapur scale", () => {
 
     it("holds a stop to one title line (name · n porsi) and one meta line (package · address, cut at the address)", async () => {
       await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await openDeliver();
       const title = await screen.findByTestId("stop-1-title");
       expect(title.props.numberOfLines).toBe(1);
       expect(box(title)).toMatchObject({ fontSize: 17, lineHeight: 22 });
@@ -1371,6 +1399,7 @@ describe("Hari ini on the Dapur scale", () => {
       const day = kitchenDay([scheduled]);
       day.deliveries[0].address.instructions = "Pagar hijau, titip di pos satpam";
       await renderToday(runtimeWith(async () => day));
+      await openDeliver();
       await screen.findByTestId("stop-1");
       // Jest has no layout engine: a row is its 8 + 8 padding around the lines it holds, never under 64, and every line
       // is held to one (a line that may wrap has no height to add up).
@@ -1389,6 +1418,7 @@ describe("Hari ini on the Dapur scale", () => {
 
     it("stacks Maps and WhatsApp as two full-width 50 secondary buttons, the route caption under them", async () => {
       await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+      await openDeliver();
       const maps = await screen.findByRole("button", { name: "Buka semua di Peta" });
       const share = screen.getByRole("button", { name: "Bagikan rute ke WhatsApp" });
       for (const button of [maps, share]) expect(box(button).minHeight).toBe(50);
@@ -1404,33 +1434,33 @@ describe("Hari ini on the Dapur scale", () => {
   describe("after departure", () => {
     const out = { status: "out_for_delivery", cooking_started_at: cooking.cooking_started_at, departed_at: "2026-10-08T03:00:00Z" };
 
-    it("folds the cooking part into one 48 row and starts the run under it", async () => {
+    it("auto-selects Antar after departure and shows the 48 cooked summary when switching to Masak", async () => {
       await renderToday(runtimeWith(async () => kitchenDay([out])));
-      const summary = await screen.findByTestId("cooked-summary");
-      expect(within(summary).getByText("Sudah dimasak · 34 porsi")).toBeTruthy();
-      expect(box(summary).minHeight).toBe(48);
+      expect(await screen.findByText("Urutan antar")).toBeTruthy();
       expect(screen.queryByText("Daftar masak")).toBeNull();
       expect(screen.queryByText("Per paket")).toBeNull();
       // The figures and the track stay in the header, and the header says it is out.
       expect(screen.getByTestId("session-figures")).toBeTruthy();
       expect(screen.getByText(/Sedang diantar/)).toBeTruthy();
-      expect(screen.getByText("Urutan antar")).toBeTruthy();
+      // Switching to Masak shows the 48 cooked summary row at the top.
+      await openCook();
+      const summary = await screen.findByTestId("cooked-summary");
+      expect(within(summary).getByText("Sudah dimasak · 34 porsi")).toBeTruthy();
+      expect(box(summary).minHeight).toBe(48);
     });
 
-    it("leads with Antar and folds the 48 cooked row under it, one 24 gap apart", async () => {
+    it("separates Masak and Antar cleanly before and after departure with a 24 section gap", async () => {
       const first = await renderToday(runtimeWith(async () => kitchenDay([scheduled])));
       const card = await screen.findByTestId("session-card");
-      // Before: the cooking list opens the session card, and the run is far below it.
-      const topOf = (root: Node, id: string) =>
+      const topOf = (root: Node) =>
         root.queryAll(() => true, { includeSelf: true }).filter((n) => ["cooking-list", "cooked-summary", "delivery-order"].includes(n.props.testID));
-      expect(topOf(card, "").map((n) => n.props.testID)).toEqual(["cooking-list", "delivery-order"]);
+      // Before departure: defaults to Masak (cooking-list only).
+      expect(topOf(card).map((n) => n.props.testID)).toEqual(["cooking-list"]);
       await first.unmount();
       await renderToday(runtimeWith(async () => kitchenDay([out])));
       const after = await screen.findByTestId("session-card");
-      // After: stops are out, so Antar opens the card and the folded 48 cooked row follows it across the 24 section gap.
-      const parts = topOf(after, "");
-      expect(parts.map((n) => n.props.testID)).toEqual(["delivery-order", "cooked-summary"]);
-      expect(box(parts[1]).minHeight).toBe(48);
+      // After departure: defaults to Antar (delivery-order only), keeping the 24 section gap.
+      expect(topOf(after).map((n) => n.props.testID)).toEqual(["delivery-order"]);
       expect(box(after).gap).toBe(24);
     });
   });

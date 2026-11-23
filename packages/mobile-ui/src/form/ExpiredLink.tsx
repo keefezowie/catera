@@ -52,7 +52,7 @@ export function ExpiredLink({
         ) : (
           <Button label={t("Masukkan email", "Enter email")} onPress={onEnterEmail} />
         )}
-        <Button variant="text" label={t("Kembali ke Masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={onBack} />
+        <Button variant="text" label={t("Kembali ke halaman masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={onBack} />
       </View>
     </AuthScreen>
   );

@@ -28,7 +28,7 @@ import {
   warmSuccessRig,
   withAlpha,
 } from "@catera/mobile-ui";
-import { emptyPackage, formFromOffer, nutritionIssues, packageIssues, quickOffer, type PackageForm } from "./package";
+import { draftIssues, emptyPackage, formFromOffer, nutritionIssues, packageIssues, quickOffer, type PackageForm } from "./package";
 import { NutritionFields } from "./NutritionFields";
 import { canAskReview, useAskReview } from "./kitchen";
 import { PackagePhoto } from "./PackagePhoto";
@@ -48,17 +48,19 @@ function Section({ title, children, testID }: { title: string; children: ReactNo
 }
 
 /**
- * One screen for a new package: what it is, what's in a portion, price, days and how many per day. `from` prefills a
- * copy. Saving publishes it. The caterer's first published package (`firstPublish`, from the package read) ends on the
- * success beat with confetti, "Paket diterbitkan", and Selesai goes back; every later one goes back at once with the
- * toast "Paket diterbitkan". Null (the read has not answered) is a later one.
+ * One screen for a new package or an editable draft: what it is, what's in a portion, price, days and how many per day.
+ * `from` prefills a copy; `editing` edits an existing draft in place. Caterers can save a partial draft ("Simpan draf")
+ * or publish ("Terbitkan paket").
  */
 export function PackageEditor({
   from,
+  editing,
   firstPublish = null,
   kitchenStatus,
 }: {
   from?: SellerOffer;
+  /** An existing draft package being edited in place (keeps its id and slug). */
+  editing?: SellerOffer;
   firstPublish?: boolean | null;
   /** The kitchen's review state; a first package in a kitchen not yet reviewed ends on the way to ask for the review. */
   kitchenStatus?: string;
@@ -68,16 +70,17 @@ export function PackageEditor({
   const palette = useColors();
   const target = useTouchTarget();
   const catererId = actor?.catererId ?? "";
-  const [form, setForm] = useState<PackageForm>(() => (from ? formFromOffer(from) : emptyPackage));
+  const source = editing ?? from;
+  const [form, setForm] = useState<PackageForm>(() => (source ? formFromOffer(source) : emptyPackage));
   // A copy says so once it is really here, filled in this editor: never on the tap, over a package that is still
   // loading, gone or failed to load. Once per copy (Paket baru keys the editor by the package it copies).
   const toast = useToast();
   const copied = useRef(false);
   useEffect(() => {
-    if (!from || copied.current) return;
+    if (!from || editing || copied.current) return;
     copied.current = true;
     toast.show({ message: t("Paket disalin", "Package copied"), tone: "success", haptic: "none" });
-  }, [from, toast, t]);
+  }, [from, editing, toast, t]);
   const [shown, setShown] = useState<ReturnType<typeof packageIssues>>({});
   const [giziShown, setGiziShown] = useState<ReturnType<typeof nutritionIssues>>({});
   // Counts the saves that were held back by a missing field, so the same message is announced again on a second try.
@@ -91,8 +94,8 @@ export function PackageEditor({
   useEffect(() => warmSuccessRig(), []);
   // The first publish, once saved: the beat replaces the form.
   const [published, setPublished] = useState(false);
-  // A later publish: set when the save is done, so the guard is off before the screen goes back.
-  const [saved, setSaved] = useState(false);
+  // A later publish or draft save: set when the save is done, so the guard is off before the screen goes back.
+  const [savedKind, setSavedKind] = useState<"" | "published" | "draft">("");
   const initial = useRef(JSON.stringify(form));
   const set = <K extends keyof PackageForm>(key: K, value: PackageForm[K]) => setForm((f) => ({ ...f, [key]: value }));
   const failed = (e: unknown, fallback: string) =>
@@ -131,19 +134,21 @@ export function PackageEditor({
   const summary = [price !== null ? `${currency(price, locale)} ${t("per porsi", "per portion")}` : "", dayNames.join(", ")]
     .filter(Boolean)
     .join(" · ");
+  const slugFor = () =>
+    editing?.slug || `${form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "paket"}-${slugSuffix.current}`;
 
-  const [busy, save] = useBusy(async () => {
+  const [busyPublish, save] = useBusy(async () => {
     const issues = packageIssues(form, t);
     setShown(issues);
     setGiziShown(nutritionIssues(form.nutrition, t));
     setAttempt((n) => n + 1);
     if (Object.keys(issues).length) return;
-    // A published package's terms are locked and the app cannot archive it.
+    // A published package's terms are locked, though it can be paused or copied later.
     const go = await confirm({
       title: t("Terbitkan paket ini?", "Publish this package?"),
       message: t(
-        `${summary}. Setelah terbit, paket tidak bisa diubah atau diarsipkan.`,
-        `${summary}. Once published, the package can't be changed or archived.`,
+        `${summary}. Setelah terbit, harga dan isi paket tetap sama untuk pembeli. Kamu tetap bisa menjeda atau menyalinnya kapan saja.`,
+        `${summary}. Once published, price and contents stay fixed for buyers. You can still pause or copy it anytime.`,
       ),
       cancelLabel: t("Batal", "Cancel"),
       confirmLabel: t("Terbitkan", "Publish"),
@@ -154,18 +159,41 @@ export function PackageEditor({
     setError("");
     try {
       await command("package.save", {
+        ...(editing ? { id: editing.id } : {}),
         catererId,
-        slug: `${form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "paket"}-${slugSuffix.current}`,
-        offer: quickOffer(form),
+        slug: slugFor(),
+        offer: quickOffer(form, false),
       });
       if (first) setPublished(true);
-      else setSaved(true);
+      else setSavedKind("published");
     } catch (e) {
       setError(failed(e, t("Paket belum tersimpan. Coba lagi.", "Couldn't save the package. Try again.")));
     }
   });
 
-  useUnsavedGuard(!busy && !published && !saved && JSON.stringify(form) !== initial.current, t("paket", "package"), {
+  const [busyDraft, saveDraft] = useBusy(async () => {
+    const issues = draftIssues(form, t);
+    setShown(issues);
+    setGiziShown(nutritionIssues(form.nutrition, t));
+    setAttempt((n) => n + 1);
+    if (Object.keys(issues).length) return;
+    setError("");
+    try {
+      await command("package.save", {
+        ...(editing ? { id: editing.id } : {}),
+        catererId,
+        slug: slugFor(),
+        offer: quickOffer(form, true),
+      });
+      setSavedKind("draft");
+    } catch (e) {
+      setError(failed(e, t("Draf paket belum tersimpan. Coba lagi.", "Couldn't save the draft. Try again.")));
+    }
+  });
+
+  const busy = busyPublish || busyDraft;
+
+  useUnsavedGuard(!busy && !published && !savedKind && JSON.stringify(form) !== initial.current, t("paket", "package"), {
     t,
     nounEn: "package",
     voice: "kamu",
@@ -176,11 +204,14 @@ export function PackageEditor({
   });
   const closed = useRef(false);
   useEffect(() => {
-    if (!saved || closed.current) return;
+    if (!savedKind || closed.current) return;
     closed.current = true;
     router.back();
-    toast.show({ message: t("Paket diterbitkan", "Package published"), tone: "success" });
-  }, [saved, toast, t]);
+    toast.show({
+      message: savedKind === "draft" ? t("Draf paket disimpan", "Package draft saved") : t("Paket diterbitkan", "Package published"),
+      tone: "success",
+    });
+  }, [savedKind, toast, t]);
 
   if (published) {
     // A kitchen Catera has not reviewed yet: the package is published but nobody sees it, so the next step is the review.
@@ -220,10 +251,14 @@ export function PackageEditor({
 
   return (
     <Screen
+      nativeTitle={editing ? editing.name : undefined}
       footer={
         <View style={{ gap: nativeLayout.space.sm }}>
           {error ? <FormError message={error} failureKey={attempt} testID="form-error-save" /> : null}
-          <Button label={t("Terbitkan paket", "Publish package")} busy={busy} disabled={uploading} onPress={() => void save()} />
+          <Button label={t("Terbitkan paket", "Publish package")} busy={busyPublish} disabled={uploading || busyDraft} onPress={() => void save()} />
+          <View testID="package-save-draft">
+            <Button variant="secondary" label={t("Simpan draf", "Save draft")} busy={busyDraft} disabled={uploading || busyPublish} onPress={() => void saveDraft()} />
+          </View>
         </View>
       }
     >

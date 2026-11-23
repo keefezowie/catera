@@ -408,10 +408,13 @@ describe("Pindah tanggal: the calendar", () => {
     { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
     { date: "2026-10-14", available: false, reason: "INVALID_DATE", remaining: 0 },
   ]);
+  const openDeliver = async () =>
+    fireEvent.press(within(await screen.findByTestId("today-mode-switch")).getByText(/^(Antar|Deliver)/));
   const openMove = async (command = jest.fn(async () => ({}))) => {
     const day = dayWith([waiting]);
     const runtime = runtimeFor(() => day, { command, deliveryAvailability: availability });
     await renderToday(runtime);
+    await openDeliver();
     await fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah atau pindah tanggal/));
     await fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
     await screen.findByTestId("calendar-grid");
@@ -451,6 +454,7 @@ describe("Pindah tanggal: the calendar", () => {
   it("the calendar is a root-stack sheet: the stop's tab sheet closes, then the root route opens", async () => {
     const runtime = runtimeFor(() => dayWith([waiting]), { deliveryAvailability: availability });
     await renderToday(runtime);
+    await openDeliver();
     await fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah atau pindah tanggal/));
     (router.back as jest.Mock).mockClear();
     (router.push as jest.Mock).mockClear();
@@ -591,6 +595,7 @@ describe("every awaiting command button is busy while it waits", () => {
   it("Tandai gagal diantar", async () => {
     const { command, release } = held();
     await renderToday(runtimeFor(() => dayWith([cooking]), { command }));
+    await fireEvent.press(within(await screen.findByTestId("today-mode-switch")).getByText(/^(Antar|Deliver)/));
     await fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah/));
     await fireEvent.press(await screen.findByRole("button", { name: "Tandai gagal diantar" }));
     await lastConfirm().press("Tandai gagal");
@@ -815,6 +820,7 @@ describe("residual layout: targets inside their parents, one-line status and met
 
   it("Urutan antar keeps its 48 header before anything can be picked, so Pilih arriving shifts nothing", async () => {
     await renderToday(runtimeFor(() => dayWith([waiting])));
+    await fireEvent.press(within(await screen.findByTestId("today-mode-switch")).getByText(/^(Antar|Deliver)/));
     await screen.findByText("Urutan antar");
     expect(screen.queryByRole("button", { name: "Pilih" })).toBeNull();
     const header = within(screen.getByTestId("delivery-order")).getByTestId("section-header");

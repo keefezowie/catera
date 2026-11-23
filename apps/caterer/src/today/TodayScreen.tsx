@@ -42,7 +42,7 @@ import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
 import { SelectionBar } from "./SelectionBar";
 import { useStopSelection, type Selection } from "./selection";
-import { cookingListShown, SessionCard } from "./SessionCard";
+import { cookingListShown, SessionCard, type TodayMode } from "./SessionCard";
 import { useTicks } from "./ticks";
 import { covers, validDay, WeekStrip, weekOf } from "./WeekStrip";
 import { useRouteView } from "./DeliveryOrder";
@@ -165,12 +165,14 @@ function KitchenAction({
   date,
   selection,
   onFailed,
+  onDeliverMode,
 }: {
   session: KitchenSession;
   catererId: string;
   date: string;
   selection: Selection;
   onFailed: () => void;
+  onDeliverMode?: () => void;
 }) {
   const { t, locale, command } = useMobile();
   const track = useTrack();
@@ -206,6 +208,7 @@ function KitchenAction({
       } else {
         haptic.success();
         track(cook ? "cook_started" : "depart_tapped");
+        if (!cook) onDeliverMode?.();
       }
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
@@ -299,7 +302,14 @@ function KitchenAction({
               : t(`Berangkat antar · ${portions} porsi`, `Head out · ${plural(portions, "portion")}`)
         }
         busy={busy}
-        onPress={() => (arrive ? selection.start() : void ask())}
+        onPress={() => {
+          if (arrive) {
+            onDeliverMode?.();
+            selection.start();
+          } else {
+            void ask();
+          }
+        }}
         spinnerTestID="sticky-action-spinner"
       />
     </View>
@@ -517,6 +527,11 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     !!session &&
     session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0 &&
     session.journey.stage !== "delivered";
+  const onTheRoad = !!session && session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0;
+  const modeKey = `${date}:${meal}`;
+  const [modePick, setModePick] = useState<{ key: string; mode: TodayMode } | null>(null);
+  const activeMode: TodayMode = picking ? "deliver" : modePick?.key === modeKey ? modePick.mode : onTheRoad ? "deliver" : "cook";
+  const setMode = (mode: TodayMode) => setModePick({ key: modeKey, mode });
   const dayWord = out
     ? t("Sedang diantar", "On the way")
     : today
@@ -561,7 +576,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     }
   }
 
-  const belanjaCard = !(loading || (ops && !done && session && cookingListShown(session)));
+  const belanjaCard = !(loading || (ops && !done && session && activeMode === "cook"));
   return (
     <Screen
       refreshControl={
@@ -592,6 +607,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             date={date}
             selection={selection}
             onFailed={() => void day.reload()}
+            onDeliverMode={() => setMode("deliver")}
           />
         ) : undefined
       }
@@ -720,6 +736,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                 caterer={ops.caterer.name}
                 selection={selection}
                 route={route}
+                mode={activeMode}
+                onModeChange={setMode}
               />
             ) : ops && (failedCount > 0 || otherSession) ? (
               // Rows marked "Gagal diantar" are not a quiet meal: their count stands alone, with no art. A meal with nothing

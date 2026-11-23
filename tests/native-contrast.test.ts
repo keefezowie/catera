@@ -29,7 +29,7 @@ const r2 = (a: string, b: string) => Math.round(contrastRatio(a, b) * 100) / 100
 
 describe("direction K theme tokens", () => {
   it("light keeps today's colours except the K keys", () => {
-    const changed = ["canvas", "surface", "sage", "line", "muted"];
+    const changed = ["canvas", "surface", "sage", "line", "muted", "fieldBorder", "secondaryBorder"];
     for (const [k, v] of Object.entries(colors)) {
       if (!changed.includes(k)) expect(nativeThemes.light[k as keyof typeof colors], k).toBe(v);
     }
@@ -37,6 +37,7 @@ describe("direction K theme tokens", () => {
       canvas: "#FFFFFF", surface: "#FFFFFF", sage: "#F4F4F2", line: "#E7E7E4", tabBar: "#FFFFFF",
       fill: "#F4F4F2", cardBorder: "#E7E7E4", cardShadow: "0 1px 2px rgba(0,0,0,0.04)",
       charcoal: "#2E2E2E", muted: "#555B54", forest: "#163D2E", cream: "#FFF7E9",
+      fieldBorder: "#858D80", secondaryBorder: "#858D80",
       sunrise: "#F47B2A", sunriseInk: "#9B4309", danger: "#A33024",
       overlayInk: "#1B1B1A", photoGround: "#2E2E2E",
     });
@@ -289,6 +290,14 @@ describe("derived steps and component rules", () => {
     it(`${theme}: controlRing reaches 3:1 on surface`, () => {
       expect(contrastRatio(p.controlRing, p.surface)).toBeGreaterThanOrEqual(3);
     });
+    if (theme === "light") {
+      it("light: fieldBorder and secondaryBorder reach 3:1 on surface and inputFill", () => {
+        expect(contrastRatio(p.fieldBorder, p.surface)).toBeGreaterThanOrEqual(3);
+        expect(contrastRatio(p.fieldBorder, p.inputFill)).toBeGreaterThanOrEqual(3);
+        expect(contrastRatio(p.secondaryBorder, p.surface)).toBeGreaterThanOrEqual(3);
+        expect(contrastRatio(p.secondaryBorder, p.fill)).toBeGreaterThanOrEqual(3);
+      });
+    }
     it(`${theme}: the danger confirm button reaches 4.5:1 and its icon 3:1 on the circle`, () => {
       expect(contrastRatio(p.cream, p.danger), "cream on danger").toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(p.danger, p.sage), "danger icon on sage").toBeGreaterThanOrEqual(3);

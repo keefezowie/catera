@@ -495,6 +495,41 @@ export function ImportAssistant() {
           <Button variant="secondary" label={t("Lihat pelanggan", "View customers")} onPress={() => goToTab("pelanggan")} />
         </SuccessBeat>
       ) : null}
+      {/* Calm 3-step guide so caterers always know where they are in the import flow. */}
+      <View
+        testID="import-steps"
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: nativeLayout.space.sm,
+          flexWrap: "wrap",
+        }}
+      >
+        {(
+          [
+            [1, t("1. Kirim catatan", "1. Send notes")],
+            [2, t("2. Cek data", "2. Check rows")],
+            [3, t("3. Simpan", "3. Save")],
+          ] as const
+        ).map(([stepNum, label]) => {
+          const activeStep = saved && !rows?.length ? 3 : rows === null ? 1 : clean > 0 && todo.length === 0 ? 3 : 2;
+          const active = stepNum === activeStep;
+          const done = stepNum < activeStep;
+          return (
+            <Text
+              key={stepNum}
+              variant={active ? "bodyStrong" : "meta"}
+              style={{
+                // forest: selection
+                color: active ? c.forest : done ? c.charcoal : c.muted,
+              }}
+            >
+              {label}
+              {stepNum < 3 ? "  ·" : ""}
+            </Text>
+          );
+        })}
+      </View>
       {rows === null ? (
         <>
           {waiting ? (
@@ -580,15 +615,22 @@ export function ImportAssistant() {
           </View>
           {(
             [
-              [t("Perlu dilengkapi", "To complete"), todo],
-              [t("Siap disimpan", "Ready to save"), ready],
+              ["todo", t("Perlu dilengkapi", "To complete"), todo],
+              ["ready", t("Siap disimpan", "Ready to save"), ready],
             ] as const
-          ).map(([title, group]) =>
+          ).map(([kind, title, group]) =>
             group.length ? (
-              <View key={title} style={{ gap: nativeLayout.groupGap }}>
-                <Text variant="heading" accessibilityRole="header" style={{ fontVariant: ["tabular-nums"] }}>
-                  {title} · {group.length}
-                </Text>
+              <View key={kind} style={{ gap: nativeLayout.groupGap }}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: nativeLayout.space.sm }}>
+                  <Text variant="heading" accessibilityRole="header" style={{ fontVariant: ["tabular-nums"], flex: 1 }}>
+                    {title} · {group.length}
+                  </Text>
+                  {kind === "todo" && todo.length > 1 ? (
+                    <View testID="import-complete-queue">
+                      <Button variant="text" label={t("Lengkapi berurutan", "Complete in order")} onPress={() => edit(todo[0].n)} />
+                    </View>
+                  ) : null}
+                </View>
                 <ListCard inset={0}>
                   {group.map((r) => (
                     <ReviewRow key={r.n} r={r} {...rowMotion(String(r.n))} />

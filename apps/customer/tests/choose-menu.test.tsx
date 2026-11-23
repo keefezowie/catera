@@ -14,9 +14,10 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   __esModule: true,
   default: () => mockWindow,
 }));
+let mockParams: { id: string; date?: string; meal: string } = { id: "subscription", date: "2026-11-03", meal: "lunch" };
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
-  useLocalSearchParams: () => ({ id: "subscription", date: "2026-11-03", meal: "lunch" }),
+  useLocalSearchParams: () => mockParams,
 }));
 // The real contexts stay (Screen reads whether a stack header sits above it); only the screen's own hooks are stubbed.
 const mockDispatch = jest.fn();
@@ -489,4 +490,46 @@ describe("polish: month arrows and the reason a button waits", () => {
     expect(review().props.accessibilityHint).toBeUndefined();
     expect(screen.queryByTestId("menu-review-hint")).toBeNull();
   });
+
+  it("defaults to the first unpicked editable day, copies previous day's dishes in 1 tap, and saves & advances to the next unpicked day", async () => {
+    mockParams = { id: "subscription", meal: "lunch" };
+    try {
+      const pickedDay = day({
+        date: "2026-11-03",
+        dayId: "day-1",
+        selectionStatus: "selected",
+        details: {
+          meal: "lunch",
+          name: "",
+          description: "",
+          image: "",
+          composition: offer.menus[0].composition,
+          items: [{ id: "main:0", name: "Ayam panggang", optionId: "option", optionVersion: 4 }],
+        },
+      });
+      const unpickedA = day({ date: "2026-11-04", dayId: "day-2", selectionStatus: "pending" });
+      const unpickedB = day({ date: "2026-11-05", dayId: "day-3", selectionStatus: "pending" });
+      (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(month([pickedDay, unpickedA, unpickedB]));
+      await renderMenu();
+      // Auto-selects Wednesday (first unpicked day) rather than already-picked Tuesday.
+      const wed = await screen.findByRole("button", { name: /Rabu 4 November/ });
+      expect(wed.props.accessibilityState.selected).toBe(true);
+      await fireEvent.press(screen.getByRole("button", { name: "Pilih hidangan" }));
+      // 1-tap copy from Tuesday's saved dish fills the choice and enables review.
+      const copyBtn = await screen.findByTestId("menu-copy-prev");
+      await fireEvent.press(within(copyBtn).getByRole("button", { name: /Sama seperti Selasa/ }));
+      const reviewBtn = screen.getByRole("button", { name: "Tinjau pilihan" });
+      expect(reviewBtn).toBeEnabled();
+      await fireEvent.press(reviewBtn);
+      // Review offers save-and-advance to Thursday (next unpicked day).
+      const saveAndNext = await screen.findByRole("button", { name: "Simpan & pilih Kamis" });
+      expect(screen.getByRole("button", { name: "Simpan saja" })).toBeTruthy();
+      await fireEvent.press(saveAndNext);
+      await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(screen.getByText(/Kamis 5 November/)).toBeTruthy());
+    } finally {
+      mockParams = { id: "subscription", date: "2026-11-03", meal: "lunch" };
+    }
+  });
 });
+

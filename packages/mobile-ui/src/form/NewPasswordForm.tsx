@@ -75,7 +75,7 @@ export function NewPasswordForm({
           <FormError message={action.message} failureKey={action.failures} testID="identity-error" retry={action.retryable ? () => void save() : undefined} />
         ) : null}
         <Button label={action.label(t("Simpan kata sandi", "Save password"))} busy={action.busy} disabled={action.wait > 0} onPress={press} />
-        {onBack ? <Button variant="text" label={t("Kembali ke Masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={onBack} /> : null}
+        {onBack ? <Button variant="text" label={t("Kembali ke halaman masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={onBack} /> : null}
       </View>
     </AuthScreen>
   );

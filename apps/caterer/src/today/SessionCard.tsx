@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Share, View } from "react-native";
 import * as Print from "expo-print";
 import {
@@ -8,7 +8,7 @@ import {
   type SellerOperationsState,
 } from "@catera/domain";
 import { useMobile, plural } from "@catera/mobile-core";
-import { DecorativeIcon, KeyValueRow, ListCard, RollingNumber, SectionHeader, Text, useColors } from "@catera/mobile-ui";
+import { DecorativeIcon, KeyValueRow, ListCard, RollingNumber, SectionHeader, Segmented, Text, useColors } from "@catera/mobile-ui";
 import { BelanjaLink } from "./BelanjaLink";
 import { CookingList } from "./CookingList";
 import { ActionPair, IconAction, SECTION_GAP, SUMMARY_HEIGHT, TextAction } from "./rows";
@@ -16,6 +16,8 @@ import type { Ticks } from "./ticks";
 import { DeliveryOrder, type RouteView } from "./DeliveryOrder";
 import type { Selection } from "./selection";
 import { pushScreen } from "../nav";
+
+export type TodayMode = "cook" | "deliver";
 
 /**
  * The slots nobody has filled yet, one entry per package ("2 lauk, 1 nasi, 1 sayur", biggest first). Packages are
@@ -52,11 +54,11 @@ export const cookingListShown = (session: KitchenSession) =>
   !["out_for_delivery", "arrived", "delivered"].includes(session.journey.stage);
 
 /**
- * One meal session of the day, as sections down the page (spec 3.1). Before departure: "Daftar masak" (the checklist, with
- * the lines about menus nobody has filled in directly under it) and "Per paket", then the delivery order. Once the meal is
- * out for delivery the cooking part folds into one 48 row, "Sudah dimasak · n porsi", and the order stands under it. The
- * session (its recap and stops, without the rows marked "Gagal diantar" or cancelled) comes from the screen, which also
- * owns the cook and depart actions and carries the count in its header.
+ * One meal session of the day, cleanly separated into two explicit modes:
+ * - `cook` (Masak): Daftar masak checklist, missing-menu reminders, and Per paket breakdown.
+ * - `deliver` (Antar): full Urutan antar route with area filters, 1-tap WhatsApp, 1-tap Sampai, Maps and WA route share.
+ * Defaults to `cook` while preparing and auto-selects `deliver` once stops head out (or while Pilih is active), while
+ * always allowing the cook to peek at either mode freely.
  */
 export function SessionCard({
   ops,
@@ -68,6 +70,8 @@ export function SessionCard({
   caterer,
   selection,
   route,
+  mode: controlledMode,
+  onModeChange,
 }: {
   ops: SellerOperationsState;
   session: KitchenSession;
@@ -81,12 +85,24 @@ export function SessionCard({
   selection?: Selection;
   /** The order's expanded list and next WhatsApp part, owned by the screen like `ticks` and `selection`. */
   route?: RouteView;
+  /** Controlled Masak | Antar mode from TodayScreen; falls back to stage-driven internal mode when omitted. */
+  mode?: TodayMode;
+  onModeChange?: (mode: TodayMode) => void;
 }) {
   const { t, actor } = useMobile();
   const c = useColors();
   const { recap, stops } = session;
   const departed = !cookingListShown(session);
   const onTheRoad = session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0;
+  const [ownMode, setOwnMode] = useState<TodayMode | null>(null);
+  const autoMode: TodayMode = onTheRoad || selection?.active ? "deliver" : "cook";
+  const activeMode: TodayMode = selection?.active ? "deliver" : (controlledMode ?? ownMode ?? autoMode);
+  const setMode = (next: TodayMode) => {
+    if (onModeChange) onModeChange(next);
+    else setOwnMode(next);
+  };
+
+  const arrivedCount = session.counts.arrived + session.counts.delivered;
   const missing = unfilledByPackage(recap.unfilled);
   // The shared and printed recap is written in Indonesian, like the rest of its text.
   const missingForSharing = missing.map((m) => `Menu belum diisi · ${m.packageName}: ${m.summary}`);
@@ -95,7 +111,17 @@ export function SessionCard({
   // One order per meal: its expanded list and WhatsApp part belong to the day and meal they were opened on (the screen keeps
   // them by `${date}:${meal}`, so a stage change does not reset them).
   const order = (
-    <DeliveryOrder key={`order-${meal}`} ops={ops} stops={stops} meal={meal} date={date} report={report} caterer={caterer} selection={selection} view={route} />
+    <DeliveryOrder
+      key={`order-${meal}`}
+      ops={ops}
+      stops={stops}
+      meal={meal}
+      date={date}
+      report={report}
+      caterer={caterer}
+      selection={selection}
+      view={route}
+    />
   );
   const cooking = (
     <Fragment key="cooking">
@@ -117,81 +143,95 @@ export function SessionCard({
             </View>
           </View>
         </ListCard>
-      ) : (
-        <>
-          <CookingList
-            session={session}
-            ticks={ticks}
-            actions={
-              <ActionPair>
-                <BelanjaLink />
-                <IconAction
-                  icon="share-outline"
-                  flush
-                  label={t("Bagikan", "Share")}
-                  onPress={() => void Share.share({ message: [caterer, recapLines(recap, sharedTitle, missingForSharing)].join("\n") })}
-                />
-                <IconAction
-                  icon="print-outline"
-                  label={t("Cetak", "Print")}
-                  flush
-                  onPress={() =>
-                    void Print.printAsync({
-                      html: `<h2>${caterer} · ${sharedTitle}: ${recap.total} porsi</h2><ul>${recap.byDish
-                        .map((d) => `<li>${d.count} × ${d.name}</li>`)
-                        .join("")}</ul>${missingForSharing.map((l) => `<p>${l}</p>`).join("")}`,
-                    })
-                  }
-                />
-              </ActionPair>
-            }
-            after={
-              missing.length ? (
-                <View style={{ gap: 4 }}>
-                  {missing.map((m) => (
-                    <View key={m.packageId} style={{ alignItems: "flex-start" }}>
-                      {/* A to-do status, not an error: bold charcoal, never a bare danger caption (spec 5.2). */}
-                      <Text variant="bodyStrong">
-                        {`${t("Menu belum diisi", "Menu not filled in")} · ${m.packageName}: ${m.summary}`}
-                      </Text>
-                      {actor?.role === "owner" ? (
-                        <TextAction
-                          label={t("Isi menu", "Fill in menu")}
-                          accessibilityLabel={`${t("Isi menu", "Fill in menu")} ${m.packageName}`}
-                          flush="start"
-                          onPress={() => pushScreen(`/menu/${date}?pkg=${m.packageId}&meal=${meal}`)}
-                        />
-                      ) : null}
-                    </View>
-                  ))}
+      ) : null}
+      <CookingList
+        session={session}
+        ticks={ticks}
+        actions={
+          <ActionPair>
+            <BelanjaLink />
+            <IconAction
+              icon="share-outline"
+              flush
+              label={t("Bagikan", "Share")}
+              onPress={() => void Share.share({ message: [caterer, recapLines(recap, sharedTitle, missingForSharing)].join("\n") })}
+            />
+            <IconAction
+              icon="print-outline"
+              label={t("Cetak", "Print")}
+              flush
+              onPress={() =>
+                void Print.printAsync({
+                  html: `<h2>${caterer} · ${sharedTitle}: ${recap.total} porsi</h2><ul>${recap.byDish
+                    .map((d) => `<li>${d.count} × ${d.name}</li>`)
+                    .join("")}</ul>${missingForSharing.map((l) => `<p>${l}</p>`).join("")}`,
+                })
+              }
+            />
+          </ActionPair>
+        }
+        after={
+          missing.length ? (
+            <View style={{ gap: 4 }}>
+              {missing.map((m) => (
+                <View key={m.packageId} style={{ alignItems: "flex-start" }}>
+                  {/* A to-do status, not an error: bold charcoal, never a bare danger caption (spec 5.2). */}
+                  <Text variant="bodyStrong">
+                    {`${t("Menu belum diisi", "Menu not filled in")} · ${m.packageName}: ${m.summary}`}
+                  </Text>
+                  {actor?.role === "owner" ? (
+                    <TextAction
+                      label={t("Isi menu", "Fill in menu")}
+                      accessibilityLabel={`${t("Isi menu", "Fill in menu")} ${m.packageName}`}
+                      flush="start"
+                      onPress={() => pushScreen(`/menu/${date}?pkg=${m.packageId}&meal=${meal}`)}
+                    />
+                  ) : null}
                 </View>
-              ) : null
-            }
-          />
-          {recap.byPackage.length ? (
-            <View testID="per-package">
-              <SectionHeader title={t("Per paket", "By package")} />
-              <ListCard inset={0}>
-                {recap.byPackage.map((p) => (
-                  <KeyValueRow
-                    key={p.packageId}
-                    testID={`per-package-${p.packageId}`}
-                    label={p.name}
-                    value={t(`${p.portions} porsi`, plural(p.portions, "portion"))}
-                  />
-                ))}
-              </ListCard>
+              ))}
             </View>
-          ) : null}
-        </>
-      )}
+          ) : null
+        }
+      />
+      {recap.byPackage.length ? (
+        <View testID="per-package">
+          <SectionHeader title={t("Per paket", "By package")} />
+          <ListCard inset={0}>
+            {recap.byPackage.map((p) => (
+              <KeyValueRow
+                key={p.packageId}
+                testID={`per-package-${p.packageId}`}
+                label={p.name}
+                value={t(`${p.portions} porsi`, plural(p.portions, "portion"))}
+              />
+            ))}
+          </ListCard>
+        </View>
+      ) : null}
     </Fragment>
   );
-  // Stops leave in subsets, so the session can hold several stages. Once any is out or past that, the order leads: it is the
-  // list the kitchen works from now. Both parts are keyed, so the order keeps its own state when it moves.
+
+  const cookLabel = t(`Masak · ${session.portions}`, `Cook · ${session.portions}`);
+  const deliverLabel =
+    arrivedCount > 0
+      ? t(`Antar · ${arrivedCount}/${stops.length}`, `Deliver · ${arrivedCount}/${stops.length}`)
+      : t(`Antar · ${stops.length}`, `Deliver · ${stops.length}`);
+
   return (
     <View testID="session-card" style={{ gap: SECTION_GAP }}>
-      {onTheRoad ? [order, cooking] : [cooking, order]}
+      {!selection?.active ? (
+        <View testID="today-mode-switch">
+          <Segmented<TodayMode>
+            value={activeMode}
+            onChange={setMode}
+            options={[
+              { value: "cook", label: cookLabel },
+              { value: "deliver", label: deliverLabel },
+            ]}
+          />
+        </View>
+      ) : null}
+      {activeMode === "cook" ? cooking : order}
     </View>
   );
 }

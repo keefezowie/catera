@@ -150,6 +150,9 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
     line: "#E7E7E4",
     muted: "#555B54",
     controlRing: "#858D80",
+    // Raised from #CFD3C6 / #CDD4C4 (~1.5:1) to match controlRing: 3.43:1 on white, 3.12:1 on inputFill/fill.
+    fieldBorder: "#858D80",
+    secondaryBorder: "#858D80",
     // Grey is kept for small fills only: chips, fields, the segmented track, skeletons (`sage` is the same step).
     fill: "#F4F4F2",
     // Text field and search field ground. Dark keeps the card tone it always had.

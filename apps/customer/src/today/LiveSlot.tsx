@@ -23,12 +23,15 @@ export function LiveSlot({
   actions,
   offline,
   now,
+  elevated = false,
 }: {
   state: CustomerState;
   /** The action read; null while it failed, never loaded, or the screen shows the saved copy. */
   actions: CustomerActionItem[] | null;
   offline: boolean;
   now: Date;
+  /** True when hoisted above Beranda's hero plate as an urgent attention strip. */
+  elevated?: boolean;
 }) {
   const { t } = useMobile();
   const c = useColors();
@@ -39,13 +42,13 @@ export function LiveSlot({
   const row = rows[0];
   if (!row) return null;
   const rest = rows.length - 1;
-  const more = rest ? t(`${rest} hal lainnya`, `${rest} more`) : "";
+  const more = rest ? t(`${rest} lainnya`, `${rest} more`) : "";
   const openList = () => router.push("/perlu-diurus" as never);
 
   const label = [row.title, row.detail, row.action, more].filter(Boolean).join(", ");
 
   return (
-    <View testID="live-slot" style={styles.card}>
+    <View testID="live-slot" style={[styles.card, elevated && styles.elevated]}>
       {/* The row's press is the item's own action; the link to the full list is its own element below it, so a touch
           near the link can never start a renewal or open the menu picker. */}
       <PressableRow
@@ -96,6 +99,13 @@ const useStyles = themedStyles((c) => ({
     borderCurve: "continuous",
     paddingHorizontal: nativeLayout.cardPadding - cardEdgeWidth(c),
     ...cardEdge(c),
+  },
+  // Elevated above the hero plate: warm attention tint with zero extra top gap.
+  elevated: {
+    marginTop: 0,
+    backgroundColor: c.cream,
+    borderWidth: 1,
+    borderColor: c.attentionBorder,
   },
   row: {
     minHeight: nativeLayout.row.media,

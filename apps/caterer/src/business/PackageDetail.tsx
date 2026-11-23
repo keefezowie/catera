@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { View } from "react-native";
-import { currency, nutritionSummary, packageNutrition, WEEK_HEADER, type Locale, type SellerOffer } from "@catera/domain";
+import { router } from "expo-router";
+import { currency, errorLabel, nutritionSummary, packageNutrition, WEEK_HEADER, type Locale, type SellerOffer } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { plural, useMobile } from "@catera/mobile-core";
-import { Button, KeyValueRow, ListCard, Screen, Text } from "@catera/mobile-ui";
+import { Button, FormError, KeyValueRow, ListCard, Screen, Text, useBusy, useConfirm, useToast } from "@catera/mobile-ui";
 import { photoUri } from "../photo";
 import { PackagePhoto } from "./PackagePhoto";
 import { kitchenLive } from "./kitchen";
@@ -34,22 +36,63 @@ export function weekdayLabel(weekdays: number[], locale: Locale): string {
 }
 
 /**
- * A package customers can already buy keeps its terms fixed, so it is shown read-only.
- * Changes go into a new package copied from this one.
- *
- * The name is the screen's title. Under it: the photo at 16:10 (when the package has one), the description, the facts as
- * 40 key-value rows in one card, then what is in a portion and its nutrition as lines under the card (sentences that can
- * run long, so they never share a row with a label), and the copy action.
+ * A package customers can already buy keeps its commercial terms fixed, so it is shown read-only with lifecycle
+ * controls: pause ("Jeda paket"), archive once paused & finished ("Arsipkan paket"), or copy into a new package.
  */
 export function PackageDetail({ offer, kitchenStatus }: { offer: SellerOffer; kitchenStatus?: string }) {
-  const { runtime, t, locale } = useMobile();
+  const { runtime, actor, command, t, locale } = useMobile();
+  const confirm = useConfirm();
+  const toast = useToast();
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
   // A published package in a kitchen Catera has not approved is not on sale yet: say so rather than let it pass as live.
   const hidden = kitchenStatus !== undefined && offer.status === "published" && !kitchenLive(kitchenStatus);
+  const suspended = offer.status === "suspended";
+  const published = offer.status === "published";
   const groups = offer.menus[0]?.composition ?? [];
   const capacity = offer.weekdays.length ? offer.capacity[String(offer.weekdays[0])] : undefined;
   // The caterer's own estimates as customers see them; nothing when none were entered (a zero is shown).
   const gizi = nutritionSummary(packageNutrition(offer), locale);
   const portion = groups.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ");
+
+  const [busy, runLifecycle] = useBusy(async (action: "package.suspend" | "package.archive") => {
+    const isArchive = action === "package.archive";
+    const go = await confirm({
+      title: isArchive ? t("Arsipkan paket ini?", "Archive this package?") : t("Jeda paket ini?", "Pause this package?"),
+      message: isArchive
+        ? t(
+            "Paket ini akan dipindahkan ke arsip setelah semua pengantaran selesai. Riwayat pesanan tetap tersimpan.",
+            "This package will be archived once all deliveries finish. Order history stays saved.",
+          )
+        : t(
+            "Pelanggan baru tidak bisa melihat atau memesan paket ini. Pengantaran yang sudah berjalan tetap lanjut.",
+            "New customers won't see or order this package. Existing deliveries keep running.",
+          ),
+      confirmLabel: isArchive ? t("Arsipkan", "Archive") : t("Jeda paket", "Pause package"),
+      cancelLabel: t("Batal", "Cancel"),
+      tone: isArchive ? "danger" : undefined,
+    });
+    if (!go) return;
+    setError("");
+    try {
+      await command(action, { catererId: actor?.catererId ?? "", packageId: offer.id });
+      toast.show({
+        message: isArchive ? t("Paket diarsipkan", "Package archived") : t("Paket dijeda", "Package paused"),
+        tone: "success",
+      });
+      if (isArchive) router.back();
+    } catch (e) {
+      const code = (e as { code?: string }).code || (e as Error).message;
+      setAttempt((n) => n + 1);
+      setError(
+        errorLabel(code, locale) ||
+          (isArchive
+            ? t("Paket belum bisa diarsipkan. Pastikan semua pengantaran sudah selesai.", "Couldn't archive yet. Make sure all deliveries are finished.")
+            : t("Paket belum bisa dijeda. Coba lagi.", "Couldn't pause the package. Try again.")),
+      );
+    }
+  });
+
   return (
     <Screen nativeTitle={offer.name}>
       <View testID="paket-detail" style={{ gap: nativeLayout.dense.sectionGap }}>
@@ -60,6 +103,7 @@ export function PackageDetail({ offer, kitchenStatus }: { offer: SellerOffer; ki
         <View style={{ gap: nativeLayout.groupGap }}>
           <ListCard inset={0}>
             {hidden ? <KeyValueRow testID="paket-fact-status" label={t("Status", "Status")} value={t("Belum tampil", "Not shown yet")} /> : null}
+            {suspended ? <KeyValueRow testID="paket-fact-status" label={t("Status", "Status")} value={t("Dijeda", "Paused")} /> : null}
             <KeyValueRow
               testID="paket-fact-harga"
               label={t("Harga", "Price")}
@@ -83,6 +127,14 @@ export function PackageDetail({ offer, kitchenStatus }: { offer: SellerOffer; ki
               )}
             </Text>
           ) : null}
+          {suspended ? (
+            <Text variant="meta">
+              {t(
+                "Paket ini sedang dijeda. Pembeli baru tidak bisa melihatnya, sementara pengantaran yang sudah berjalan tetap lanjut.",
+                "This package is paused. New buyers can't see it while existing deliveries continue.",
+              )}
+            </Text>
+          ) : null}
           {portion ? <Text variant="meta">{portion}</Text> : null}
           {gizi ? (
             <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
@@ -97,7 +149,18 @@ export function PackageDetail({ offer, kitchenStatus }: { offer: SellerOffer; ki
               "Published packages are locked so customers get exactly what they bought. To change the price, contents or capacity, copy it into a new package.",
             )}
           </Text>
-          <Button variant="secondary" label={t("Salin jadi paket baru", "Copy into a new package")} onPress={() => pushScreen(`/paket/baru?from=${offer.id}`)} />
+          {error ? <FormError message={error} failureKey={attempt} testID="paket-lifecycle-error" /> : null}
+          <Button variant="secondary" label={t("Salin jadi paket baru", "Copy into a new package")} disabled={busy} onPress={() => pushScreen(`/paket/baru?from=${offer.id}`)} />
+          {published ? (
+            <View testID="package-suspend">
+              <Button variant="text" label={t("Jeda paket", "Pause package")} busy={busy} onPress={() => void runLifecycle("package.suspend")} />
+            </View>
+          ) : null}
+          {suspended ? (
+            <View testID="package-archive">
+              <Button variant="danger" label={t("Arsipkan paket", "Archive package")} busy={busy} onPress={() => void runLifecycle("package.archive")} />
+            </View>
+          ) : null}
         </View>
       </View>
     </Screen>

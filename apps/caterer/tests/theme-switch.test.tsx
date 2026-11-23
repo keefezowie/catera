@@ -1,4 +1,4 @@
-import { act, screen, within } from "@testing-library/react-native";
+import { act, fireEvent, screen, within } from "@testing-library/react-native";
 import { render } from "./render-dapur";
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
@@ -76,12 +76,11 @@ it("re-themes Urutan antar and Per paket when the system turns dark while Hari i
     </ThemeProvider>
   );
   const view = await render(ui());
-  await screen.findByTestId("stop-1-title");
   const perPackage = () => within(screen.getByTestId("per-package"));
   const packageRow = () => perPackage().getAllByTestId(/^per-package-/)[0];
+  await screen.findByTestId("per-package");
 
-  // Mounted in light: the light inks and the light card edge.
-  expect(flat(screen.getByTestId("stop-1-title")).color).toBe(nativeThemes.light.charcoal);
+  // Mounted in light (Masak mode): light inks and 1px card edges.
   for (const card of screen.getAllByTestId("list-card")) expect(flat(card)).toMatchObject({ borderWidth: 1 });
 
   scheme = "dark";
@@ -90,28 +89,28 @@ it("re-themes Urutan antar and Per paket when the system turns dark while Hari i
 
   const light = nativeThemes.light;
   const dark = nativeThemes.dark;
-  // Urutan antar: the title in charcoal, the meta line in muted, the number in charcoal, all dark.
-  expect(flat(screen.getByTestId("stop-1-title")).color).toBe(dark.charcoal);
-  expect(flat(screen.getByTestId("stop-1-meta")).color).toBe(dark.muted);
-  expect(flat(within(screen.getByTestId("stop-1-badge")).getByText("1")).color).toBe(dark.charcoal);
-  // Per paket: the label in muted, the value in charcoal, both dark.
+  // Per paket (Masak mode): label in muted, value in charcoal, clipped card has explicit borderWidth: 0.
   const [label, value] = within(packageRow()).getAllByText(/./);
   expect(flat(label).color).toBe(dark.muted);
   expect(flat(value).color).toBe(dark.charcoal);
   expect(dark.charcoal).not.toBe(light.charcoal);
-  // Both clipped cards: the dark fill and an explicit zero border, never a border key that just disappears.
-  const cards = [
-    within(screen.getByTestId("delivery-order")).getByTestId("list-card"),
-    perPackage().getByTestId("list-card"),
-  ];
-  for (const card of cards) {
-    const style = flat(card);
-    expect(style.backgroundColor).toBe(dark.surface);
-    expect(style.overflow).toBe("hidden");
-    expect(style).toHaveProperty("borderWidth", 0);
-  }
+  const pkgCardStyle = flat(perPackage().getByTestId("list-card"));
+  expect(pkgCardStyle.backgroundColor).toBe(dark.surface);
+  expect(pkgCardStyle.overflow).toBe("hidden");
+  expect(pkgCardStyle).toHaveProperty("borderWidth", 0);
 
-  // And back: light restores the 1px edge.
+  // Switch to Antar mode in dark: Urutan antar inks and clipped card read dark tokens.
+  await fireEvent.press(within(screen.getByTestId("today-mode-switch")).getByText(/^Antar/));
+  await screen.findByTestId("stop-1-title");
+  expect(flat(screen.getByTestId("stop-1-title")).color).toBe(dark.charcoal);
+  expect(flat(screen.getByTestId("stop-1-meta")).color).toBe(dark.muted);
+  expect(flat(within(screen.getByTestId("stop-1-badge")).getByText("1")).color).toBe(dark.charcoal);
+  const orderCardStyle = flat(within(screen.getByTestId("delivery-order")).getByTestId("list-card"));
+  expect(orderCardStyle.backgroundColor).toBe(dark.surface);
+  expect(orderCardStyle.overflow).toBe("hidden");
+  expect(orderCardStyle).toHaveProperty("borderWidth", 0);
+
+  // And back: light restores the 1px edge and light charcoal on Urutan antar.
   scheme = "light";
   await view.rerender(ui());
   await act(async () => {});

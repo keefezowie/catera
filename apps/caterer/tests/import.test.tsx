@@ -1118,4 +1118,28 @@ describe("photo previews", () => {
       reanimated.useReducedMotion.mockReturnValue(false);
     }
   });
+
+  it("shows the 3-step guide and Lengkapi berurutan when multiple rows need review", async () => {
+    await renderImpor({
+      ok: true,
+      json: async () => ({
+        data: {
+          rows: [
+            { ...row(1), phone: "", needsReview: true, reason: "Nomor HP belum ada" },
+            { ...row(2), phone: "", needsReview: true, reason: "Nomor HP belum ada" },
+          ],
+          needsReview: 2,
+        },
+      }),
+    });
+    const steps = await screen.findByTestId("import-steps");
+    expect(within(steps).getByText(/1\. Kirim catatan/)).toBeTruthy();
+    expect(within(steps).getByText(/2\. Cek data/)).toBeTruthy();
+    expect(within(steps).getByText(/3\. Simpan/)).toBeTruthy();
+    await fireEvent.changeText(screen.getByLabelText("Tempel atau ketik daftar pelanggan"), "Bu Ani, Pak Budi");
+    await fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    const queue = await screen.findByTestId("import-complete-queue");
+    expect(within(queue).getByRole("button", { name: "Lengkapi berurutan" })).toBeTruthy();
+  });
 });
+

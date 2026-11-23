@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import type { SellerOperationsState } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { canvasDay } from "./fixtures";
@@ -217,6 +217,7 @@ it("a stored kitchen paints its cached day first with mutating actions hidden", 
   expect(screen.queryByText(/Ini data terakhir/)).toBeNull();
   await act(async () => fresh.resolve(today()));
   expect(await screen.findByRole("button", { name: "Mulai masak" })).toBeTruthy();
+  await fireEvent.press(within(screen.getByTestId("today-mode-switch")).getByText(/^Antar/));
   expect(screen.queryAllByLabelText(/^(Laporkan masalah|Pindah tanggal)/).length).toBeGreaterThan(0);
   expect(screen.queryByText("Memperbarui…")).toBeNull();
 });

@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react-native";
 import type { RefreshControlProps } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { NavigationContext } from "expo-router/react-navigation";
@@ -106,9 +106,13 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+const openDeliver = async () =>
+  fireEvent.press(within(await screen.findByTestId("today-mode-switch")).getByText(/^Antar/));
+
 describe("Hari ini draws only what changed", () => {
   it("a state change on the screen works out no session again and draws no day cell again", async () => {
     await renderToday(runtimeWith(async () => dayIn("preparing")));
+    await openDeliver();
     await screen.findByText("Pilih");
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
@@ -125,6 +129,7 @@ describe("Hari ini draws only what changed", () => {
 
   it("a tick draws only its own stop, and each tick keeps the ones before it", async () => {
     await renderToday(runtimeWith(async () => dayIn("preparing")));
+    await openDeliver();
     fireEvent.press(await screen.findByText("Pilih"));
     await screen.findByText("Pilih pengantaran");
     mockRenders.stops = [];
@@ -143,6 +148,7 @@ describe("Hari ini draws only what changed", () => {
     let status: "scheduled" | "preparing" = "scheduled";
     await renderToday(runtimeWith(async () => dayIn(status)));
     await screen.findByText("Mulai masak");
+    await openDeliver();
     expect(screen.queryByTestId("stop-1-status")).toBeNull();
 
     status = "preparing";
@@ -157,6 +163,7 @@ describe("the day's copy on the phone", () => {
   it("a write that has not finished does not hold the day back", async () => {
     (saveCachedDay as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     await renderToday(runtimeWith(async () => dayIn("scheduled")));
+    await openDeliver();
     expect(await screen.findByTestId("stop-1")).toBeTruthy();
     expect(saveCachedDay).toHaveBeenCalled();
   });

@@ -122,15 +122,16 @@ const mid: Stages = [
 ];
 
 describe("SessionCard with stops on the road", () => {
-  it("puts the delivery order above the cooking list once stops have left", async () => {
+  it("opens on Antar mode once stops have left and lets the cook switch to Masak", async () => {
     await render(card(mid));
     const o = order();
     expect(o.indexOf("delivery-order")).toBeGreaterThanOrEqual(0);
-    expect(o.indexOf("cooking-list")).toBeGreaterThanOrEqual(0);
-    expect(o.indexOf("delivery-order")).toBeLessThan(o.indexOf("cooking-list"));
+    expect(o.indexOf("cooking-list")).toBe(-1);
     expect(
       screen.getByTestId("stop-1-info").props.accessibilityLabel,
     ).toContain("Sampai 10.21");
+    await fireEvent.press(within(screen.getByTestId("today-mode-switch")).getByText(/^Masak/));
+    expect(screen.getByTestId("cooking-list")).toBeTruthy();
   });
 
   it("draws a pill under each stop that has a status, and none for a scheduled one", async () => {
@@ -198,7 +199,7 @@ describe("SessionCard with stops on the road", () => {
 });
 
 describe("SessionCard before anything leaves", () => {
-  it("keeps the cooking list first and draws no Diantar", async () => {
+  it("opens on Masak mode and draws no Diantar when switching to Antar", async () => {
     await render(
       card([
         ["scheduled", null],
@@ -207,13 +208,15 @@ describe("SessionCard before anything leaves", () => {
         ["scheduled", null],
       ]),
     );
-    const o = order();
-    expect(o.indexOf("cooking-list")).toBeLessThan(o.indexOf("delivery-order"));
+    expect(screen.getByTestId("cooking-list")).toBeTruthy();
+    expect(screen.queryByTestId("delivery-order")).toBeNull();
+    await fireEvent.press(within(screen.getByTestId("today-mode-switch")).getByText(/^Antar/));
+    expect(screen.getByTestId("delivery-order")).toBeTruthy();
     expect(screen.queryByText("Diantar")).toBeNull();
     expect(screen.queryByText("Dimasak")).toBeNull();
   });
 
-  it("keeps the cooking list first while stops are only cooking", async () => {
+  it("opens on Masak mode while stops are only cooking and shows Dimasak in Antar mode", async () => {
     await render(
       card([
         ["preparing", null],
@@ -222,8 +225,8 @@ describe("SessionCard before anything leaves", () => {
         ["preparing", null],
       ]),
     );
-    const o = order();
-    expect(o.indexOf("cooking-list")).toBeLessThan(o.indexOf("delivery-order"));
+    expect(screen.getByTestId("cooking-list")).toBeTruthy();
+    await fireEvent.press(within(screen.getByTestId("today-mode-switch")).getByText(/^Antar/));
     expect(
       within(screen.getByTestId("stop-1")).getByText("Dimasak"),
     ).toBeTruthy();

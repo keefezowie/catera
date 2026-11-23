@@ -292,17 +292,63 @@ export function CustomerList() {
                             ))}
                           </ScrollView>
                         </View>
-                        {filter === "ending" && endingList.length ? (
-                          <View testID="pelanggan-renewal-note" style={{ gap: 2 }}>
-                            <Text variant="bodyStrong">
-                              {t(
-                                `${endingList.length} paket berakhir ${endingWhen(endingList.map((c) => currentSubscription(c)?.ends_on ?? today), today, t)}`,
-                                `${endingList.length} ${endingList.length === 1 ? "package ends" : "packages end"} ${endingWhen(endingList.map((c) => currentSubscription(c)?.ends_on ?? today), today, t)}`,
-                              )}
-                            </Text>
-                            <Text variant="meta">{t("Kirim tautan perpanjang lewat WhatsApp.", "Send the renewal link on WhatsApp.")}</Text>
-                          </View>
-                        ) : null}
+                        {filter === "ending" && endingList.length ? (() => {
+                          const sendable = endingList.filter((c) => c.phone && currentSubscription(c)?.status === "active");
+                          const remaining = sendable.filter((c) => !sent[c.id]);
+                          const nextTarget = remaining[0];
+                          const sentCount = sendable.length - remaining.length;
+                          return (
+                            <View testID="pelanggan-renewal-note" style={{ gap: 6 }}>
+                              <View style={{ gap: 2 }}>
+                                <Text variant="bodyStrong">
+                                  {t(
+                                    `${endingList.length} paket berakhir ${endingWhen(endingList.map((c) => currentSubscription(c)?.ends_on ?? today), today, t)}`,
+                                    `${endingList.length} ${endingList.length === 1 ? "package ends" : "packages end"} ${endingWhen(endingList.map((c) => currentSubscription(c)?.ends_on ?? today), today, t)}`,
+                                  )}
+                                </Text>
+                                <Text variant="meta">
+                                  {sentCount > 0 && remaining.length > 0
+                                    ? t(
+                                        `${sentCount} dari ${sendable.length} tautan sudah dikirim lewat WhatsApp.`,
+                                        `${sentCount} of ${sendable.length} links sent on WhatsApp.`,
+                                      )
+                                    : sentCount > 0 && remaining.length === 0
+                                      ? t("Semua tautan perpanjang sudah dikirim.", "All renewal links have been sent.")
+                                      : t("Kirim tautan perpanjang lewat WhatsApp.", "Send the renewal link on WhatsApp.")}
+                                </Text>
+                              </View>
+                              {nextTarget && sendable.length > 1 ? (
+                                <PressableScale
+                                  testID="pelanggan-send-next"
+                                  accessibilityRole="button"
+                                  accessibilityState={{ disabled: payments === null || sending, busy: sending && which === nextTarget.id }}
+                                  disabled={payments === null || sending}
+                                  haptic="tap"
+                                  onPress={() => void send(nextTarget)}
+                                  style={{
+                                    alignSelf: "flex-start",
+                                    minHeight: 40,
+                                    paddingHorizontal: 14,
+                                    paddingVertical: 8,
+                                    borderRadius: 999,
+                                    borderCurve: "continuous",
+                                    backgroundColor: palette.sage,
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    opacity: payments === null ? 0.45 : 1,
+                                  }}
+                                >
+                                  <Ionicons name="paper-plane-outline" size={16} color={palette.forest} />
+                                  {/* forest: action */}
+                                  <Text variant="bodyStrong" style={{ color: palette.forest }}>
+                                    {t(`Kirim ke berikutnya (${nextTarget.name})`, `Send next (${nextTarget.name})`)}
+                                  </Text>
+                                </PressableScale>
+                              ) : null}
+                            </View>
+                          );
+                        })() : null}
                         {!shown.length ? (
                           <Text variant="caption">
                             {query.trim() ? t("Tidak ada pelanggan yang cocok.", "No customers match.") : t("Belum ada pelanggan di sini.", "No customers here yet.")}

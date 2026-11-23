@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Delivery, SellerState } from "./index";
 
 export type SellerDelivery = Delivery & {
-  customer: { id: string; name: string; recordId?: string };
+  customer: { id: string; name: string; recordId?: string; phone?: string | null };
   /** The caterer's customer record behind this day (staff reads only); customer.deliveryChange needs one. */
   customerRecordId?: string | null;
 };

@@ -904,4 +904,27 @@ describe("Pelanggan on the Dapur scale", () => {
       expect(await screen.findByText("Pelanggan ini tidak ditemukan.")).toBeTruthy();
     });
   });
+
+  describe("UX polish: sequential WhatsApp renewal queue", () => {
+    it("offers Kirim ke berikutnya when 2+ ending customers are unsent and advances after each send", async () => {
+      const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined as never);
+      try {
+        const c1 = customer("c-1", "Bu Ani", [sub(2)], { phone: "+6281200001111" });
+        const c2 = customer("c-2", "Pak Budi", [sub(1)], { phone: "+6281200002222" });
+        const rt = runtimeWith("approved", true, [c1, c2]);
+        (rt.api.command as jest.Mock).mockResolvedValue({ path: "/perpanjang/tok-1" });
+        await dapur(rt, <CustomerList />);
+        const nextBtn = await screen.findByTestId("pelanggan-send-next");
+        expect(within(nextBtn).getByText("Kirim ke berikutnya (Bu Ani)")).toBeTruthy();
+        await fireEvent.press(nextBtn);
+        await waitFor(() =>
+          expect(within(screen.getByTestId("pelanggan-send-next")).getByText("Kirim ke berikutnya (Pak Budi)")).toBeTruthy(),
+        );
+        expect(screen.getByText("1 dari 2 tautan sudah dikirim lewat WhatsApp.")).toBeTruthy();
+      } finally {
+        openUrl.mockRestore();
+      }
+    });
+  });
 });
+

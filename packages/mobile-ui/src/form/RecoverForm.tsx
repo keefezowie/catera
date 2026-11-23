@@ -63,7 +63,7 @@ export function RecoverForm({
   const failed = action.message ? (
     <FormError message={action.message} failureKey={action.failures} testID="identity-error" retry={action.retryable ? () => void send() : undefined} />
   ) : null;
-  const back = <Button variant="text" label={t("Kembali ke Masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={onBack} />;
+  const back = <Button variant="text" label={t("Kembali ke halaman masuk", "Back to sign in")} style={{ alignSelf: "flex-start" }} onPress={onBack} />;
 
   return (
     <AuthScreen revealKey={action.failures}>

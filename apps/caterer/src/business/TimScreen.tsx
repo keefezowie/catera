@@ -1,8 +1,20 @@
 import { useState } from "react";
 import { Share, View } from "react-native";
-import { useMobile } from "@catera/mobile-core";
+import { nativeLayout } from "@catera/design-tokens";
+import { useData, useMobile } from "@catera/mobile-core";
 import { useFormRun } from "../useFormRun";
-import { Button, Card, FormError, SheetFitBody, SheetHeader, sheetSidePadding, Text, useToast } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  FormError,
+  ListCard,
+  SheetFitBody,
+  SheetHeader,
+  sheetSidePadding,
+  Text,
+  TwoLineRow,
+  useToast,
+} from "@catera/mobile-ui";
 
 /**
  * Whether the share sheet's answer proves the invite went out. iOS answers `sharedAction` only for a real share and
@@ -12,13 +24,15 @@ import { Button, Card, FormError, SheetFitBody, SheetHeader, sheetSidePadding, T
 export const inviteShared = (action: string, os = process.env.EXPO_OS) => os === "ios" && action === Share.sharedAction;
 
 /**
- * Tim, a sheet over Usaha sized to its content: invite kitchen staff who see Hari ini and Menu, never money or customers.
- * "Bagikan undangan" makes a new invite code (one code per person) and opens the share sheet with it; the code stays
- * on the sheet. "Undangan dibagikan" says it went out only where the platform can tell (`inviteShared`).
+ * Tim, a sheet over Usaha sized to its content: shows current kitchen team members and invites kitchen staff who see
+ * Hari ini (including today's delivery contact) and Menu, never money or customer history.
  */
 export function TimScreen() {
-  const { actor, t, locale, command } = useMobile();
+  const { runtime, actor, t, locale, command } = useMobile();
   const toast = useToast();
+  const catererId = actor?.catererId ?? "";
+  const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
+  const staff = ops.data?.staff ?? [];
   const [code, setCode] = useState("");
   const { busy, failure, run } = useFormRun(
     locale,
@@ -51,10 +65,26 @@ export function TimScreen() {
       <View testID="tim-content" style={{ paddingHorizontal: inset, gap: 16 }}>
         <Text>
           {t(
-            "Staf dapur bisa melihat daftar masak, rute antar dan menu. Uang dan data pelanggan tetap hanya untuk kamu.",
-            "Kitchen staff see the cooking list, delivery route and menu. Money and customer details stay with you.",
+            "Staf dapur bisa melihat daftar masak, rute antar hari ini dan menu. Uang dan daftar pelanggan tetap hanya untuk kamu.",
+            "Kitchen staff see the cooking list, today's delivery route and menu. Money and customer lists stay with you.",
           )}
         </Text>
+        {staff.length ? (
+          <View testID="tim-members" style={{ gap: nativeLayout.space.sm }}>
+            <Text variant="heading" accessibilityRole="header">
+              {t(`Anggota tim (${staff.length})`, `Team members (${staff.length})`)}
+            </Text>
+            <ListCard inset={0}>
+              {staff.map((m) => (
+                <TwoLineRow
+                  key={m.user_id}
+                  title={m.name}
+                  meta={m.role === "owner" ? t("Pemilik", "Owner") : t("Staf dapur", "Kitchen staff")}
+                />
+              ))}
+            </ListCard>
+          </View>
+        ) : null}
         {code ? (
           <Card testID="tim-code" tone="sage" style={{ gap: 4 }}>
             <Text variant="meta">{t("Kode undangan", "Invite code")}</Text>
